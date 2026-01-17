@@ -35,151 +35,154 @@ model User {
   email     String   @unique
   password  String
   role      Role     @default(TENANT_ADMIN)
+
   tenantId  String?
   tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+
   createdAt DateTime @default(now())
 }
 
 model Tenant {
-  id       String   @id @default(cuid())
-  name     String
-  slug     String   @unique
-  domains  String[] @default([])
-  branding Json     @default("{}")
-  settings Json     @default("{}")
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  domains   String[] @default([])
+  branding  Json     @default("{}")
+  settings  Json     @default("{}")
 
-  stores         Store[]
-  categories     Category[]
-  products       Product[]
+  users     User[]                 // ✅ inverso de User.tenant
+  stores    Store[]
+  categories Category[]
+  products  Product[]
   modifierGroups ModifierGroup[]
-  orders         Order[]
+  orders    Order[]
 
   createdAt DateTime @default(now())
-  users     User[]
 }
 
 model Store {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
-  name       String
-  address    String
-  city       String
+  name      String
+  address   String
+  city      String
   postalCode String
-  geoLat     Float?
-  geoLng     Float?
+  geoLat    Float?
+  geoLng    Float?
 
-  hours         Json @default("{}")
-  channels      Json @default("{}")
+  hours     Json     @default("{}")
+  channels  Json     @default("{}")
   deliveryZones Json @default("[]")
 
+  orders    Order[]               // ✅ inverso de Order.store
+
   createdAt DateTime @default(now())
-  orders    Order[]
 }
 
 model Category {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
-  name       String
-  slug       String
-  sortOrder  Int     @default(0)
+  name      String
+  slug      String
+  sortOrder Int      @default(0)
   isFeatured Boolean @default(false)
 
   products  Product[]
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([tenantId, slug])
 }
 
 model Product {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
 
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
 
-  name           String
-  slug           String
-  description    String
-  imageUrl       String?
-  basePriceCents Int     @default(0)
+  name        String
+  slug        String
+  description String
+  imageUrl    String?
+  basePriceCents Int  @default(0)
 
-  tags           String[]  @default([])
-  isActive       Boolean   @default(true)
+  tags        String[] @default([])
+  isActive    Boolean  @default(true)
   activeChannels Channel[] @default([DELIVERY, TAKEAWAY])
 
   productModifierGroups ProductModifierGroup[]
-  createdAt             DateTime               @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([tenantId, slug])
 }
 
 model ModifierGroup {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
 
-  name       String
-  code       String
+  name      String
+  code      String
   isRequired Boolean @default(false)
-  minSelect  Int     @default(0)
-  maxSelect  Int     @default(1)
+  minSelect Int @default(0)
+  maxSelect Int @default(1)
 
-  options               ModifierOption[]
-  createdAt             DateTime               @default(now())
-  productModifierGroups ProductModifierGroup[]
+  productModifierGroups ProductModifierGroup[] // ✅ inverso de ProductModifierGroup.group
+  options   ModifierOption[]
+  createdAt DateTime @default(now())
 }
 
 model ModifierOption {
-  id      String        @id @default(cuid())
-  groupId String
-  group   ModifierGroup @relation(fields: [groupId], references: [id])
+  id        String @id @default(cuid())
+  groupId   String
+  group     ModifierGroup @relation(fields: [groupId], references: [id])
 
-  name            String
-  priceDeltaCents Int    @default(0)
-  sortOrder       Int    @default(0)
+  name      String
+  priceDeltaCents Int @default(0)
+  sortOrder Int @default(0)
 }
 
 model ProductModifierGroup {
-  id        String  @id @default(cuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
+  id         String @id @default(cuid())
+  productId  String
+  product    Product @relation(fields: [productId], references: [id])
 
-  groupId String
-  group   ModifierGroup @relation(fields: [groupId], references: [id])
+  groupId    String
+  group      ModifierGroup @relation(fields: [groupId], references: [id])
 
-  sortOrder Int @default(0)
+  sortOrder  Int    @default(0)
 
   @@unique([productId, groupId])
 }
 
 model Order {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  id        String @id @default(cuid())
+  tenantId  String
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
 
-  storeId String
-  store   Store  @relation(fields: [storeId], references: [id])
+  storeId   String
+  store     Store  @relation(fields: [storeId], references: [id])
 
-  channel Channel
-  status  OrderStatus @default(CREATED)
+  channel   Channel
+  status    OrderStatus @default(CREATED)
 
-  customerName       String
-  customerPhone      String
-  customerAddress    String?
+  customerName String
+  customerPhone String
+  customerAddress String?
   customerPostalCode String?
-  notes              String?
+  notes      String?
 
-  currency      String @default("EUR")
-  subtotalCents Int    @default(0)
-  feesCents     Int    @default(0)
-  totalCents    Int    @default(0)
+  currency   String @default("EUR")
+  subtotalCents Int @default(0)
+  feesCents  Int @default(0)
+  totalCents Int @default(0)
 
-  posProvider   String?
+  posProvider String?
   posExternalId String?
 
   createdAt DateTime @default(now())
@@ -189,26 +192,26 @@ model Order {
 }
 
 model OrderItem {
-  id      String @id @default(cuid())
-  orderId String
-  order   Order  @relation(fields: [orderId], references: [id])
+  id        String @id @default(cuid())
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id])
 
-  productId   String
+  productId String
   productName String
-  quantity    Int    @default(1)
+  quantity  Int @default(1)
 
-  basePriceCents Int  @default(0)
-  modifiersJson  Json @default("[]")
-  lineTotalCents Int  @default(0)
+  basePriceCents Int @default(0)
+  modifiersJson Json @default("[]")
+  lineTotalCents Int @default(0)
 }
 
 model OutboxEvent {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   tenantId  String
   type      String
   payload   Json
-  status    String   @default("PENDING")
-  attempts  Int      @default(0)
+  status    String @default("PENDING")
+  attempts  Int @default(0)
   lastError String?
   nextRunAt DateTime @default(now())
   createdAt DateTime @default(now())
