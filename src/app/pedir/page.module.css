@@ -1,0 +1,43 @@
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.category {
+  margin-bottom: 28px;
+}
+
+.product {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.productRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.price {
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.button {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+  cursor: pointer;
+}
