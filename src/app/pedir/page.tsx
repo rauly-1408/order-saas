@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import MenuClient from "./menuclient";
+import MenuClient from "./MenuClient";
 
 type MenuProduct = {
   id: string;
