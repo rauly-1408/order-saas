@@ -44,7 +44,7 @@ export async function GET(
     });
 
     return NextResponse.json({ tenant, categories });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }
