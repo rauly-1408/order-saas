@@ -31,14 +31,17 @@ const euros = (cents: number) =>
   );
 
 export default function MenuClient({ tenantName, categories }: MenuClientProps) {
+  // ⚠️ IMPORTANTE: este MenuClient asume que:
+  // - CartItem tiene `id` (id de línea)
+  // - inc/dec reciben `id` (no productId)
   const { items, addItem, inc, dec, subtotalCents, clear } = useCart();
 
-  // ✅ Drawer state
+  // Drawer state
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<MenuProduct | null>(null);
 
   const count = useMemo(
-    () => items.reduce((acc, i) => acc + i.quantity, 0),
+    () => items.reduce((acc: number, it: (typeof items)[number]) => acc + it.quantity, 0),
     [items]
   );
 
@@ -79,7 +82,6 @@ export default function MenuClient({ tenantName, categories }: MenuClientProps) 
                     <div className="shrink-0 text-right">
                       <div className="font-semibold">{euros(p.basePriceCents)}</div>
 
-                      {/* ✅ Ahora abre el drawer */}
                       <button
                         className="mt-2 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-50"
                         onClick={() => {
@@ -144,14 +146,15 @@ export default function MenuClient({ tenantName, categories }: MenuClientProps) 
             <div className="mt-2 space-y-2">
               {items.slice(0, 3).map((i) => (
                 <div
-                  key={i.productId}
+                  key={i.id} // ✅ key por línea (producto + modificadores)
                   className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
                 >
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{i.name}</div>
                     <div className="text-xs text-zinc-600">
-                      {euros(i.basePriceCents)} · x{i.quantity}
+                      {euros(i.unitPriceCents)} · x{i.quantity}
                     </div>
+
                     {i.modifiers?.bread || i.modifiers?.side ? (
                       <div className="mt-1 text-[11px] text-zinc-500">
                         {i.modifiers?.bread ? `PAN: ${i.modifiers.bread}` : ""}
@@ -164,19 +167,20 @@ export default function MenuClient({ tenantName, categories }: MenuClientProps) 
                   <div className="flex items-center gap-2">
                     <button
                       className="h-8 w-8 rounded-md border border-zinc-300 text-sm font-semibold hover:bg-white"
-                      onClick={() => dec(i.productId)}
+                      onClick={() => dec(i.id)} // ✅ dec por línea
                     >
                       −
                     </button>
                     <button
                       className="h-8 w-8 rounded-md border border-zinc-300 text-sm font-semibold hover:bg-white"
-                      onClick={() => inc(i.productId)}
+                      onClick={() => inc(i.id)} // ✅ inc por línea
                     >
                       +
                     </button>
                   </div>
                 </div>
               ))}
+
               {items.length > 3 ? (
                 <div className="text-xs text-zinc-600">
                   +{items.length - 3} más…
@@ -187,20 +191,20 @@ export default function MenuClient({ tenantName, categories }: MenuClientProps) 
         ) : null}
       </div>
 
-      {/* ✅ Drawer de producto */}
+      {/* Drawer de producto */}
       <ProductDrawer
         open={open}
         product={selected}
         onClose={() => setOpen(false)}
-        onAdd={({ productId, name, basePriceCents, bread, side, sidePriceCents }) =>
+        onAdd={({ productId, name, basePriceCents, bread, side, sidePriceCents }) => {
           addItem({
             productId,
             name,
-            // total de línea base (producto + extra de guarnición)
-            basePriceCents: basePriceCents + sidePriceCents,
+            // ✅ precio FINAL por unidad (base + extra)
+            unitPriceCents: basePriceCents + sidePriceCents,
             modifiers: { bread, side, sidePriceCents },
-          })
-        }
+          });
+        }}
       />
     </div>
   );
