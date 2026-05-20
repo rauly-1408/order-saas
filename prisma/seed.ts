@@ -67,7 +67,7 @@ type SeedJson = {
 async function main() {
   console.log("🌱 Iniciando seed Estafeten...");
 
-  const filePath = path.join(process.cwd(), "src/data/seedMenu.estafeten.json");
+  const filePath = path.join(process.cwd(), "src/app/data/seedMenu.estafeten.json");
   if (!fs.existsSync(filePath)) {
     throw new Error(`No existe el archivo de seed en: ${filePath}`);
   }
