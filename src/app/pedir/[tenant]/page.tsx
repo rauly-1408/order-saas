@@ -2,50 +2,54 @@ import { headers } from "next/headers";
 import MenuClient from "./MenuClient";
 
 type MenuProduct = {
-    id: string;
-    name: string;
-    description: string;
-    basePriceCents: number;
+  id: string;
+  name: string;
+  description: string;
+  basePriceCents: number;
 };
 
 type MenuCategory = {
-    id: string;
-    name: string;
-    slug: string;
-    sortOrder: number;
-    isFeatured: boolean;
-    products: MenuProduct[];
+  id: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  isFeatured: boolean;
+  products: MenuProduct[];
 };
 
 type MenuResponse = {
-    tenant: { name: string; slug: string };
-    categories: MenuCategory[];
+  tenant: { name: string; slug: string };
+  categories: MenuCategory[];
 };
 
 async function getMenu(tenant: string): Promise<MenuResponse> {
-    const h = await headers();
-    const host = h.get("host");
-    const proto = process.env.NODE_ENV === "development" ? "http" : "https";
+  const h = await headers();
+  const host = h.get("host");
+  const proto = process.env.NODE_ENV === "development" ? "http" : "https";
 
-  if (!host) {
-        throw new Error("No se pudo determinar el host para cargar el menú");
-  }
+  if (!host) throw new Error("No se pudo determinar el host");
 
   const res = await fetch(`${proto}://${host}/api/menu/${tenant}`, {
-        cache: "no-store",
+    cache: "no-store",
   });
 
-  if (!res.ok) throw new Error("No se pudo cargar el menú");
-    return res.json();
+  if (!res.ok) throw new Error("No se pudo cargar el menu");
+  return res.json();
 }
 
 export default async function PedirPage({
-    params,
+  params,
 }: {
-    params: Promise<{ tenant: string }>;
+  params: Promise<{ tenant: string }>;
 }) {
-    const { tenant } = await params;
-    const data = await getMenu(tenant);
+  const { tenant } = await params;
+  const data = await getMenu(tenant);
 
-  return <MenuClient tenantName={data.tenant.name} categories={data.categories} />;
+  return (
+    <MenuClient
+      tenant={tenant}
+      tenantName={data.tenant.name}
+      categories={data.categories}
+    />
+  );
 }
