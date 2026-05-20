@@ -1,11 +1,15 @@
 import { headers } from "next/headers";
 import MenuClient from "./MenuClient";
+import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 
 type MenuProduct = {
   id: string;
   name: string;
   description: string;
   basePriceCents: number;
+  imageUrl?: string | null;
+  isFeatured?: boolean;
+  hasModifiers?: boolean;
 };
 
 type MenuCategory = {
@@ -14,11 +18,15 @@ type MenuCategory = {
   slug: string;
   sortOrder: number;
   isFeatured: boolean;
+  description?: string | null;
+  imageUrl?: string | null;
   products: MenuProduct[];
 };
 
 type MenuResponse = {
-  tenant: { name: string; slug: string };
+  tenant: { id: string; name: string; slug: string };
+  theme: TenantTheme;
+  settings: StoreSettings;
   categories: MenuCategory[];
 };
 
@@ -50,6 +58,8 @@ export default async function PedirPage({
       tenant={tenant}
       tenantName={data.tenant.name}
       categories={data.categories}
+      theme={data.theme}
+      settings={data.settings}
     />
   );
 }
