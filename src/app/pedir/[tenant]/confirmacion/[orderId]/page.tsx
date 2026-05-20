@@ -123,7 +123,7 @@ export default async function ConfirmacionPage({
               <div key={item.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
                 <span>
                   <span style={{ fontWeight: 700, color: cssVars["--brand-accent"], marginRight: "8px" }}>{item.quantity}x</span>
-                  {item.name}
+                  {item.productName}
                 </span>
                 <span style={{ fontWeight: 600 }}>{euros(item.basePriceCents * item.quantity)}</span>
               </div>
