@@ -96,7 +96,7 @@ async function main() {
   console.log(`✅ Tenant creado: ${tenant.name}`);
 
   // 2) Limpieza (para poder re-ejecutar sin choques)
-  await prisma.orderItem.deleteMany({ where: { order: { tenantId: tenant.id } } });
+  await prisma.orderLine.deleteMany({ where: { order: { tenantId: tenant.id } } });
   await prisma.order.deleteMany({ where: { tenantId: tenant.id } });
 
   await prisma.productModifierGroup.deleteMany({ where: { product: { tenantId: tenant.id } } });
