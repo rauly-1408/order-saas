@@ -1,36 +1,174 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🍔 order-saas
 
-## Getting Started
+> **SaaS de pedidos online para restaurantes** — La alternativa a Last.app con lo que Last.app no tiene.
 
-First, run the development server:
+[![Deploy](https://img.shields.io/badge/Vercel-deployed-brightgreen)](https://order-saas-delta.vercel.app)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
+[![Prisma](https://img.shields.io/badge/Prisma-6-blue)](https://prisma.io)
+[![DB](https://img.shields.io/badge/PostgreSQL-Neon-teal)](https://neon.tech)
+
+---
+
+## 🎯 Visión del producto
+
+order-saas es una plataforma multi-tenant que permite a cualquier restaurante tener:
+
+- **Menú online propio** accesible por QR o link
+- **Panel de gestión de pedidos en tiempo real** (lo que Last.app no tiene)
+- **CRM ligero** de clientes con historial y segmentación
+- **Dashboard inteligente** con comparativas y alertas
+- **Onboarding en 15 minutos** (vs horas en competidores)
+
+### ¿Por qué supera a Last.app?
+
+| Funcionalidad | Last.app | order-saas |
+|---|---|---|
+| Monitor de pedidos en tiempo real (KDS) | ❌ | ✅ |
+| Toggle "producto agotado" desde dashboard | ❌ (6 pasos) | ✅ (1 tap) |
+| Resumen semanal automático por WhatsApp | ❌ | ✅ |
+| Onboarding guiado en 15 min | ❌ | ✅ |
+| Editor de menú en una pantalla | ❌ (6 pantallas) | ✅ |
+| Pago online nativo | config manual | ✅ nativo |
+| Alertas de rendimiento inteligentes | ❌ | ✅ |
+| CRM con segmentación por comportamiento | ❌ | ✅ |
+
+---
+
+## 🏗️ Arquitectura
+
+```
+order-saas/
+├── prisma/
+│   ├── schema.prisma        # Multi-tenant: Tenant → Store → Product → Order
+│   └── seed.ts              # Datos de prueba (Estafetén)
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── menu/[tenant]/     # GET menú público
+│   │   │   └── orders/[tenant]/   # POST crear pedido (Sprint 1)
+│   │   ├── pedir/[tenant]/        # UI cliente (menú + carrito + checkout)
+│   │   └── admin/[tenant]/        # Panel dueño (Sprint 1)
+│   ├── store/
+│   │   └── cart.ts                # Zustand cart store
+│   └── lib/
+│       └── prisma.ts              # Prisma client singleton
+└── docs/
+    ├── ROADMAP.md                 # Visión completa del producto
+    ├── SPRINT-01.md               # Checkout + Panel pedidos + Notificaciones
+    ├── SPRINT-02.md               # Editor menú + WhatsApp digest
+    ├── SPRINT-03.md               # CRM + Dashboard inteligente
+    └── SPRINT-04.md               # KDS + Stripe + Onboarding
+```
+
+### Stack técnico
+
+- **Framework**: Next.js 16 (App Router, Server Components, Turbopack)
+- **Base de datos**: PostgreSQL via [Neon](https://neon.tech) (serverless)
+- **ORM**: Prisma 6
+- **UI**: Tailwind CSS (sin component library — 100% custom)
+- **State**: Zustand (carrito del cliente)
+- **Realtime**: Server-Sent Events (pedidos en tiempo real)
+- **Deploy**: Vercel (producción en order-saas-delta.vercel.app)
+
+### Modelo de datos (simplificado)
+
+```
+Tenant (restaurante)
+  └── Store (local físico)
+  └── Category[]
+       └── Product[]
+            └── ModifierGroup[]
+  └── Order[]
+       └── OrderLine[]
+```
+
+---
+
+## 🚀 Instalación local
+
+### Prerequisitos
+
+- Node.js 20+
+- Docker Desktop (para PostgreSQL local)
+
+### Setup
+
+```bash
+git clone https://github.com/rauly-1408/order-saas.git
+cd order-saas
+npm install
+```
+
+### Variables de entorno
+
+Crea un archivo `.env`:
+
+```env
+# Base de datos (local con Docker o Neon en la nube)
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/order_saas?schema=public"
+
+# Para producción (Neon)
+# DATABASE_URL="postgresql://neondb_owner:...@ep-...neon.tech/neondb?sslmode=require"
+```
+
+### Base de datos
+
+```bash
+# Opción A: Docker local
+docker compose up -d
+npx prisma db push
+npx ts-node prisma/seed.ts
+
+# Opción B: Neon (ya configurado en producción)
+npx prisma db push
+npx ts-node prisma/seed.ts
+```
+
+### Desarrollo
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000/pedir/estafeten](http://localhost:3000/pedir/estafeten)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🌐 URLs de producción
 
-## Learn More
+| URL | Descripción |
+|-----|-------------|
+| `/pedir/[tenant]` | Menú público del restaurante |
+| `/admin/[tenant]` | Panel del dueño (Sprint 1 — en desarrollo) |
+| `/api/menu/[tenant]` | API pública del menú |
+| `/api/orders/[tenant]` | API de pedidos (Sprint 1 — en desarrollo) |
 
-To learn more about Next.js, take a look at the following resources:
+**Tenant de prueba**: `estafeten`  
+**URL live**: [order-saas-delta.vercel.app/pedir/estafeten](https://order-saas-delta.vercel.app/pedir/estafeten)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📋 Roadmap
 
-## Deploy on Vercel
+Ver [docs/ROADMAP.md](./docs/ROADMAP.md) para la visión completa.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Sprint | Objetivo | Estado |
+|--------|----------|--------|
+| Sprint 1 | Checkout + Panel pedidos + Notificaciones | 🔄 En curso |
+| Sprint 2 | Editor menú + Resumen diario WhatsApp | ⏳ Pendiente |
+| Sprint 3 | CRM + Dashboard inteligente + Onboarding | ⏳ Pendiente |
+| Sprint 4 | KDS + Stripe nativo + Reportes IA | ⏳ Pendiente |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 🤝 Contribuir
+
+1. Crea una branch: `git checkout -b feature/nombre-feature`
+2. Commitea con conventional commits: `feat:`, `fix:`, `docs:`
+3. Push y abre un Pull Request hacia `main`
+
+---
+
+## 📄 Licencia
+
+MIT © 2026 Rauly Valenzuela
