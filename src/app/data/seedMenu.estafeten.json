@@ -3,11 +3,17 @@
     "name": "Estafetén",
     "slug": "estafeten",
     "branding": {
-      "colors": { "primary": "#111111", "accent": "#C9B37E" },
+      "colors": {
+        "primary": "#111111",
+        "accent": "#C9B37E"
+      },
       "radius": 14,
       "logoUrl": ""
     },
-    "settings": { "currency": "EUR", "locale": "es-ES" }
+    "settings": {
+      "currency": "EUR",
+      "locale": "es-ES"
+    }
   },
   "store": {
     "name": "Estafetén Arabial",
@@ -15,20 +21,100 @@
     "city": "Granada",
     "postalCode": "18003",
     "channels": {
-      "TAKEAWAY": { "etaMin": 20, "minOrderCents": 0, "feeCents": 0 },
-      "DELIVERY": { "etaMin": 35, "minOrderCents": 1500, "feeCents": 200 }
+      "TAKEAWAY": {
+        "etaMin": 20,
+        "minOrderCents": 0,
+        "feeCents": 0
+      },
+      "DELIVERY": {
+        "etaMin": 35,
+        "minOrderCents": 1500,
+        "feeCents": 200
+      }
     },
     "deliveryZones": [
-      { "type": "postalCodes", "postalCodes": ["18003", "18004", "18005"], "feeCents": 200, "minOrderCents": 1500 }
+      {
+        "type": "postalCodes",
+        "postalCodes": [
+          "18003",
+          "18004",
+          "18005"
+        ],
+        "feeCents": 200,
+        "minOrderCents": 1500
+      }
     ],
     "hours": {
-      "lun": [{ "from": "13:00", "to": "16:00" }, { "from": "20:00", "to": "23:30" }],
-      "mar": [{ "from": "13:00", "to": "16:00" }, { "from": "20:00", "to": "23:30" }],
-      "mie": [{ "from": "13:00", "to": "16:00" }, { "from": "20:00", "to": "23:30" }],
-      "jue": [{ "from": "13:00", "to": "16:00" }, { "from": "20:00", "to": "23:30" }],
-      "vie": [{ "from": "13:00", "to": "16:00" }, { "from": "20:00", "to": "23:59" }],
-      "sab": [{ "from": "13:00", "to": "16:00" }, { "from": "20:00", "to": "23:59" }],
-      "dom": [{ "from": "13:00", "to": "16:00" }, { "from": "20:00", "to": "23:30" }]
+      "lun": [
+        {
+          "from": "13:00",
+          "to": "16:00"
+        },
+        {
+          "from": "20:00",
+          "to": "23:30"
+        }
+      ],
+      "mar": [
+        {
+          "from": "13:00",
+          "to": "16:00"
+        },
+        {
+          "from": "20:00",
+          "to": "23:30"
+        }
+      ],
+      "mie": [
+        {
+          "from": "13:00",
+          "to": "16:00"
+        },
+        {
+          "from": "20:00",
+          "to": "23:30"
+        }
+      ],
+      "jue": [
+        {
+          "from": "13:00",
+          "to": "16:00"
+        },
+        {
+          "from": "20:00",
+          "to": "23:30"
+        }
+      ],
+      "vie": [
+        {
+          "from": "13:00",
+          "to": "16:00"
+        },
+        {
+          "from": "20:00",
+          "to": "23:59"
+        }
+      ],
+      "sab": [
+        {
+          "from": "13:00",
+          "to": "16:00"
+        },
+        {
+          "from": "20:00",
+          "to": "23:59"
+        }
+      ],
+      "dom": [
+        {
+          "from": "13:00",
+          "to": "16:00"
+        },
+        {
+          "from": "20:00",
+          "to": "23:30"
+        }
+      ]
     }
   },
   "modifierGroups": [
@@ -39,14 +125,46 @@
       "minSelect": 1,
       "maxSelect": 1,
       "options": [
-        { "name": "Tradicional", "priceDeltaCents": 0, "sortOrder": 1 },
-        { "name": "Queso cheddar", "priceDeltaCents": 0, "sortOrder": 2 },
-        { "name": "Mantequilla", "priceDeltaCents": 0, "sortOrder": 3 },
-        { "name": "Lechuga de mar y aceitunas", "priceDeltaCents": 0, "sortOrder": 4 },
-        { "name": "Cúrcuma y jengibre", "priceDeltaCents": 0, "sortOrder": 5 },
-        { "name": "Tomate y pesto picante", "priceDeltaCents": 0, "sortOrder": 6 },
-        { "name": "Alga nori y sésamo", "priceDeltaCents": 0, "sortOrder": 7 },
-        { "name": "Tomate y pesto", "priceDeltaCents": 0, "sortOrder": 8 }
+        {
+          "name": "Tradicional",
+          "priceDeltaCents": 0,
+          "sortOrder": 1
+        },
+        {
+          "name": "Queso cheddar",
+          "priceDeltaCents": 0,
+          "sortOrder": 2
+        },
+        {
+          "name": "Mantequilla",
+          "priceDeltaCents": 0,
+          "sortOrder": 3
+        },
+        {
+          "name": "Lechuga de mar y aceitunas",
+          "priceDeltaCents": 0,
+          "sortOrder": 4
+        },
+        {
+          "name": "Cúrcuma y jengibre",
+          "priceDeltaCents": 0,
+          "sortOrder": 5
+        },
+        {
+          "name": "Tomate y pesto picante",
+          "priceDeltaCents": 0,
+          "sortOrder": 6
+        },
+        {
+          "name": "Alga nori y sésamo",
+          "priceDeltaCents": 0,
+          "sortOrder": 7
+        },
+        {
+          "name": "Tomate y pesto",
+          "priceDeltaCents": 0,
+          "sortOrder": 8
+        }
       ]
     },
     {
@@ -56,101 +174,554 @@
       "minSelect": 1,
       "maxSelect": 1,
       "options": [
-        { "name": "Patatas fritas (Incluido en el precio)", "priceDeltaCents": 0, "sortOrder": 1 },
-        { "name": "Boniato (+1,20€)", "priceDeltaCents": 120, "sortOrder": 2 }
+        {
+          "name": "Patatas fritas (incluido en el precio)",
+          "priceDeltaCents": 0,
+          "sortOrder": 1
+        },
+        {
+          "name": "Boniato (+1,20€)",
+          "priceDeltaCents": 120,
+          "sortOrder": 2
+        }
       ]
     }
   ],
   "categories": [
-    { "name": "⭐ Destacados", "slug": "destacados", "sortOrder": 1, "isFeatured": true },
-    { "name": "🍔 Burgers Premium · Dry Aged · Especiales", "slug": "premium", "sortOrder": 2 },
-    { "name": "🍔 Burgers Clásicas · Carne", "slug": "clasicas", "sortOrder": 3 },
-    { "name": "🌊 Burgers del Mar", "slug": "mar", "sortOrder": 4 },
-    { "name": "🌱 Burgers Veganas", "slug": "veganas", "sortOrder": 5 },
-    { "name": "🥪 Molletes", "slug": "molletes", "sortOrder": 6 },
-    { "name": "🍟 Complementos", "slug": "complementos", "sortOrder": 7 },
-    { "name": "🍰 Postres y Helado", "slug": "postres", "sortOrder": 8 },
-    { "name": "🥤 Bebidas", "slug": "bebidas", "sortOrder": 9 }
+    {
+      "name": "Destacados",
+      "slug": "destacados",
+      "sortOrder": 1,
+      "isFeatured": true
+    },
+    {
+      "name": "Burgers Premium",
+      "slug": "premium",
+      "sortOrder": 2
+    },
+    {
+      "name": "Burgers Clásicas",
+      "slug": "clasicas",
+      "sortOrder": 3
+    },
+    {
+      "name": "Burgers del Mar",
+      "slug": "mar",
+      "sortOrder": 4
+    },
+    {
+      "name": "Burgers Veganas",
+      "slug": "veganas",
+      "sortOrder": 5
+    },
+    {
+      "name": "Molletes",
+      "slug": "molletes",
+      "sortOrder": 6
+    },
+    {
+      "name": "Complementos",
+      "slug": "complementos",
+      "sortOrder": 7
+    },
+    {
+      "name": "Postres",
+      "slug": "postres",
+      "sortOrder": 8
+    },
+    {
+      "name": "Bebidas",
+      "slug": "bebidas",
+      "sortOrder": 9
+    }
   ],
   "products": [
     {
       "categorySlug": "premium",
-      "name": "LA GULA",
+      "name": "La Gula",
       "slug": "la-gula",
       "description": "Carne de vaca dry aged 45 días (estilo smash), queso raclette, champiñones naturales salteados, cebolla caramelizada y salsa trufada. Pan tradicional.",
-      "basePriceCents": 0,
-      "tags": ["premium", "dry-aged"],
-      "activeChannels": ["DELIVERY", "TAKEAWAY"],
-      "modifierGroupCodes": ["BREAD", "SIDE"]
+      "basePriceCents": 1595,
+      "tags": [
+        "premium",
+        "dry-aged"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
     },
     {
       "categorySlug": "premium",
-      "name": "AESTHETIC",
+      "name": "Aesthetic",
       "slug": "aesthetic",
       "description": "Carne de vaca dry aged 45 días (estilo smash), queso camembert, cebolla encurtida, bacon crush, salsa whisky con naranja y crujiente de patata morada. Pan de mantequilla.",
-      "basePriceCents": 0,
-      "tags": ["premium", "dry-aged"],
-      "activeChannels": ["DELIVERY", "TAKEAWAY"],
-      "modifierGroupCodes": ["BREAD", "SIDE"]
+      "basePriceCents": 1595,
+      "tags": [
+        "premium",
+        "dry-aged"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
     },
     {
       "categorySlug": "premium",
-      "name": "LA SANTA",
+      "name": "La Santa",
       "slug": "la-santa",
       "description": "Carne de pollo 100% natural (estilo smash), queso de cabra, cebolla caramelizada y rúcula bañada en cremosa mermelada de tomate con lima y cilantro. Pan de tomate y pesto.",
-      "basePriceCents": 0,
-      "tags": ["premium", "pollo"],
-      "activeChannels": ["DELIVERY", "TAKEAWAY"],
-      "modifierGroupCodes": ["BREAD", "SIDE"]
+      "basePriceCents": 1595,
+      "tags": [
+        "premium",
+        "pollo"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
     },
     {
       "categorySlug": "premium",
-      "name": "LA MADRÍNA",
+      "name": "La Madrina",
       "slug": "la-madrina",
       "description": "Carne de vaca dry aged 45 días (estilo smash), queso raclette, pulled beef, salsa whisky con naranja, crunchy Doritos y mayonesa de lima y cilantro. Pan de queso cheddar.",
-      "basePriceCents": 0,
-      "tags": ["premium", "dry-aged"],
-      "activeChannels": ["DELIVERY", "TAKEAWAY"],
-      "modifierGroupCodes": ["BREAD", "SIDE"]
+      "basePriceCents": 1595,
+      "tags": [
+        "premium",
+        "dry-aged"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
     },
-
-    { "categorySlug": "clasicas", "name": "ÍBERO", "slug": "ibero", "description": "Jamón serrano, tomate y aguacate. Pan de cúrcuma y jengibre.", "basePriceCents": 0, "tags": ["carne"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-    { "categorySlug": "clasicas", "name": "SAN ISIDRO", "slug": "san-isidro", "description": "Jamón asado lentamente, tomate, queso gratinado y ali-oli. Pan tradicional.", "basePriceCents": 0, "tags": ["carne"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-    { "categorySlug": "clasicas", "name": "SACROMONTE", "slug": "sacromonte", "description": "Pollo a baja temperatura, lechuga, tomate y queso gratinado. Pan de cúrcuma y jengibre.", "basePriceCents": 0, "tags": ["pollo"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-    { "categorySlug": "clasicas", "name": "SAN ANTÓN", "slug": "san-anton", "description": "Secreto de cerdo, tomate cherry grillé y salsa px. Pan tradicional.", "basePriceCents": 0, "tags": ["cerdo"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-    { "categorySlug": "clasicas", "name": "TAIFA", "slug": "taifa", "description": "Cochinita pibil (cerdo deshilachado al estilo mexicano) queso y pico de gallo. Pan de tomate y pesto picante.", "basePriceCents": 0, "tags": ["mex"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-    { "categorySlug": "clasicas", "name": "TAFETÉN", "slug": "tafeten", "description": "Pulled beef (ternera deshilachada) cebolla crujiente y salsa bacon. Pan de queso cheddar.", "basePriceCents": 0, "tags": ["beef"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-    { "categorySlug": "clasicas", "name": "GRANÁ", "slug": "grana", "description": "Tortilla de patatas, lechuga, tomate y mayonesa. Pan tradicional.", "basePriceCents": 0, "tags": ["clasica"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-
-    { "categorySlug": "mar", "name": "ALBAICÍN", "slug": "albaicin", "description": "Cola de gambón frito, lechuga fresca, tomate y ali-oli ó mayonesa. Pan tradicional.", "basePriceCents": 0, "tags": ["mar"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-    { "categorySlug": "mar", "name": "AL-ÁNDALUS", "slug": "al-andalus", "description": "Calamares fritos, lechuga fresca y ali-oli. Pan de lechuga de mar y aceitunas.", "basePriceCents": 0, "tags": ["mar"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-    { "categorySlug": "mar", "name": "GARNATA", "slug": "garnata", "description": "Salmón ahumado y queso crema. Pan de alga nori y sésamo.", "basePriceCents": 0, "tags": ["mar"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-
-    { "categorySlug": "veganas", "name": "GENIL", "slug": "genil", "description": "Proteína de soja estilo pollo, tomate, aguacate, cebolla fresca y salsa de lima (mayonesa vegana con lima y cilantro). Pan tradicional.", "basePriceCents": 0, "tags": ["vegano"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-    { "categorySlug": "veganas", "name": "ALHAMBRA", "slug": "alhambra", "description": "Soja texturizada, harina de arroz y fibra vegetal (estilo burger), queso cheddar vegano, lechuga, tomate y salsa BBQ. Pan de tomate y pesto picante.", "basePriceCents": 0, "tags": ["vegano"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-    { "categorySlug": "veganas", "name": "GENERALIFE", "slug": "generalife", "description": "Preparado vegetal con soja texturizada en aceite de oliva (estilo atún), lechuga, mayonesa vegana. Pan de alga nori y sésamo.", "basePriceCents": 0, "tags": ["vegano"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-    { "categorySlug": "veganas", "name": "TRIUNFO", "slug": "triunfo", "description": "Proteína de trigo rehidratada, patata y guisantes estilo pulled beef, pico de gallo, queso vegano con mayonesa de lima y cilantro. Pan de tomate y pesto picante.", "basePriceCents": 0, "tags": ["vegano"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-
-    { "categorySlug": "molletes", "name": "Mollete (placeholder)", "slug": "mollete-placeholder", "description": "Estructura lista para items de molletes.", "basePriceCents": 0, "tags": ["mollete"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": ["BREAD","SIDE"] },
-
-    { "categorySlug": "complementos", "name": "PATATAS TAFETÉN", "slug": "patatas-tafeten", "description": "300 g de patatas, pulled beef en su salsa, queso gratinado y salsa de bacon casera.", "basePriceCents": 0, "tags": ["complemento"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "complementos", "name": "POLLO KENTUCKY", "slug": "pollo-kentucky", "description": "250 g de solomillo de pollo rebozado extra crispy crujiente.", "basePriceCents": 0, "tags": ["complemento"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "complementos", "name": "AROS DE QUESO GOUDA", "slug": "aros-gouda", "description": "Aros de queso gouda con bacon.", "basePriceCents": 0, "tags": ["complemento"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "complementos", "name": "RACIÓN DE PATATAS FRITAS", "slug": "racion-patatas", "description": "250 g de patatas fritas.", "basePriceCents": 0, "tags": ["complemento"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "complementos", "name": "RACIÓN DE BONIATO", "slug": "racion-boniato", "description": "250 g de boniato frito (patata dulce).", "basePriceCents": 0, "tags": ["complemento"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "complementos", "name": "TIRAS DE LOMO REBOZADO", "slug": "tiras-lomo", "description": "250 g de lomo de cerdo empanadas caseras.", "basePriceCents": 0, "tags": ["complemento"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "complementos", "name": "CROQUETAS DE ALGA Y GAMBA (6UDS)", "slug": "croquetas-alga-gamba", "description": "Rellenas de bechamel, alga marina y gambas.", "basePriceCents": 0, "tags": ["complemento"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "complementos", "name": "FINGERS DE POLLO (6UDS)", "slug": "fingers-pollo", "description": "Incluye 200 g de patatas.", "basePriceCents": 0, "tags": ["complemento"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "complementos", "name": "BOLITAS DE QUESO Y JALAPEÑO (6-12 UNDS)", "slug": "bolitas-queso-jalapeno", "description": "Bolitas rellenas de queso y jalapeños rebozadas.", "basePriceCents": 0, "tags": ["complemento"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "complementos", "name": "PICACHOS DE QUESO CHEDDAR (6UDS)", "slug": "picachos-cheddar", "description": "Triángulos rellenos de queso cheddar empanados.", "basePriceCents": 0, "tags": ["complemento"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-
-    { "categorySlug": "postres", "name": "PIONONO ESTAFETÉN", "slug": "pionono", "description": "PIONONO ESTAFETÉN", "basePriceCents": 0, "tags": ["postre"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "postres", "name": "TARTA DE QUESO CASERA", "slug": "tarta-queso", "description": "TARTA DE QUESO CASERA", "basePriceCents": 0, "tags": ["postre"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "postres", "name": "TARTA DE QUESO Y TURRÓN CASERA", "slug": "tarta-queso-turron", "description": "TARTA DE QUESO Y TURRÓN CASERA", "basePriceCents": 0, "tags": ["postre"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-    { "categorySlug": "postres", "name": "HELADO ARTESANAL (SOLO EN TEMPORADA)", "slug": "helado-artesanal", "description": "TURRÓN. MANGO. YOGURT CON AMARENA. TARTA DE QUESO. BROWNIE. PISTACHO.", "basePriceCents": 0, "tags": ["helado"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] },
-
-    { "categorySlug": "bebidas", "name": "Bebida (placeholder)", "slug": "bebida-placeholder", "description": "Añade aquí tus bebidas reales desde el Admin.", "basePriceCents": 0, "tags": ["bebida"], "activeChannels": ["DELIVERY","TAKEAWAY"], "modifierGroupCodes": [] }
-  ],
-  "featuredProductSlugs": ["la-gula", "aesthetic", "la-madrina", "tafeten", "san-isidro"]
+    {
+      "categorySlug": "clasicas",
+      "name": "Íbero",
+      "slug": "ibero",
+      "description": "Jamón serrano, tomate y aguacate. Pan de cúrcuma y jengibre.",
+      "basePriceCents": 1195,
+      "tags": [
+        "carne"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "clasicas",
+      "name": "San Isidro",
+      "slug": "san-isidro",
+      "description": "Jamón asado lentamente, tomate, queso gratinado y ali-oli. Pan tradicional.",
+      "basePriceCents": 1195,
+      "tags": [
+        "carne"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "clasicas",
+      "name": "Sacromonte",
+      "slug": "sacromonte",
+      "description": "Pollo a baja temperatura, lechuga, tomate y queso gratinado. Pan de cúrcuma y jengibre.",
+      "basePriceCents": 1195,
+      "tags": [
+        "pollo"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "clasicas",
+      "name": "San Antón",
+      "slug": "san-anton",
+      "description": "Secreto de cerdo, tomate cherry grillé y salsa PX. Pan tradicional.",
+      "basePriceCents": 1195,
+      "tags": [
+        "cerdo"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "clasicas",
+      "name": "Ta Fetén",
+      "slug": "ta-feten",
+      "description": "Pollo a baja temperatura, queso suizo, salsa de miel, mostaza y tomate. Pan de lechuga de mar.",
+      "basePriceCents": 1195,
+      "tags": [
+        "pollo"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "clasicas",
+      "name": "Triunfo",
+      "slug": "triunfo",
+      "description": "Secreto de cerdo, queso cheddar, bacon y salsa barbacoa. Pan de queso cheddar.",
+      "basePriceCents": 1195,
+      "tags": [
+        "cerdo"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "mar",
+      "name": "Pulpo",
+      "slug": "pulpo",
+      "description": "Pulpo a la gallega, pimientos asados y ali-oli. Pan de alga nori.",
+      "basePriceCents": 1395,
+      "tags": [
+        "mar",
+        "pulpo"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "mar",
+      "name": "Gambón",
+      "slug": "gambon",
+      "description": "Gambón, aguacate, mango y salsa de coco. Pan de lechuga de mar.",
+      "basePriceCents": 1395,
+      "tags": [
+        "mar"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "mar",
+      "name": "Bacalao",
+      "slug": "bacalao",
+      "description": "Bacalao rebozado, pimientos del padrón y mayonesa de limón. Pan de tomate y pesto.",
+      "basePriceCents": 1295,
+      "tags": [
+        "mar",
+        "pescado"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "veganas",
+      "name": "Verde",
+      "slug": "verde",
+      "description": "Hamburguesa vegana de guisantes, rúcula, tomate y crema de aguacate. Pan de cúrcuma.",
+      "basePriceCents": 1095,
+      "tags": [
+        "vegana"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "veganas",
+      "name": "Tierra",
+      "slug": "tierra",
+      "description": "Hamburguesa vegana de remolacha, espinacas, champiñones y salsa de miso. Pan de alga nori.",
+      "basePriceCents": 1095,
+      "tags": [
+        "vegana"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "molletes",
+      "name": "Mollete de Pringá",
+      "slug": "mollete-pringa",
+      "description": "Pringá tradicional con tomate y aceite de oliva virgen extra. Pan artesano.",
+      "basePriceCents": 895,
+      "tags": [
+        "mollete"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ]
+    },
+    {
+      "categorySlug": "molletes",
+      "name": "Mollete de Jamón",
+      "slug": "mollete-jamon",
+      "description": "Jamón ibérico, tomate y aceite. Pan artesano.",
+      "basePriceCents": 895,
+      "tags": [
+        "mollete"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ]
+    },
+    {
+      "categorySlug": "complementos",
+      "name": "Patatas Fritas",
+      "slug": "patatas-fritas",
+      "description": "Patatas fritas crujientes con sal.",
+      "basePriceCents": 295,
+      "tags": [
+        "complemento"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ]
+    },
+    {
+      "categorySlug": "complementos",
+      "name": "Aros de Cebolla",
+      "slug": "aros-cebolla",
+      "description": "Aros de cebolla crujientes.",
+      "basePriceCents": 295,
+      "tags": [
+        "complemento"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ]
+    },
+    {
+      "categorySlug": "complementos",
+      "name": "Boniato Frito",
+      "slug": "boniato-frito",
+      "description": "Boniato frito con sal y pimentón.",
+      "basePriceCents": 350,
+      "tags": [
+        "complemento"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ]
+    },
+    {
+      "categorySlug": "postres",
+      "name": "Tarta de Queso",
+      "slug": "tarta-queso",
+      "description": "Tarta de queso al horno estilo vasco.",
+      "basePriceCents": 495,
+      "tags": [
+        "postre"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ]
+    },
+    {
+      "categorySlug": "postres",
+      "name": "Helado Artesano",
+      "slug": "helado",
+      "description": "Helado artesano de temporada.",
+      "basePriceCents": 350,
+      "tags": [
+        "postre"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ]
+    },
+    {
+      "categorySlug": "bebidas",
+      "name": "Agua",
+      "slug": "agua",
+      "description": "Agua mineral natural 500ml.",
+      "basePriceCents": 150,
+      "tags": [
+        "bebida"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ]
+    },
+    {
+      "categorySlug": "bebidas",
+      "name": "Refresco",
+      "slug": "refresco",
+      "description": "Coca-Cola, Fanta naranja o Fanta limón.",
+      "basePriceCents": 220,
+      "tags": [
+        "bebida"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ]
+    },
+    {
+      "categorySlug": "bebidas",
+      "name": "Cerveza",
+      "slug": "cerveza",
+      "description": "Cerveza Alhambra Especial 33cl.",
+      "basePriceCents": 250,
+      "tags": [
+        "bebida"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ]
+    },
+    {
+      "categorySlug": "bebidas",
+      "name": "Agua con Gas",
+      "slug": "agua-con-gas",
+      "description": "Agua con gas 500ml.",
+      "basePriceCents": 175,
+      "tags": [
+        "bebida"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ]
+    },
+    {
+      "categorySlug": "destacados",
+      "name": "La Gula",
+      "slug": "la-gula-dest",
+      "description": "Carne de vaca dry aged 45 días (estilo smash), queso raclette, champiñones naturales salteados, cebolla caramelizada y salsa trufada.",
+      "basePriceCents": 1595,
+      "tags": [
+        "featured",
+        "dry-aged"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "destacados",
+      "name": "Aesthetic",
+      "slug": "aesthetic-dest",
+      "description": "Carne de vaca dry aged 45 días (estilo smash), queso camembert, cebolla encurtida, bacon crush, salsa whisky con naranja y crujiente de patata morada.",
+      "basePriceCents": 1595,
+      "tags": [
+        "featured",
+        "dry-aged"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    },
+    {
+      "categorySlug": "destacados",
+      "name": "Sacromonte",
+      "slug": "sacromonte-dest",
+      "description": "Pollo a baja temperatura, lechuga, tomate y queso gratinado.",
+      "basePriceCents": 1195,
+      "tags": [
+        "featured",
+        "pollo"
+      ],
+      "activeChannels": [
+        "DELIVERY",
+        "TAKEAWAY"
+      ],
+      "modifierGroupCodes": [
+        "BREAD",
+        "SIDE"
+      ]
+    }
+  ]
 }
-
