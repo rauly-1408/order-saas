@@ -1,58 +1,25 @@
-@import "tailwindcss";
+import "tailwindcss";
 
-/* ============================================
-   ESTAFETEN DESIGN TOKENS — Sprint 3
-   ============================================ */
+/* Estafeten Design Tokens */
 :root {
-    /* Colores base */
-  --bg-base:        #0d0d0d;
-    --surface-0:      #111111;
-    --surface-1:      #1a1a1a;
-    --surface-2:      #252525;
-    --border:         #2a2a2a;
-
-  /* Texto */
-  --text-primary:   #f0ece4;
-    --text-secondary: #888888;
-
-  /* Marca Estafetén */
-  --brand-accent:   #e8a020;
-    --brand-accent-h: #f0b030;
-
-  /* Tipografía */
-  --font-body: Arial, Helvetica, sans-serif;
-}
-
-/* Reset base */
-*, *::before, *::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-html {
-    scroll-behavior: smooth;
+     --bg-base: #0d0d0d;
+     --surface-0: #111111;
+     --surface-1: #1a1a1a;
+     --surface-2: #252525;
+     --border: #2a2a2a;
+     --text-primary: #f0ece4;
+     --text-secondary: #888888;
+     --brand-accent: #e8a020;
+     --brand-accent-h: #f0b030;
+     --font-body: Arial, Helvetica, sans-serif;
 }
 
 body {
-    background-color: var(--bg-base);
-    color: var(--text-primary);
-    font-family: var(--font-body);
-    -webkit-font-smoothing: antialiased;
+     background-color: var(--bg-base);
+     color: var(--text-primary);
+     font-family: var(--font-body);
+     -webkit-font-smoothing: antialiased;
 }
 
-/* Ocultar scrollbar en nav horizontal */
-nav::-webkit-scrollbar {
-    display: none;
-}
-nav {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-/* Tailwind compat */
-@theme inline {
-    --color-background: var(--bg-base);
-    --color-foreground: var(--text-primary);
-    --font-sans: var(--font-body);
-}
+nav::-webkit-scrollbar { display: none; }
+nav { scrollbar-width: none; }
