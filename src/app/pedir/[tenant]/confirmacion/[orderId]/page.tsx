@@ -72,7 +72,9 @@ export default async function ConfirmacionPage({
           <p style={{ color: cssVars["--text-secondary"], fontSize: "14px", margin: "0" }}>
             {"Referencia: "}
             <span style={{ color: cssVars["--brand-accent"], fontWeight: 700 }}>
-              {"#" + orderId.slice(-6).toUpperCase()}
+              {order.orderNumber != null
+                ? "#" + order.orderNumber
+                : "#" + orderId.slice(-6).toUpperCase()}
             </span>
           </p>
         </div>

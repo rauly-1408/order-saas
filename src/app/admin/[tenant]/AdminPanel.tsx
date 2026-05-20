@@ -80,6 +80,8 @@ function OrderCard({
 }) {
   const nextStatus = STATUS_NEXT[order.status];
   const busy = updating === order.id;
+  // Re-evaluated every poll cycle (10s) — the "NUEVO" badge naturally clears on the next render.
+  // eslint-disable-next-line react-hooks/purity
   const isNew = Date.now() - new Date(order.createdAt).getTime() < 120_000;
 
   return (
@@ -155,12 +157,42 @@ function OrderCard({
   );
 }
 
+type AudioCtor = typeof AudioContext;
+
+function playBeep(ctxRef: React.MutableRefObject<AudioContext | null>) {
+  try {
+    if (typeof window === "undefined") return;
+    const Ctor: AudioCtor | undefined =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: AudioCtor }).webkitAudioContext;
+    if (!Ctor) return;
+    if (!ctxRef.current) ctxRef.current = new Ctor();
+    const ctx = ctxRef.current;
+    if (ctx.state === "suspended") ctx.resume().catch(() => null);
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.setValueAtTime(660, now + 0.12);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.25, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.36);
+  } catch {
+    // browser blocked audio, swallow
+  }
+}
+
 export default function AdminPanel({ tenant }: { tenant: string }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const prevIds = useRef<Set<string>>(new Set());
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -170,7 +202,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       const incoming = data.orders ?? [];
       const hasNew = incoming.some((o) => !prevIds.current.has(o.id));
       if (hasNew && prevIds.current.size > 0) {
-        audioRef.current?.play().catch(() => null);
+        playBeep(audioCtxRef);
         if (document.hidden) document.title = "Nuevo pedido!";
       }
       prevIds.current = new Set(incoming.map((o) => o.id));
@@ -214,8 +246,6 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
 
   return (
     <div className="min-h-screen bg-zinc-950 p-4 text-white">
-      <audio ref={audioRef} src="/notify.mp3" preload="auto" />
-
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold capitalize">{tenant}</h1>
@@ -224,7 +254,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
         <div className="flex items-center gap-3">
           <span className="flex h-2 w-2 rounded-full bg-green-400" />
           <button
-            onClick={() => audioRef.current?.play().catch(() => null)}
+            onClick={() => playBeep(audioCtxRef)}
             className="rounded-lg border border-zinc-700 px-3 py-1 text-xs hover:bg-zinc-800"
           >
             Test sonido
