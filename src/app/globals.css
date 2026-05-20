@@ -1,26 +1,58 @@
 @import "tailwindcss";
 
+/* ============================================
+   ESTAFETEN DESIGN TOKENS — Sprint 3
+   ============================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+    /* Colores base */
+  --bg-base:        #0d0d0d;
+    --surface-0:      #111111;
+    --surface-1:      #1a1a1a;
+    --surface-2:      #252525;
+    --border:         #2a2a2a;
+
+  /* Texto */
+  --text-primary:   #f0ece4;
+    --text-secondary: #888888;
+
+  /* Marca Estafetén */
+  --brand-accent:   #e8a020;
+    --brand-accent-h: #f0b030;
+
+  /* Tipografía */
+  --font-body: Arial, Helvetica, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Reset base */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+    scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Ocultar scrollbar en nav horizontal */
+nav::-webkit-scrollbar {
+    display: none;
+}
+nav {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Tailwind compat */
+@theme inline {
+    --color-background: var(--bg-base);
+    --color-foreground: var(--text-primary);
+    --font-sans: var(--font-body);
 }
