@@ -82,12 +82,19 @@ export async function POST(req: NextRequest) {
     }
 
     const store = tenant.stores[0];
+
+    if (channel === "DELIVERY" && !store.deliveryEnabled) {
+      return NextResponse.json({ error: "Delivery no disponible" }, { status: 400 });
+    }
+    if (channel === "TAKEAWAY" && !store.takeawayEnabled) {
+      return NextResponse.json({ error: "Recogida no disponible" }, { status: 400 });
+    }
+
     const subtotalCents = items.reduce(
       (acc, item) => acc + item.basePriceCents * item.quantity,
       0
     );
-    const channels = store.channels as Record<string, Record<string, number>>;
-    const feesCents = channel === "DELIVERY" ? channels?.DELIVERY?.feeCents ?? 0 : 0;
+    const feesCents = channel === "DELIVERY" ? store.deliveryFeeCents : 0;
     const totalCents = subtotalCents + feesCents;
     const settings = tenant.settings as Record<string, unknown>;
     const currency = (settings?.currency as string) ?? "EUR";
@@ -97,8 +104,8 @@ export async function POST(req: NextRequest) {
       productName: item.name,
       quantity: item.quantity,
       basePriceCents: item.basePriceCents,
-      modifiersJson: (item.modifiersJson ?? []) as Prisma.InputJsonValue,
-      lineTotalCents: item.basePriceCents * item.quantity,
+      modifiers: (item.modifiersJson ?? []) as Prisma.InputJsonValue,
+      totalCents: item.basePriceCents * item.quantity,
     }));
 
     let order: Awaited<ReturnType<typeof createOrderWithNumber>> | null = null;
@@ -141,8 +148,8 @@ export async function POST(req: NextRequest) {
       totalCents: order.totalCents,
       estimatedMinutes:
         channel === "DELIVERY"
-          ? channels?.DELIVERY?.etaMin ?? 35
-          : channels?.TAKEAWAY?.etaMin ?? 20,
+          ? store.estimatedDeliveryMinutes
+          : store.estimatedPickupMinutes,
     });
   } catch (err) {
     console.error("[POST /api/orders]", err);

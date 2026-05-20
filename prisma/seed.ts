@@ -114,11 +114,7 @@ async function main() {
       tenantId: tenant.id,
       name: seed.store.name,
       address: seed.store.address,
-      city: seed.store.city,
-      postalCode: seed.store.postalCode,
-      hours: asJson(seed.store.hours ?? {}),
-      channels: asJson(seed.store.channels ?? {}),
-      deliveryZones: asJson(seed.store.deliveryZones ?? []),
+      openingHours: asJson(seed.store.hours ?? {}),
     },
   });
 
@@ -183,9 +179,7 @@ async function main() {
         description: p.description ?? "",
         imageUrl: p.imageUrl ?? null,
         basePriceCents: p.basePriceCents ?? 0,
-        tags: p.tags ?? [],
         isActive: true,
-        activeChannels: p.activeChannels ?? [Channel.DELIVERY, Channel.TAKEAWAY],
       },
     });
 

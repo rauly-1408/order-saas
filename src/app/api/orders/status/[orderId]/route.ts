@@ -8,8 +8,8 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
       CREATED:   ["ACCEPTED", "CANCELLED"],
       ACCEPTED:  ["PREPARING", "CANCELLED"],
       PREPARING: ["READY", "CANCELLED"],
-      READY:     ["COMPLETED"],
-      COMPLETED: [],
+      READY:     ["DELIVERED"],
+      DELIVERED: [],
       CANCELLED: [],
 };
 

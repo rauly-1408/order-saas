@@ -36,8 +36,8 @@ const STATUS_NEXT: Record<string, string | null> = {
   CREATED: "ACCEPTED",
   ACCEPTED: "PREPARING",
   PREPARING: "READY",
-  READY: "COMPLETED",
-  COMPLETED: null,
+  READY: "DELIVERED",
+  DELIVERED: null,
   CANCELLED: null,
 };
 
@@ -133,7 +133,7 @@ function OrderCard({
       <div className="flex items-center justify-between">
         <div className="font-bold text-zinc-900">{toEuros(order.totalCents)}</div>
         <div className="flex gap-2">
-          {order.status !== "CANCELLED" && order.status !== "COMPLETED" && (
+          {order.status !== "CANCELLED" && order.status !== "DELIVERED" && (
             <button
               onClick={() => onStatus(order.id, "CANCELLED")}
               disabled={busy}
