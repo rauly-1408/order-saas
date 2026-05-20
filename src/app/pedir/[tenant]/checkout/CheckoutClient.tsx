@@ -2,177 +2,218 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useCart } from "@/store/cart";
 
 const euros = (cents: number) =>
-  new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
+    new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
+
+const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "13px 16px",
+    borderRadius: "12px",
+    border: "1px solid var(--border)",
+    backgroundColor: "var(--surface-1)",
+    color: "var(--text-primary)",
+    fontSize: "15px",
+    outline: "none",
+    fontFamily: "var(--font-body)"
+};
+
+const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: "12px",
+    fontWeight: 600,
+    color: "var(--text-secondary)",
+    marginBottom: "6px",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px"
+};
 
 export default function CheckoutClient({ tenant }: { tenant: string }) {
-  const router = useRouter();
-  const { items, subtotalCents, clear } = useCart();
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [channel, setChannel] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
-  const [address, setAddress] = useState("");
-  const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+    const router = useRouter();
+    const { items, subtotalCents, clear } = useCart();
+    const [name, setName] = useState("");
+    const [phone, setPhone] = useState("");
+    const [channel, setChannel] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
+    const [address, setAddress] = useState("");
+    const [notes, setNotes] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
   const subtotal = subtotalCents();
-  const fee = channel === "DELIVERY" ? 200 : 0;
-  const total = subtotal + fee;
-  const count = items.reduce((a, i) => a + i.quantity, 0);
+    const fee = channel === "DELIVERY" ? 200 : 0;
+    const total = subtotal + fee;
+    const count = items.reduce((a, i) => a + i.quantity, 0);
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim() || !phone.trim()) return;
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await fetch(`/api/orders/${tenant}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName: name,
-          customerPhone: phone,
-          customerAddress: channel === "DELIVERY" ? address : undefined,
-          channel,
-          notes: notes || undefined,
-          items: items.map((item) => ({
-            productId: item.productId,
-            name: item.name,
-            basePriceCents: item.unitPriceCents,
-            quantity: item.quantity,
-            modifiersJson: item.modifiers ? [item.modifiers] : [],
-          })),
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error ?? "Error al crear el pedido");
-        return;
-      }
-
-      const data = await res.json();
-      clear();
-      router.push(`/pedir/${tenant}/confirmacion/${data.orderId}`);
-    } catch {
-      setError("Error de red. Inténtalo de nuevo.");
-    } finally {
-      setLoading(false);
-    }
+        e.preventDefault();
+        setLoading(true);
+        setError("");
+        try {
+                const res = await fetch(`/api/orders/${tenant}`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                                      customerName: name,
+                                      customerPhone: phone,
+                                      customerAddress: channel === "DELIVERY" ? address : undefined,
+                                      channel,
+                                      notes: notes || undefined,
+                                      items: items.map((item) => ({
+                                                    productId: item.productId,
+                                                    name: item.name,
+                                                    basePriceCents: item.unitPriceCents,
+                                                    quantity: item.quantity,
+                                                    modifiersJson: item.modifiers ? [item.modifiers] : [],
+                                      })),
+                          }),
+                });
+                if (!res.ok) {
+                          const data = await res.json();
+                          setError(data.error ?? "Error al crear el pedido");
+                          return;
+                }
+                const data = await res.json();
+                clear();
+                router.push(`/pedir/${tenant}/confirmacion/${data.orderId}`);
+        } catch {
+                setError("Error de red. Inténtalo de nuevo.");
+        } finally {
+                setLoading(false);
+        }
   }
 
   if (items.length === 0) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
-        <p className="text-zinc-500">Tu carrito está vacío.</p>
-        <Link href={`/pedir/${tenant}`} className="text-sm font-semibold underline">
-          Volver al menú
-        </Link>
-      </div>
-    );
+        return (
+                <div style={{ minHeight: "100vh", backgroundColor: "var(--bg-base)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px", padding: "24px" }}>
+                          <div style={{ fontSize: "48px" }}>🛒</div>div>
+                          <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>Tu carrito está vacío</div>div>
+                          <a href={`/pedir/${tenant}`} style={{ padding: "13px 28px", borderRadius: "12px", backgroundColor: "var(--brand-accent)", color: "#0d0d0d", fontWeight: 700, fontSize: "15px", textDecoration: "none" }}>
+                                      Volver al menú
+                          </a>a>
+                </div>div>
+              );
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-8 pb-24">
-      <Link href={`/pedir/${tenant}`} className="mb-6 flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900">
-        ← Volver al menú
-      </Link>
+        <div style={{ minHeight: "100vh", backgroundColor: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+          {/* HEADER */}
+                <header style={{
+                  position: "sticky", top: 0, zIndex: 50,
+                  backgroundColor: "var(--surface-0)",
+                  borderBottom: "1px solid var(--border)",
+                  height: "56px", display: "flex", alignItems: "center",
+                  padding: "0 20px", gap: "14px"
+        }}>
+                          <a href={`/pedir/${tenant}`} style={{ color: "var(--brand-accent)", fontSize: "22px", textDecoration: "none", lineHeight: 1 }}>←</a>a>
+                          <span style={{ fontWeight: 700, fontSize: "16px" }}>Confirmar pedido</span>span>
+                </header>header>
 
-      <h1 className="mb-6 text-2xl font-bold">Tu pedido</h1>
+                <main style={{ maxWidth: "560px", margin: "0 auto", padding: "24px 16px 120px" }}>
+                          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
-      {/* Resumen carrito */}
-      <div className="mb-6 rounded-2xl border border-zinc-200 bg-white p-4">
-        <div className="space-y-3">
-          {items.map((item) => (
-            <div key={item.id} className="flex justify-between gap-4">
-              <div>
-                <div className="font-semibold">{item.quantity}× {item.name}</div>
-                {item.modifiers?.bread && (
-                  <div className="text-sm text-zinc-500">Pan: {item.modifiers.bread}</div>
-                )}
-                {item.modifiers?.side && (
-                  <div className="text-sm text-zinc-500">Acompañamiento: {item.modifiers.side}</div>
-                )}
-              </div>
-              <div className="shrink-0 font-semibold">{euros(item.unitPriceCents * item.quantity)}</div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 border-t border-zinc-100 pt-4">
-          <div className="flex justify-between text-sm text-zinc-500">
-            <span>Subtotal ({count} {count === 1 ? "artículo" : "artículos"})</span>
-            <span>{euros(subtotal)}</span>
-          </div>
-          {fee > 0 && (
-            <div className="flex justify-between text-sm text-zinc-500">
-              <span>Gastos de envío</span>
-              <span>{euros(fee)}</span>
-            </div>
-          )}
-          <div className="mt-2 flex justify-between font-bold">
-            <span>Total</span>
-            <span>{euros(total)}</span>
-          </div>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <p className="mb-2 text-sm font-semibold">¿Cómo lo quieres?</p>
-          <div className="grid grid-cols-2 gap-3">
-            {(["TAKEAWAY", "DELIVERY"] as const).map((c) => (
-              <button key={c} type="button" onClick={() => setChannel(c)}
-                className={`rounded-xl border-2 p-3 text-sm font-semibold transition ${
-                  channel === c ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 hover:border-zinc-400"
-                }`}>
-                {c === "TAKEAWAY" ? "🥡 Para recoger" : "🛵 A domicilio"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-semibold">Nombre *</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-            placeholder="Tu nombre" required
-            className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-zinc-900 focus:outline-none" />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-semibold">Teléfono *</label>
-          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-            placeholder="+34 600 000 000" required
-            className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-zinc-900 focus:outline-none" />
-        </div>
-
-        {channel === "DELIVERY" && (
-          <div>
-            <label className="mb-1 block text-sm font-semibold">Dirección de entrega *</label>
-            <input type="text" value={address} onChange={(e) => setAddress(e.target.value)}
-              placeholder="Calle, número, piso..."
-              className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-zinc-900 focus:outline-none" />
-          </div>
-        )}
-
-        <div>
-          <label className="mb-1 block text-sm font-semibold">Notas (opcional)</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
-            placeholder="Alergias, instrucciones especiales..." rows={2}
-            className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-zinc-900 focus:outline-none" />
-        </div>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
-
-        <button type="submit" disabled={loading || !name.trim() || !phone.trim()}
-          className="w-full rounded-xl bg-zinc-900 px-6 py-4 text-base font-bold text-white disabled:opacity-50">
-          {loading ? "Enviando..." : `Confirmar pedido · ${euros(total)}`}
-        </button>
-      </form>
-    </div>
-  );
-}
+                            {/* RESUMEN DEL PEDIDO */}
+                                      <div style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: "16px", padding: "20px" }}>
+                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "14px" }}>
+                                                                    Tu pedido · {count} {count === 1 ? "producto" : "productos"}
+                                                    </div>div>
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                                                      {items.map((item) => (
+                          <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                              <span style={{ fontSize: "14px", color: "var(--text-primary)" }}>
+                                                                    <span style={{ fontWeight: 700, color: "var(--brand-accent)", marginRight: "8px" }}>{item.quantity}×</span>span>
+                                                {item.name}
+                                              </span>span>
+                                              <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
+                                                {euros(item.unitPriceCents * item.quantity)}
+                                              </span>span>
+                          </div>div>
+                        ))}
+                                                    </div>div>
+                                                    <div style={{ borderTop: "1px solid var(--border)", marginTop: "14px", paddingTop: "14px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                                                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "var(--text-secondary)" }}>
+                                                                                      <span>Subtotal</span>span><span>{euros(subtotal)}</span>span>
+                                                                    </div>div>
+                                                      {fee > 0 && (
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "var(--text-secondary)" }}>
+                                            <span>Envío</span>span><span>{euros(fee)}</span>span>
+                          </div>div>
+                                                                  )}
+                                                                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginTop: "4px" }}>
+                                                                                  <span>Total</span>span><span style={{ color: "var(--brand-accent)" }}>{euros(total)}</span>span>
+                                                                  </div>div>
+                                                    </div>div>
+                                      </div>div>
+                          
+                            {/* CANAL */}
+                                    <div>
+                                                <label style={labelStyle}>Tipo de pedido</label>label>
+                                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                                  {(["TAKEAWAY", "DELIVERY"] as const).map((ch) => (
+                          <button
+                                              key={ch}
+                                              type="button"
+                                              onClick={() => setChannel(ch)}
+                                              style={{
+                                                                    padding: "14px", borderRadius: "12px", cursor: "pointer",
+                                                                    border: channel === ch ? "2px solid var(--brand-accent)" : "1px solid var(--border)",
+                                                                    backgroundColor: channel === ch ? "rgba(232, 160, 32, 0.1)" : "var(--surface-1)",
+                                                                    color: channel === ch ? "var(--brand-accent)" : "var(--text-secondary)",
+                                                                    fontWeight: 700, fontSize: "14px"
+                                              }}
+                                            >
+                            {ch === "TAKEAWAY" ? "🏃 Recoger" : "🛵 Delivery"}
+                          </button>button>
+                        ))}
+                                                </div>div>
+                                    </div>div>
+                          
+                            {/* DATOS CLIENTE */}
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                                                <div>
+                                                              <label style={labelStyle}>Nombre *</label>label>
+                                                              <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" style={inputStyle} />
+                                                </div>div>
+                                                <div>
+                                                              <label style={labelStyle}>Teléfono *</label>label>
+                                                              <input required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="600 000 000" type="tel" style={inputStyle} />
+                                                </div>div>
+                                      {channel === "DELIVERY" && (
+                        <div>
+                                        <label style={labelStyle}>Dirección de entrega *</label>label>
+                                        <input required value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Calle, número, piso..." style={inputStyle} />
+                        </div>div>
+                                                )}
+                                                <div>
+                                                              <label style={labelStyle}>Notas (opcional)</label>label>
+                                                              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Sin cebolla, alergia a..." rows={3}
+                                                                                style={{ ...inputStyle, resize: "none", lineHeight: "1.5" }} />
+                                                </div>div>
+                                    </div>div>
+                          
+                            {/* ERROR */}
+                            {error && (
+                      <div style={{ padding: "14px 16px", borderRadius: "12px", backgroundColor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", fontSize: "14px" }}>
+                        {error}
+                      </div>div>
+                                    )}
+                          
+                            {/* SUBMIT */}
+                                    <button
+                                                  type="submit"
+                                                  disabled={loading}
+                                                  style={{
+                                                                  padding: "16px", borderRadius: "14px", border: "none",
+                                                                  backgroundColor: loading ? "var(--surface-2)" : "var(--brand-accent)",
+                                                                  color: loading ? "var(--text-secondary)" : "#0d0d0d",
+                                                                  fontWeight: 800, fontSize: "16px", cursor: loading ? "not-allowed" : "pointer",
+                                                                  transition: "all 0.2s"
+                                                  }}
+                                                >
+                                      {loading ? "Enviando pedido..." : `Confirmar pedido · ${euros(total)}`}
+                                    </button>button>
+                          </form>form>
+                </main>main>
+        </div>div>
+      );
+}</span>
