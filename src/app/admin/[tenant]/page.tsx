@@ -1,10 +1,10 @@
-import AdminPanel from "./AdminPanel";
+import { redirect } from "next/navigation";
 
-export default async function AdminPage({
+export default async function AdminRootPage({
   params,
 }: {
   params: Promise<{ tenant: string }>;
 }) {
   const { tenant } = await params;
-  return <AdminPanel tenant={tenant} />;
+  redirect(`/admin/${tenant}/home`);
 }
