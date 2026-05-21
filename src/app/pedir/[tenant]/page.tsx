@@ -1,65 +1,71 @@
-import { headers } from "next/headers";
 import MenuClient from "./MenuClient";
-import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
+import { prisma } from "@/app/lib/prisma";
+import { getTenantTheme, getTenantSettings } from "@/app/lib/tenantConfig";
+import { notFound } from "next/navigation";
 
-type MenuProduct = {
-  id: string;
-  name: string;
-  description: string;
-  basePriceCents: number;
-  imageUrl?: string | null;
-  isFeatured?: boolean;
-  hasModifiers?: boolean;
-};
-
-type MenuCategory = {
-  id: string;
-  name: string;
-  slug: string;
-  sortOrder: number;
-  isFeatured: boolean;
-  description?: string | null;
-  imageUrl?: string | null;
-  products: MenuProduct[];
-};
-
-type MenuResponse = {
-  tenant: { id: string; name: string; slug: string };
-  theme: TenantTheme;
-  settings: StoreSettings;
-  categories: MenuCategory[];
-};
-
-async function getMenu(tenant: string): Promise<MenuResponse> {
-  const h = await headers();
-  const host = h.get("host");
-  const proto = process.env.NODE_ENV === "development" ? "http" : "https";
-
-  if (!host) throw new Error("No se pudo determinar el host");
-
-  const res = await fetch(`${proto}://${host}/api/menu/${tenant}`, {
-    cache: "no-store",
-  });
-
-  if (!res.ok) throw new Error("No se pudo cargar el menu");
-  return res.json();
-}
+export const dynamic = "force-dynamic";
 
 export default async function PedirPage({
   params,
 }: {
   params: Promise<{ tenant: string }>;
 }) {
-  const { tenant } = await params;
-  const data = await getMenu(tenant);
+  const { tenant: tenantSlug } = await params;
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { slug: tenantSlug },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      branding: true,
+      settings: true,
+      stores: {
+        take: 1,
+        select: {
+          id: true,
+          channels: true,
+          deliveryEnabled: true,
+          takeawayEnabled: true,
+          estimatedDeliveryMinutes: true,
+          estimatedPickupMinutes: true,
+        },
+      },
+    },
+  });
+
+  if (!tenant) notFound();
+
+  const categories = await prisma.category.findMany({
+    where: { tenantId: tenant.id, isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    include: {
+      products: {
+        where: { isActive: true, isAvailable: true },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          basePriceCents: true,
+          imageUrl: true,
+          isFeatured: true,
+          hasModifiers: true,
+        },
+      },
+    },
+  });
+
+  const theme = getTenantTheme(tenant.branding as Record<string, unknown>);
+  const settings = getTenantSettings(tenant.settings as Record<string, unknown>);
 
   return (
     <MenuClient
-      tenant={tenant}
-      tenantName={data.tenant.name}
-      categories={data.categories}
-      theme={data.theme}
-      settings={data.settings}
+      tenant={tenantSlug}
+      tenantName={tenant.name}
+      categories={categories}
+      theme={theme}
+      settings={settings}
     />
   );
 }
