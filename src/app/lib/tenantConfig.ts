@@ -1,59 +1,66 @@
 /**
  * tenantConfig.ts
  *
- * CAPA TEMPORAL DE CONFIGURACIÓN POR TENANT
- * ==========================================
- * Esta capa existe porque el dashboard de gestión aún no está construido.
- * Permite que el front público /pedir/[tenant] funcione con configuración
- * visual y operativa real para cada tenant.
+ * CAPA DE ADAPTACIÓN TENANT → COMPONENTES
+ * =========================================
+ * Convierte el JSON Tenant.branding / Tenant.settings (DB) en tipos
+ * fuertemente tipados que consumen los componentes.
  *
- * CÓMO FUNCIONA:
- * - La API /api/menu/[tenant] devuelve tenant.branding y tenant.settings (Json)
- * - getTenantTheme() combina esos datos con los defaults del sistema
- * - El componente MenuClient recibe el theme como prop y aplica CSS vars
+ * ⚠️  TRANSICIÓN ACTIVA:
+ *   - Actualmente los datos viven en Tenant.branding (JSON) y Tenant.settings (JSON).
+ *   - En Sprint 5 se migrarán a tablas TenantTheme y StoreSettings.
+ *   - Este archivo seguirá siendo el adaptador entre DB y componentes,
+ *     pero leerá de relaciones en lugar de JSON.
+ *   Ver: docs/architecture/tenant-config.md
  *
- * MIGRACIÓN FUTURA (Sprint 5 - Dashboard):
- * - El dashboard permitirá editar estos valores desde UI
- * - Se guardarán en tenant.branding / tenant.settings en la DB
- * - Esta función seguirá siendo el adaptador entre DB y componentes
- * - Documentado en: docs/architecture/tenant-config.md
+ * ❌ REGLAS ABSOLUTAS:
+ *   - NO hardcodear colores, textos ni datos de ningún tenant (incluido Estafetén).
+ *   - SYSTEM_DEFAULT_* son los valores del sistema, no de ningún restaurante.
+ *   - Todos los componentes consumen estos tipos vía props o contexto.
  */
 
 // ─────────────────────────────────────────────
-//  TIPOS
+// TIPOS
 // ─────────────────────────────────────────────
 
 export type TenantTheme = {
   // Colores
-  primaryColor: string;      // Color principal de la marca (CTAs, accents)
-  secondaryColor: string;    // Color secundario
-  backgroundColor: string;  // Fondo base de la carta
-  surfaceColor: string;      // Fondo de cards y paneles
-  borderColor: string;       // Color de bordes
-  textPrimary: string;       // Texto principal
-  textSecondary: string;     // Texto secundario / subtítulos
+  primaryColor: string;
+  secondaryColor: string;
+  backgroundColor: string;
+  surfaceColor: string;
+  borderColor: string;
+  textPrimary: string;
+  textSecondary: string;
 
   // Tipografía
-  bodyFont: string;          // Fuente del cuerpo
-  headingFont: string;       // Fuente de títulos
+  bodyFont: string;
+  headingFont: string;
 
   // Visual
-  borderRadius: string;      // Radio de bordes (e.g. "12px", "0px")
-  cardStyle: 'rounded' | 'sharp' | 'pill'; // Estilo de cards
+  borderRadius: string;
+  cardStyle: 'rounded' | 'sharp' | 'pill';
 
   // Identidad
-  logoUrl: string | null;    // URL del logo
-  faviconUrl: string | null; // URL del favicon
-  heroImageUrl: string | null; // Imagen hero de la carta
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  heroImageUrl: string | null;
 };
 
 export type StoreSettings = {
+  // Canales
   deliveryEnabled: boolean;
   takeawayEnabled: boolean;
+
+  // Costes
   minimumOrderCents: number;
   deliveryFeeCents: number;
+
+  // Tiempos
   estimatedDeliveryMinutes: number;
   estimatedPickupMinutes: number;
+
+  // Contacto
   currency: string;
   phone: string | null;
   whatsapp: string | null;
@@ -67,87 +74,63 @@ export type TenantConfig = {
 };
 
 // ─────────────────────────────────────────────
-//  DEFAULTS DEL SISTEMA
-//  Usados como fallback cuando el tenant no
-//  tiene configuración específica en la DB.
+// DEFAULTS DEL SISTEMA
+// Valores neutros — NO específicos de ningún tenant.
+// Solo se usan como fallback cuando la DB no tiene un valor.
 // ─────────────────────────────────────────────
 
 export const SYSTEM_DEFAULT_THEME: TenantTheme = {
-  primaryColor: '#e8a020',
-  secondaryColor: '#f0b030',
-  backgroundColor: '#0d0d0d',
-  surfaceColor: '#1a1a1a',
-  borderColor: '#2a2a2a',
-  textPrimary: '#f0ece4',
-  textSecondary: '#888888',
-  bodyFont: 'Arial, Helvetica, sans-serif',
-  headingFont: 'Arial, Helvetica, sans-serif',
-  borderRadius: '14px',
-  cardStyle: 'rounded',
-  logoUrl: null,
-  faviconUrl: null,
+  primaryColor:    '#7939fe',
+  secondaryColor:  '#9c6dfe',
+  backgroundColor: '#ffffff',
+  surfaceColor:    '#f7f7fb',
+  borderColor:     '#eaeaf4',
+  textPrimary:     '#393659',
+  textSecondary:   '#b8b6df',
+  bodyFont:    'Inter, system-ui, sans-serif',
+  headingFont: 'Inter, system-ui, sans-serif',
+  borderRadius: '8px',
+  cardStyle:    'rounded',
+  logoUrl:      null,
+  faviconUrl:   null,
   heroImageUrl: null,
 };
 
 export const SYSTEM_DEFAULT_SETTINGS: StoreSettings = {
-  deliveryEnabled: true,
-  takeawayEnabled: true,
-  minimumOrderCents: 0,
-  deliveryFeeCents: 0,
-  estimatedDeliveryMinutes: 45,
-  estimatedPickupMinutes: 20,
-  currency: 'EUR',
-  phone: null,
-  whatsapp: null,
+  deliveryEnabled:           true,
+  takeawayEnabled:           true,
+  minimumOrderCents:         0,
+  deliveryFeeCents:          0,
+  estimatedDeliveryMinutes:  45,
+  estimatedPickupMinutes:    20,
+  currency:  'EUR',
+  phone:     null,
+  whatsapp:  null,
   instagram: null,
-  address: null,
+  address:   null,
 };
 
 // ─────────────────────────────────────────────
-//  HELPERS
+// HELPERS
 // ─────────────────────────────────────────────
 
 /**
- * Combina el branding del tenant (de la DB) con los defaults del sistema.
- * El tenant puede sobrescribir cualquier valor.
+ * Combina el branding JSON del tenant con los defaults del sistema.
+ * El tenant sobreescribe cualquier campo que tenga definido.
+ * TEMP: cuando exista tabla TenantTheme, leer de relación en lugar de JSON.
  */
-export function getTenantTheme(brandingJson: Record<string, unknown> = {}): TenantTheme {
-  return {
-    ...SYSTEM_DEFAULT_THEME,
-    ...(brandingJson as Partial<TenantTheme>),
-  };
+export function getTenantTheme(
+  brandingJson: Record<string, unknown> = {}
+): TenantTheme {
+  return { ...SYSTEM_DEFAULT_THEME, ...(brandingJson as Partial<TenantTheme>) };
 }
 
 /**
- * Combina el settings del tenant (de la DB) con los defaults del sistema.
+ * Combina el settings JSON del tenant con los defaults del sistema.
+ * TEMP: cuando exista tabla StoreSettings, leer de relación.
  */
-export function getTenantSettings(settingsJson: Record<string, unknown> = {}): StoreSettings {
-  return {
-    ...SYSTEM_DEFAULT_SETTINGS,
-    ...(settingsJson as Partial<StoreSettings>),
-  };
-}
-
-/**
- * Convierte un TenantTheme a CSS custom properties.
- * Usado en layout.tsx o en el componente raíz de la carta.
- */
-export function themeToCssVars(theme: TenantTheme): Record<string, string> {
-  return {
-    '--brand-primary': theme.primaryColor,
-    '--brand-secondary': theme.secondaryColor,
-    '--bg-base': theme.backgroundColor,
-    '--surface-1': theme.surfaceColor,
-    '--border': theme.borderColor,
-    '--text-primary': theme.textPrimary,
-    '--text-secondary': theme.textSecondary,
-    '--font-body': theme.bodyFont,
-    '--font-heading': theme.headingFont,
-    '--radius': theme.borderRadius,
-    // Aliases para compatibilidad con el design system actual
-    '--brand-accent': theme.primaryColor,
-    '--brand-accent-h': theme.secondaryColor,
-    '--surface-0': '#111111',
-    '--surface-2': '#252525',
-  };
+export function getTenantSettings(
+  settingsJson: Record<string, unknown> = {}
+): StoreSettings {
+  return { ...SYSTEM_DEFAULT_SETTINGS, ...(settingsJson as Partial<StoreSettings>) };
 }
