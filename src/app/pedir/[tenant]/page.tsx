@@ -24,7 +24,6 @@ export default async function PedirPage({
         take: 1,
         select: {
           id: true,
-          channels: true,
           deliveryEnabled: true,
           takeawayEnabled: true,
           estimatedDeliveryMinutes: true,
