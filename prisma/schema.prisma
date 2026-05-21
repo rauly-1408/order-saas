@@ -7,6 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Enums ────────────────────────────────────────────────
 enum Role {
   SUPERADMIN
   TENANT_ADMIN
@@ -34,14 +35,12 @@ enum OrderStatus {
 //  USER
 // ─────────────────────────────────────────────
 model User {
-  id       String @id @default(cuid())
-  email    String @unique
-  password String
-  role     Role   @default(TENANT_ADMIN)
-
-  tenantId String?
-  tenant   Tenant? @relation(fields: [tenantId], references: [id])
-
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(TENANT_ADMIN)
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -49,9 +48,13 @@ model User {
 // ─────────────────────────────────────────────
 //  TENANT
 //  Representa un restaurante/negocio.
-//  branding y settings son JSON temporales.
-//  Migración futura: extraer a tablas propias
-//  (ver docs/architecture/tenant-config.md)
+//
+//  branding y settings son JSON de transición.
+//  Cuando el dashboard edita visual/operativa,
+//  escribe aquí. En Sprint 5 se migra a tablas
+//  TenantTheme y StoreSettings.
+//
+//  Ver: docs/architecture/tenant-config.md
 // ─────────────────────────────────────────────
 model Tenant {
   id      String   @id @default(cuid())
@@ -59,19 +62,17 @@ model Tenant {
   slug    String   @unique
   domains String[] @default([])
 
-  // Identidad visual — temporal en JSON
-  // TODO: migrar a tabla TenantTheme cuando exista el dashboard
-  // Estructura esperada: { primaryColor, secondaryColor, backgroundColor,
-  //   surfaceColor, textColor, accentColor, headingFont, bodyFont,
-  //   borderRadius, cardStyle, logoUrl, faviconUrl, heroImageUrl }
+  // Visual — JSON temporal hasta TenantTheme
+  // Keys: primaryColor, secondaryColor, backgroundColor, surfaceColor,
+  //       textColor, accentColor, headingFont, bodyFont,
+  //       borderRadius, cardStyle, logoUrl, faviconUrl, heroImageUrl
   branding Json @default("{}")
 
-  // Configuración operativa — temporal en JSON
-  // TODO: migrar a tabla StoreSettings cuando exista el dashboard
-  // Estructura esperada: { deliveryEnabled, takeawayEnabled,
-  //   minimumOrderCents, deliveryFeeCents, estimatedDeliveryMinutes,
-  //   estimatedPickupMinutes, openingHours, address, phone, whatsapp,
-  //   instagram, timezone, currency }
+  // Operativa — JSON temporal hasta StoreSettings
+  // Keys: deliveryEnabled, takeawayEnabled, minimumOrderCents,
+  //       deliveryFeeCents, estimatedDeliveryMinutes,
+  //       estimatedPickupMinutes, openingHours, address,
+  //       phone, whatsapp, instagram, timezone, currency
   settings Json @default("{}")
 
   users          User[]
@@ -87,19 +88,27 @@ model Tenant {
 
 // ─────────────────────────────────────────────
 //  STORE (local físico)
+//  Configuración operativa por establecimiento.
 // ─────────────────────────────────────────────
 model Store {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
 
-  name    String
-  address String?
-  phone   String?
-  email   String?
-  active  Boolean @default(true)
+  name       String
+  address    String?
+  city       String?
+  postalCode String?
+  geoLat     Float?
+  geoLng     Float?
 
-  // Configuración de canales por local
+  phone     String?
+  email     String?
+  whatsapp  String?
+  instagram String?
+  active    Boolean @default(true)
+
+  // Canales habilitados
   deliveryEnabled  Boolean @default(true)
   takeawayEnabled  Boolean @default(true)
 
@@ -107,12 +116,15 @@ model Store {
   minimumOrderCents Int @default(0)
   deliveryFeeCents  Int @default(0)
 
-  // Tiempos estimados (minutos)
+  // Tiempos estimados en minutos
   estimatedDeliveryMinutes Int @default(45)
   estimatedPickupMinutes   Int @default(20)
 
-  // Horarios en JSON: { mon: [{open: "09:00", close: "22:00"}], ... }
-  openingHours Json @default("{}")
+  // Horarios JSON: { mon: [{open:"09:00", close:"22:00"}], ... }
+  openingHours  Json @default("{}")
+
+  // Zonas de reparto JSON: [{ name, priceCents, polygonGeoJson }]
+  deliveryZones Json @default("[]")
 
   orders Order[]
 
@@ -129,46 +141,15 @@ model Category {
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   name        String
-  slug        String
-  description String? // NUEVO: descripción visible en la carta
-  imageUrl    String? // NUEVO: imagen de cabecera de categoría
+  slug        String?
+  description String?
+  imageUrl    String?
 
   sortOrder  Int     @default(0)
-  isFeatured Boolean @default(false)
   isActive   Boolean @default(true)
+  isFeatured Boolean @default(false)
 
-  products  Product[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  @@unique([tenantId, slug])
-}
-
-// ─────────────────────────────────────────────
-//  PRODUCT
-// ─────────────────────────────────────────────
-model Product {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id])
-
-  name          String
-  slug          String
-  description   String?
-  imageUrl      String? // NUEVO: imagen del producto
-  basePriceCents Int    @default(0)
-
-  isActive    Boolean @default(true)
-  isAvailable Boolean @default(true) // NUEVO: agotado temporal
-  isFeatured  Boolean @default(false) // NUEVO: destacado en la carta
-  hasModifiers Boolean @default(false)
-
-  sortOrder Int @default(0) // NUEVO: orden dentro de categoría
-
-  modifierGroups ProductModifierGroup[]
+  products Product[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -177,7 +158,39 @@ model Product {
 }
 
 // ─────────────────────────────────────────────
-//  MODIFIER GROUP / OPTIONS
+//  PRODUCT
+// ─────────────────────────────────────────────
+model Product {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  name           String
+  slug           String?
+  description    String?
+  imageUrl       String?
+  basePriceCents Int     @default(0)
+  tags           String[] @default([])
+
+  isActive     Boolean   @default(true)
+  isAvailable  Boolean   @default(true)
+  isFeatured   Boolean   @default(false)
+  hasModifiers Boolean   @default(false)
+  sortOrder    Int       @default(0)
+
+  activeChannels Channel[] @default([DELIVERY, TAKEAWAY])
+
+  modifierGroups ProductModifierGroup[]
+  orderItems     OrderLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+//  MODIFIER GROUP
 // ─────────────────────────────────────────────
 model ModifierGroup {
   id       String @id @default(cuid())
@@ -190,8 +203,8 @@ model ModifierGroup {
   minSelect  Int     @default(0)
   maxSelect  Int     @default(1)
 
-  productModifierGroups ProductModifierGroup[]
-  options               ModifierOption[]
+  options  ModifierOption[]
+  products ProductModifierGroup[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -199,20 +212,23 @@ model ModifierGroup {
   @@unique([tenantId, code])
 }
 
+// ─────────────────────────────────────────────
+//  MODIFIER OPTION
+// ─────────────────────────────────────────────
 model ModifierOption {
   id      String        @id @default(cuid())
   groupId String
   group   ModifierGroup @relation(fields: [groupId], references: [id])
 
-  name           String
-  priceDeltaCents Int   @default(0)
-  sortOrder      Int    @default(0)
-  isAvailable    Boolean @default(true) // NUEVO
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  name            String
+  priceDeltaCents Int     @default(0)
+  isAvailable     Boolean @default(true)
+  sortOrder       Int     @default(0)
 }
 
+// ─────────────────────────────────────────────
+//  PRODUCT ↔ MODIFIER GROUP (pivot)
+// ─────────────────────────────────────────────
 model ProductModifierGroup {
   id        String        @id @default(cuid())
   productId String
@@ -231,51 +247,49 @@ model Order {
   id       String @id @default(cuid())
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
+  storeId  String
+  store    Store  @relation(fields: [storeId], references: [id])
 
-  storeId String
-  store   Store  @relation(fields: [storeId], references: [id])
+  orderNumber Int
+  status      OrderStatus @default(CREATED)
+  channel     Channel
 
-  orderNumber Int?
+  customerName       String
+  customerPhone      String
+  customerAddress    String?
+  customerPostalCode String?
+  notes              String?
+  currency           String @default("EUR")
 
-  channel Channel
-  status  OrderStatus @default(CREATED)
+  subtotalCents Int @default(0)
+  feesCents     Int @default(0)
+  totalCents    Int @default(0)
 
-  customerName        String
-  customerPhone       String
-  customerAddress     String?
-  customerPostalCode  String?
-  notes               String?
-
-  currency      String @default("EUR")
-  subtotalCents Int    @default(0)
-  feesCents     Int    @default(0)
-  totalCents    Int    @default(0)
-
-  posProvider   String?
-  posExternalId String?
+  lines OrderLine[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items OrderLine[]
-
   @@unique([tenantId, orderNumber])
 }
 
+// ─────────────────────────────────────────────
+//  ORDER LINE (items del pedido)
+// ─────────────────────────────────────────────
 model OrderLine {
   id      String @id @default(cuid())
   orderId String
   order   Order  @relation(fields: [orderId], references: [id])
 
   productId      String
+  product        Product @relation(fields: [productId], references: [id])
   productName    String
-  quantity       Int    @default(1)
-  basePriceCents Int    @default(0)
-  totalCents     Int    @default(0)
+  quantity       Int
+  basePriceCents Int
+  modifiers      Json    @default("[]")
+  totalCents     Int
 
-  // Modificadores seleccionados en JSON snapshot
-  modifiers Json @default("[]")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Alias para compatibilidad con código legado que usaba lineTotalCents
+  // TEMP: eliminar cuando todo el código use totalCents
+  lineTotalCents Int     @default(0)
 }
