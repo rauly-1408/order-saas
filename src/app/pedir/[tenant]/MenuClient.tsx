@@ -9,32 +9,35 @@ type MenuClientProps = { tenant: string; tenantName: string; categories: MenuCat
 
 const euros = (cents: number) => (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-function Modal({ product, onClose, onAdd, qty, onInc, onDec }: { product: MenuProduct; onClose: () => void; onAdd: () => void; qty: number; onInc: () => void; onDec: () => void; }) {
+function Modal({ product, onClose, onAdd, qty, onInc, onDec }: {
+  product: MenuProduct; onClose: () => void; onAdd: () => void;
+  qty: number; onInc: () => void; onDec: () => void;
+}) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, backgroundColor: "rgba(0,0,0,0.55)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "520px", overflow: "hidden" }}>
-        <div style={{ backgroundColor: "#f5f0e8", width: "100%", height: "260px", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "540px", overflow: "hidden", fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ backgroundColor: "#502314", width: "100%", minHeight: "280px", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
           {product.imageUrl
-            ? <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            : <div style={{ fontSize: "48px", color: "#bbb" }}>?</div>
+            ? <img src={product.imageUrl} alt={product.name} style={{ width: "100%", maxHeight: "280px", objectFit: "contain" }} />
+            : <div style={{ fontSize: "80px", color: "rgba(255,255,255,0.15)" }}>?</div>
           }
-          <button onClick={onClose} style={{ position: "absolute", top: "12px", right: "12px", width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.35)", border: "none", color: "#fff", fontSize: "18px", cursor: "pointer" }}>X</button>
+          <button onClick={onClose} style={{ position: "absolute", top: "16px", right: "16px", width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: "20px", cursor: "pointer", fontWeight: 700 }}>x</button>
         </div>
-        <div style={{ padding: "20px 24px 32px" }}>
-          <h2 style={{ fontSize: "22px", fontWeight: 800, color: "#1a1a1a", margin: "0 0 8px", textTransform: "uppercase" }}>{product.name}</h2>
-          {product.description && <p style={{ fontSize: "14px", color: "#666", margin: "0 0 12px", lineHeight: 1.5 }}>{product.description}</p>}
-          <p style={{ fontSize: "20px", fontWeight: 700, color: "#c8102e", margin: "0 0 20px" }}>{euros(product.basePriceCents)}</p>
+        <div style={{ padding: "24px 28px 36px", backgroundColor: "#fff" }}>
+          <h2 style={{ fontSize: "24px", fontWeight: 700, color: "#502314", margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.5px", lineHeight: 1.2 }}>{product.name}</h2>
+          {product.description && <p style={{ fontSize: "15px", color: "#9f816f", margin: "0 0 14px", lineHeight: 1.5 }}>{product.description}</p>}
+          <p style={{ fontSize: "22px", fontWeight: 700, color: "#d62300", margin: "0 0 22px" }}>{euros(product.basePriceCents)}</p>
           {qty === 0
-            ? <button onClick={onAdd} style={{ width: "100%", padding: "14px", borderRadius: "999px", backgroundColor: "#c8102e", border: "none", color: "#fff", fontSize: "16px", fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>Anadir al pedido</button>
-            : <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "#c8102e", borderRadius: "999px", padding: "4px" }}>
-                <button onClick={onDec} style={{ width: "44px", height: "44px", borderRadius: "50%", backgroundColor: "#fff", border: "none", color: "#c8102e", fontSize: "22px", fontWeight: 700, cursor: "pointer" }}>-</button>
-                <span style={{ color: "#fff", fontWeight: 700, fontSize: "18px" }}>{qty}</span>
-                <button onClick={onInc} style={{ width: "44px", height: "44px", borderRadius: "50%", backgroundColor: "#fff", border: "none", color: "#c8102e", fontSize: "22px", fontWeight: 700, cursor: "pointer" }}>+</button>
+            ? <button onClick={onAdd} style={{ width: "100%", padding: "15px", borderRadius: "9999px", backgroundColor: "#d62300", border: "none", color: "#fff", fontSize: "16px", fontWeight: 700, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.5px" }}>Anadir al pedido</button>
+            : <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "#d62300", borderRadius: "9999px", padding: "5px" }}>
+                <button onClick={onDec} style={{ width: "46px", height: "46px", borderRadius: "50%", backgroundColor: "#fff", border: "none", color: "#d62300", fontSize: "24px", fontWeight: 700, cursor: "pointer" }}>-</button>
+                <span style={{ color: "#fff", fontWeight: 700, fontSize: "20px" }}>{qty}</span>
+                <button onClick={onInc} style={{ width: "46px", height: "46px", borderRadius: "50%", backgroundColor: "#fff", border: "none", color: "#d62300", fontSize: "24px", fontWeight: 700, cursor: "pointer" }}>+</button>
               </div>
           }
         </div>
@@ -76,74 +79,101 @@ export default function MenuClient({ tenant, tenantName, categories }: MenuClien
   const doInc = (p: MenuProduct) => { const id = getLid(p.id); if (id) inc(id); };
   const doDec = (p: MenuProduct) => { const id = getLid(p.id); if (!id) return; if (getQty(p.id) <= 1) remove(id); else dec(id); };
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#fff", color: "#1a1a1a", fontFamily: "system-ui, sans-serif" }}>
-      <header style={{ position: "sticky", top: 0, zIndex: 50, backgroundColor: "#fff", borderBottom: "1px solid #e8e8e8", height: "64px", display: "flex", alignItems: "center", padding: "0 20px", gap: "12px" }}>
-        <div style={{ width: "40px", height: "40px", borderRadius: "10px", backgroundColor: "#c8102e", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "15px", color: "#fff", flexShrink: 0 }}>{tenantName.slice(0, 2).toUpperCase()}</div>
+    <div style={{ minHeight: "100vh", backgroundColor: "#fff", fontFamily: "system-ui, sans-serif" }}>
+
+      <header style={{ position: "sticky", top: 0, zIndex: 50, backgroundColor: "#fff", borderBottom: "1px solid #eee", height: "68px", display: "flex", alignItems: "center", padding: "0 24px", gap: "14px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
+        <div style={{ width: "44px", height: "44px", borderRadius: "12px", backgroundColor: "#d62300", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "16px", color: "#fff", flexShrink: 0, letterSpacing: "0.5px" }}>{tenantName.slice(0, 2).toUpperCase()}</div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: "17px", color: "#1a1a1a" }}>{tenantName}</div>
-          <div style={{ fontSize: "12px", color: "#888" }}>A domicilio o recoger</div>
+          <div style={{ fontWeight: 700, fontSize: "18px", color: "#502314", letterSpacing: "0.3px" }}>{tenantName}</div>
+          <div style={{ fontSize: "12px", color: "#9f816f" }}>A domicilio o recoger</div>
         </div>
-        {totalItems > 0 && <a href={"/pedir/" + tenant + "/checkout"} style={{ marginLeft: "auto", backgroundColor: "#c8102e", color: "#fff", borderRadius: "999px", padding: "8px 18px", fontWeight: 700, fontSize: "14px", textDecoration: "none" }}>{totalItems} art. - {euros(totalCents)}</a>}
+        {totalItems > 0 && (
+          <a href={"/pedir/" + tenant + "/checkout"} style={{ marginLeft: "auto", backgroundColor: "#d62300", color: "#fff", borderRadius: "9999px", padding: "10px 22px", fontWeight: 700, fontSize: "14px", textDecoration: "none", whiteSpace: "nowrap" }}>
+            {totalItems} art. - {euros(totalCents)}
+          </a>
+        )}
       </header>
-      <div style={{ backgroundColor: "#1a0a00", padding: "18px 20px", textAlign: "center" }}>
-        <h1 style={{ margin: 0, color: "#fff", fontSize: "28px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "-0.5px" }}>Nuestra carta</h1>
+
+      <div style={{ backgroundColor: "#502314", padding: "22px 24px", textAlign: "center" }}>
+        <h1 style={{ margin: 0, color: "#f5ebdc", fontSize: "32px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "-0.5px", lineHeight: 1 }}>Nuestra carta</h1>
       </div>
-      <nav ref={navRef} style={{ position: "sticky", top: "64px", zIndex: 40, backgroundColor: "#fff", borderBottom: "1px solid #e8e8e8", display: "flex", overflowX: "auto", scrollbarWidth: "none" }}>
+
+      <div ref={navRef} style={{ position: "sticky", top: "68px", zIndex: 40, backgroundColor: "#fff", borderBottom: "1px solid #eee", display: "flex", overflowX: "auto", scrollbarWidth: "none", boxShadow: "0 2px 4px rgba(0,0,0,0.04)" }}>
         {categories.map((cat) => {
           const isActive = active === cat.slug;
           const thumb = cat.products.find((p) => p.imageUrl)?.imageUrl;
           return (
-            <button key={cat.slug} data-slug={cat.slug} onClick={() => secRefs.current[cat.slug]?.scrollIntoView({ behavior: "smooth", block: "start" })}
-              style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", padding: "10px 16px 8px", border: "none", backgroundColor: "transparent", borderBottom: isActive ? "3px solid #c8102e" : "3px solid transparent", cursor: "pointer", minWidth: "80px" }}>
-              <div style={{ width: "52px", height: "52px", borderRadius: "50%", backgroundColor: isActive ? "#fff0f0" : "#f5f5f5", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", border: isActive ? "2px solid #c8102e" : "2px solid transparent" }}>
+            <button key={cat.slug} data-slug={cat.slug}
+              onClick={() => secRefs.current[cat.slug]?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", padding: "16px 14px 12px", border: "none", backgroundColor: "transparent", borderBottom: isActive ? "3px solid #d62300" : "3px solid transparent", cursor: "pointer", minWidth: "90px" }}>
+              <div style={{ width: "56px", height: "36px", borderRadius: "10px", backgroundColor: isActive ? "#fff0ec" : "#f7f2ef", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {thumb
                   ? <img src={thumb} alt={cat.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  : <span style={{ fontSize: "18px", color: "#aaa" }}>?</span>
+                  : <span style={{ fontSize: "20px", color: "#ccc" }}>?</span>
                 }
               </div>
-              <span style={{ fontSize: "11px", fontWeight: isActive ? 700 : 500, color: isActive ? "#c8102e" : "#555", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.3px" }}>{cat.name}</span>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: isActive ? "#d62300" : "#502314", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.2px", lineHeight: 1.2, maxWidth: "80px" }}>{cat.name}</span>
             </button>
           );
         })}
-      </nav>
-      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 20px 140px" }}>
+      </div>
+      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "36px 24px 160px" }}>
         {categories.map((cat) => (
-          <section key={cat.slug} ref={(el) => { secRefs.current[cat.slug] = el; }} style={{ marginBottom: "48px" }}>
-            <h2 style={{ fontSize: "22px", fontWeight: 900, color: "#1a0a00", textTransform: "uppercase", letterSpacing: "0.5px", margin: "0 0 20px", paddingBottom: "10px", borderBottom: "2px solid #e8e8e8" }}>{cat.name}</h2>
+          <section key={cat.slug} ref={(el) => { secRefs.current[cat.slug] = el; }} style={{ marginBottom: "56px" }}>
+            <h2 style={{ fontSize: "20px", fontWeight: 900, color: "#502314", textTransform: "uppercase", letterSpacing: "1px", margin: "0 0 20px", paddingBottom: "12px", borderBottom: "2px solid #f0e8e4" }}>{cat.name}</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "16px" }}>
-              {cat.products.map((p) => (
-                <div key={p.id} onClick={() => setSelected(p)} style={{ backgroundColor: "#fff", borderRadius: "12px", border: getQty(p.id) > 0 ? "2px solid #c8102e" : "2px solid #e8e8e8", overflow: "hidden", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", position: "relative" }}>
-                  <div style={{ width: "100%", paddingTop: "75%", position: "relative", backgroundColor: "#f5f0e8" }}>
-                    {p.imageUrl
-                      ? <img src={p.imageUrl} alt={p.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-                      : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "40px", color: "#ccc" }}>?</div>
-                    }
-                    {getQty(p.id) > 0 && <div style={{ position: "absolute", top: "8px", right: "8px", backgroundColor: "#c8102e", color: "#fff", borderRadius: "50%", width: "26px", height: "26px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "13px" }}>{getQty(p.id)}</div>}
+              {cat.products.map((p) => {
+                const inCart = getQty(p.id) > 0;
+                return (
+                  <div key={p.id} onClick={() => setSelected(p)}
+                    style={{ backgroundColor: "#fff", borderRadius: "10px", border: "none", overflow: "hidden", cursor: "pointer",
+                      boxShadow: inCart ? "rgba(214,35,0,0.25) 0px 0px 0px 2px, rgba(73,73,73,0.15) 0px 2px 8px 0px" : "rgba(73,73,73,0.2) 0px 0px 4px 0px",
+                      transition: "box-shadow 0.3s", position: "relative" }}>
+                    <div style={{ width: "100%", paddingTop: "65%", position: "relative", backgroundColor: "#fff" }}>
+                      {p.imageUrl
+                        ? <img src={p.imageUrl} alt={p.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", padding: "8px" }} />
+                        : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "48px", color: "#e8d8d0" }}>?</div>
+                      }
+                      {inCart && (
+                        <div style={{ position: "absolute", top: "8px", right: "8px", backgroundColor: "#d62300", color: "#fff", borderRadius: "50%", width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "12px" }}>
+                          {getQty(p.id)}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ padding: "14px 16px 16px", borderTop: "1px solid #f5f0ec" }}>
+                      <p style={{ margin: "0 0 6px", fontSize: "14px", fontWeight: 700, color: "#502314", textTransform: "uppercase", lineHeight: 1.25, letterSpacing: "0.3px" }}>{p.name}</p>
+                      <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#d62300" }}>{euros(p.basePriceCents)}</p>
+                    </div>
                   </div>
-                  <div style={{ padding: "12px 14px 14px" }}>
-                    <p style={{ margin: "0 0 4px", fontSize: "13px", fontWeight: 700, color: "#1a0a00", textTransform: "uppercase", lineHeight: 1.3 }}>{p.name}</p>
-                    {p.description && <p style={{ margin: "0 0 8px", fontSize: "12px", color: "#888", lineHeight: 1.4, maxHeight: "38px", overflow: "hidden" }}>{p.description}</p>}
-                    <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#c8102e" }}>{euros(p.basePriceCents)}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         ))}
       </main>
       {totalItems > 0 && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 60, backgroundColor: "#fff", borderTop: "1px solid #e8e8e8", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)" }}>
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 60, backgroundColor: "#fff", borderTop: "1px solid #eee", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 -4px 20px rgba(0,0,0,0.1)" }}>
           <div>
-            <span style={{ fontWeight: 700, fontSize: "15px", color: "#1a1a1a" }}>Tu pedido</span>
-            <span style={{ color: "#888", fontSize: "14px", marginLeft: "8px" }}>{totalItems} {totalItems === 1 ? "articulo" : "articulos"}</span>
+            <span style={{ fontWeight: 700, fontSize: "15px", color: "#502314" }}>Tu pedido</span>
+            <span style={{ color: "#9f816f", fontSize: "13px", marginLeft: "8px" }}>{totalItems} {totalItems === 1 ? "articulo" : "articulos"}</span>
           </div>
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-            <button onClick={clear} style={{ padding: "8px 14px", borderRadius: "999px", border: "1px solid #ddd", backgroundColor: "#fff", color: "#555", fontSize: "13px", cursor: "pointer" }}>Vaciar</button>
-            <a href={"/pedir/" + tenant + "/checkout"} style={{ padding: "10px 22px", borderRadius: "999px", backgroundColor: "#c8102e", color: "#fff", fontWeight: 700, fontSize: "15px", textDecoration: "none" }}>Ver pedido {euros(totalCents)}</a>
+            <button onClick={clear} style={{ padding: "9px 16px", borderRadius: "9999px", border: "1px solid #e0d5cf", backgroundColor: "#fff", color: "#9f816f", fontSize: "13px", cursor: "pointer", fontWeight: 600 }}>Vaciar</button>
+            <a href={"/pedir/" + tenant + "/checkout"} style={{ padding: "11px 24px", borderRadius: "9999px", backgroundColor: "#d62300", color: "#fff", fontWeight: 700, fontSize: "15px", textDecoration: "none" }}>Ver pedido {euros(totalCents)}</a>
           </div>
         </div>
       )}
-      {selected && <Modal product={selected} onClose={() => setSelected(null)} onAdd={() => doAdd(selected)} qty={getQty(selected.id)} onInc={() => doInc(selected)} onDec={() => doDec(selected)} />}
+
+      {selected && (
+        <Modal
+          product={selected}
+          onClose={() => setSelected(null)}
+          onAdd={() => doAdd(selected)}
+          qty={getQty(selected.id)}
+          onInc={() => doInc(selected)}
+          onDec={() => doDec(selected)}
+        />
+      )}
     </div>
   );
-}
+      }
