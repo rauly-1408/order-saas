@@ -134,3 +134,24 @@ export function getTenantSettings(
 ): StoreSettings {
   return { ...SYSTEM_DEFAULT_SETTINGS, ...(settingsJson as Partial<StoreSettings>) };
 }
+
+
+/**
+ * Convierte un TenantTheme en un objeto de variables CSS inline.
+ * Usado para aplicar el tema del tenant mediante style props en React.
+ */
+export function themeToCssVars(theme: TenantTheme): Record<string, string> {
+    return {
+          '--bg-base': theme.backgroundColor,
+          '--surface-0': theme.surfaceColor,
+          '--surface-1': theme.surfaceColor,
+          '--border': theme.borderColor,
+          '--text-primary': theme.textPrimary,
+          '--text-secondary': theme.textSecondary,
+          '--brand-accent': theme.primaryColor,
+          '--brand-secondary': theme.secondaryColor,
+          '--font-body': theme.bodyFont,
+          '--font-heading': theme.headingFont,
+          '--border-radius': theme.borderRadius,
+    };
+}
