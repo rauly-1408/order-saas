@@ -6,6 +6,7 @@ export type OrderItem = {
   productName: string;
   quantity: number;
   totalCents: number;
+  modifiers: unknown; // JSON snapshot: [{ bread?, side?, sidePriceCents? }]
 };
 
 export type Order = {
@@ -86,6 +87,42 @@ export function elapsedLabel(fromIso: string, now: number): string {
   if (secs < 60) return `${secs}s`;
   if (secs < 3600) return `${Math.floor(secs / 60)} min`;
   return `${Math.floor(secs / 3600)} h ${Math.floor((secs % 3600) / 60)} min`;
+}
+
+// Orden de lectura en cocina. Hace falta porque jsonb de Postgres no conserva
+// el orden de las claves (las ordena por longitud).
+const MODIFIER_ORDER = ["bread", "side"];
+const modifierRank = (key: string) => {
+  const i = MODIFIER_ORDER.indexOf(key);
+  return i === -1 ? MODIFIER_ORDER.length : i;
+};
+
+// Extrae las opciones elegidas del snapshot JSON de la línea. Tolerante con
+// formatos antiguos: ignora precios, vacíos y cualquier valor que no sea texto.
+export function modifierLabels(modifiers: unknown): string[] {
+  const list = Array.isArray(modifiers) ? modifiers : modifiers ? [modifiers] : [];
+  const labels: string[] = [];
+  for (const entry of list) {
+    if (!entry || typeof entry !== "object") continue;
+    const entries = Object.entries(entry as Record<string, unknown>).sort(
+      ([a], [b]) => modifierRank(a) - modifierRank(b)
+    );
+    for (const [key, value] of entries) {
+      if (key.endsWith("PriceCents")) continue;
+      if (typeof value === "string" && value.trim()) labels.push(value.trim());
+    }
+  }
+  return labels;
+}
+
+// "612345678" -> "612 34 56 78"; "+34612345678" -> "+34 612 34 56 78".
+// Si no es un número español de 9 dígitos, se devuelve tal cual.
+export function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  const local = digits.length === 11 && digits.startsWith("34") ? digits.slice(2) : digits.length === 13 && digits.startsWith("0034") ? digits.slice(4) : digits;
+  if (local.length !== 9) return raw;
+  const pretty = `${local.slice(0, 3)} ${local.slice(3, 5)} ${local.slice(5, 7)} ${local.slice(7)}`;
+  return local === digits ? pretty : `+34 ${pretty}`;
 }
 
 export function orderLabel(order: Order): string {

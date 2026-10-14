@@ -3,6 +3,8 @@
 import {
   canCancel,
   elapsedLabel,
+  formatPhone,
+  modifierLabels,
   nextAction,
   orderLabel,
   timerTone,
@@ -53,23 +55,35 @@ export default function OrderCard({ order, estimates, now, busy, onStatus }: Ord
           </div>
           <div className="truncate font-semibold text-zinc-100">{order.customerName}</div>
           <a href={`tel:${order.customerPhone}`} className="text-sm text-zinc-400 hover:text-zinc-200">
-            {order.customerPhone}
+            {formatPhone(order.customerPhone)}
           </a>
         </div>
-        <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold tabular-nums ${TONE_CLS[tone]}`}>
-          ⏱ {elapsedLabel(order.createdAt, now)}
-        </span>
+        <div className="shrink-0 text-right">
+          <span className={`rounded-full px-2 py-1 text-xs font-bold tabular-nums ${TONE_CLS[tone]}`}>
+            ⏱ {elapsedLabel(order.createdAt, now)}
+          </span>
+          {/* updatedAt ≈ momento en que salió a reparto (último cambio de estado) */}
+          {order.status === "DELIVERING" && (
+            <div className="mt-1.5 text-[11px] text-sky-300">en reparto hace {elapsedLabel(order.updatedAt, now)}</div>
+          )}
+        </div>
       </header>
 
       <ul className="mb-3 space-y-1 text-sm">
-        {order.items.map((item) => (
-          <li key={item.id} className="flex justify-between gap-2 text-zinc-200">
-            <span>
-              <span className="font-bold text-white">{item.quantity}×</span> {item.productName}
-            </span>
-            <span className="text-zinc-400">{toEuros(item.totalCents)}</span>
-          </li>
-        ))}
+        {order.items.map((item) => {
+          const mods = modifierLabels(item.modifiers);
+          return (
+            <li key={item.id} className="text-zinc-200">
+              <div className="flex justify-between gap-2">
+                <span>
+                  <span className="font-bold text-white">{item.quantity}×</span> {item.productName}
+                </span>
+                <span className="text-zinc-400">{toEuros(item.totalCents)}</span>
+              </div>
+              {mods.length > 0 && <div className="pl-6 text-xs text-zinc-400">{mods.join(" · ")}</div>}
+            </li>
+          );
+        })}
       </ul>
 
       {order.channel === "DELIVERY" && order.customerAddress && (
