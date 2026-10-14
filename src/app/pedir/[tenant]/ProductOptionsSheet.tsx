@@ -34,6 +34,8 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
   const groups = product.modifierGroups;
   const [selection, setSelection] = useState<Record<string, string[]>>(() => initialSelection(groups));
   const [error, setError] = useState("");
+  // Grupos plegables (extras opcionales) que el cliente ha desplegado.
+  const [open, setOpen] = useState<Record<string, boolean>>({});
 
   const modifiers = useMemo(() => selectionToModifiers(groups, selection), [groups, selection]);
   const unitPriceCents = product.basePriceCents + modifiers.reduce((acc, m) => acc + m.priceDeltaCents, 0);
@@ -103,6 +105,89 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
             const chosen = selection[group.id] ?? [];
             const multi = group.maxSelect > 1;
             const single = group.maxSelect === 1 && group.isRequired;
+            // Extras opcionales de varias opciones (salsas…): plegados por defecto
+            // para que el pan y la guarnición sean lo primero que se ve.
+            if (multi && !group.isRequired) {
+              const isOpen = !!open[group.id];
+              const chosenOptions = group.options.filter((o) => chosen.includes(o.id));
+              const extraCents = chosenOptions.reduce((acc, o) => acc + o.priceDeltaCents, 0);
+              const prices = [...new Set(group.options.map((o) => o.priceDeltaCents))];
+              const priceHint = prices.length === 1 && prices[0] > 0 ? ` · +${euros(prices[0])} cada una` : "";
+              return (
+                <section key={group.id} className="overflow-hidden rounded-2xl bg-[var(--surface-1)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+                  <button
+                    type="button"
+                    onClick={() => setOpen((prev) => ({ ...prev, [group.id]: !isOpen }))}
+                    aria-expanded={isOpen}
+                    aria-controls={`extras-${group.id}`}
+                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent)] text-[var(--on-accent)]">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="text-[15px] font-bold">Añade extras</span>
+                        {chosen.length > 0 && (
+                          <span className="rounded-full bg-[var(--brand-secondary)] px-2 py-0.5 text-[11px] font-bold text-[var(--on-secondary)]">{chosen.length}</span>
+                        )}
+                      </span>
+                      <span className="block truncate text-[12px] text-[var(--text-secondary)]">
+                        {chosenOptions.length
+                          ? `${chosenOptions.map((o) => o.name).join(", ")} · +${euros(extraCents)}`
+                          : `${group.name.replace(/\s*extras?$/i, "")} · ${group.options.length} opciones${priceHint}`}
+                      </span>
+                    </span>
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                      className={`shrink-0 text-[var(--text-secondary)] transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                  {/* Despliegue animado: la fila de la rejilla pasa de 0fr a 1fr */}
+                  <div
+                    id={`extras-${group.id}`}
+                    className={`grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <div className="flex flex-wrap gap-2 px-4 pt-1 pb-4" inert={!isOpen}>
+                        {group.options.map((option) => {
+                          const selected = chosen.includes(option.id);
+                          return (
+                            <button
+                              key={option.id}
+                              onClick={() => toggle(group, option.id)}
+                              aria-pressed={selected}
+                              className={`p-press rounded-full border px-3 py-1.5 text-[13px] ${
+                                selected
+                                  ? "border-[var(--brand-accent)] bg-[var(--brand-accent)] font-semibold text-[var(--on-accent)]"
+                                  : "border-[var(--border)] text-[var(--text-primary)]"
+                              }`}
+                            >
+                              {selected && "✓ "}
+                              {option.name}
+                              {option.priceDeltaCents > 0 && !priceHint && <span className="opacity-70"> +{euros(option.priceDeltaCents)}</span>}
+                              {option.allergens && option.allergens.length > 0 && <span className="opacity-70"> · {option.allergens.join(", ")}</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              );
+            }
             return (
               <section key={group.id}>
                 <div className="mb-2 flex items-baseline justify-between gap-2">
