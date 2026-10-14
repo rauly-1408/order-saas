@@ -1,8 +1,18 @@
 import { PrismaClient, Prisma, Channel } from "@prisma/client";
 import fs from "node:fs";
 import path from "node:path";
+import { scryptSync, randomBytes } from "node:crypto";
 
 const prisma = new PrismaClient();
+
+// Hash de contraseña con scrypt (inline para evitar problemas de resolución de
+// módulos ESM en el seed). Mismo formato "<saltHex>:<hashHex>" que
+// src/app/lib/password.ts — compatible con verifyPassword().
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
 
 // Helper: fuerza a Prisma JSON type (evita errores TS2322)
 const asJson = (v: unknown): Prisma.InputJsonValue => v as Prisma.InputJsonValue;
@@ -94,6 +104,23 @@ async function main() {
   });
 
   console.log(`✅ Tenant creado: ${tenant.name}`);
+
+  // Usuario admin del tenant (para acceder al panel). Password hasheado con scrypt.
+  // Configurable con SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD; cámbialo tras el primer login.
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? "admin@estafeten.com").toLowerCase();
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "changeme123";
+  const passwordHash = hashPassword(adminPassword);
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: { password: passwordHash, role: "TENANT_ADMIN", tenantId: tenant.id },
+    create: {
+      email: adminEmail,
+      password: passwordHash,
+      role: "TENANT_ADMIN",
+      tenantId: tenant.id,
+    },
+  });
+  console.log(`✅ Usuario admin: ${adminEmail}`);
 
   // 2) Limpieza (para poder re-ejecutar sin choques)
   await prisma.orderLine.deleteMany({ where: { order: { tenantId: tenant.id } } });

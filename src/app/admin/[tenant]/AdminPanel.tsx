@@ -9,7 +9,7 @@ type OItem = {
   id: string;
   productName: string;
   quantity: number;
-  lineTotalCents: number;
+  totalCents: number;
 };
 
 type Order = {
@@ -113,7 +113,7 @@ function OrderCard({
         {order.items.map((item) => (
           <div key={item.id} className="flex justify-between text-sm text-zinc-700">
             <span>{item.quantity}x {item.productName}</span>
-            <span>{toEuros(item.lineTotalCents)}</span>
+            <span>{toEuros(item.totalCents)}</span>
           </div>
         ))}
       </div>

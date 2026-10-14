@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
+import { getSessionFromRequest } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +25,13 @@ export async function PATCH(req: NextRequest) {
 
         const order = await prisma.order.findUnique({ where: { id: orderId } });
               if (!order) return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 });
+
+        // Solo el dueño autenticado del tenant del pedido (o SUPERADMIN) puede cambiar su estado.
+        const session = await getSessionFromRequest(req);
+        if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+        if (session.role !== "SUPERADMIN" && session.tenantId !== order.tenantId) {
+          return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+        }
 
         const allowed = VALID_TRANSITIONS[order.status] ?? [];
               if (!allowed.includes(newStatus)) {
