@@ -1,171 +1,139 @@
 # 🍔 order-saas
 
-> **SaaS de pedidos online para restaurantes** — La alternativa a Last.app con lo que Last.app no tiene.
+> **Pedidos online directos + motor de retención para restaurantes independientes.**
+> El cliente es del restaurante: sin marketplace en medio, sin cuotas fijas, y con las herramientas para que vuelva.
 
-[![Deploy](https://img.shields.io/badge/Vercel-deployed-brightgreen)](https://order-saas-delta.vercel.app)
+[![Producción](https://img.shields.io/badge/Vercel-producción-brightgreen)](https://order-saas-delta.vercel.app/pedir/estafeten)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 [![Prisma](https://img.shields.io/badge/Prisma-6-blue)](https://prisma.io)
 [![DB](https://img.shields.io/badge/PostgreSQL-Neon-teal)](https://neon.tech)
 
+**Estado:** alpha en pruebas con un restaurante piloto (Estafetén, Granada). Sin clientes reales todavía.
+
 ---
 
-## 🎯 Visión del producto
+## 📦 Producto
 
-order-saas es una plataforma multi-tenant que permite a cualquier restaurante tener:
-
-- **Menú online propio** accesible por QR o link
-- **Panel de gestión de pedidos en tiempo real** (lo que Last.app no tiene)
-- **CRM ligero** de clientes con historial y segmentación
-- **Dashboard inteligente** con comparativas y alertas
-- **Onboarding en 15 minutos** (vs horas en competidores)
-
-### ¿Por qué supera a Last.app?
-
-| Funcionalidad | Last.app | order-saas |
+| Módulo | Qué incluye | Estado |
 |---|---|---|
-| Monitor de pedidos en tiempo real (KDS) | ❌ | ✅ |
-| Toggle "producto agotado" desde dashboard | ❌ (6 pasos) | ✅ (1 tap) |
-| Resumen semanal automático por WhatsApp | ❌ | ✅ |
-| Onboarding guiado en 15 min | ❌ | ✅ |
-| Editor de menú en una pantalla | ❌ (6 pantallas) | ✅ |
-| Pago online nativo | config manual | ✅ nativo |
-| Alertas de rendimiento inteligentes | ❌ | ✅ |
-| CRM con segmentación por comportamiento | ❌ | ✅ |
+| **Pedidos** (base) | Carta online con tema por restaurante, selector de pan/guarnición/extras, checkout con consentimiento de marketing, panel kanban en tiempo real con aviso sonoro, login y roles | ✅ En producción |
+| **Cobro online** | Stripe Connect: el restaurante cobra a su nombre; comisión de plataforma 3 % | 🔄 Sprint 2 (pendiente de cuenta Stripe) |
+| **Costes y margen** (add-on de pago) | Escandallos por plato y por opción, margen real por pedido, alérgenos; inventario y compras en fases siguientes | 🔄 Fase 1 lista — ver [MODULO-COSTES](./docs/MODULO-COSTES.md) |
+| **Retención** (add-on de pago) | Segmentación automática, campañas por WhatsApp redactadas por IA, atribución | ⏳ Sprint 3 |
+
+Precio y posicionamiento frente a la competencia: [docs/competencia](./docs/competencia/).
 
 ---
 
-## 🏗️ Arquitectura
+## 🏗️ Stack
+
+- **Next.js 16** (App Router, Server Components, Turbopack) · **React 19** · **TypeScript 5**
+- **PostgreSQL** en [Neon](https://neon.tech) (producción) y Docker (local) · **Prisma 6**
+- **Tailwind CSS 4** · **Zustand** (carrito)
+- **Vercel** (despliegue automático desde `main`)
+
+## 🗂️ Estructura
 
 ```
 order-saas/
 ├── prisma/
-│   ├── schema.prisma        # Multi-tenant: Tenant → Store → Product → Order
-│   └── seed.ts              # Datos de prueba (Estafetén)
+│   ├── schema.prisma            # Modelo de datos multi-tenant
+│   ├── migrations/              # Historial de migraciones (baseline 0_init, 2026-10-14)
+│   ├── seed.ts                  # Carta de Estafetén (bloqueado contra bases remotas)
+│   └── set-admin-password.ts    # Cambiar la contraseña de un usuario del panel
 ├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── menu/[tenant]/     # GET menú público
-│   │   │   └── orders/[tenant]/   # POST crear pedido (Sprint 1)
-│   │   ├── pedir/[tenant]/        # UI cliente (menú + carrito + checkout)
-│   │   └── admin/[tenant]/        # Panel dueño (Sprint 1)
-│   ├── store/
-│   │   └── cart.ts                # Zustand cart store
-│   └── lib/
-│       └── prisma.ts              # Prisma client singleton
-└── docs/
-    ├── ROADMAP.md                 # Visión completa del producto
-    ├── SPRINT-01.md               # Checkout + Panel pedidos + Notificaciones
-    ├── SPRINT-02.md               # Editor menú + WhatsApp digest
-    ├── SPRINT-03.md               # CRM + Dashboard inteligente
-    └── SPRINT-04.md               # KDS + Stripe + Onboarding
+│   ├── proxy.ts                 # Redirige /admin sin sesión al login
+│   ├── store/cart.ts            # Carrito (Zustand)
+│   └── app/
+│       ├── pedir/[tenant]/      # Cliente: carta, selector de opciones, checkout, confirmación
+│       ├── admin/[tenant]/
+│       │   ├── login/           # Acceso al panel
+│       │   └── (panel)/         # Panel con barra lateral (exige sesión):
+│       │       ├── home/        #   Inicio (métricas del día)
+│       │       ├── pedidos/     #   Kanban de pedidos
+│       │       ├── carta/       #   Editor de productos
+│       │       ├── costes/      #   Módulo Costes y margen (add-on)
+│       │       ├── personalizacion/
+│       │       └── configuracion/
+│       ├── api/
+│       │   ├── menu/[tenant]/           # Carta pública
+│       │   ├── orders/[tenant]/         # Crear pedido (precio calculado en servidor) / listar
+│       │   ├── orders/status/[orderId]/ # Cambiar estado
+│       │   ├── auth/                    # Login / logout
+│       │   └── admin/[tenant]/          # APIs del panel (dueño o superadmin)
+│       └── lib/                 # auth, roles, menu, menuOptions, costs, payments, time…
+└── docs/                        # Roadmap, sprints, módulos y competencia (ver abajo)
 ```
 
-### Stack técnico
+## 🔐 Roles
 
-- **Framework**: Next.js 16 (App Router, Server Components, Turbopack)
-- **Base de datos**: PostgreSQL via [Neon](https://neon.tech) (serverless)
-- **ORM**: Prisma 6
-- **UI**: Tailwind CSS (sin component library — 100% custom)
-- **State**: Zustand (carrito del cliente)
-- **Realtime**: Server-Sent Events (pedidos en tiempo real)
-- **Deploy**: Vercel (producción en order-saas-delta.vercel.app)
-
-### Modelo de datos (simplificado)
-
-```
-Tenant (restaurante)
-  └── Store (local físico)
-  └── Category[]
-       └── Product[]
-            └── ModifierGroup[]
-  └── Order[]
-       └── OrderLine[]
-```
+| Rol | Acceso |
+|---|---|
+| `SUPERADMIN` | Todos los restaurantes |
+| `TENANT_ADMIN` | Todo su restaurante |
+| `STORE_MANAGER` | Solo **Pedidos** de su restaurante |
 
 ---
 
-## 🚀 Instalación local
+## 🚀 Desarrollo local
 
-### Prerequisitos
+**Requisitos:** Node.js 20+ y Docker Desktop.
 
-- Node.js 20+
-- Docker Desktop (para PostgreSQL local)
-
-### Setup
-
-```bash
-git clone https://github.com/rauly-1408/order-saas.git
-cd order-saas
-npm install
-```
-
-### Variables de entorno
-
-Crea un archivo `.env`:
-
-```env
-# Base de datos (local con Docker o Neon en la nube)
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/order_saas?schema=public"
-
-# Para producción (Neon)
-# DATABASE_URL="postgresql://neondb_owner:...@ep-...neon.tech/neondb?sslmode=require"
-```
-
-### Base de datos
-
-```bash
-# Opción A: Docker local
-docker compose up -d
-npx prisma db push
-npx ts-node prisma/seed.ts
-
-# Opción B: Neon (ya configurado en producción)
-npx prisma db push
-npx ts-node prisma/seed.ts
-```
-
-### Desarrollo
-
-```bash
-npm run dev
-```
-
-Abre [http://localhost:3000/pedir/estafeten](http://localhost:3000/pedir/estafeten)
+1. Instalar dependencias:
+   ```bash
+   npm install
+   ```
+2. Crear `.env` (nunca se sube a git):
+   ```env
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/order_saas"
+   SESSION_SECRET="cualquier-cadena-larga-de-al-menos-16-caracteres"
+   ```
+3. Levantar PostgreSQL local:
+   ```bash
+   docker compose up -d
+   ```
+4. Aplicar migraciones:
+   ```bash
+   npx prisma migrate deploy
+   ```
+5. Cargar la carta de prueba (crea `admin@estafeten.com` y `encargado@estafeten.com` con la contraseña de prueba de `prisma/seed.ts`):
+   ```bash
+   npx prisma db seed
+   ```
+6. Arrancar:
+   ```bash
+   npm run dev
+   ```
+   Carta: http://localhost:3000/pedir/estafeten · Panel: http://localhost:3000/admin/estafeten
 
 ---
 
-## 🌐 URLs de producción
+## 🧭 Cómo trabajamos
 
-| URL | Descripción |
-|-----|-------------|
-| `/pedir/[tenant]` | Menú público del restaurante |
-| `/admin/[tenant]` | Panel del dueño (Sprint 1 — en desarrollo) |
-| `/api/menu/[tenant]` | API pública del menú |
-| `/api/orders/[tenant]` | API de pedidos (Sprint 1 — en desarrollo) |
-
-**Tenant de prueba**: `estafeten`  
-**URL live**: [order-saas-delta.vercel.app/pedir/estafeten](https://order-saas-delta.vercel.app/pedir/estafeten)
-
----
-
-## 📋 Roadmap
-
-Ver [docs/ROADMAP.md](./docs/ROADMAP.md) para la visión completa.
-
-| Sprint | Objetivo | Estado |
-|--------|----------|--------|
-| Sprint 1 | Checkout + Panel pedidos + Notificaciones | 🔄 En curso |
-| Sprint 2 | Editor menú + Resumen diario WhatsApp | ⏳ Pendiente |
-| Sprint 3 | CRM + Dashboard inteligente + Onboarding | ⏳ Pendiente |
-| Sprint 4 | KDS + Stripe nativo + Reportes IA | ⏳ Pendiente |
+- **Ramas:** `feat/`, `fix/`, `chore/`, `docs/` desde `main`. Nada se sube directo a `main`: siempre Pull Request.
+- **Commits:** conventional commits (`feat:`, `fix:`, `docs:`…) en español, explicando el porqué.
+- **Antes de abrir PR:** `npm run lint` sin errores y verificación visual en **móvil (375 px) y escritorio** de todas las páginas tocadas (ver `CLAUDE.md`).
+- **Base de datos:**
+  - Cambios de schema → nueva migración en `prisma/migrations/` (`prisma migrate dev` en local).
+  - Producción → `prisma migrate deploy` **antes** de fusionar el PR que la necesita (Vercel no ejecuta migraciones).
+  - ⛔ Nunca `prisma db push` contra Neon.
+  - ⛔ El seed reemplaza la carta: solo contra Neon con `SEED_ALLOW_REMOTE=1` y sabiendo que borra los escandallos.
+- **Secretos:** solo en `.env` local y en Vercel (`DATABASE_URL`, `SESSION_SECRET`; Stripe cuando llegue).
 
 ---
 
-## 🤝 Contribuir
+## 📚 Documentación
 
-1. Crea una branch: `git checkout -b feature/nombre-feature`
-2. Commitea con conventional commits: `feat:`, `fix:`, `docs:`
-3. Push y abre un Pull Request hacia `main`
+| Documento | Contenido |
+|---|---|
+| [ROADMAP](./docs/ROADMAP.md) | Visión, estado, sprints y registro de decisiones |
+| [SPRINT-01](./docs/SPRINT-01.md) | Ciclo mínimo de pedido (cerrado) |
+| [SPRINT-02](./docs/SPRINT-02.md) | Roles + cobro online con Stripe Connect |
+| [SPRINT-04](./docs/SPRINT-04.md) | Gestión sin fricción (parcialmente adelantado) |
+| [MODULO-COSTES](./docs/MODULO-COSTES.md) | Add-on Costes y margen: paridad con Tavola + mejoras |
+| [competencia/LASTAPP](./docs/competencia/LASTAPP.md) | Pricing de Last.app vs el nuestro |
+| [competencia/CHEERFY](./docs/competencia/CHEERFY.md) | Cheerfy: el competidor más cercano en retención |
+| [architecture/tenant-config](./docs/architecture/tenant-config.md) | Configuración visual y operativa por restaurante |
 
 ---
 

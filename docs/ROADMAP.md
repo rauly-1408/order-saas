@@ -16,14 +16,30 @@ Construir la plataforma de gestión de pedidos online más rápida de implementa
 ## 📊 Estado actual del producto
 
 ```
-Fase: Alpha (tenant único: Estafetén)
-Infraestructura: ✅ Next.js 16 + Neon PostgreSQL + Vercel
-Menú online: ✅ /pedir/estafeten funcional (diseño básico)
-Checkout: ✅ Con validación de teléfono y consentimiento de marketing (Sprint 1)
-Panel admin: ✅ Pedidos en tiempo real + sonido; login por tenant (adelantado de Sprint 2)
-Pagos: ❌ Pendiente Sprint 2 (Stripe Connect)
-CRM / retención: ⚠️ Upsert de Customer + segmentación al crear pedido; campañas pendientes (Sprint 3)
+Fase: Alpha en pruebas (tenant único: Estafetén, sin clientes reales)
+Producción: ✅ https://order-saas-delta.vercel.app (Vercel) + Neon PostgreSQL
+Menú online: ✅ Carta real 2026 (50 productos) en cuadrícula, tema por tenant,
+             selector de pan (recomendado preseleccionado), guarnición y extras
+Checkout: ✅ Teléfono validado, consentimiento de marketing, precios calculados en servidor
+Panel admin: ✅ Login + sesión por tenant; barra lateral (Inicio, Pedidos, Carta,
+             Personalización, Configuración); kanban de pedidos con sonido; usable en móvil
+Pagos: ❌ Pendiente Sprint 2 (Stripe Connect) — hoy solo pago en el local
+CRM / retención: ⚠️ Customer + segmentación al crear pedido; campañas pendientes (Sprint 3)
+Base de datos: ✅ Migraciones Prisma con baseline (0_init); nunca `db push` contra Neon
 ```
+
+---
+
+## 📦 Productos y módulos
+
+| Módulo | Modelo de cobro | Estado |
+|---|---|---|
+| Pedidos (base) | 3 % por pedido pagado online; 0 % en "pagar en el local"; sin cuota fija | ✅ Producción |
+| Costes y margen | Add-on de pago (referencia Tavola: 0 / 45 / 75 €/mes) | 🔄 Fase 1 — ver [MODULO-COSTES.md](./MODULO-COSTES.md) |
+| Retención | Add-on de pago | ⏳ Sprint 3 |
+| TPV propio | — | 🅿️ Aparcado (ver backlog) |
+
+Los módulos se activan por restaurante (`Tenant.addons`).
 
 ---
 
@@ -50,14 +66,14 @@ Entregables:
 
 ---
 
-### Sprint 2 — Vendible: autenticación + cobro ⏳ PENDIENTE
+### Sprint 2 — Vendible: autenticación + cobro 🔄 EN CURSO (plan 2026-10-14)
 **Objetivo**: Cerrar los bloqueantes que hoy impiden tener un cliente real pagando.  
 **Duración estimada**: 2 semanas  
 **Ver detalle**: [SPRINT-02.md](./SPRINT-02.md)
 
 Entregables:
 - [x] **Autenticación del panel admin** (login + sesión JWT + scoping por tenant — adelantado en la rama del Sprint 1)
-- [ ] Permisos por rol (SUPERADMIN / TENANT_ADMIN / STORE_MANAGER)
+- [x] Permisos por rol (SUPERADMIN / TENANT_ADMIN / STORE_MANAGER) — `STORE_MANAGER` solo Pedidos
 - [ ] **Pago online con Stripe Connect** — el restaurante es el *merchant of record* (el dinero entra a su cuenta; nosotros cobramos un fee de SaaS por encima)
 - [ ] Validar el modelo fiscal con un asesor antes del primer cliente (ver Decisiones técnicas)
 
@@ -124,6 +140,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 - **App nativa iOS/Android** para el panel del dueño
 - **Marketplace**: los clientes buscan restaurantes cercanos dentro de la plataforma
 - **Integración TPV físico**: sincronizar pedidos online con caja registradora
+- **TPV propio (aparcado 2026-10-14)**: se valoró construir TPV + app de pedidos y cobrar como Last.app (suscripción + instalación). Aparcado por: obligación VeriFactu para sistemas de facturación (sociedades 1-1-2027, autónomos 1-7-2027), meses de desarrollo (sala, comandas, impresoras, offline, cierres de caja) y mercado saturado. Retomar solo con validación fiscal y como línea de producto separada.
 
 ---
 
@@ -151,6 +168,13 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-05-22 | Motor de retención WhatsApp-first como diferenciador central | Es terreno de marketing automation (ventaja del fundador), no copiable por Last.app en su cancha de operativa |
 | 2026-05-22 | Stripe movido de Sprint 4 → Sprint 2 | El cobro es bloqueante de "vendible", no una feature tardía |
 | 2026-05-22 | CRM en tablas propias (Customer/Coupon/Campaign/CampaignSend) | El JSON suelto no sirve para segmentar ni medir conversión; la retención necesita relaciones reales |
+| 2026-10-14 | Precios de pedido calculados en el servidor desde la carta | El navegador podía enviar cualquier precio (incl. 0 €); con modificadores era imprescindible |
+| 2026-10-14 | Baseline de migraciones (`0_init`) y `migrate deploy` en producción | Neon se gestionaba con `db push` y el historial no reflejaba la base real |
+| 2026-10-14 | Integración de las dos líneas de mayo: panel con barra lateral de main + login, CRM, kanban y opciones | Había dos ramas divergentes; main desplegado no tenía login y sus rutas /api/admin estaban abiertas |
+| 2026-10-14 | Menú cliente con tema por tenant (se descarta el diseño con colores fijos estilo BK) | Plataforma multi-restaurante: la marca es de cada tenant; sin fotos el diseño BK mostraba "?" |
+| 2026-10-14 | Comisión 3 % por pedido online, tarjeta aparte, sin cuota fija | Last Shop cobra 4 % + 0,20 € sin tarjeta + cuota hasta 40 €/local + suscripción TPV desde 50 €/mes y 500 € de alta (ver docs/competencia/) |
+| 2026-10-14 | TPV propio aparcado | VeriFactu, coste de desarrollo y mercado saturado; competimos en pedido directo + retención |
+| 2026-10-14 | Producción = proyecto Vercel `order-saas` (order-saas-delta.vercel.app) | Los proyectos `order-saas-d4a4` y `order-saas-tu7k` son duplicados rotos a eliminar |
 
 ---
 
