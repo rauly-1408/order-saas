@@ -25,8 +25,13 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const ctx = await costsTenant(req);
   if ("error" in ctx) return ctx.error;
+  const id = lastSegment(req);
+  // Sus pedidos son historial de compras: un proveedor con pedidos no se borra.
+  if (await prisma.purchaseOrder.count({ where: { supplierId: id, tenantId: ctx.tenant.id } })) {
+    return NextResponse.json({ error: "Este proveedor tiene pedidos registrados y no se puede borrar" }, { status: 409 });
+  }
   // Los ingredientes del proveedor quedan sin proveedor (onDelete: SetNull).
-  const res = await prisma.supplier.deleteMany({ where: { id: lastSegment(req), tenantId: ctx.tenant.id } });
+  const res = await prisma.supplier.deleteMany({ where: { id, tenantId: ctx.tenant.id } });
   if (res.count === 0) return NextResponse.json({ error: "Proveedor no encontrado" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

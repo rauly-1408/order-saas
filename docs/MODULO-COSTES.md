@@ -47,7 +47,7 @@
 - Avisos de stock bajo; **agotado automático** en la carta (mejora 5).
 - Entrada de stock al recibir mercancía.
 
-### Fase 3 — Compras y precios
+### Fase 3 — Compras y precios ✅ HECHA 2026-10-15 (rama `feat/costes-compras`)
 - Pedidos a proveedores generados desde el stock mínimo (email / WhatsApp al proveedor).
 - Historial de precios de compra por ingrediente; aviso cuando sube un proveedor.
 - **Motor de precios**: precio sugerido para un margen objetivo y aplicación en la carta con un clic (mejora 4).
@@ -105,4 +105,15 @@ Ventaja de venta: **Tavola cobra 75 €/mes por conectarse al TPV**; nosotros ya
 - **Movimientos** (`StockMovement`): `ORDER`, `ORDER_CANCEL`, `RECEIPT`, `COUNT`, `WASTE`, con stock resultante y **valor en €** al coste útil del momento. El recuento registra la diferencia con el stock teórico → descuadres (mermas no declaradas, robos, errores).
 - **Agotado automático** (`Product.stockOut`, `ModifierOption.stockOut`): un plato u opción se oculta de la carta y la API lo rechaza si algún ingrediente controlado no llega para una unidad; vuelve solo al reponer. Independiente del agotado manual (`isAvailable`).
 - Pendiente para fase 3: aviso al dueño (push/WhatsApp) cuando algo se agota o baja del mínimo.
+
+## 📝 Notas de implementación (Fase 3)
+
+- **Pedidos a proveedor** (`PurchaseOrder` + líneas, nº correlativo por restaurante): borrador → enviado → recibido / cancelado.
+- **Sugerencia de pedido**: ingredientes controlados en o por debajo del mínimo; se repone hasta el doble del mínimo en formatos completos (`lib/purchasing.ts`).
+- **Envío**: el mensaje se redacta solo y se abre en **WhatsApp** (`wa.me`, móviles españoles → +34) o en el **email** del proveedor; enviar marca el pedido como enviado. Sin API de WhatsApp de pago.
+- **Recepción**: se corrigen cantidades y precio por formato según el albarán → entrada de stock (`RECEIPT`, nota "Pedido a proveedor nº N") y, si el precio cambió, se actualiza el ingrediente.
+- **Historial de precios** (`IngredientPriceChange`): se registra al editar un precio o al recibir con otro precio, **solo si cambia el coste por unidad** (1 kg a 12 € → 2 kg a 24 € no es subida). La pantalla muestra el % y a cuántos platos afecta.
+- **Aplicar precio sugerido** desde Rentabilidad: cambia el precio base en la carta (restando los suplementos de las opciones por defecto), con confirmación.
+- **Alérgenos en la carta del cliente**: unión de los alérgenos de los ingredientes del escandallo, por plato y por opción. Solo aparecen si hay escandallo.
+- Un proveedor con pedidos no se puede borrar (es historial de compras).
 

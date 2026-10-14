@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { costsTenant, isUniqueViolation, lastSegment, parseIngredient } from "@/app/lib/costsApi";
+import { recordPriceChange } from "@/app/lib/purchasing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,8 +17,13 @@ export async function PATCH(req: NextRequest) {
     if (!ok) return NextResponse.json({ error: "Proveedor no válido" }, { status: 400 });
   }
   try {
-    const res = await prisma.ingredient.updateMany({ where: { id, tenantId: ctx.tenant.id }, data: input });
-    if (res.count === 0) return NextResponse.json({ error: "Ingrediente no encontrado" }, { status: 404 });
+    const before = await prisma.ingredient.findFirst({ where: { id, tenantId: ctx.tenant.id }, select: { packSize: true, packPriceCents: true } });
+    if (!before) return NextResponse.json({ error: "Ingrediente no encontrado" }, { status: 404 });
+    await prisma.$transaction(async (tx) => {
+      await tx.ingredient.update({ where: { id }, data: input });
+      // Historial de precios: solo si cambia el coste por unidad.
+      await recordPriceChange(tx, ctx.tenant.id, id, before, { packSize: input.packSize, packPriceCents: input.packPriceCents }, "MANUAL");
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (isUniqueViolation(err)) return NextResponse.json({ error: "Ya existe un ingrediente con ese nombre" }, { status: 409 });

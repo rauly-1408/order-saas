@@ -18,6 +18,7 @@ export type SheetProduct = {
   description: string;
   basePriceCents: number;
   modifierGroups: MenuModifierGroup[];
+  allergens?: string[];
 };
 
 type Props = {
@@ -84,6 +85,9 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
             {product.description && (
               <p className="mt-1 text-[13px] leading-snug text-[var(--text-secondary)]">{product.description}</p>
             )}
+            {product.allergens && product.allergens.length > 0 && (
+              <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Alérgenos: {product.allergens.join(", ")}</p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -125,6 +129,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
                         >
                           {option.name}
                           {option.priceDeltaCents > 0 && <span className="opacity-70"> +{euros(option.priceDeltaCents)}</span>}
+                          {option.allergens && option.allergens.length > 0 && <span className="opacity-70"> · {option.allergens.join(", ")}</span>}
                         </button>
                       );
                     }
@@ -150,6 +155,9 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
                             <span className="ml-2 rounded-md bg-[var(--brand-accent)]/15 px-1.5 py-0.5 text-[11px] font-semibold text-[var(--brand-accent)]">
                               Recomendado
                             </span>
+                          )}
+                          {option.allergens && option.allergens.length > 0 && (
+                            <span className="block text-[11px] text-[var(--text-secondary)]">Alérgenos: {option.allergens.join(", ")}</span>
                           )}
                         </span>
                         <span className="text-[13px] text-[var(--text-secondary)]">

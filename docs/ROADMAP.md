@@ -35,7 +35,7 @@ Base de datos: ✅ Migraciones Prisma con baseline (0_init); nunca `db push` con
 | Módulo | Modelo de cobro | Estado |
 |---|---|---|
 | Pedidos (base) | 3 % por pedido pagado online; 0 % en "pagar en el local"; sin cuota fija | ✅ Producción |
-| Costes y margen | Add-on de pago (referencia Tavola: 0 / 45 / 75 €/mes) | 🔄 Fase 1 — ver [MODULO-COSTES.md](./MODULO-COSTES.md) |
+| Costes y margen | Add-on de pago (referencia Tavola: 0 / 45 / 75 €/mes) | 🔄 Fases 1-3 (escandallos, inventario, compras) — ver [MODULO-COSTES.md](./MODULO-COSTES.md) |
 | Retención | Add-on de pago | ⏳ Sprint 3 |
 | TPV propio | — | 🅿️ Aparcado (ver backlog) |
 

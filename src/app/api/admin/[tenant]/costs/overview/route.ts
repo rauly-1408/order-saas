@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   if ("error" in ctx) return ctx.error;
   const tenantId = ctx.tenant.id;
 
-  const [suppliers, ingredients, categories, orders, movements] = await Promise.all([
+  const [suppliers, ingredients, categories, orders, movements, purchaseOrders, priceChanges, tenantInfo] = await Promise.all([
     prisma.supplier.findMany({ where: { tenantId }, orderBy: { name: "asc" } }),
     prisma.ingredient.findMany({ where: { tenantId }, orderBy: { name: "asc" } }),
     prisma.category.findMany({
@@ -81,6 +81,14 @@ export async function GET(req: NextRequest) {
       take: 50,
       select: { id: true, ingredientId: true, type: true, quantity: true, stockAfter: true, valueCents: true, orderId: true, note: true, createdAt: true },
     }),
+    prisma.purchaseOrder.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      include: { lines: { select: { id: true, ingredientId: true, quantity: true, packPriceCents: true, receivedQuantity: true } } },
+    }),
+    prisma.ingredientPriceChange.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: 30 }),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
   ]);
 
   // ── Margen real de pedidos ─────────────────────────────────────────
@@ -139,5 +147,14 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ suppliers, ingredients, categories, orders: orderMargins, movements });
+  return NextResponse.json({
+    restaurantName: tenantInfo?.name ?? "",
+    suppliers,
+    ingredients,
+    categories,
+    orders: orderMargins,
+    movements,
+    purchaseOrders,
+    priceChanges,
+  });
 }

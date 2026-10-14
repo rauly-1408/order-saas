@@ -18,7 +18,7 @@
 |---|---|---|
 | **Pedidos** (base) | Carta online con tema por restaurante, selector de pan/guarnición/extras, checkout con consentimiento de marketing, panel kanban en tiempo real con aviso sonoro, login y roles | ✅ En producción |
 | **Cobro online** | Stripe Connect: el restaurante cobra a su nombre; comisión de plataforma 3 % | 🔄 Sprint 2 (pendiente de cuenta Stripe) |
-| **Costes y margen** (add-on de pago) | Escandallos por plato y por opción, margen real por pedido, alérgenos; inventario y compras en fases siguientes | 🔄 Fase 1 lista — ver [MODULO-COSTES](./docs/MODULO-COSTES.md) |
+| **Costes y margen** (add-on de pago) | Escandallos por plato y por opción, margen real por pedido, inventario con agotado automático, pedidos a proveedores por WhatsApp, historial de precios, alérgenos en carta | 🔄 Fases 1-3 listas (escandallos, inventario, compras) — ver [MODULO-COSTES](./docs/MODULO-COSTES.md) |
 | **Retención** (add-on de pago) | Segmentación automática, campañas por WhatsApp redactadas por IA, atribución | ⏳ Sprint 3 |
 
 Precio y posicionamiento frente a la competencia: [docs/competencia](./docs/competencia/).

@@ -11,8 +11,23 @@ const HEALTH_CLS: Record<Health, string> = {
   unknown: "bg-[#f7f7fb] text-[#6b6890]",
 };
 
-export default function Rentabilidad({ data, onGoToRecipes }: { data: Overview; onGoToRecipes: () => void }) {
+type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToRecipes: () => void };
+
+export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Props) {
   const [target, setTarget] = useState(30); // food cost objetivo %
+  const [applying, setApplying] = useState<string | null>(null);
+
+  // Aplica el precio sugerido en la carta. El sugerido es del plato típico
+  // (con opciones por defecto), así que al precio base se le restan sus suplementos.
+  async function applyPrice(r: { id: string; name: string; priceCents: number; suggested: number; defaultsDelta: number; basePriceCents: number }) {
+    const newBase = r.suggested - r.defaultsDelta;
+    if (!window.confirm(`¿Cambiar el precio de ${r.name} en la carta de ${euros(r.basePriceCents)} a ${euros(newBase)}?`)) return;
+    setApplying(r.id);
+    const productsApi = api.replace(/\/costs$/, "/products");
+    await fetch(`${productsApi}/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ basePriceCents: newBase }) });
+    await onSaved();
+    setApplying(null);
+  }
   const ingredients = useMemo(() => new Map<string, Ingredient>(data.ingredients.map((i) => [i.id, i])), [data.ingredients]);
 
   const rows = useMemo(() => {
@@ -26,6 +41,8 @@ export default function Rentabilidad({ data, onGoToRecipes }: { data: Overview; 
           id: p.id,
           name: p.name,
           category,
+          basePriceCents: p.basePriceCents,
+          defaultsDelta: plate.priceCents - p.basePriceCents,
           priceCents: plate.priceCents,
           costCents: cost,
           m,
@@ -105,7 +122,20 @@ export default function Rentabilidad({ data, onGoToRecipes }: { data: Overview; 
                     {r.missing === "opciones" && <div className="mt-1 text-[11px] text-amber-700">Faltan opciones por escandallar</div>}
                   </td>
                   <td className="px-4 py-2.5">
-                    {r.missing === "receta" || r.health === "good" ? "—" : <span className="font-semibold text-[#5707fd]">{euros(r.suggested)}</span>}
+                    {r.missing === "receta" || r.health === "good" ? (
+                      "—"
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <span className="font-semibold text-[#5707fd]">{euros(r.suggested)}</span>
+                        <button
+                          onClick={() => applyPrice(r)}
+                          disabled={applying === r.id}
+                          className="rounded-md border border-[#7939fe] px-2 py-0.5 text-[11px] font-semibold text-[#7939fe] hover:bg-[#7939fe] hover:text-white disabled:opacity-50"
+                        >
+                          {applying === r.id ? "…" : "Aplicar"}
+                        </button>
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

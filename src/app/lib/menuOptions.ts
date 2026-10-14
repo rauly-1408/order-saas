@@ -5,6 +5,7 @@ export type MenuModifierOption = {
   id: string;
   name: string;
   priceDeltaCents: number;
+  allergens?: string[]; // del escandallo de la opción (módulo Costes)
 };
 
 export type MenuModifierGroup = {

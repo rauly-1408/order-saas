@@ -57,7 +57,35 @@ export type Movement = {
   createdAt: string;
 };
 
+export type PurchaseStatus = "DRAFT" | "SENT" | "RECEIVED" | "CANCELLED";
+
+export type PurchaseOrder = {
+  id: string;
+  supplierId: string;
+  number: number;
+  status: PurchaseStatus;
+  notes: string | null;
+  sentAt: string | null;
+  receivedAt: string | null;
+  createdAt: string;
+  lines: { id: string; ingredientId: string; quantity: number; packPriceCents: number; receivedQuantity: number | null }[];
+};
+
+export type PriceChange = {
+  id: string;
+  ingredientId: string;
+  oldPackSize: number;
+  oldPackPriceCents: number;
+  newPackSize: number;
+  newPackPriceCents: number;
+  source: "MANUAL" | "RECEIPT";
+  createdAt: string;
+};
+
 export type Overview = {
+  restaurantName: string;
+  purchaseOrders: PurchaseOrder[];
+  priceChanges: PriceChange[];
   suppliers: Supplier[];
   ingredients: Ingredient[];
   categories: Category[];
