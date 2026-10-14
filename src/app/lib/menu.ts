@@ -22,7 +22,7 @@ export async function loadMenu(tenantSlug: string) {
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     include: {
       products: {
-        where: { isActive: true, isAvailable: true },
+        where: { isActive: true, isAvailable: true, stockOut: false },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
         select: {
           id: true,
@@ -45,7 +45,7 @@ export async function loadMenu(tenantSlug: string) {
                   minSelect: true,
                   maxSelect: true,
                   options: {
-                    where: { isAvailable: true },
+                    where: { isAvailable: true, stockOut: false },
                     orderBy: { sortOrder: "asc" },
                     select: { id: true, name: true, priceDeltaCents: true },
                   },

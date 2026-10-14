@@ -41,7 +41,7 @@
 - **Rentabilidad**: coste, precio de venta, margen € y %, food cost %; semáforo por umbral configurable; ranking de platos.
 - **Margen real de pedidos** (mejora 2 y 3) con las ventas existentes.
 
-### Fase 2 — Inventario
+### Fase 2 — Inventario ✅ HECHA 2026-10-15 (rama `feat/costes-inventario`)
 - Stock por ingrediente; **descuento automático con cada pedido** (incluidas opciones); recuentos manuales.
 - **Inventario teórico vs. real** → mermas y descuadres.
 - Avisos de stock bajo; **agotado automático** en la carta (mejora 5).
@@ -96,4 +96,13 @@ Ventaja de venta: **Tavola cobra 75 €/mes por conectarse al TPV**; nosotros ya
 - Margen calculado sobre precio **sin IVA (10 %)**.
 - Margen de pedidos: casa productos por ID y, si la carta se recargó, por nombre; opciones por grupo + nombre (snapshot del pedido).
 - ⚠️ Recargar la carta con el seed borra productos/opciones y, en cascada, sus escandallos.
+
+## 📝 Notas de implementación (Fase 2)
+
+- **Control opcional por ingrediente** (`Ingredient.trackStock`): solo los controlados se descuentan. Una entrada o un recuento lo activan.
+- **Descuento automático** al crear el pedido, en la misma transacción (`lib/inventory.ts`): receta base × cantidad + receta de cada opción elegida. Solo si el restaurante tiene `COSTS`.
+- **Cancelar** un pedido devuelve su consumo (`ORDER_CANCEL`, idempotente).
+- **Movimientos** (`StockMovement`): `ORDER`, `ORDER_CANCEL`, `RECEIPT`, `COUNT`, `WASTE`, con stock resultante y **valor en €** al coste útil del momento. El recuento registra la diferencia con el stock teórico → descuadres (mermas no declaradas, robos, errores).
+- **Agotado automático** (`Product.stockOut`, `ModifierOption.stockOut`): un plato u opción se oculta de la carta y la API lo rechaza si algún ingrediente controlado no llega para una unidad; vuelve solo al reponer. Independiente del agotado manual (`isAvailable`).
+- Pendiente para fase 3: aviso al dueño (push/WhatsApp) cuando algo se agota o baja del mínimo.
 
