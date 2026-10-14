@@ -1,7 +1,7 @@
 # 🗺️ ROADMAP — order-saas
 
 > Documento vivo. Actualizado al inicio de cada sprint.  
-> Última actualización: 2026-05-22
+> Última actualización: 2026-10-14
 
 ---
 
@@ -19,10 +19,10 @@ Construir la plataforma de gestión de pedidos online más rápida de implementa
 Fase: Alpha (tenant único: Estafetén)
 Infraestructura: ✅ Next.js 16 + Neon PostgreSQL + Vercel
 Menú online: ✅ /pedir/estafeten funcional (diseño básico)
-Checkout: ❌ Pendiente Sprint 1
-Panel admin: ⚠️ Existe pero SIN autenticación (bloqueante — Sprint 2)
+Checkout: ✅ Con validación de teléfono y consentimiento de marketing (Sprint 1)
+Panel admin: ✅ Pedidos en tiempo real + sonido; login por tenant (adelantado de Sprint 2)
 Pagos: ❌ Pendiente Sprint 2 (Stripe Connect)
-CRM / retención: ❌ Modelo de datos listo en schema, lógica pendiente (Sprint 3)
+CRM / retención: ⚠️ Upsert de Customer + segmentación al crear pedido; campañas pendientes (Sprint 3)
 ```
 
 ---
@@ -33,20 +33,20 @@ CRM / retención: ❌ Modelo de datos listo en schema, lógica pendiente (Sprint
 > Orden lógico: primero *vendible* (loop + auth + cobro), luego el *diferenciador* (retención), luego *fricción/ops*.
 > El motor de retención es el sprint estrella, no un nice-to-have.
 
-### Sprint 1 — El ciclo mínimo viable ✅ EN CURSO
+### Sprint 1 — El ciclo mínimo viable ✅ COMPLETADO (2026-10-14)
 **Objetivo**: Que un cliente pueda hacer un pedido y el dueño pueda verlo y gestionarlo.  
 **Duración estimada**: 2 semanas  
 **Fecha inicio**: 2026-05-20  
 **Ver detalle**: [SPRINT-01.md](./SPRINT-01.md)
 
 Entregables:
-- [ ] Checkout completo con datos del cliente (nombre, teléfono, notas)
-- [ ] Capturar **consentimiento de marketing** en el checkout (requisito legal previo a la retención)
-- [ ] API POST /api/orders/[tenant] — crear pedido en DB
-- [ ] Panel /admin/[tenant] — vista en tiempo real de pedidos activos
-- [ ] Cambio de estado de pedido (Nuevo → Preparando → Listo → Entregado)
-- [ ] Notificación sonora en panel cuando llega pedido nuevo
-- [ ] Fix precios 0.00 € en menú del cliente
+- [x] Checkout completo con datos del cliente (nombre, teléfono, notas)
+- [x] Capturar **consentimiento de marketing** en el checkout (requisito legal previo a la retención)
+- [x] API POST /api/orders/[tenant] — crear pedido en DB
+- [x] Panel /admin/[tenant] — vista en tiempo real de pedidos activos
+- [x] Cambio de estado de pedido (Nuevo → Preparando → Listo → Entregado)
+- [x] Notificación sonora en panel cuando llega pedido nuevo
+- [x] Fix precios 0.00 € en menú del cliente
 
 ---
 
@@ -56,7 +56,7 @@ Entregables:
 **Ver detalle**: [SPRINT-02.md](./SPRINT-02.md)
 
 Entregables:
-- [ ] **Autenticación del panel admin** (hoy `/admin/[tenant]` está abierto a cualquiera — bloqueante)
+- [x] **Autenticación del panel admin** (login + sesión JWT + scoping por tenant — adelantado en la rama del Sprint 1)
 - [ ] Permisos por rol (SUPERADMIN / TENANT_ADMIN / STORE_MANAGER)
 - [ ] **Pago online con Stripe Connect** — el restaurante es el *merchant of record* (el dinero entra a su cuenta; nosotros cobramos un fee de SaaS por encima)
 - [ ] Validar el modelo fiscal con un asesor antes del primer cliente (ver Decisiones técnicas)
@@ -69,8 +69,8 @@ Entregables:
 **Ver detalle**: [SPRINT-03.md](./SPRINT-03.md)
 
 Entregables:
-- [ ] Upsert de `Customer` (clave: tenant + teléfono) al confirmar cada pedido, con métricas agregadas
-- [ ] Segmentación automática: NEW / REGULAR / VIP / AT_RISK
+- [x] Upsert de `Customer` (clave: tenant + teléfono) al confirmar cada pedido, con métricas agregadas
+- [~] Segmentación automática: NEW / REGULAR / VIP / AT_RISK (se calcula al crear pedido; falta job periódico para que AT_RISK se active sin nuevo pedido)
 - [ ] Campañas por segmento (`Campaign` + `CampaignSend`) con dedupe por cliente
 - [ ] Envío nativo por **WhatsApp** (Business API / Twilio)
 - [ ] Cupones de retención (`Coupon`) vinculados a campaña, creados en 1 click
@@ -158,7 +158,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 
 | Sprint | Métrica clave |
 |--------|---------------|
-| Sprint 1 | 1 pedido real completado de punta a punta |
+| Sprint 1 | 1 pedido real completado de punta a punta — ✅ validado en local el 2026-10-14 |
 | Sprint 2 | Primer cobro online procesado (restaurante = merchant of record) |
 | Sprint 3 | Primera campaña de retención enviada y ≥ 1 pedido atribuido a ella |
 | Sprint 4 | Dueño actualiza su menú en < 2 min; tenant nuevo operativo en < 15 min |

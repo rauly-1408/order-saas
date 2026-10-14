@@ -1,7 +1,24 @@
 # 🏃 SPRINT 01 — El ciclo mínimo viable
 
 > **Objetivo**: Que un cliente pueda hacer un pedido y el dueño pueda verlo y gestionarlo en tiempo real.
-> **Fecha inicio**: 2026-05-20 | **Duración**: 2 semanas | **Estado**: 🔄 EN CURSO
+> **Fecha inicio**: 2026-05-20 | **Duración**: 2 semanas | **Estado**: ✅ COMPLETADO (2026-10-14)
+
+---
+
+## ✅ Cierre del sprint (2026-10-14)
+
+Flujo E2E validado en local (Docker): menú con precios → checkout (delivery, 3 productos,
+consentimiento marcado) → pedido #1 aparece en `/admin/estafeten` con sonido →
+CREATED → … → DELIVERED. Se creó el `Customer` (segmento NEW, consentimiento con fecha).
+
+Desviaciones respecto al plan:
+- TASK-007/008 viven en `/api/orders/[tenant]` (GET) y `/api/orders/status/[orderId]` (PATCH), no en `/api/admin/...`.
+- TASK-009: el menú se rediseñó en tema oscuro (theme dinámico por tenant), no en fondo blanco.
+- Se adelantó del Sprint 2 la autenticación del panel (ya no aplica "Auth Sprint 1: sin autenticación").
+- Se adelantó del Sprint 3 el upsert de `Customer` con segmentación.
+- Fix: el aviso sonoro no saltaba con el primer pedido si el panel estaba vacío.
+
+Pendiente arrastrado: rebaseline de migraciones Prisma (Neon se gestionó con `db push`).
 
 ---
 
