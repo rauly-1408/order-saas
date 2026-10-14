@@ -10,6 +10,13 @@ import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 const euros = (cents: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
 
+// Valida un teléfono español: 9 dígitos que empiezan en 6/7/8/9,
+// aceptando prefijo +34 / 0034 y espacios o guiones.
+function isValidSpanishPhone(raw: string): boolean {
+  const cleaned = raw.replace(/[\s-]/g, "");
+  return /^(?:\+34|0034)?[6789]\d{8}$/.test(cleaned);
+}
+
 type CheckoutClientProps = {
   tenant: string;
   theme?: TenantTheme;
@@ -24,6 +31,7 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
   const [channel, setChannel] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,8 +74,15 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError("");
+
+    // Validación de teléfono antes de enviar: protege la calidad del CRM.
+    if (!isValidSpanishPhone(phone)) {
+      setError("Introduce un teléfono válido (9 dígitos, empieza por 6, 7, 8 o 9).");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`/api/orders/${tenant}`, {
         method: "POST",
@@ -78,6 +93,7 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
           customerAddress: channel === "DELIVERY" ? address : undefined,
           channel,
           notes: notes || undefined,
+          marketingConsent,
           items: items.map((item) => ({
             productId: item.productId,
             name: item.name,
@@ -240,6 +256,20 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
               />
             </div>
           </div>
+
+          {/* CONSENTIMIENTO DE MARKETING — opt-in explícito, desmarcado por defecto (RGPD + LSSI) */}
+          <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "13px", lineHeight: 1.45, color: cssVars["--text-secondary"], cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={marketingConsent}
+              onChange={(e) => setMarketingConsent(e.target.checked)}
+              style={{ marginTop: "2px", width: "18px", height: "18px", flexShrink: 0, accentColor: cssVars["--brand-accent"] }}
+            />
+            <span>
+              Quiero recibir ofertas y novedades de este restaurante por WhatsApp o SMS.
+              Puedo darme de baja en cualquier momento.
+            </span>
+          </label>
 
           {/* ERROR */}
           {error && (

@@ -80,6 +80,9 @@ model Tenant {
   products       Product[]
   modifierGroups ModifierGroup[]
   orders         Order[]
+  customers      Customer[]
+  coupons        Coupon[]
+  campaigns      Campaign[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -235,6 +238,11 @@ model Order {
   storeId String
   store   Store  @relation(fields: [storeId], references: [id])
 
+  // Vínculo OPCIONAL con el CRM — se rellena por upsert (vía teléfono) al crear el pedido.
+  // Mantenemos customerName/customerPhone como snapshot del pedido aunque exista Customer.
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
   orderNumber Int?
 
   channel Channel
@@ -278,4 +286,158 @@ model OrderLine {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+//  CRM / RETENCIÓN  ← núcleo del diferenciador
+//  Customer = identidad del comensal. Clave natural: (tenant + teléfono).
+//  Se crea/actualiza por upsert al confirmar cada pedido.
+// ─────────────────────────────────────────────
+enum CustomerSegment {
+  NEW     // primer pedido o sin histórico suficiente
+  REGULAR // pide con cierta frecuencia
+  VIP     // alto valor y/o alta frecuencia
+  AT_RISK // antes habitual, lleva tiempo sin pedir
+}
+
+model Customer {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  // El teléfono es la clave de identidad en pedidos de restaurante
+  phone String
+  name  String?
+  email String?
+
+  // Segmentación (recalculada por job o al crear pedido)
+  segment CustomerSegment @default(NEW)
+
+  // Métricas agregadas — denormalizadas para no recalcular en cada lectura
+  ordersCount     Int       @default(0)
+  totalSpentCents Int       @default(0)
+  firstOrderAt    DateTime?
+  lastOrderAt     DateTime?
+
+  // Consentimiento de marketing — REQUISITO LEGAL para WhatsApp/email (RGPD + LSSI)
+  marketingConsent   Boolean   @default(false)
+  marketingConsentAt DateTime?
+
+  tags  String[] @default([])
+  notes String?
+
+  orders        Order[]
+  campaignSends CampaignSend[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, phone])
+  @@index([tenantId, segment])
+}
+
+// ─────────────────────────────────────────────
+//  CUPONES — usados por las campañas de retención
+// ─────────────────────────────────────────────
+enum DiscountType {
+  PERCENT // value = % de descuento (ej. 10 = 10%)
+  FIXED   // value = céntimos de descuento
+}
+
+model Coupon {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  code  String
+  type  DiscountType @default(PERCENT)
+  value Int          // interpretado según DiscountType
+
+  minOrderCents  Int  @default(0)
+  maxRedemptions Int? // null = ilimitado
+  redeemedCount  Int  @default(0)
+
+  active    Boolean   @default(true)
+  expiresAt DateTime?
+
+  campaigns Campaign[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, code])
+}
+
+// ─────────────────────────────────────────────
+//  CAMPAÑAS DE RETENCIÓN
+//  Apuntan a un segmento y se envían por un canal.
+//  El cupón es opcional (la campaña puede ser solo un mensaje).
+// ─────────────────────────────────────────────
+enum CampaignChannel {
+  WHATSAPP
+  EMAIL
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+}
+
+model Campaign {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  name          String
+  channel       CampaignChannel @default(WHATSAPP)
+  targetSegment CustomerSegment
+
+  // Plantilla del mensaje (puede venir generada por IA)
+  messageBody String
+
+  couponId String?
+  coupon   Coupon? @relation(fields: [couponId], references: [id])
+
+  status      CampaignStatus @default(DRAFT)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+
+  recipientsCount Int @default(0)
+
+  sends CampaignSend[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, status])
+}
+
+// ─────────────────────────────────────────────
+//  ENVÍOS — un registro por (campaña, cliente).
+//  Permite dedupe, medir conversión y no re-impactar al mismo cliente.
+// ─────────────────────────────────────────────
+enum SendStatus {
+  PENDING
+  SENT
+  FAILED
+  CONVERTED // el cliente pidió tras recibir el mensaje
+}
+
+model CampaignSend {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  status SendStatus @default(PENDING)
+  sentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, customerId])
 }

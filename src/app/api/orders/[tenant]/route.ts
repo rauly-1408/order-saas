@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
+import { getSessionFromRequest } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,10 +21,51 @@ type OrderBody = {
   customerPostalCode?: string;
   channel: "DELIVERY" | "TAKEAWAY";
   notes?: string;
+  marketingConsent?: boolean;
   items: OrderLineInput[];
 };
 
 const ORDER_NUMBER_RETRIES = 5;
+
+// Normaliza el teléfono a una clave estable: solo dígitos (y un + inicial
+// opcional). Evita que "600 123 123" y "600123123" creen dos clientes.
+function normalizePhone(raw: string): string {
+  const trimmed = raw.trim();
+  const hasPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "");
+  return hasPlus ? `+${digits}` : digits;
+}
+
+// Valida un teléfono español (móvil o fijo): 9 dígitos que empiezan en 6/7/8/9,
+// con prefijo +34 / 0034 opcional. Última línea de defensa del CRM: aunque el
+// checkout valide en cliente, un POST directo no pasa por ahí.
+function isValidSpanishPhone(raw: string): boolean {
+  const cleaned = raw.replace(/[\s-]/g, "");
+  return /^(?:\+34|0034)?[6789]\d{8}$/.test(cleaned);
+}
+
+// Reglas de segmento. Heurística inicial — luego se puede afinar o mover a un job.
+// AT_RISK gana sobre todo: un buen cliente que dejó de venir es la prioridad de retención.
+const AT_RISK_DAYS = 30;
+
+function computeSegment(
+  ordersCount: number,
+  totalSpentCents: number,
+  lastOrderAt: Date
+): "NEW" | "REGULAR" | "VIP" | "AT_RISK" {
+  const daysSinceLast = (Date.now() - lastOrderAt.getTime()) / 86_400_000;
+
+  // Si tenía historial (2+ pedidos) y lleva >30 días sin pedir → en riesgo.
+  if (ordersCount >= 2 && daysSinceLast > AT_RISK_DAYS) return "AT_RISK";
+
+  // VIP: muchos pedidos o alto gasto acumulado (≥ 150 €).
+  if (ordersCount >= 6 || totalSpentCents >= 15_000) return "VIP";
+
+  // REGULAR: ya repitió al menos una vez.
+  if (ordersCount >= 2) return "REGULAR";
+
+  return "NEW";
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,11 +81,20 @@ export async function POST(req: NextRequest) {
       customerPostalCode,
       channel,
       notes,
+      marketingConsent,
       items,
     } = body;
 
     if (!customerName?.trim() || !customerPhone?.trim() || !channel || !items?.length) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
+    }
+
+    if (!isValidSpanishPhone(customerPhone)) {
+      return NextResponse.json({ error: "Teléfono inválido" }, { status: 400 });
+    }
+
+    if (marketingConsent !== undefined && typeof marketingConsent !== "boolean") {
+      return NextResponse.json({ error: "Consentimiento inválido" }, { status: 400 });
     }
 
     if (channel !== "DELIVERY" && channel !== "TAKEAWAY") {
@@ -122,6 +173,7 @@ export async function POST(req: NextRequest) {
           customerAddress: customerAddress ?? null,
           customerPostalCode: customerPostalCode ?? null,
           notes: notes ?? null,
+          marketingConsent: marketingConsent === true,
           currency,
           subtotalCents,
           feesCents,
@@ -166,6 +218,7 @@ type CreateOrderInput = {
   customerAddress: string | null;
   customerPostalCode: string | null;
   notes: string | null;
+  marketingConsent: boolean;
   currency: string;
   subtotalCents: number;
   feesCents: number;
@@ -175,16 +228,69 @@ type CreateOrderInput = {
 
 async function createOrderWithNumber(input: CreateOrderInput) {
   return prisma.$transaction(async (tx) => {
-    const agg = await tx.order.aggregate({
+    const orderNumberAgg = await tx.order.aggregate({
       where: { tenantId: input.tenantId },
       _max: { orderNumber: true },
     });
-    const orderNumber = (agg._max.orderNumber ?? 0) + 1;
+    const orderNumber = (orderNumberAgg._max.orderNumber ?? 0) + 1;
+
+    // ── CRM: upsert del Customer por (tenant, teléfono) ──────────────────
+    // Se hace dentro de la transacción del pedido: si el pedido falla, el
+    // cliente no queda actualizado a medias.
+    const phone = normalizePhone(input.customerPhone);
+    const now = new Date();
+
+    const existing = await tx.customer.findUnique({
+      where: { tenantId_phone: { tenantId: input.tenantId, phone } },
+      select: {
+        id: true,
+        ordersCount: true,
+        totalSpentCents: true,
+        firstOrderAt: true,
+        marketingConsent: true,
+      },
+    });
+
+    const newOrdersCount = (existing?.ordersCount ?? 0) + 1;
+    const newTotalSpent = (existing?.totalSpentCents ?? 0) + input.totalCents;
+    const segment = computeSegment(newOrdersCount, newTotalSpent, now);
+
+    // Consentimiento: solo se CONCEDE desde el checkout (opt-in explícito).
+    // Desmarcar la casilla en un pedido posterior no lo revoca — la baja va por
+    // su propio flujo. marketingConsentAt guarda cuándo se dio (prueba RGPD).
+    const grantConsent = input.marketingConsent && !existing?.marketingConsent;
+
+    const customer = await tx.customer.upsert({
+      where: { tenantId_phone: { tenantId: input.tenantId, phone } },
+      create: {
+        tenantId: input.tenantId,
+        phone,
+        name: input.customerName,
+        ordersCount: 1,
+        totalSpentCents: input.totalCents,
+        firstOrderAt: now,
+        lastOrderAt: now,
+        segment, // será NEW en el primer pedido
+        marketingConsent: input.marketingConsent,
+        marketingConsentAt: input.marketingConsent ? now : null,
+      },
+      update: {
+        // Actualizamos el nombre por si lo cambió; el teléfono es la clave estable.
+        name: input.customerName,
+        ordersCount: newOrdersCount,
+        totalSpentCents: newTotalSpent,
+        lastOrderAt: now,
+        segment,
+        ...(grantConsent && { marketingConsent: true, marketingConsentAt: now }),
+      },
+      select: { id: true },
+    });
 
     return tx.order.create({
       data: {
         tenantId: input.tenantId,
         storeId: input.storeId,
+        customerId: customer.id,
         orderNumber,
         channel: input.channel,
         status: "CREATED",
@@ -212,6 +318,14 @@ export async function GET(req: NextRequest) {
 
     const tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
     if (!tenant) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
+
+    // Los pedidos contienen PII (nombre, teléfono, dirección): solo el dueño
+    // autenticado de este tenant —o un SUPERADMIN— puede leerlos.
+    const session = await getSessionFromRequest(req);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) {
+      return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+    }
 
     const orders = await prisma.order.findMany({
       where: {
