@@ -30,6 +30,8 @@
 | 5 | Stock y carta separados | **Agotado automático**: si un ingrediente se acaba, el plato se marca no disponible en la carta |
 | 6 | — | **Alérgenos** derivados del escandallo y mostrados en la carta del cliente (obligación UE 1169/2011) |
 | 7 | — | **Sinergia con Retención**: las campañas de WhatsApp priorizan platos de alto margen |
+| 8 | Reparto del proveedor en texto libre ("Entregas los lunes por la mañana") interpretado para estimar la fecha | **Reparto estructurado**: días de entrega + antelación + hora límite → **próxima entrega exacta**, en el mensaje del pedido y guardada en el pedido (`expectedAt`) |
+| 9 | — | **Pedido mínimo del proveedor** con aviso al preparar el pedido ("te faltan X €") |
 
 ## 🧱 Fases
 
@@ -52,6 +54,13 @@
 - Historial de precios de compra por ingrediente; aviso cuando sube un proveedor.
 - **Motor de precios**: precio sugerido para un margen objetivo y aplicación en la carta con un clic (mejora 4).
 - Alérgenos en la carta del cliente (mejora 6).
+
+### Ficha de proveedor completa ✅ 2026-10-16 (rama `feat/costes-ficha-proveedor`)
+- Teléfono y **WhatsApp por separado** (si no hay WhatsApp se usa el teléfono), email principal + **hasta 5 en copia** (van en `cc` del email del pedido).
+- **Método de pedido preferido** (WhatsApp / Email / Teléfono / En persona): su botón va primero y destacado en Compras; "Llamar" abre `tel:`.
+- **Reparto** (mejora 8) y **pedido mínimo** (mejora 9).
+- Migración `20261016100000_supplier_profile` (solo añade columnas y el enum `SupplierOrderMethod`).
+- Pendiente (necesita proveedor de email): enviar el pedido por email automáticamente, sin abrir el cliente de correo.
 
 ### Fase 4 — IA
 - **Albaranes y facturas**: foto → IA extrae proveedor, ingredientes, cantidades y precios → actualiza costes y stock.

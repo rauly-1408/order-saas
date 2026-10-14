@@ -27,13 +27,64 @@ export function lastSegment(req: NextRequest): string {
 
 const trimOrNull = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
 
-export type SupplierInput = { name: string; contactName: string | null; phone: string | null; email: string | null; notes: string | null };
+const ORDER_METHODS = ["WHATSAPP", "EMAIL", "PHONE", "IN_PERSON"] as const;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export type SupplierInput = {
+  name: string;
+  contactName: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  extraEmails: string[];
+  notes: string | null;
+  orderMethod: (typeof ORDER_METHODS)[number];
+  deliveryDays: number[];
+  leadDays: number;
+  orderCutoff: string | null;
+  minOrderCents: number | null;
+};
 
 export function parseSupplier(body: unknown): SupplierInput | string {
   const b = (body ?? {}) as Record<string, unknown>;
   const name = trimOrNull(b.name);
   if (!name) return "El nombre es obligatorio";
-  return { name, contactName: trimOrNull(b.contactName), phone: trimOrNull(b.phone), email: trimOrNull(b.email), notes: trimOrNull(b.notes) };
+
+  const email = trimOrNull(b.email);
+  const extraEmails = Array.isArray(b.extraEmails)
+    ? [...new Set(b.extraEmails.map((e) => (typeof e === "string" ? e.trim() : "")).filter(Boolean))]
+    : [];
+  for (const e of [email, ...extraEmails]) if (e && !EMAIL_RE.test(e)) return `Email no válido: ${e}`;
+  if (extraEmails.length > 5) return "Máximo 5 emails adicionales";
+
+  const orderMethod = b.orderMethod == null ? "WHATSAPP" : b.orderMethod;
+  if (!ORDER_METHODS.includes(orderMethod as (typeof ORDER_METHODS)[number])) return "Método de pedido no válido";
+
+  const deliveryDays = Array.isArray(b.deliveryDays)
+    ? [...new Set(b.deliveryDays.map(Number))].filter((d) => Number.isInteger(d) && d >= 1 && d <= 7).sort((x, y) => x - y)
+    : [];
+  const leadDays = b.leadDays == null || b.leadDays === "" ? 1 : Number(b.leadDays);
+  if (!Number.isInteger(leadDays) || leadDays < 0 || leadDays > 14) return "La antelación debe estar entre 0 y 14 días";
+  const orderCutoff = trimOrNull(b.orderCutoff);
+  if (orderCutoff && !/^([01]\d|2[0-3]):[0-5]\d$/.test(orderCutoff)) return "Hora límite no válida (HH:MM)";
+  const minOrderCents = b.minOrderCents == null || b.minOrderCents === "" ? null : Number(b.minOrderCents);
+  if (minOrderCents != null && (!Number.isInteger(minOrderCents) || minOrderCents < 0)) return "Pedido mínimo no válido";
+
+  if (orderMethod === "EMAIL" && !email) return "Para pedir por email, indica el email del proveedor";
+  return {
+    name,
+    contactName: trimOrNull(b.contactName),
+    phone: trimOrNull(b.phone),
+    whatsapp: trimOrNull(b.whatsapp),
+    email,
+    extraEmails: extraEmails.filter((e) => e !== email),
+    notes: trimOrNull(b.notes),
+    orderMethod: orderMethod as SupplierInput["orderMethod"],
+    deliveryDays,
+    leadDays,
+    orderCutoff,
+    minOrderCents,
+  };
 }
 
 const UNITS = ["KG", "G", "L", "ML", "UNIT"] as const;

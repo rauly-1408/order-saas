@@ -39,3 +39,14 @@ export function startOfTodayIn(timeZone: string, now: Date = new Date()): Date {
 export function formatTimeIn(timeZone: string, date: Date = new Date()): string {
   return date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone });
 }
+
+// Día de la semana ISO (1 = lunes … 7 = domingo) y minutos desde medianoche, en `timeZone`.
+export function wallClockIn(timeZone: string, now: Date = new Date()): { isoWeekday: number; minutes: number } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(now)
+      .map((p) => [p.type, p.value])
+  );
+  const isoWeekday = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(parts.weekday) + 1;
+  return { isoWeekday, minutes: +parts.hour * 60 + +parts.minute };
+}

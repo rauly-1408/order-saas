@@ -20,7 +20,7 @@ enum Channel {
 
 // Módulos de pago que un restaurante puede contratar aparte del producto base.
 enum Addon {
-  COSTS     // Costes y margen (escandallos, inventario, compras)
+  COSTS // Costes y margen (escandallos, inventario, compras)
   RETENTION // Motor de retención (campañas)
 }
 
@@ -35,24 +35,24 @@ enum BaseUnit {
 
 // Tipo de movimiento de stock de un ingrediente (módulo Costes, fase 2).
 enum StockMovementType {
-  ORDER        // consumo automático al entrar un pedido
+  ORDER // consumo automático al entrar un pedido
   ORDER_CANCEL // devolución al cancelar un pedido
-  RECEIPT      // entrada de mercancía
-  COUNT        // recuento físico: la diferencia con el stock teórico (merma/descuadre)
-  WASTE        // merma declarada (caducado, roto, error…)
+  RECEIPT // entrada de mercancía
+  COUNT // recuento físico: la diferencia con el stock teórico (merma/descuadre)
+  WASTE // merma declarada (caducado, roto, error…)
 }
 
 // Pedido a proveedor (módulo Costes, fase 3).
 enum PurchaseOrderStatus {
-  DRAFT     // preparado, sin enviar
-  SENT      // enviado al proveedor (WhatsApp / email)
-  RECEIVED  // mercancía recibida → entra en stock
+  DRAFT // preparado, sin enviar
+  SENT // enviado al proveedor (WhatsApp / email)
+  RECEIVED // mercancía recibida → entra en stock
   CANCELLED
 }
 
 // Origen de un cambio de precio de compra.
 enum PriceChangeSource {
-  MANUAL  // editado en la ficha del ingrediente
+  MANUAL // editado en la ficha del ingrediente
   RECEIPT // detectado al recibir un pedido
 }
 
@@ -176,8 +176,8 @@ model Store {
   active  Boolean @default(true)
 
   // Configuración de canales por local
-  deliveryEnabled  Boolean @default(true)
-  takeawayEnabled  Boolean @default(true)
+  deliveryEnabled Boolean @default(true)
+  takeawayEnabled Boolean @default(true)
 
   // Costes
   minimumOrderCents Int @default(0)
@@ -231,15 +231,15 @@ model Product {
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
 
-  name          String
-  slug          String
-  description   String?
-  imageUrl      String? // NUEVO: imagen del producto
-  basePriceCents Int    @default(0)
+  name           String
+  slug           String
+  description    String?
+  imageUrl       String? // NUEVO: imagen del producto
+  basePriceCents Int     @default(0)
 
-  isActive    Boolean @default(true)
-  isAvailable Boolean @default(true) // NUEVO: agotado temporal
-  isFeatured  Boolean @default(false) // NUEVO: destacado en la carta
+  isActive     Boolean @default(true)
+  isAvailable  Boolean @default(true) // NUEVO: agotado temporal
+  isFeatured   Boolean @default(false) // NUEVO: destacado en la carta
   hasModifiers Boolean @default(false)
   stockOut     Boolean @default(false) // agotado automático por falta de ingrediente (módulo Costes)
 
@@ -282,11 +282,11 @@ model ModifierOption {
   groupId String
   group   ModifierGroup @relation(fields: [groupId], references: [id])
 
-  name           String
-  priceDeltaCents Int   @default(0)
-  sortOrder      Int    @default(0)
-  isAvailable    Boolean @default(true) // NUEVO
-  stockOut       Boolean @default(false) // agotado automático por falta de ingrediente
+  name            String
+  priceDeltaCents Int     @default(0)
+  sortOrder       Int     @default(0)
+  isAvailable     Boolean @default(true) // NUEVO
+  stockOut        Boolean @default(false) // agotado automático por falta de ingrediente
 
   defaultFor  ProductModifierGroup[]
   recipeLines RecipeLine[]
@@ -331,11 +331,11 @@ model Order {
   channel Channel
   status  OrderStatus @default(CREATED)
 
-  customerName        String
-  customerPhone       String
-  customerAddress     String?
-  customerPostalCode  String?
-  notes               String?
+  customerName       String
+  customerPhone      String
+  customerAddress    String?
+  customerPostalCode String?
+  notes              String?
 
   currency      String @default("EUR")
   subtotalCents Int    @default(0)
@@ -383,9 +383,9 @@ model OrderLine {
 //  Se crea/actualiza por upsert al confirmar cada pedido.
 // ─────────────────────────────────────────────
 enum CustomerSegment {
-  NEW     // primer pedido o sin histórico suficiente
+  NEW // primer pedido o sin histórico suficiente
   REGULAR // pide con cierta frecuencia
-  VIP     // alto valor y/o alta frecuencia
+  VIP // alto valor y/o alta frecuencia
   AT_RISK // antes habitual, lleva tiempo sin pedir
 }
 
@@ -430,7 +430,7 @@ model Customer {
 // ─────────────────────────────────────────────
 enum DiscountType {
   PERCENT // value = % de descuento (ej. 10 = 10%)
-  FIXED   // value = céntimos de descuento
+  FIXED // value = céntimos de descuento
 }
 
 model Coupon {
@@ -440,7 +440,7 @@ model Coupon {
 
   code  String
   type  DiscountType @default(PERCENT)
-  value Int          // interpretado según DiscountType
+  value Int // interpretado según DiscountType
 
   minOrderCents  Int  @default(0)
   maxRedemptions Int? // null = ilimitado
@@ -535,6 +535,14 @@ model CampaignSend {
 //  MÓDULO COSTES — proveedores, ingredientes y escandallos
 //  Ver docs/MODULO-COSTES.md
 // ─────────────────────────────────────────────
+// Cómo prefiere recibir los pedidos el proveedor (decide el botón principal en Compras).
+enum SupplierOrderMethod {
+  WHATSAPP
+  EMAIL
+  PHONE
+  IN_PERSON
+}
+
 model Supplier {
   id       String @id @default(cuid())
   tenantId String
@@ -543,8 +551,18 @@ model Supplier {
   name        String
   contactName String?
   phone       String?
+  whatsapp    String? // si es null se usa el teléfono
   email       String?
+  extraEmails String[] @default([]) // copias del pedido (administración, almacén…)
   notes       String?
+
+  orderMethod SupplierOrderMethod @default(WHATSAPP)
+
+  // Reparto estructurado → próxima entrega exacta (ver lib/purchasing nextDeliveryOffset)
+  deliveryDays  Int[]   @default([]) // 1 = lunes … 7 = domingo
+  leadDays      Int     @default(1) // con cuántos días de antelación hay que pedir
+  orderCutoff   String? // hora límite de ese día, "HH:MM" (null = todo el día)
+  minOrderCents Int? // pedido mínimo del proveedor
 
   ingredients    Ingredient[]
   purchaseOrders PurchaseOrder[]
@@ -650,6 +668,7 @@ model PurchaseOrder {
   status     PurchaseOrderStatus @default(DRAFT)
   notes      String?
   sentAt     DateTime?
+  expectedAt DateTime? // entrega prevista según el reparto del proveedor
   receivedAt DateTime?
 
   lines PurchaseOrderLine[]
@@ -693,4 +712,3 @@ model IngredientPriceChange {
 
   @@index([tenantId, createdAt])
 }
-
