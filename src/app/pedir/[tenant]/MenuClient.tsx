@@ -113,47 +113,53 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
   const initials = tenantName.slice(0, 2).toUpperCase();
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], ...cssVars as any }}>
-      <header style={{ position: "sticky", top: 0, zIndex: 50, backgroundColor: cssVars["--surface-0"], borderBottom: `1px solid ${cssVars["--border"]}`, height: "64px", display: "flex", alignItems: "center", padding: "0 20px", gap: "14px" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], fontFamily: cssVars["--font-body"], ...cssVars as any }}>
+      <header className="p-glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: `1px solid ${cssVars["--border"]}`, height: "64px", ["--p-surface" as any]: cssVars["--surface-0"], display: "flex", alignItems: "center", padding: "0 20px", gap: "14px" }}>
         {t.logoUrl ? (
           <img src={t.logoUrl} alt={tenantName} style={{ height: "36px", width: "auto", borderRadius: "8px", flexShrink: 0 }} />
         ) : (
-          <div style={{ width: "40px", height: "40px", borderRadius: "10px", backgroundColor: cssVars["--brand-accent"], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "15px", color: "#0d0d0d", flexShrink: 0 }}>
+          <div style={{ width: "40px", height: "40px", borderRadius: "12px", backgroundColor: cssVars["--brand-accent"], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "15px", color: "var(--on-accent)", flexShrink: 0 }}>
             {initials}
           </div>
         )}
         <div>
-          <div style={{ fontWeight: 700, fontSize: "16px", color: cssVars["--text-primary"], lineHeight: 1.2 }}>{tenantName}</div>
+          <div style={{ fontWeight: 600, fontSize: "16px", color: cssVars["--text-primary"], lineHeight: 1.2 }}>{tenantName}</div>
           <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>{deliveryLabel}</div>
         </div>
       </header>
-      <nav ref={navRef} style={{ position: "sticky", top: "64px", zIndex: 40, backgroundColor: cssVars["--surface-0"], borderBottom: `1px solid ${cssVars["--border"]}`, display: "flex", gap: "8px", overflowX: "auto", padding: "10px 16px", scrollbarWidth: "none" }}>
+      <nav ref={navRef} className="p-glass" style={{ position: "sticky", top: "64px", zIndex: 40, ["--p-surface" as any]: cssVars["--surface-0"], borderBottom: `1px solid ${cssVars["--border"]}`, display: "flex", gap: "8px", overflowX: "auto", padding: "10px 16px", scrollbarWidth: "none" }}>
         {categories.map((cat) => {
           const isActive = activeCategory === cat.slug;
           return (
-            <button key={cat.slug} data-slug={cat.slug} onClick={() => scrollToCategory(cat.slug)} style={{ flexShrink: 0, padding: "6px 16px", borderRadius: "999px", border: isActive ? "none" : `1px solid ${cssVars["--border"]}`, backgroundColor: isActive ? cssVars["--brand-accent"] : "transparent", color: isActive ? "#0d0d0d" : cssVars["--text-secondary"], fontWeight: isActive ? 700 : 400, fontSize: "13px", cursor: "pointer" }}>
+            <button key={cat.slug} data-slug={cat.slug} onClick={() => scrollToCategory(cat.slug)} className="p-press" style={{ flexShrink: 0, padding: "7px 16px", borderRadius: "999px", border: isActive ? "none" : `1px solid ${cssVars["--border"]}`, backgroundColor: isActive ? cssVars["--brand-accent"] : "transparent", color: isActive ? "var(--on-accent)" : cssVars["--text-secondary"], fontWeight: isActive ? 600 : 500, fontSize: "14px", cursor: "pointer" }}>
               {cat.name}
             </button>
           );
         })}
       </nav>
       <main className="mx-auto max-w-6xl px-4 pt-6 pb-[120px]">
+        {/* Portada: nombre del restaurante en la fuente de rótulo de la marca */}
+        <section className="p-rise mb-10 overflow-hidden rounded-[28px] px-6 py-10 sm:px-10 sm:py-14" style={{ backgroundColor: cssVars["--brand-accent"], color: cssVars["--on-accent"] }}>
+          <p style={{ fontSize: "14px", fontWeight: 500, opacity: 0.75 }}>{deliveryLabel}</p>
+          <h1 className="mt-2 text-5xl sm:text-7xl" style={{ fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, lineHeight: 0.95, color: cssVars["--bg-base"] }}>{tenantName}</h1>
+          <p className="mt-4 max-w-md" style={{ fontSize: "15px", opacity: 0.8 }}>Elige, personaliza y te lo preparamos al momento.</p>
+        </section>
         {categories.map((cat) => (
           <section key={cat.slug} ref={(el) => { sectionRefs.current[cat.slug] = el; }} style={{ marginBottom: "40px" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: 700, color: cssVars["--text-primary"], marginBottom: "16px", paddingBottom: "8px", borderBottom: `1px solid ${cssVars["--border"]}` }}>{cat.name}</h2>
-            {cat.description && <p style={{ fontSize: "13px", color: cssVars["--text-secondary"], marginTop: "-8px", marginBottom: "16px" }}>{cat.description}</p>}
+            <h2 style={{ fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontSize: "30px", lineHeight: 1, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, letterSpacing: "-0.01em", color: cssVars["--brand-accent"], marginBottom: "16px" }}>{cat.name}</h2>
+            {cat.description && <p style={{ fontSize: "14px", color: cssVars["--text-secondary"], marginTop: "-6px", marginBottom: "16px" }}>{cat.description}</p>}
             {/* Cuadrícula: 1 columna en móvil, 2 en tablet, 3 en escritorio */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {cat.products.map((product) => {
+              {cat.products.map((product, i) => {
                 const qty = getQty(product.id);
                 const lineId = getLineId(product.id);
                 return (
-                  <div key={product.id} className="flex flex-col overflow-hidden" style={{ backgroundColor: cssVars["--surface-1"], borderRadius: t.borderRadius, border: qty > 0 ? `1px solid ${cssVars["--brand-accent"]}` : `1px solid ${cssVars["--border"]}` }}>
+                  <div key={product.id} className="p-rise p-lift flex flex-col overflow-hidden" style={{ ["--i" as any]: Math.min(i, 8), backgroundColor: cssVars["--surface-1"], borderRadius: t.borderRadius, boxShadow: qty > 0 ? `0 0 0 2px ${cssVars["--brand-accent"]}` : "0 1px 2px rgba(0,0,0,0.05)" }}>
                     {product.imageUrl && (
                       <img src={product.imageUrl} alt={product.name} className="aspect-[4/3] w-full object-cover" />
                     )}
                     <div className="flex-1 px-4 pt-4">
-                      <div style={{ fontWeight: 700, fontSize: "16px", color: cssVars["--text-primary"], marginBottom: "4px" }}>{product.name}</div>
+                      <div style={{ fontWeight: 600, fontSize: "17px", letterSpacing: "-0.01em", color: cssVars["--text-primary"], marginBottom: "4px" }}>{product.name}</div>
                       {product.description && <div style={{ fontSize: "13px", color: cssVars["--text-secondary"], lineHeight: 1.45 }}>{product.description}</div>}
                       {product.allergens && product.allergens.length > 0 && (
                         <div style={{ fontSize: "11px", color: cssVars["--text-secondary"], marginTop: "6px" }}>
@@ -164,7 +170,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                     {/* Pie de tarjeta: precio y acción alineados abajo en toda la fila */}
                     <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-4">
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: "16px", color: cssVars["--brand-accent"] }}>{euros(product.basePriceCents)}</div>
+                        <div style={{ fontWeight: 600, fontSize: "17px", color: cssVars["--brand-secondary"] }}>{euros(product.basePriceCents)}</div>
                         {product.modifierGroups.length > 0 && qty > 0 && (
                           <div style={{ fontSize: "11px", color: cssVars["--brand-accent"], fontWeight: 600 }}>{qty} en tu pedido</div>
                         )}
@@ -172,14 +178,14 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                       {product.modifierGroups.length > 0 || qty === 0 ? (
                         // Con opciones, cada combinación es una línea distinta: siempre "Añadir"
                         // (las cantidades se ajustan en el checkout).
-                        <button onClick={() => handleAdd(product)} style={{ padding: "8px 18px", borderRadius: "8px", border: "none", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "14px", cursor: "pointer" }}>
+                        <button onClick={() => handleAdd(product)} className="p-press" style={{ padding: "9px 20px", borderRadius: "999px", border: "none", backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)", fontWeight: 700, fontSize: "14px", cursor: "pointer" }}>
                           Añadir
                         </button>
                       ) : (
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                           <button onClick={() => { if (qty === 1 && lineId) remove(lineId); else if (lineId) dec(lineId); }} style={{ width: "30px", height: "30px", borderRadius: "50%", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 700, fontSize: "18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>-</button>
                           <span style={{ fontWeight: 700, fontSize: "15px", color: cssVars["--text-primary"], minWidth: "16px", textAlign: "center" }}>{qty}</span>
-                          <button onClick={() => { if (lineId) inc(lineId); }} style={{ width: "30px", height: "30px", borderRadius: "50%", border: "none", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                          <button onClick={() => { if (lineId) inc(lineId); }} style={{ width: "30px", height: "30px", borderRadius: "50%", border: "none", backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)", fontWeight: 700, fontSize: "18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                         </div>
                       )}
                     </div>
@@ -201,13 +207,13 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         />
       )}
       {totalItems > 0 && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, backgroundColor: cssVars["--surface-0"], borderTop: `1px solid ${cssVars["--border"]}`, padding: "12px 20px", display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: "14px", color: cssVars["--text-primary"] }}>Carrito</div>
-            <div style={{ fontSize: "13px", color: cssVars["--text-secondary"] }}>{totalItems} {totalItems === 1 ? "artículo" : "artículos"} · {euros(totalCents)}</div>
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, backgroundColor: cssVars["--surface-0"], boxShadow: "0 -8px 24px -16px rgba(0,0,0,0.25)", borderTop: `1px solid ${cssVars["--border"]}`, padding: "12px 16px calc(12px + env(safe-area-inset-bottom))", display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: "16px", color: cssVars["--text-primary"], whiteSpace: "nowrap" }}>{euros(totalCents)}</div>
+            <div style={{ fontSize: "12px", color: cssVars["--text-secondary"], whiteSpace: "nowrap" }}>{totalItems} {totalItems === 1 ? "artículo" : "artículos"}</div>
           </div>
-          <button onClick={clear} style={{ padding: "8px 14px", borderRadius: "8px", border: `1px solid ${cssVars["--border"]}`, backgroundColor: "transparent", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer" }}>Vaciar</button>
-          <a href={`/pedir/${tenant}/checkout`} style={{ padding: "10px 22px", borderRadius: "10px", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "15px", textDecoration: "none", display: "inline-block" }}>Ver pedido →</a>
+          <button onClick={clear} className="p-press" style={{ padding: "8px 12px", borderRadius: "999px", border: `1px solid ${cssVars["--border"]}`, backgroundColor: "transparent", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer", flexShrink: 0 }}>Vaciar</button>
+          <a href={`/pedir/${tenant}/checkout`} className="p-press" style={{ padding: "11px 20px", borderRadius: "999px", backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)", fontWeight: 600, fontSize: "15px", textDecoration: "none", display: "inline-block", whiteSpace: "nowrap", flexShrink: 0 }}>Ver pedido</a>
         </div>
       )}
     </div>
