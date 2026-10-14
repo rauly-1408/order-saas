@@ -16,10 +16,10 @@ export default function Escandallos({ data, api, onSaved, onGoToIngredients }: P
 
   if (data.ingredients.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[#e0d1ff] bg-white p-6 text-center">
+      <div className="rounded-xl border border-dashed border-[var(--p-brand-soft)] bg-white p-6 text-center">
         <p className="font-semibold">Primero crea tus ingredientes</p>
-        <p className="mt-1 text-sm text-[#6b6890]">Un escandallo dice cuánto de cada ingrediente lleva un plato.</p>
-        <button onClick={onGoToIngredients} className="mt-4 rounded-lg bg-[#7939fe] px-4 py-2 text-sm font-semibold text-white">
+        <p className="mt-1 text-sm text-[var(--p-muted)]">Un escandallo dice cuánto de cada ingrediente lleva un plato.</p>
+        <button onClick={onGoToIngredients} className="mt-4 rounded-lg bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
           Ir a ingredientes
         </button>
       </div>
@@ -29,29 +29,29 @@ export default function Escandallos({ data, api, onSaved, onGoToIngredients }: P
   return (
     <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
       {/* Selector de plato */}
-      <aside className={`rounded-xl border border-[#eaeaf4] bg-white ${selected ? "hidden lg:block" : ""}`}>
-        <div className="border-b border-[#eaeaf4] p-3">
+      <aside className={`rounded-xl border border-[var(--p-line)] bg-white ${selected ? "hidden lg:block" : ""}`}>
+        <div className="border-b border-[var(--p-line)] p-3">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar plato…"
-            className="w-full rounded-lg border border-[#eaeaf4] px-3 py-2 text-sm outline-none focus:border-[#7939fe]"
+            className="w-full rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm outline-none focus:border-[var(--p-brand)]"
           />
         </div>
-        <ul className="max-h-[60vh] divide-y divide-[#eaeaf4] overflow-y-auto">
+        <ul className="max-h-[60vh] divide-y divide-[var(--p-line)] overflow-y-auto">
           {filtered.map((p) => (
             <li key={p.id}>
               <button
                 onClick={() => setSelectedId(p.id)}
-                className={`flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm ${p.id === selectedId ? "bg-[#f7f7fb] font-semibold" : ""}`}
+                className={`flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm ${p.id === selectedId ? "bg-[var(--p-bg)] font-semibold" : ""}`}
               >
                 <span className="min-w-0">
                   <span className="block truncate">{p.name}</span>
-                  <span className="block text-[11px] text-[#6b6890]">{p.category}</span>
+                  <span className="block text-[11px] text-[var(--p-muted)]">{p.category}</span>
                 </span>
                 <span
                   title={p.recipeLines.length ? "Escandallado" : "Sin escandallo"}
-                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${p.recipeLines.length ? "bg-emerald-500" : "bg-[#eaeaf4]"}`}
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${p.recipeLines.length ? "bg-emerald-500" : "bg-[var(--p-line)]"}`}
                 />
               </button>
             </li>
@@ -62,7 +62,7 @@ export default function Escandallos({ data, api, onSaved, onGoToIngredients }: P
       {/* Editor */}
       <div className={selected ? "" : "hidden lg:block"}>
         {!selected ? (
-          <div className="rounded-xl border border-dashed border-[#eaeaf4] bg-white p-10 text-center text-sm text-[#6b6890]">
+          <div className="rounded-xl border border-dashed border-[var(--p-line)] bg-white p-10 text-center text-sm text-[var(--p-muted)]">
             Elige un plato para escandallarlo.
           </div>
         ) : (
@@ -90,7 +90,7 @@ function ProductRecipes({
 
   return (
     <div className="space-y-4">
-      <button onClick={onBack} className="text-sm font-semibold text-[#7939fe] lg:hidden">← Todos los platos</button>
+      <button onClick={onBack} className="text-sm font-semibold text-[var(--p-brand)] lg:hidden">← Todos los platos</button>
       <RecipeEditor
         title={`${product.name} · receta base`}
         subtitle={`Precio en carta ${euros(product.basePriceCents)}. Lo que lleva siempre, sin contar pan, guarnición ni extras.`}
@@ -100,12 +100,12 @@ function ProductRecipes({
       />
 
       {product.modifierGroups.map((g) => (
-        <section key={g.group.code} className="rounded-xl border border-[#eaeaf4] bg-white">
-          <h3 className="border-b border-[#eaeaf4] px-4 py-3 text-sm font-bold">{g.group.name}</h3>
-          <p className="px-4 pt-2 text-[11px] text-[#6b6890]">
+        <section key={g.group.code} className="rounded-xl border border-[var(--p-line)] bg-white">
+          <h3 className="border-b border-[var(--p-line)] px-4 py-3 text-sm font-bold">{g.group.name}</h3>
+          <p className="px-4 pt-2 text-[11px] text-[var(--p-muted)]">
             Estas opciones son comunes a todos los platos que las usan: escandállalas una vez.
           </p>
-          <ul className="divide-y divide-[#eaeaf4]">
+          <ul className="divide-y divide-[var(--p-line)]">
             {g.group.options.map((o) => {
               const open = openOption === o.id;
               const cost = linesCost(o.recipeLines, ingredients);
@@ -114,9 +114,9 @@ function ProductRecipes({
                   <button onClick={() => setOpenOption(open ? null : o.id)} className="flex w-full items-center justify-between gap-2 text-left text-sm">
                     <span>
                       {o.name}
-                      {o.id === g.defaultOptionId && <span className="ml-2 text-[11px] font-semibold text-[#7939fe]">por defecto</span>}
+                      {o.id === g.defaultOptionId && <span className="ml-2 text-[11px] font-semibold text-[var(--p-brand)]">por defecto</span>}
                     </span>
-                    <span className={o.recipeLines.length ? "font-semibold" : "text-[#b8b6df]"}>
+                    <span className={o.recipeLines.length ? "font-semibold" : "text-[var(--p-faint)]"}>
                       {o.recipeLines.length ? euros(cost) : "Sin escandallo"} {open ? "▴" : "▾"}
                     </span>
                   </button>
@@ -195,9 +195,9 @@ function RecipeEditor({
   }
 
   return (
-    <div className={compact ? "rounded-lg bg-[#f7f7fb] p-3" : "rounded-xl border border-[#eaeaf4] bg-white p-4"}>
+    <div className={compact ? "rounded-lg bg-[var(--p-bg)] p-3" : "rounded-xl border border-[var(--p-line)] bg-white p-4"}>
       {title && <h3 className="font-bold">{title}</h3>}
-      {subtitle && <p className="mt-0.5 mb-3 text-xs text-[#6b6890]">{subtitle}</p>}
+      {subtitle && <p className="mt-0.5 mb-3 text-xs text-[var(--p-muted)]">{subtitle}</p>}
 
       <ul className="space-y-2">
         {draft.map((d, idx) => {
@@ -208,7 +208,7 @@ function RecipeEditor({
               <select
                 value={d.ingredientId}
                 onChange={(e) => setDraft(draft.map((x, i) => (i === idx ? { ...x, ingredientId: e.target.value } : x)))}
-                className="min-w-0 rounded-lg border border-[#eaeaf4] bg-white px-2 py-2 text-sm"
+                className="min-w-0 rounded-lg border border-[var(--p-line)] bg-white px-2 py-2 text-sm"
               >
                 <option value="">Ingrediente…</option>
                 {all.map((i) => (
@@ -220,13 +220,13 @@ function RecipeEditor({
                   inputMode="decimal"
                   value={d.quantity}
                   onChange={(e) => setDraft(draft.map((x, i) => (i === idx ? { ...x, quantity: e.target.value } : x)))}
-                  className="w-full min-w-0 rounded-lg border border-[#eaeaf4] bg-white px-2 py-2 text-sm"
+                  className="w-full min-w-0 rounded-lg border border-[var(--p-line)] bg-white px-2 py-2 text-sm"
                   placeholder="0"
                 />
-                <span className="text-xs text-[#6b6890]">{ing ? UNIT_LABEL[ing.baseUnit] : ""}</span>
+                <span className="text-xs text-[var(--p-muted)]">{ing ? UNIT_LABEL[ing.baseUnit] : ""}</span>
               </div>
               <span className="hidden text-right text-sm sm:block">{ing && q > 0 ? euros(q * unitCostCents(ing)) : "—"}</span>
-              <button onClick={() => setDraft(draft.filter((_, i) => i !== idx))} aria-label="Quitar línea" className="px-1 text-lg text-[#b8b6df] hover:text-red-500">
+              <button onClick={() => setDraft(draft.filter((_, i) => i !== idx))} aria-label="Quitar línea" className="px-1 text-lg text-[var(--p-faint)] hover:text-red-500">
                 ×
               </button>
             </li>
@@ -234,17 +234,17 @@ function RecipeEditor({
         })}
       </ul>
 
-      <button onClick={() => setDraft([...draft, { ingredientId: "", quantity: "" }])} className="mt-3 text-sm font-semibold text-[#7939fe]">
+      <button onClick={() => setDraft([...draft, { ingredientId: "", quantity: "" }])} className="mt-3 text-sm font-semibold text-[var(--p-brand)]">
         + Añadir ingrediente
       </button>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#eaeaf4] pt-3">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--p-line)] pt-3">
         <span className="text-sm">
           Coste: <span className="font-bold">{euros(total)}</span>
         </span>
         <span className="flex items-center gap-3">
           {message && <span className={`text-sm ${message.ok ? "text-emerald-600" : "text-red-600"}`}>{message.text}</span>}
-          <button onClick={save} disabled={saving} className="rounded-lg bg-[#7939fe] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <button onClick={save} disabled={saving} className="rounded-lg bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {saving ? "Guardando…" : "Guardar"}
           </button>
         </span>

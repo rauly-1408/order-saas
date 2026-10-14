@@ -16,7 +16,12 @@
       "cardStyle": "rounded",
       "logoUrl": null,
       "faviconUrl": null,
-      "heroImageUrl": null
+      "heroImageUrl": null,
+      "panel": {
+        "brand": "#0d3328",
+        "accent": "#e2382b",
+        "warm": "#f2e4bf"
+      }
     },
     "settings": {
       "deliveryEnabled": true,

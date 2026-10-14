@@ -133,11 +133,11 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
   const cancelled = history.length - delivered;
 
   return (
-    <div className="text-[#393659]">
+    <div className="text-[var(--p-ink)]">
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Pedidos</h1>
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-[#6b6890]">
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--p-muted)]">
             <span className={`h-2 w-2 rounded-full ${error ? "bg-red-500" : "bg-emerald-400"}`} />
             {error ? "Problema de conexión" : "En directo"}
             {!error && <span className="hidden sm:inline">· actualiza cada 10 s</span>}
@@ -148,8 +148,8 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
             onClick={enableSound}
             className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${
               soundOn
-                ? "border-[#eaeaf4] bg-white text-[#393659] hover:bg-[#f7f7fb]"
-                : "border-[#7939fe] bg-[#7939fe] text-white hover:bg-[#5707fd]"
+                ? "border-[var(--p-line)] bg-white text-[var(--p-ink)] hover:bg-[var(--p-bg)]"
+                : "border-[var(--p-brand)] bg-[var(--p-brand)] text-white hover:bg-[var(--p-brand-strong)]"
             }`}
           >
             {soundOn ? "🔔 Probar" : "🔕 Activar sonido"}
@@ -160,7 +160,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       {!soundOn && (
         <button
           onClick={enableSound}
-          className="mb-4 block w-full rounded-xl bg-[#e0d1ff]/50 px-4 py-2 text-left text-sm text-[#5707fd] hover:bg-[#e0d1ff]"
+          className="mb-4 block w-full rounded-xl bg-[var(--p-brand-soft)]/50 px-4 py-2 text-left text-sm text-[var(--p-brand-strong)] hover:bg-[var(--p-brand-soft)]"
         >
           🔕 El navegador bloquea el sonido hasta que pulses algo. Toca aquí para recibir avisos de pedidos nuevos.
         </button>
@@ -178,13 +178,13 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
               key={col.key}
               onClick={() => setTab(col.key)}
               className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold ${
-                active ? "bg-white text-[#5707fd] shadow-sm" : "text-[#6b6890]"
+                active ? "bg-white text-[var(--p-brand-strong)] shadow-sm" : "text-[var(--p-muted)]"
               }`}
             >
               {col.emoji} {col.label}
               <span
                 className={`rounded-full px-1.5 text-xs tabular-nums ${
-                  col.key === "NEW" && count > 0 ? "bg-amber-400 text-zinc-950" : "bg-[#eaeaf4] text-[#393659]"
+                  col.key === "NEW" && count > 0 ? "bg-amber-400 text-zinc-950" : "bg-[var(--p-line)] text-[var(--p-ink)]"
                 }`}
               >
                 {count}
@@ -195,7 +195,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       </nav>
 
       {loading ? (
-        <div className="py-20 text-center text-[#6b6890]">Cargando pedidos…</div>
+        <div className="py-20 text-center text-[var(--p-muted)]">Cargando pedidos…</div>
       ) : (
         <div>
           <div className="grid gap-4 lg:grid-cols-4">
@@ -213,7 +213,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                   </h2>
                   <div className="space-y-3">
                     {list.length === 0 ? (
-                      <p className="rounded-xl border border-dashed border-[#eaeaf4] bg-white/60 py-8 text-center text-sm text-[#b8b6df]">
+                      <p className="rounded-xl border border-dashed border-[var(--p-line)] bg-white/60 py-8 text-center text-sm text-[var(--p-faint)]">
                         {col.key === "NEW" ? "Sin pedidos nuevos" : "Vacío"}
                       </p>
                     ) : (
@@ -234,22 +234,22 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
             })}
           </div>
 
-          <details className="mt-8 rounded-xl border border-[#eaeaf4] bg-white">
+          <details className="mt-8 rounded-xl border border-[var(--p-line)] bg-white">
             <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
               Últimas 24 h · {delivered} entregados · {cancelled} cancelados
             </summary>
             {history.length === 0 ? (
-              <p className="px-4 pb-4 text-sm text-[#6b6890]">Todavía no hay pedidos cerrados.</p>
+              <p className="px-4 pb-4 text-sm text-[var(--p-muted)]">Todavía no hay pedidos cerrados.</p>
             ) : (
-              <ul className="divide-y divide-[#eaeaf4] px-4 pb-2">
+              <ul className="divide-y divide-[var(--p-line)] px-4 pb-2">
                 {history.map((o) => (
                   <li key={o.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                     <span className="min-w-0 truncate">
                       <span className="font-bold">{orderLabel(o)}</span>{" "}
-                      <span className="text-[#6b6890]">{o.customerName}</span>
+                      <span className="text-[var(--p-muted)]">{o.customerName}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-3">
-                      <span className="text-[#6b6890]">{toEuros(o.totalCents)}</span>
+                      <span className="text-[var(--p-muted)]">{toEuros(o.totalCents)}</span>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                           o.status === "DELIVERED" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"

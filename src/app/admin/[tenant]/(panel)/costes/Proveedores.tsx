@@ -6,8 +6,8 @@ import type { Overview, Supplier } from "./types";
 type Form = { id: string | null; name: string; contactName: string; phone: string; email: string; notes: string };
 const EMPTY: Form = { id: null, name: "", contactName: "", phone: "", email: "", notes: "" };
 
-const input = "w-full rounded-lg border border-[#eaeaf4] px-3 py-2 text-sm outline-none focus:border-[#7939fe]";
-const label = "mb-1 block text-xs font-bold uppercase tracking-wider text-[#6b6890]";
+const input = "w-full rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm outline-none focus:border-[var(--p-brand)]";
+const label = "mb-1 block text-xs font-bold uppercase tracking-wider text-[var(--p-muted)]";
 
 export default function Proveedores({ data, api, onSaved }: { data: Overview; api: string; onSaved: () => Promise<void> }) {
   const [form, setForm] = useState<Form | null>(null);
@@ -50,13 +50,13 @@ export default function Proveedores({ data, api, onSaved }: { data: Overview; ap
   return (
     <div className="space-y-4">
       {!form && (
-        <button onClick={() => { setError(""); setForm(EMPTY); }} className="rounded-lg bg-[#7939fe] px-4 py-2 text-sm font-semibold text-white">
+        <button onClick={() => { setError(""); setForm(EMPTY); }} className="rounded-lg bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
           + Nuevo proveedor
         </button>
       )}
 
       {form && (
-        <div className="rounded-xl border border-[#e0d1ff] bg-white p-4 sm:p-6">
+        <div className="rounded-xl border border-[var(--p-brand-soft)] bg-white p-4 sm:p-6">
           <h3 className="mb-4 font-bold">{form.id ? "Editar proveedor" : "Nuevo proveedor"}</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -82,30 +82,30 @@ export default function Proveedores({ data, api, onSaved }: { data: Overview; ap
           </div>
           {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
           <div className="mt-5 flex gap-2">
-            <button onClick={save} disabled={saving} className="rounded-lg bg-[#7939fe] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <button onClick={save} disabled={saving} className="rounded-lg bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
               {saving ? "Guardando…" : "Guardar"}
             </button>
-            <button onClick={() => setForm(null)} className="rounded-lg px-4 py-2 text-sm text-[#6b6890] hover:bg-[#f7f7fb]">Cancelar</button>
+            <button onClick={() => setForm(null)} className="rounded-lg px-4 py-2 text-sm text-[var(--p-muted)] hover:bg-[var(--p-bg)]">Cancelar</button>
           </div>
         </div>
       )}
 
       {data.suppliers.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[#eaeaf4] bg-white p-6 text-center text-sm text-[#6b6890]">
+        <p className="rounded-xl border border-dashed border-[var(--p-line)] bg-white p-6 text-center text-sm text-[var(--p-muted)]">
           Añade a quién le compras para tener sus datos a mano y, más adelante, hacerle pedidos desde aquí.
         </p>
       ) : (
-        <ul className="divide-y divide-[#eaeaf4] rounded-xl border border-[#eaeaf4] bg-white">
+        <ul className="divide-y divide-[var(--p-line)] rounded-xl border border-[var(--p-line)] bg-white">
           {data.suppliers.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
               <div className="min-w-0">
                 <div className="font-semibold">{s.name}</div>
-                <div className="text-xs text-[#6b6890]">
+                <div className="text-xs text-[var(--p-muted)]">
                   {[s.contactName, s.phone, s.email].filter(Boolean).join(" · ") || "Sin datos de contacto"} · {ingredientCount(s.id)} ingredientes
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={() => edit(s)} className="text-sm font-semibold text-[#7939fe]">Editar</button>
+                <button onClick={() => edit(s)} className="text-sm font-semibold text-[var(--p-brand)]">Editar</button>
                 <button onClick={() => remove(s)} className="text-sm text-red-500">Borrar</button>
               </div>
             </li>

@@ -23,3 +23,79 @@ body {
 
 nav::-webkit-scrollbar { display: none; }
 nav { scrollbar-width: none; }
+
+
+/* ─────────────────────────────────────────────────────────────
+   Panel de administración: movimiento al estilo Apple.
+   Curvas suaves de salida (ease-out "expo"), entradas escalonadas,
+   tarjetas que se elevan y botones que se hunden al pulsar.
+   ───────────────────────────────────────────────────────────── */
+.panel {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", var(--font-inter, "Inter"), "Helvetica Neue", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  color: var(--p-ink);
+  background: var(--p-bg);
+}
+.panel h1,
+.panel h2 {
+  letter-spacing: -0.025em;
+}
+.p-display {
+  font-family: var(--font-display, "Anton"), "Arial Narrow", Impact, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.005em;
+  line-height: 0.95;
+}
+
+@keyframes p-rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes p-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Cada página del panel entra escalonada: sus bloques suben uno tras otro. */
+.p-page > * {
+  animation: p-rise 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.p-page > *:nth-child(2) { animation-delay: 60ms; }
+.p-page > *:nth-child(3) { animation-delay: 120ms; }
+.p-page > *:nth-child(4) { animation-delay: 180ms; }
+.p-page > *:nth-child(5) { animation-delay: 240ms; }
+.p-page > *:nth-child(n + 6) { animation-delay: 300ms; }
+
+/* Entrada escalonada manual: style={{ "--i": n }} */
+.p-rise {
+  animation: p-rise 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+.p-lift {
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.p-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 22px 44px -22px rgba(0, 0, 0, 0.28);
+}
+.p-press {
+  transition: transform 0.18s ease, background-color 0.25s ease, color 0.25s ease, opacity 0.25s ease;
+}
+.p-press:active {
+  transform: scale(0.97);
+}
+.p-glass {
+  background: color-mix(in srgb, var(--p-surface) 72%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .p-page > *,
+  .p-rise { animation: none; }
+  .p-lift,
+  .p-lift:hover,
+  .p-press,
+  .p-press:active { transition: none; transform: none; }
+}

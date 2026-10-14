@@ -1,18 +1,20 @@
+import Link from "next/link";
 import { prisma } from "@/app/lib/prisma";
 import { requireManagerPage } from "@/app/lib/auth";
 import { formatTimeIn, startOfTodayIn, tenantTimeZone } from "@/app/lib/time";
+import CountUp from "../CountUp";
 
-const S = { textDark: '#393659', textMid: '#b8b6df', white: '#ffffff', border: '#eaeaf4', purple: '#7939fe', purpleLight: '#e0d1ff', purpleDark: '#5707fd', green: '#1ade92' };
+const STATUS: Record<string, { label: string; cls: string }> = {
+  CREATED: { label: "Nuevo", cls: "bg-[var(--p-accent-soft)] text-[var(--p-accent)]" },
+  ACCEPTED: { label: "Aceptado", cls: "bg-[var(--p-brand-soft)] text-[var(--p-brand)]" },
+  PREPARING: { label: "Preparando", cls: "bg-amber-50 text-amber-700" },
+  READY: { label: "Listo", cls: "bg-emerald-50 text-emerald-700" },
+  DELIVERING: { label: "En reparto", cls: "bg-sky-50 text-sky-700" },
+  DELIVERED: { label: "Entregado", cls: "bg-black/[0.04] text-[var(--p-muted)]" },
+  CANCELLED: { label: "Cancelado", cls: "bg-black/[0.04] text-[var(--p-faint)] line-through" },
+};
 
-function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
-  return (
-    <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 8, padding: '20px 24px', flex: 1, minWidth: 160 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: S.textMid, marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 700, color: S.textDark }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: S.textMid, marginTop: 4 }}>{sub}</div>}
-    </div>
-  );
-}
+const euros = (cents: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
 
 export default async function AdminHomePage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
@@ -22,105 +24,120 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
     where: { slug: tenant },
     select: { id: true, name: true, settings: true },
   });
-
-  if (!tenantData) {
-    return <div style={{ color: '#ff5e6c', padding: 32 }}>Tenant no encontrado: {tenant}</div>;
-  }
+  if (!tenantData) return <p className="text-[var(--p-accent)]">Restaurante no encontrado: {tenant}</p>;
 
   // "Hoy" en la zona horaria del restaurante (el servidor trabaja en UTC).
   const timeZone = tenantTimeZone(tenantData.settings);
   const today = startOfTodayIn(timeZone);
+  const tenantId = tenantData.id;
 
-  const [totalOrders, activeOrders, products, categories] = await Promise.all([
-    prisma.order.count({ where: { tenantId: tenantData.id, createdAt: { gte: today } } }),
-    prisma.order.count({ where: {
-      tenantId: tenantData.id,
-      status: { notIn: ['DELIVERED', 'CANCELLED'] },
-    }}),
-    prisma.product.count({ where: { tenantId: tenantData.id, isActive: true } }),
-    prisma.category.count({ where: { tenantId: tenantData.id, isActive: true } }),
+  const [ordersToday, activeOrders, products, categories, revenue, recentOrders] = await Promise.all([
+    prisma.order.count({ where: { tenantId, createdAt: { gte: today }, status: { not: "CANCELLED" } } }),
+    prisma.order.count({ where: { tenantId, status: { notIn: ["DELIVERED", "CANCELLED"] } } }),
+    prisma.product.count({ where: { tenantId, isActive: true } }),
+    prisma.category.count({ where: { tenantId, isActive: true } }),
+    prisma.order.aggregate({ where: { tenantId, createdAt: { gte: today }, status: { not: "CANCELLED" } }, _sum: { totalCents: true } }),
+    prisma.order.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      select: { id: true, orderNumber: true, customerName: true, status: true, totalCents: true, channel: true, createdAt: true },
+    }),
   ]);
 
-  const revenueResult = await prisma.order.aggregate({
-    where: { tenantId: tenantData.id, createdAt: { gte: today }, status: { notIn: ['CANCELLED'] } },
-    _sum: { totalCents: true },
-  });
-
-  const revenueCents = revenueResult._sum.totalCents ?? 0;
-  const revenueFormatted = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(revenueCents / 100);
-
-  const recentOrders = await prisma.order.findMany({
-    where: { tenantId: tenantData.id },
-    orderBy: { createdAt: 'desc' },
-    take: 5,
-    select: { id: true, orderNumber: true, customerName: true, status: true, totalCents: true, channel: true, createdAt: true },
-  });
-
-  const STATUS_COLOR: Record<string, string> = {
-    CREATED: '#f59e0b', ACCEPTED: S.purple, PREPARING: '#f97316',
-    READY: S.green, DELIVERED: S.textMid, CANCELLED: '#ff5e6c',
-  };
-  const STATUS_LABEL: Record<string, string> = {
-    CREATED: 'Nuevo', ACCEPTED: 'Aceptado', PREPARING: 'Preparando',
-    READY: 'Listo', DELIVERED: 'Entregado', CANCELLED: 'Cancelado',
-  };
-  const fmt = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
+  const revenueCents = revenue._sum.totalCents ?? 0;
+  const avgTicket = ordersToday ? Math.round(revenueCents / ordersToday) : 0;
+  const dateLabel = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone }).format(new Date());
+  const time = (d: Date) => new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone }).format(d);
 
   return (
-    <div>
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, color: S.textDark, margin: 0 }}>Hoy en {tenantData.name}</h1>
-        <div style={{ fontSize: 13, color: S.textMid, marginTop: 4 }}>
-          Última actualización: {formatTimeIn(timeZone)}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 28 }}>
-        <StatCard label="Ingresos hoy" value={revenueFormatted} />
-        <StatCard label="Pedidos hoy" value={totalOrders} />
-        <StatCard label="Pedidos activos" value={activeOrders} sub="En preparación o pendientes" />
-        <StatCard label="Productos activos" value={products} sub={`${categories} categorías`} />
-      </div>
-
-      <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 8 }}>
-        <div style={{ padding: '16px 24px', borderBottom: `1px solid ${S.border}` }}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: S.textDark }}>
-            Últimos pedidos
+    <>
+      {/* Cabecera: identidad del restaurante + ingresos del día */}
+      <section className="relative overflow-hidden rounded-[28px] bg-[var(--p-warm)] px-6 py-8 sm:px-10 sm:py-12">
+        <p className="text-sm font-medium text-[var(--p-brand)]/70 first-letter:uppercase">{dateLabel}</p>
+        <h1 className="p-display mt-2 text-5xl text-[var(--p-brand)] sm:text-7xl">
+          Hoy en
+          <br />
+          {tenantData.name}
+        </h1>
+        <div className="mt-8 flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <p className="text-sm text-[var(--p-brand)]/70">Ingresos de hoy</p>
+            <p className="text-4xl font-semibold tracking-tight text-[var(--p-brand)] sm:text-5xl">
+              <CountUp value={revenueCents} format="euros" />
+            </p>
           </div>
+          <p className="flex items-center gap-2 text-xs text-[var(--p-brand)]/60">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--p-brand)] opacity-40" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--p-brand)]" />
+            </span>
+            Actualizado a las {formatTimeIn(timeZone)}
+          </p>
+        </div>
+      </section>
+
+      {/* Cifras clave */}
+      <section className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Stat label="Pedidos hoy" value={<CountUp value={ordersToday} />} />
+        <Link href={`/admin/${tenant}/pedidos`} className="block">
+          <Stat
+            label="Activos ahora"
+            value={<CountUp value={activeOrders} />}
+            sub={activeOrders ? "Ver en Pedidos →" : "Nada pendiente"}
+            urgent={activeOrders > 0}
+          />
+        </Link>
+        <Stat label="Ticket medio hoy" value={<CountUp value={avgTicket} format="euros" />} />
+        <Stat label="Carta" value={<CountUp value={products} />} sub={`productos en ${categories} categorías`} />
+      </section>
+
+      {/* Últimos pedidos: lista agrupada al estilo iOS */}
+      <section className="mt-8">
+        <div className="mb-3 flex items-baseline justify-between px-1">
+          <h2 className="text-xl font-semibold">Últimos pedidos</h2>
+          <Link href={`/admin/${tenant}/pedidos`} className="text-sm font-medium text-[var(--p-brand)] hover:underline">
+            Ver todos
+          </Link>
         </div>
         {recentOrders.length === 0 ? (
-          <div style={{ padding: 48, textAlign: 'center', color: S.textMid, fontSize: 14 }}>Sin pedidos aún</div>
+          <p className="rounded-2xl bg-[var(--p-surface)] p-10 text-center text-sm text-[var(--p-muted)]">Todavía no hay pedidos.</p>
         ) : (
-          // En móvil la tabla se desplaza en horizontal en vez de cortarse
-          <div className="overflow-x-auto">
-          <table style={{ width: '100%', minWidth: 520, borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#fafafa' }}>
-                {['#', 'Cliente', 'Estado', 'Canal', 'Total'].map(h => (
-                  <th key={h} style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: S.textDark, textAlign: 'left', borderBottom: `1px solid ${S.border}` }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.map(o => (
-                <tr key={o.id} style={{ borderBottom: `1px solid ${S.border}` }}>
-                  <td style={{ padding: '12px 16px', fontSize: 12, fontFamily: 'monospace', color: S.textMid }}>#{o.orderNumber}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 14, fontWeight: 500, color: S.textDark }}>{o.customerName}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLOR[o.status] ?? S.textMid, display: 'inline-block' }} />
-                      <span style={{ color: S.textDark }}>{STATUS_LABEL[o.status] ?? o.status}</span>
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: S.textDark }}>{o.channel === 'DELIVERY' ? '🛵 Delivery' : '🏪 Recogida'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 14, fontWeight: 700, color: S.textDark }}>{fmt.format(o.totalCents / 100)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+          <ul className="divide-y divide-[var(--p-line)] overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            {recentOrders.map((o, i) => (
+              <li key={o.id} className="p-rise flex items-center gap-4 px-5 py-4" style={{ "--i": i } as React.CSSProperties}>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-sm font-semibold tabular-nums">
+                  {o.orderNumber}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{o.customerName}</p>
+                  <p className="text-xs text-[var(--p-muted)]">
+                    {o.channel === "DELIVERY" ? "A domicilio" : "Para recoger"} · {time(o.createdAt)}
+                  </p>
+                </div>
+                <span className={`hidden rounded-full px-2.5 py-1 text-xs font-medium sm:inline ${STATUS[o.status]?.cls ?? ""}`}>
+                  {STATUS[o.status]?.label ?? o.status}
+                </span>
+                <span className="w-20 text-right font-semibold tabular-nums">{euros(o.totalCents)}</span>
+              </li>
+            ))}
+          </ul>
         )}
-      </div>
+      </section>
+    </>
+  );
+}
+
+function Stat({ label, value, sub, urgent = false }: { label: string; value: React.ReactNode; sub?: string; urgent?: boolean }) {
+  return (
+    <div
+      className={`p-lift h-full rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+        urgent ? "bg-[var(--p-accent)] text-white" : "bg-[var(--p-surface)]"
+      }`}
+    >
+      <p className={`text-sm ${urgent ? "text-white/80" : "text-[var(--p-muted)]"}`}>{label}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight">{value}</p>
+      {sub && <p className={`mt-1 text-xs ${urgent ? "text-white/80" : "text-[var(--p-faint)]"}`}>{sub}</p>}
     </div>
   );
 }

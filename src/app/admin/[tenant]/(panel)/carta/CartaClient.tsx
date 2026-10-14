@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 
 const S = {
-  white: '#ffffff', pageBg: '#f7f7fb', border: '#eaeaf4',
-  purple: '#7939fe', purpleDark: '#5707fd', purpleLight: '#e0d1ff', purpleMid: '#9c6dfe',
-  textDark: '#393659', textMid: '#b8b6df', green: '#1ade92', red: '#ff5e6c',
+  white: '#ffffff', pageBg: 'var(--p-bg)', border: 'var(--p-line)',
+  purple: 'var(--p-brand)', purpleDark: 'var(--p-brand-strong)', purpleLight: 'var(--p-brand-soft)', purpleMid: 'var(--p-brand)',
+  textDark: 'var(--p-ink)', textMid: 'var(--p-faint)', green: '#1ade92', red: 'var(--p-accent)',
 };
 
 const fmt = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
@@ -115,7 +115,7 @@ export default function CartaClient({ tenant }: { tenant: string }) {
       </div>
 
       {msg && (
-        <div style={{ background: msg.startsWith('Error') ? '#fff0f0' : '#f0fff4', border: `1px solid ${msg.startsWith('Error') ? S.red : S.green}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: msg.startsWith('Error') ? S.red : '#166534', marginBottom: 16 }}>
+        <div style={{ background: msg.startsWith('Error') ? 'var(--p-accent-soft)' : '#f0fff4', border: `1px solid ${msg.startsWith('Error') ? S.red : S.green}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: msg.startsWith('Error') ? S.red : '#166534', marginBottom: 16 }}>
           {msg}
         </div>
       )}
@@ -202,7 +202,7 @@ export default function CartaClient({ tenant }: { tenant: string }) {
                   <tr key={p.id} style={{ borderBottom: `1px solid ${S.border}`, background: S.white }}>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        {p.imageUrl ? <img src={p.imageUrl} alt={p.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover' }} /> : <div style={{ width: 36, height: 36, borderRadius: 6, background: '#f3f0ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🍽️</div>}
+                        {p.imageUrl ? <img src={p.imageUrl} alt={p.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover' }} /> : <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--p-brand-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🍽️</div>}
                         <div>
                           <div style={{ fontSize: 14, fontWeight: 500, color: S.textDark }}>{p.name}</div>
                           {p.description && <div style={{ fontSize: 12, color: S.textMid, marginTop: 2 }}>{p.description.substring(0, 40)}{p.description.length > 40 ? '...' : ''}</div>}
@@ -210,7 +210,7 @@ export default function CartaClient({ tenant }: { tenant: string }) {
                       </div>
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: S.textDark }}>
-                      <span style={{ background: '#f3f0ff', color: S.purpleDark, borderRadius: 9999, padding: '2px 8px', fontSize: 12 }}>{catName}</span>
+                      <span style={{ background: 'var(--p-brand-soft)', color: S.purpleDark, borderRadius: 9999, padding: '2px 8px', fontSize: 12 }}>{catName}</span>
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 14, fontWeight: 700, color: S.textDark }}>{toEuros(p.basePriceCents)}</td>
                     <td style={{ padding: '12px 16px' }}><Toggle checked={p.isActive} onChange={() => toggleActive(p, catId)} /></td>

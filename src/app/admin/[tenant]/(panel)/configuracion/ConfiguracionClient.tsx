@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 
 const S = {
-  white: '#ffffff', pageBg: '#f7f7fb', border: '#eaeaf4',
-  purpleDark: '#5707fd', purpleLight: '#e0d1ff', purpleMid: '#9c6dfe',
-  textDark: '#393659', textMid: '#b8b6df', green: '#1ade92', red: '#ff5e6c',
+  white: '#ffffff', pageBg: 'var(--p-bg)', border: 'var(--p-line)',
+  purpleDark: 'var(--p-brand-strong)', purpleLight: 'var(--p-brand-soft)', purpleMid: 'var(--p-brand)',
+  textDark: 'var(--p-ink)', textMid: 'var(--p-faint)', green: '#1ade92', red: 'var(--p-accent)',
 };
 
 type SettingsForm = {
@@ -119,7 +119,7 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
       </div>
 
       {msg && (
-        <div style={{ background: msg.startsWith('Error') ? '#fff0f0' : '#f0fff4', border: `1px solid ${msg.startsWith('Error') ? S.red : S.green}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: msg.startsWith('Error') ? S.red : '#166534', marginBottom: 20 }}>
+        <div style={{ background: msg.startsWith('Error') ? 'var(--p-accent-soft)' : '#f0fff4', border: `1px solid ${msg.startsWith('Error') ? S.red : S.green}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: msg.startsWith('Error') ? S.red : '#166534', marginBottom: 20 }}>
           {msg}
         </div>
       )}

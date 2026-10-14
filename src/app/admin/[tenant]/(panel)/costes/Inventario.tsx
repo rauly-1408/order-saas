@@ -23,7 +23,7 @@ const ACTION_TEXT: Record<Action["type"], { title: string; label: string; button
 };
 
 function status(i: Ingredient): { label: string; cls: string; rank: number } {
-  if (!i.trackStock) return { label: "Sin control", cls: "bg-[#f7f7fb] text-[#6b6890]", rank: 3 };
+  if (!i.trackStock) return { label: "Sin control", cls: "bg-[var(--p-bg)] text-[var(--p-muted)]", rank: 3 };
   if (i.stockQty <= 0) return { label: "Agotado", cls: "bg-red-50 text-red-600", rank: 0 };
   if (i.minStock != null && i.stockQty <= i.minStock) return { label: "Bajo", cls: "bg-amber-50 text-amber-700", rank: 1 };
   return { label: "OK", cls: "bg-emerald-50 text-emerald-700", rank: 2 };
@@ -70,16 +70,16 @@ export default function Inventario({ data, api, onSaved }: Props) {
       )}
 
       {data.ingredients.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[#eaeaf4] bg-white p-6 text-center text-sm text-[#6b6890]">
+        <p className="rounded-xl border border-dashed border-[var(--p-line)] bg-white p-6 text-center text-sm text-[var(--p-muted)]">
           Crea primero tus ingredientes en la pestaña Ingredientes.
         </p>
       ) : (
-        <section className="rounded-xl border border-[#eaeaf4] bg-white">
-          <h2 className="border-b border-[#eaeaf4] px-4 py-3 text-xs font-bold uppercase tracking-wider">Stock por ingrediente</h2>
-          <p className="px-4 pt-2 text-xs text-[#6b6890]">
+        <section className="rounded-xl border border-[var(--p-line)] bg-white">
+          <h2 className="border-b border-[var(--p-line)] px-4 py-3 text-xs font-bold uppercase tracking-wider">Stock por ingrediente</h2>
+          <p className="px-4 pt-2 text-xs text-[var(--p-muted)]">
             Los ingredientes controlados se descuentan solos con cada pedido. Haz un recuento para empezar a controlar uno.
           </p>
-          <ul className="divide-y divide-[#eaeaf4]">
+          <ul className="divide-y divide-[var(--p-line)]">
             {sorted.map((i) => {
               const st = status(i);
               const open = action?.ingredient.id === i.id;
@@ -91,10 +91,10 @@ export default function Inventario({ data, api, onSaved }: Props) {
                         <span className="font-semibold">{i.name}</span>
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${st.cls}`}>{st.label}</span>
                       </div>
-                      <div className="text-xs text-[#6b6890]">
+                      <div className="text-xs text-[var(--p-muted)]">
                         {i.trackStock ? (
                           <>
-                            Hay <span className="font-semibold text-[#393659]">{formatQty(i.stockQty, i.baseUnit)}</span> ({euros(Math.max(i.stockQty, 0) * unitCostCents(i))})
+                            Hay <span className="font-semibold text-[var(--p-ink)]">{formatQty(i.stockQty, i.baseUnit)}</span> ({euros(Math.max(i.stockQty, 0) * unitCostCents(i))})
                             {i.minStock != null && ` · mínimo ${formatQty(i.minStock, i.baseUnit)}`}
                           </>
                         ) : (
@@ -104,17 +104,17 @@ export default function Inventario({ data, api, onSaved }: Props) {
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {(["RECEIPT", "COUNT", "WASTE"] as const).map((t) => (
-                        <button key={t} onClick={() => setAction(open && action?.type === t ? null : { ingredient: i, type: t })} className="rounded-lg border border-[#eaeaf4] px-2.5 py-1 text-xs font-semibold text-[#393659] hover:bg-[#f7f7fb]">
+                        <button key={t} onClick={() => setAction(open && action?.type === t ? null : { ingredient: i, type: t })} className="rounded-lg border border-[var(--p-line)] px-2.5 py-1 text-xs font-semibold text-[var(--p-ink)] hover:bg-[var(--p-bg)]">
                           {t === "RECEIPT" ? "+ Entrada" : t === "COUNT" ? "Recuento" : "Merma"}
                         </button>
                       ))}
                       {i.trackStock && (
-                        <button onClick={() => setAction(open && action?.type === "MIN" ? null : { ingredient: i, type: "MIN" })} className="rounded-lg border border-[#eaeaf4] px-2.5 py-1 text-xs text-[#6b6890] hover:bg-[#f7f7fb]">
+                        <button onClick={() => setAction(open && action?.type === "MIN" ? null : { ingredient: i, type: "MIN" })} className="rounded-lg border border-[var(--p-line)] px-2.5 py-1 text-xs text-[var(--p-muted)] hover:bg-[var(--p-bg)]">
                           Mínimo
                         </button>
                       )}
                       {i.trackStock && (
-                        <button onClick={() => toggleTracking(i)} className="rounded-lg px-2.5 py-1 text-xs text-[#b8b6df] hover:text-red-500">
+                        <button onClick={() => toggleTracking(i)} className="rounded-lg px-2.5 py-1 text-xs text-[var(--p-faint)] hover:text-red-500">
                           Dejar de controlar
                         </button>
                       )}
@@ -128,20 +128,20 @@ export default function Inventario({ data, api, onSaved }: Props) {
         </section>
       )}
 
-      <section className="rounded-xl border border-[#eaeaf4] bg-white">
-        <h2 className="border-b border-[#eaeaf4] px-4 py-3 text-xs font-bold uppercase tracking-wider">Últimos movimientos</h2>
+      <section className="rounded-xl border border-[var(--p-line)] bg-white">
+        <h2 className="border-b border-[var(--p-line)] px-4 py-3 text-xs font-bold uppercase tracking-wider">Últimos movimientos</h2>
         {data.movements.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-[#6b6890]">Aún no hay movimientos de stock.</p>
+          <p className="px-4 py-6 text-sm text-[var(--p-muted)]">Aún no hay movimientos de stock.</p>
         ) : (
-          <ul className="divide-y divide-[#eaeaf4]">
+          <ul className="divide-y divide-[var(--p-line)]">
             {data.movements.map((m) => {
               const ing = ingredientsById.get(m.ingredientId);
               const unit = ing?.baseUnit ?? "UNIT";
               return (
                 <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
                   <div className="min-w-0">
-                    <span className="font-semibold">{ing?.name ?? "—"}</span> <span className="text-[#6b6890]">· {MOVE_LABEL[m.type]}</span>
-                    <div className="text-[11px] text-[#b8b6df]">
+                    <span className="font-semibold">{ing?.name ?? "—"}</span> <span className="text-[var(--p-muted)]">· {MOVE_LABEL[m.type]}</span>
+                    <div className="text-[11px] text-[var(--p-faint)]">
                       {new Date(m.createdAt).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                       {m.note && ` · ${m.note}`}
                     </div>
@@ -151,7 +151,7 @@ export default function Inventario({ data, api, onSaved }: Props) {
                       {m.quantity > 0 ? "+" : ""}
                       {formatQty(m.quantity, unit)}
                     </div>
-                    <div className="text-[11px] text-[#6b6890]">
+                    <div className="text-[11px] text-[var(--p-muted)]">
                       {euros(m.valueCents)} · queda {formatQty(m.stockAfter, unit)}
                     </div>
                   </div>
@@ -192,32 +192,32 @@ function ActionForm({ action, api, onDone, onCancel }: { action: Action; api: st
   }
 
   return (
-    <div className="mt-3 rounded-lg bg-[#f7f7fb] p-3">
+    <div className="mt-3 rounded-lg bg-[var(--p-bg)] p-3">
       <p className="mb-2 text-sm font-semibold">{text.title}</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        <label className="text-xs text-[#6b6890]">
+        <label className="text-xs text-[var(--p-muted)]">
           {text.label} ({UNIT_LABEL[i.baseUnit]})
-          <input autoFocus inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} className="mt-1 w-full rounded-lg border border-[#eaeaf4] bg-white px-3 py-2 text-sm text-[#393659]" />
+          <input autoFocus inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} className="mt-1 w-full rounded-lg border border-[var(--p-line)] bg-white px-3 py-2 text-sm text-[var(--p-ink)]" />
         </label>
         {type !== "MIN" && (
-          <label className="text-xs text-[#6b6890]">
+          <label className="text-xs text-[var(--p-muted)]">
             Nota (opcional)
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={type === "WASTE" ? "Caducado, se cayó…" : "Albarán, proveedor…"} className="mt-1 w-full rounded-lg border border-[#eaeaf4] bg-white px-3 py-2 text-sm text-[#393659]" />
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={type === "WASTE" ? "Caducado, se cayó…" : "Albarán, proveedor…"} className="mt-1 w-full rounded-lg border border-[var(--p-line)] bg-white px-3 py-2 text-sm text-[var(--p-ink)]" />
           </label>
         )}
       </div>
       {diff != null && i.trackStock && (
-        <p className={`mt-2 text-xs ${diff < 0 ? "text-red-600" : "text-[#6b6890]"}`}>
+        <p className={`mt-2 text-xs ${diff < 0 ? "text-red-600" : "text-[var(--p-muted)]"}`}>
           Diferencia con el stock teórico: {diff > 0 ? "+" : ""}
           {formatQty(diff, i.baseUnit)} ({euros(diff * unitCostCents(i))})
         </p>
       )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       <div className="mt-3 flex gap-2">
-        <button onClick={submit} disabled={saving} className="rounded-lg bg-[#7939fe] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
+        <button onClick={submit} disabled={saving} className="rounded-lg bg-[var(--p-brand)] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
           {saving ? "Guardando…" : text.button}
         </button>
-        <button onClick={onCancel} className="rounded-lg px-3 py-1.5 text-sm text-[#6b6890] hover:bg-white">Cancelar</button>
+        <button onClick={onCancel} className="rounded-lg px-3 py-1.5 text-sm text-[var(--p-muted)] hover:bg-white">Cancelar</button>
       </div>
     </div>
   );
@@ -225,10 +225,10 @@ function ActionForm({ action, api, onDone, onCancel }: { action: Action; api: st
 
 function Stat({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: "ok" | "warn" }) {
   return (
-    <div className="rounded-xl border border-[#eaeaf4] bg-white p-4">
-      <div className="text-xs font-bold uppercase tracking-wider text-[#b8b6df]">{label}</div>
+    <div className="rounded-xl border border-[var(--p-line)] bg-white p-4">
+      <div className="text-xs font-bold uppercase tracking-wider text-[var(--p-faint)]">{label}</div>
       <div className={`mt-1 text-2xl font-bold ${tone === "warn" ? "text-amber-700" : ""}`}>{value}</div>
-      <div className="mt-0.5 truncate text-xs text-[#6b6890]">{sub}</div>
+      <div className="mt-0.5 truncate text-xs text-[var(--p-muted)]">{sub}</div>
     </div>
   );
 }

@@ -4,22 +4,58 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-// Last.app-inspired design tokens — system level, no tenant hardcoding
-const S = {
-  white:       '#ffffff',
-  pageBg:      '#f7f7fb',
-  border:      '#eaeaf4',
-  purple:      '#7939fe',
-  purpleDark:  '#5707fd',
-  purpleLight: '#e0d1ff',
-  textDark:    '#393659',
-  textMid:     '#b8b6df',
-};
+// Barra lateral del panel: translúcida con desenfoque (estilo Apple), iconos de
+// línea y el elemento activo con el color de la marca del restaurante (--p-brand).
+
+type IconName = "home" | "orders" | "menu" | "costs" | "brush" | "gear" | "external" | "logout";
+
+function Icon({ name }: { name: IconName }) {
+  const paths: Record<IconName, React.ReactNode> = {
+    home: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
+    orders: (
+      <>
+        <path d="M6 4h12l1 4H5z" />
+        <path d="M5 8h14v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z" />
+        <path d="M9 12h6" />
+      </>
+    ),
+    menu: (
+      <>
+        <path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+        <path d="M9 8h6M9 12h6M9 16h4" />
+      </>
+    ),
+    costs: (
+      <>
+        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+      </>
+    ),
+    brush: (
+      <>
+        <path d="M14 4l6 6-8.5 8.5a3 3 0 0 1-4.2 0l-1.8-1.8a3 3 0 0 1 0-4.2z" />
+        <path d="M4 20c0-2 1-3 3-3" />
+      </>
+    ),
+    gear: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+      </>
+    ),
+    external: <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />,
+    logout: <path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H3" />,
+  };
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {paths[name]}
+    </svg>
+  );
+}
 
 type NavItem = {
   label: string;
   href: string;
-  icon: string;
+  icon: IconName;
   exact?: boolean;
   managerOnly?: boolean; // oculto para STORE_MANAGER
 };
@@ -27,12 +63,12 @@ type NavItem = {
 function buildNav(tenant: string): NavItem[] {
   const base = `/admin/${tenant}`;
   return [
-    { label: 'Inicio',            href: `${base}/home`,             icon: '⊙', exact: true, managerOnly: true },
-    { label: 'Pedidos',           href: `${base}/pedidos`,          icon: '🛒' },
-    { label: 'Carta',             href: `${base}/carta`,            icon: '📋', managerOnly: true },
-    { label: 'Costes',            href: `${base}/costes`,           icon: '🧮', managerOnly: true },
-    { label: 'Personalización',   href: `${base}/personalizacion`,  icon: '🎨', managerOnly: true },
-    { label: 'Configuración',     href: `${base}/configuracion`,    icon: '⚙️', managerOnly: true },
+    { label: "Inicio", href: `${base}/home`, icon: "home", exact: true, managerOnly: true },
+    { label: "Pedidos", href: `${base}/pedidos`, icon: "orders" },
+    { label: "Carta", href: `${base}/carta`, icon: "menu", managerOnly: true },
+    { label: "Costes", href: `${base}/costes`, icon: "costs", managerOnly: true },
+    { label: "Personalización", href: `${base}/personalizacion`, icon: "brush", managerOnly: true },
+    { label: "Configuración", href: `${base}/configuracion`, icon: "gear", managerOnly: true },
   ];
 }
 
@@ -57,116 +93,80 @@ export default function AdminSidebar({
     router.replace(`/admin/${tenant}/login`);
   }
 
-  function isActive(item: NavItem): boolean {
-    if (item.exact) return pathname === item.href;
-    return pathname.startsWith(item.href);
-  }
+  const isActive = (item: NavItem) => (item.exact ? pathname === item.href : pathname.startsWith(item.href));
+
+  const brandMark = logoUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={logoUrl} alt={tenantName} className="h-9 w-9 rounded-xl object-contain" />
+  ) : (
+    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--p-brand)] text-sm font-semibold text-white">
+      {tenantName.charAt(0).toUpperCase()}
+    </div>
+  );
 
   return (
     <>
-    {/* Móvil: barra superior con botón de menú */}
-    <div
-      className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 px-4 lg:hidden"
-      style={{ background: S.white, borderBottom: `1px solid ${S.border}` }}
-    >
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Abrir menú"
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-xl"
-        style={{ color: S.textDark }}
+      {/* Móvil: barra superior translúcida con botón de menú */}
+      <div className="p-glass fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-[var(--p-line)] px-4 lg:hidden">
+        <button onClick={() => setOpen(true)} aria-label="Abrir menú" className="p-press flex h-9 w-9 items-center justify-center rounded-full text-[var(--p-ink)] hover:bg-black/5">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+        <span className="text-[15px] font-semibold">{tenantName}</span>
+      </div>
+
+      {open && <button aria-label="Cerrar menú" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[2px] lg:hidden" />}
+
+      {/* Escritorio: barra fija. Móvil: panel deslizante. */}
+      <aside
+        className={`p-glass fixed inset-y-0 left-0 z-50 flex h-screen w-64 min-w-64 flex-col border-r border-[var(--p-line)] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
-        ☰
-      </button>
-      <span style={{ fontSize: 15, fontWeight: 700, color: S.textDark }}>{tenantName}</span>
-    </div>
-
-    {open && (
-      <button aria-label="Cerrar menú" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-black/30 lg:hidden" />
-    )}
-
-    {/* Escritorio: barra fija. Móvil: panel deslizante. */}
-    <aside
-      className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 min-w-64 flex-col transition-transform lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
-        open ? "translate-x-0" : "-translate-x-full"
-      }`}
-      style={{ background: S.white, borderRight: `1px solid ${S.border}` }}
-    >
-      {/* Header */}
-      <div style={{ padding: '20px 16px 16px', borderBottom: `1px solid ${S.border}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {logoUrl ? (
-            <img src={logoUrl} alt={tenantName} style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 6 }} />
-          ) : (
-            <div style={{
-              width: 32, height: 32, borderRadius: 6, background: S.purpleLight,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 14, fontWeight: 700, color: S.purpleDark,
-            }}>
-              {tenantName.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: S.textDark, lineHeight: 1.2 }}>{tenantName}</div>
-            <div style={{ fontSize: 11, color: S.textMid }}>Panel de administración</div>
+        <div className="flex items-center gap-3 px-5 pt-6 pb-5">
+          {brandMark}
+          <div className="min-w-0">
+            <div className="truncate text-[15px] font-semibold">{tenantName}</div>
+            <div className="text-xs text-[var(--p-muted)]">Panel del restaurante</div>
           </div>
         </div>
-      </div>
 
-      {/* Navigation */}
-      <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {nav.map((item) => {
-            const active = isActive(item);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '8px 12px', borderRadius: 9999,
-                  textDecoration: 'none', transition: 'all 0.15s',
-                  background: active ? S.pageBg : 'transparent',
-                  color: active ? S.purpleDark : S.textDark,
-                  fontWeight: active ? 600 : 400,
-                  fontSize: 14,
-                }}
-              >
-                <span style={{ fontSize: 16, width: 20, textAlign: 'center' }}>{item.icon}</span>
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto px-3">
+          <ul className="space-y-0.5">
+            {nav.map((item) => {
+              const active = isActive(item);
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className={`p-press flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] ${
+                      active ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
+                    }`}
+                  >
+                    <span className={active ? "text-white" : "text-[var(--p-muted)]"}>
+                      <Icon name={item.icon} />
+                    </span>
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div className="space-y-0.5 border-t border-[var(--p-line)] px-3 py-3">
+          <Link href={`/pedir/${tenant}`} target="_blank" className="p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
+            <Icon name="external" />
+            Ver carta pública
+          </Link>
+          <button onClick={handleLogout} className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
+            <Icon name="logout" />
+            Cerrar sesión
+          </button>
         </div>
-      </nav>
-
-      {/* Footer: link to public menu */}
-      <div style={{ padding: '12px 8px', borderTop: `1px solid ${S.border}` }}>
-        <Link
-          href={`/pedir/${tenant}`}
-          target="_blank"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '8px 12px', borderRadius: 9999, textDecoration: 'none',
-            color: S.textMid, fontSize: 13, transition: 'all 0.15s',
-          }}
-        >
-          <span>↗</span>
-          <span>Ver carta pública</span>
-        </Link>
-        <button
-          onClick={handleLogout}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-            padding: '8px 12px', borderRadius: 9999, border: 'none', background: 'transparent',
-            color: S.textMid, fontSize: 13, cursor: 'pointer', textAlign: 'left',
-          }}
-        >
-          <span>⎋</span>
-          <span>Cerrar sesión</span>
-        </button>
-      </div>
-    </aside>
+      </aside>
     </>
   );
 }
