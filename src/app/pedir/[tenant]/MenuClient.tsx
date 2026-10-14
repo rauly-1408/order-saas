@@ -16,6 +16,7 @@ type MenuProduct = {
   imageUrl?: string | null;
   isFeatured?: boolean;
   modifierGroups: MenuModifierGroup[];
+  allergens?: string[];
 };
 
 type MenuCategory = {
@@ -154,6 +155,11 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                     <div className="flex-1 px-4 pt-4">
                       <div style={{ fontWeight: 700, fontSize: "16px", color: cssVars["--text-primary"], marginBottom: "4px" }}>{product.name}</div>
                       {product.description && <div style={{ fontSize: "13px", color: cssVars["--text-secondary"], lineHeight: 1.45 }}>{product.description}</div>}
+                      {product.allergens && product.allergens.length > 0 && (
+                        <div style={{ fontSize: "11px", color: cssVars["--text-secondary"], marginTop: "6px" }}>
+                          Alérgenos: {product.allergens.join(", ")}
+                        </div>
+                      )}
                     </div>
                     {/* Pie de tarjeta: precio y acción alineados abajo en toda la fila */}
                     <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-4">

@@ -42,6 +42,20 @@ enum StockMovementType {
   WASTE        // merma declarada (caducado, roto, error…)
 }
 
+// Pedido a proveedor (módulo Costes, fase 3).
+enum PurchaseOrderStatus {
+  DRAFT     // preparado, sin enviar
+  SENT      // enviado al proveedor (WhatsApp / email)
+  RECEIVED  // mercancía recibida → entra en stock
+  CANCELLED
+}
+
+// Origen de un cambio de precio de compra.
+enum PriceChangeSource {
+  MANUAL  // editado en la ficha del ingrediente
+  RECEIPT // detectado al recibir un pedido
+}
+
 // Cómo paga el cliente: en el local (efectivo/datáfono) o con tarjeta online (Stripe).
 enum PaymentMethod {
   IN_STORE
@@ -140,6 +154,8 @@ model Tenant {
   ingredients    Ingredient[]
   recipeLines    RecipeLine[]
   stockMovements StockMovement[]
+  purchaseOrders PurchaseOrder[]
+  priceChanges   IngredientPriceChange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -530,7 +546,8 @@ model Supplier {
   email       String?
   notes       String?
 
-  ingredients Ingredient[]
+  ingredients    Ingredient[]
+  purchaseOrders PurchaseOrder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -565,6 +582,8 @@ model Ingredient {
 
   recipeLines    RecipeLine[]
   stockMovements StockMovement[]
+  purchaseLines  PurchaseOrderLine[]
+  priceChanges   IngredientPriceChange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -616,5 +635,62 @@ model StockMovement {
 
   @@index([tenantId, createdAt])
   @@index([ingredientId, createdAt])
+}
+
+// Pedido a un proveedor. Al recibirlo genera entradas de stock (RECEIPT).
+model PurchaseOrder {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+
+  number     Int // correlativo por restaurante
+  status     PurchaseOrderStatus @default(DRAFT)
+  notes      String?
+  sentAt     DateTime?
+  receivedAt DateTime?
+
+  lines PurchaseOrderLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+}
+
+model PurchaseOrderLine {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  quantity         Float // pedido, en unidad base
+  packPriceCents   Int // precio del formato al hacer el pedido
+  receivedQuantity Float? // lo que llegó realmente
+}
+
+// Historial de precios de compra: cada subida/bajada queda registrada.
+model IngredientPriceChange {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  oldPackSize       Float
+  oldPackPriceCents Int
+  newPackSize       Float
+  newPackPriceCents Int
+  source            PriceChangeSource
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
 }
 
