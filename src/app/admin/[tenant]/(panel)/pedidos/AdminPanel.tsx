@@ -123,10 +123,6 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
     }
   }
 
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
-    router.replace(`/admin/${tenant}/login`);
-  }
 
   const byColumn = (key: ColumnKey) => {
     const col = COLUMNS.find((c) => c.key === key);
@@ -137,11 +133,11 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
   const cancelled = history.length - delivered;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
-      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur">
+    <div className="text-[#393659]">
+      <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold capitalize">{tenant}</h1>
-          <p className="flex items-center gap-1.5 text-xs text-zinc-400">
+          <h1 className="text-2xl font-bold">Pedidos</h1>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-[#6b6890]">
             <span className={`h-2 w-2 rounded-full ${error ? "bg-red-500" : "bg-emerald-400"}`} />
             {error ? "Problema de conexión" : "En directo"}
             {!error && <span className="hidden sm:inline">· actualiza cada 10 s</span>}
@@ -152,17 +148,11 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
             onClick={enableSound}
             className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${
               soundOn
-                ? "border-zinc-700 text-zinc-300 hover:bg-zinc-800"
-                : "border-amber-400 bg-amber-400 text-zinc-950 hover:bg-amber-300"
+                ? "border-[#eaeaf4] bg-white text-[#393659] hover:bg-[#f7f7fb]"
+                : "border-[#7939fe] bg-[#7939fe] text-white hover:bg-[#5707fd]"
             }`}
           >
             {soundOn ? "🔔 Probar" : "🔕 Activar sonido"}
-          </button>
-          <button
-            onClick={handleLogout}
-            className="rounded-lg px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-white"
-          >
-            Salir
           </button>
         </div>
       </header>
@@ -170,16 +160,16 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       {!soundOn && (
         <button
           onClick={enableSound}
-          className="block w-full bg-amber-400/10 px-4 py-2 text-left text-sm text-amber-200 hover:bg-amber-400/20"
+          className="mb-4 block w-full rounded-xl bg-[#e0d1ff]/50 px-4 py-2 text-left text-sm text-[#5707fd] hover:bg-[#e0d1ff]"
         >
           🔕 El navegador bloquea el sonido hasta que pulses algo. Toca aquí para recibir avisos de pedidos nuevos.
         </button>
       )}
 
-      {error && <div className="bg-red-500/10 px-4 py-2 text-sm text-red-300">{error}</div>}
+      {error && <div className="mb-4 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
 
       {/* Pestañas con contador (móvil / tablet vertical) */}
-      <nav className="flex gap-1 overflow-x-auto border-b border-zinc-800 px-2 py-2 lg:hidden">
+      <nav className="mb-4 flex gap-1 overflow-x-auto lg:hidden">
         {COLUMNS.map((col) => {
           const count = byColumn(col.key).length;
           const active = tab === col.key;
@@ -188,13 +178,13 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
               key={col.key}
               onClick={() => setTab(col.key)}
               className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold ${
-                active ? "bg-zinc-800 text-white" : "text-zinc-400"
+                active ? "bg-white text-[#5707fd] shadow-sm" : "text-[#6b6890]"
               }`}
             >
               {col.emoji} {col.label}
               <span
                 className={`rounded-full px-1.5 text-xs tabular-nums ${
-                  col.key === "NEW" && count > 0 ? "bg-amber-400 text-zinc-950" : "bg-zinc-700 text-zinc-200"
+                  col.key === "NEW" && count > 0 ? "bg-amber-400 text-zinc-950" : "bg-[#eaeaf4] text-[#393659]"
                 }`}
               >
                 {count}
@@ -205,9 +195,9 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       </nav>
 
       {loading ? (
-        <div className="py-20 text-center text-zinc-400">Cargando pedidos…</div>
+        <div className="py-20 text-center text-[#6b6890]">Cargando pedidos…</div>
       ) : (
-        <main className="p-4">
+        <div>
           <div className="grid gap-4 lg:grid-cols-4">
             {COLUMNS.map((col) => {
               const list = byColumn(col.key);
@@ -223,7 +213,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                   </h2>
                   <div className="space-y-3">
                     {list.length === 0 ? (
-                      <p className="rounded-xl border border-dashed border-zinc-800 py-8 text-center text-sm text-zinc-600">
+                      <p className="rounded-xl border border-dashed border-[#eaeaf4] bg-white/60 py-8 text-center text-sm text-[#b8b6df]">
                         {col.key === "NEW" ? "Sin pedidos nuevos" : "Vacío"}
                       </p>
                     ) : (
@@ -244,25 +234,25 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
             })}
           </div>
 
-          <details className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/50">
-            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-300">
+          <details className="mt-8 rounded-xl border border-[#eaeaf4] bg-white">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
               Últimas 24 h · {delivered} entregados · {cancelled} cancelados
             </summary>
             {history.length === 0 ? (
-              <p className="px-4 pb-4 text-sm text-zinc-500">Todavía no hay pedidos cerrados.</p>
+              <p className="px-4 pb-4 text-sm text-[#6b6890]">Todavía no hay pedidos cerrados.</p>
             ) : (
-              <ul className="divide-y divide-zinc-800 px-4 pb-2">
+              <ul className="divide-y divide-[#eaeaf4] px-4 pb-2">
                 {history.map((o) => (
                   <li key={o.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                     <span className="min-w-0 truncate">
                       <span className="font-bold">{orderLabel(o)}</span>{" "}
-                      <span className="text-zinc-400">{o.customerName}</span>
+                      <span className="text-[#6b6890]">{o.customerName}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-3">
-                      <span className="text-zinc-400">{toEuros(o.totalCents)}</span>
+                      <span className="text-[#6b6890]">{toEuros(o.totalCents)}</span>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          o.status === "DELIVERED" ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"
+                          o.status === "DELIVERED" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
                         }`}
                       >
                         {o.status === "DELIVERED" ? "Entregado" : "Cancelado"}
@@ -273,7 +263,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
               </ul>
             )}
           </details>
-        </main>
+        </div>
       )}
     </div>
   );

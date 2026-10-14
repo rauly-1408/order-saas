@@ -31,11 +31,21 @@ export async function POST(req: NextRequest) {
     const category = await prisma.category.findFirst({ where: { id: categoryId, tenantId: tenant.id } });
     if (!category) return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
 
+    // Slug único por tenant (misma convención que categorías): nombre sin tildes + timestamp.
+    const baseSlug = name
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
     const product = await prisma.product.create({
       data: {
         tenantId: tenant.id,
         categoryId,
         name: name.trim(),
+        slug: `${baseSlug}-${Date.now()}`,
         description: description?.trim() ?? null,
         basePriceCents,
         imageUrl: imageUrl?.trim() ?? null,

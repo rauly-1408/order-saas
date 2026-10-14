@@ -39,10 +39,10 @@ export type Column = {
 // ACCEPTED se agrupa con los nuevos: el panel ya no lo usa, pero puede haber
 // pedidos antiguos en ese estado.
 export const COLUMNS: Column[] = [
-  { key: "NEW", label: "Nuevos", emoji: "🔔", statuses: ["CREATED", "ACCEPTED"], accent: "border-amber-400 text-amber-300" },
-  { key: "PREPARING", label: "Preparando", emoji: "🔥", statuses: ["PREPARING"], accent: "border-orange-500 text-orange-300" },
-  { key: "READY", label: "Listos", emoji: "✅", statuses: ["READY"], accent: "border-emerald-500 text-emerald-300" },
-  { key: "DELIVERING", label: "En reparto", emoji: "🛵", statuses: ["DELIVERING"], accent: "border-sky-500 text-sky-300" },
+  { key: "NEW", label: "Nuevos", emoji: "🔔", statuses: ["CREATED", "ACCEPTED"], accent: "border-amber-400 text-amber-600" },
+  { key: "PREPARING", label: "Preparando", emoji: "🔥", statuses: ["PREPARING"], accent: "border-orange-500 text-orange-600" },
+  { key: "READY", label: "Listos", emoji: "✅", statuses: ["READY"], accent: "border-emerald-500 text-emerald-600" },
+  { key: "DELIVERING", label: "En reparto", emoji: "🛵", statuses: ["DELIVERING"], accent: "border-sky-500 text-sky-600" },
 ];
 
 export type NextAction = { status: string; label: string };
