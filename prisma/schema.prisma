@@ -20,7 +20,7 @@ enum Channel {
 
 // Módulos de pago que un restaurante puede contratar aparte del producto base.
 enum Addon {
-  COSTS     // Costes y margen (escandallos, inventario, compras)
+  COSTS // Costes y margen (escandallos, inventario, compras)
   RETENTION // Motor de retención (campañas)
 }
 
@@ -35,24 +35,24 @@ enum BaseUnit {
 
 // Tipo de movimiento de stock de un ingrediente (módulo Costes, fase 2).
 enum StockMovementType {
-  ORDER        // consumo automático al entrar un pedido
+  ORDER // consumo automático al entrar un pedido
   ORDER_CANCEL // devolución al cancelar un pedido
-  RECEIPT      // entrada de mercancía
-  COUNT        // recuento físico: la diferencia con el stock teórico (merma/descuadre)
-  WASTE        // merma declarada (caducado, roto, error…)
+  RECEIPT // entrada de mercancía
+  COUNT // recuento físico: la diferencia con el stock teórico (merma/descuadre)
+  WASTE // merma declarada (caducado, roto, error…)
 }
 
 // Pedido a proveedor (módulo Costes, fase 3).
 enum PurchaseOrderStatus {
-  DRAFT     // preparado, sin enviar
-  SENT      // enviado al proveedor (WhatsApp / email)
-  RECEIVED  // mercancía recibida → entra en stock
+  DRAFT // preparado, sin enviar
+  SENT // enviado al proveedor (WhatsApp / email)
+  RECEIVED // mercancía recibida → entra en stock
   CANCELLED
 }
 
 // Origen de un cambio de precio de compra.
 enum PriceChangeSource {
-  MANUAL  // editado en la ficha del ingrediente
+  MANUAL // editado en la ficha del ingrediente
   RECEIPT // detectado al recibir un pedido
 }
 
@@ -176,8 +176,8 @@ model Store {
   active  Boolean @default(true)
 
   // Configuración de canales por local
-  deliveryEnabled  Boolean @default(true)
-  takeawayEnabled  Boolean @default(true)
+  deliveryEnabled Boolean @default(true)
+  takeawayEnabled Boolean @default(true)
 
   // Costes
   minimumOrderCents Int @default(0)
@@ -231,15 +231,15 @@ model Product {
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
 
-  name          String
-  slug          String
-  description   String?
-  imageUrl      String? // NUEVO: imagen del producto
-  basePriceCents Int    @default(0)
+  name           String
+  slug           String
+  description    String?
+  imageUrl       String? // NUEVO: imagen del producto
+  basePriceCents Int     @default(0)
 
-  isActive    Boolean @default(true)
-  isAvailable Boolean @default(true) // NUEVO: agotado temporal
-  isFeatured  Boolean @default(false) // NUEVO: destacado en la carta
+  isActive     Boolean @default(true)
+  isAvailable  Boolean @default(true) // NUEVO: agotado temporal
+  isFeatured   Boolean @default(false) // NUEVO: destacado en la carta
   hasModifiers Boolean @default(false)
   stockOut     Boolean @default(false) // agotado automático por falta de ingrediente (módulo Costes)
 
@@ -282,11 +282,11 @@ model ModifierOption {
   groupId String
   group   ModifierGroup @relation(fields: [groupId], references: [id])
 
-  name           String
-  priceDeltaCents Int   @default(0)
-  sortOrder      Int    @default(0)
-  isAvailable    Boolean @default(true) // NUEVO
-  stockOut       Boolean @default(false) // agotado automático por falta de ingrediente
+  name            String
+  priceDeltaCents Int     @default(0)
+  sortOrder       Int     @default(0)
+  isAvailable     Boolean @default(true) // NUEVO
+  stockOut        Boolean @default(false) // agotado automático por falta de ingrediente
 
   defaultFor  ProductModifierGroup[]
   recipeLines RecipeLine[]
@@ -331,16 +331,21 @@ model Order {
   channel Channel
   status  OrderStatus @default(CREATED)
 
-  customerName        String
-  customerPhone       String
-  customerAddress     String?
-  customerPostalCode  String?
-  notes               String?
+  customerName       String
+  customerPhone      String
+  customerAddress    String?
+  customerPostalCode String?
+  notes              String?
 
   currency      String @default("EUR")
   subtotalCents Int    @default(0)
   feesCents     Int    @default(0)
+  discountCents Int    @default(0) // descuento de cupón (ya restado en totalCents)
   totalCents    Int    @default(0)
+
+  // Cupón aplicado (motor de retención)
+  couponId String?
+  coupon   Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
 
   // Pago
   paymentMethod         PaymentMethod @default(IN_STORE)
@@ -383,9 +388,9 @@ model OrderLine {
 //  Se crea/actualiza por upsert al confirmar cada pedido.
 // ─────────────────────────────────────────────
 enum CustomerSegment {
-  NEW     // primer pedido o sin histórico suficiente
+  NEW // primer pedido o sin histórico suficiente
   REGULAR // pide con cierta frecuencia
-  VIP     // alto valor y/o alta frecuencia
+  VIP // alto valor y/o alta frecuencia
   AT_RISK // antes habitual, lleva tiempo sin pedir
 }
 
@@ -430,7 +435,7 @@ model Customer {
 // ─────────────────────────────────────────────
 enum DiscountType {
   PERCENT // value = % de descuento (ej. 10 = 10%)
-  FIXED   // value = céntimos de descuento
+  FIXED // value = céntimos de descuento
 }
 
 model Coupon {
@@ -440,16 +445,18 @@ model Coupon {
 
   code  String
   type  DiscountType @default(PERCENT)
-  value Int          // interpretado según DiscountType
+  value Int // interpretado según DiscountType
 
-  minOrderCents  Int  @default(0)
-  maxRedemptions Int? // null = ilimitado
-  redeemedCount  Int  @default(0)
+  minOrderCents   Int     @default(0)
+  maxRedemptions  Int? // null = ilimitado
+  redeemedCount   Int     @default(0)
+  oncePerCustomer Boolean @default(true) // cada teléfono solo puede usarlo una vez
 
   active    Boolean   @default(true)
   expiresAt DateTime?
 
   campaigns Campaign[]
+  orders    Order[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -525,10 +532,15 @@ model CampaignSend {
   status SendStatus @default(PENDING)
   sentAt DateTime?
 
+  // Atribución: pedido que hizo el cliente tras recibir el mensaje
+  convertedAt      DateTime?
+  convertedOrderId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([campaignId, customerId])
+  @@index([customerId, status])
 }
 
 // ─────────────────────────────────────────────
@@ -693,4 +705,3 @@ model IngredientPriceChange {
 
   @@index([tenantId, createdAt])
 }
-

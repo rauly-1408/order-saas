@@ -19,6 +19,8 @@ export type Order = {
   customerAddress: string | null;
   notes: string | null;
   totalCents: number;
+  discountCents?: number;
+  coupon?: { code: string } | null;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];

@@ -7,6 +7,9 @@ import { useCart } from "@/store/cart";
 import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import { formatModifier } from "@/app/lib/menuOptions";
+import { couponDiscount } from "@/app/lib/retention";
+
+type AppliedCoupon = { code: string; label: string; type: "PERCENT" | "FIXED"; value: number; minOrderCents: number };
 
 const euros = (cents: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -22,9 +25,10 @@ type CheckoutClientProps = {
   tenant: string;
   theme?: TenantTheme;
   settings?: StoreSettings;
+  couponsEnabled?: boolean;
 };
 
-export default function CheckoutClient({ tenant, theme, settings }: CheckoutClientProps) {
+export default function CheckoutClient({ tenant, theme, settings, couponsEnabled = false }: CheckoutClientProps) {
   const router = useRouter();
   const { items, subtotalCents, clear, inc, dec } = useCart();
   const [name, setName] = useState("");
@@ -35,6 +39,10 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
 
   // Theme dinámico del tenant
   const t = theme ?? SYSTEM_DEFAULT_THEME;
@@ -47,7 +55,32 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
 
   const subtotal = subtotalCents();
   const fee = channel === "DELIVERY" ? deliveryFee : 0;
-  const total = subtotal + fee;
+  // El descuento se recalcula al cambiar cantidades; bajo el mínimo no se aplica.
+  const couponBelowMin = coupon ? subtotal < coupon.minOrderCents : false;
+  const discount = coupon && !couponBelowMin ? couponDiscount(coupon, subtotal) : 0;
+  const total = subtotal + fee - discount;
+
+  async function applyCoupon() {
+    const code = couponInput.trim();
+    if (!code) return;
+    setCouponLoading(true);
+    setCouponError("");
+    try {
+      const res = await fetch(`/api/coupons/${tenant}?code=${encodeURIComponent(code)}&subtotal=${subtotal}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCoupon(null);
+        setCouponError(data.error ?? "No se pudo aplicar el cupón");
+        return;
+      }
+      setCoupon(data as AppliedCoupon);
+      setCouponInput("");
+    } catch {
+      setCouponError("Error de red. Inténtalo de nuevo.");
+    } finally {
+      setCouponLoading(false);
+    }
+  }
   const count = items.reduce((a, i) => a + i.quantity, 0);
 
   const inputStyle: React.CSSProperties = {
@@ -93,6 +126,7 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
           channel,
           notes: notes || undefined,
           marketingConsent,
+          couponCode: coupon && !couponBelowMin ? coupon.code : undefined,
           // Solo qué se pide: el servidor pone nombres y precios desde la carta.
           items: items.map((item) => ({
             productId: item.productId,
@@ -174,6 +208,12 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
                 <span>Subtotal</span>
                 <span>{euros(subtotal)}</span>
               </div>
+              {discount > 0 && coupon && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: cssVars["--brand-secondary"], fontWeight: 600 }}>
+                  <span>Cupón {coupon.code} ({coupon.label})</span>
+                  <span>−{euros(discount)}</span>
+                </div>
+              )}
               {channel === "DELIVERY" && (
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: cssVars["--text-secondary"] }}>
                   <span>Gastos de envío</span>
@@ -186,6 +226,47 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
               </div>
             </div>
           </div>
+
+          {/* CUPÓN */}
+          {couponsEnabled && (
+            <div>
+              <div style={labelStyle}>Cupón de descuento</div>
+              {coupon ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 16px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: "15px" }}>{coupon.code} · {coupon.label}</div>
+                    {couponBelowMin && (
+                      <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>Añade productos hasta {euros(coupon.minOrderCents)} para usarlo</div>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => setCoupon(null)} style={{ background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer", flexShrink: 0 }}>
+                    Quitar
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyCoupon(); } }}
+                    placeholder="Ej. VUELVE15"
+                    autoCapitalize="characters"
+                    style={{ ...inputStyle, flex: 1, minWidth: 0, textTransform: "uppercase" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={applyCoupon}
+                    disabled={couponLoading || !couponInput.trim()}
+                    className="p-press"
+                    style={{ padding: "0 18px", borderRadius: "999px", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", cursor: "pointer", flexShrink: 0, opacity: couponLoading || !couponInput.trim() ? 0.5 : 1 }}
+                  >
+                    {couponLoading ? "…" : "Aplicar"}
+                  </button>
+                </div>
+              )}
+              {couponError && <div style={{ fontSize: "13px", color: cssVars["--brand-secondary"], marginTop: "6px" }}>{couponError}</div>}
+            </div>
+          )}
 
           {/* MODALIDAD */}
           {(deliveryEnabled || takeawayEnabled) && (
