@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { costsTenant, lastSegment } from "@/app/lib/costsApi";
 import { applyStockDeltas } from "@/app/lib/inventory";
-import { recordPriceChange } from "@/app/lib/purchasing";
+import { nextDeliveryOffset, recordPriceChange } from "@/app/lib/purchasing";
+import { startOfTodayIn, tenantTimeZone, wallClockIn } from "@/app/lib/time";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +28,18 @@ export async function PATCH(req: NextRequest) {
 
   if (action === "send") {
     if (closed) return NextResponse.json({ error: "El pedido ya está cerrado" }, { status: 409 });
-    await prisma.purchaseOrder.update({ where: { id: order.id }, data: { status: "SENT", sentAt: new Date() } });
+    // Entrega prevista según el reparto del proveedor, en la hora del restaurante.
+    const [supplier, tenant] = await Promise.all([
+      prisma.supplier.findUnique({ where: { id: order.supplierId }, select: { deliveryDays: true, leadDays: true, orderCutoff: true } }),
+      prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } }),
+    ]);
+    const now = new Date();
+    const tz = tenantTimeZone(tenant?.settings);
+    const clock = wallClockIn(tz, now);
+    const offset = supplier ? nextDeliveryOffset(clock.isoWeekday, clock.minutes, supplier) : null;
+    // Mediodía del día de entrega: evita saltos de fecha por el cambio de hora.
+    const expectedAt = offset == null ? null : new Date(startOfTodayIn(tz, now).getTime() + offset * 86_400_000 + 12 * 3_600_000);
+    await prisma.purchaseOrder.update({ where: { id: order.id }, data: { status: "SENT", sentAt: now, expectedAt } });
     return NextResponse.json({ ok: true });
   }
 

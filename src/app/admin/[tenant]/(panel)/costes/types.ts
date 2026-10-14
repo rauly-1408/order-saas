@@ -3,7 +3,23 @@ import { recipeCostCents, type CostIngredient } from "@/app/lib/costs";
 
 export type BaseUnit = "KG" | "G" | "L" | "ML" | "UNIT";
 
-export type Supplier = { id: string; name: string; contactName: string | null; phone: string | null; email: string | null; notes: string | null };
+export type SupplierOrderMethod = "WHATSAPP" | "EMAIL" | "PHONE" | "IN_PERSON";
+
+export type Supplier = {
+  id: string;
+  name: string;
+  contactName: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  extraEmails: string[];
+  notes: string | null;
+  orderMethod: SupplierOrderMethod;
+  deliveryDays: number[];
+  leadDays: number;
+  orderCutoff: string | null;
+  minOrderCents: number | null;
+};
 
 export type Ingredient = CostIngredient & {
   id: string;
@@ -66,6 +82,7 @@ export type PurchaseOrder = {
   status: PurchaseStatus;
   notes: string | null;
   sentAt: string | null;
+  expectedAt: string | null;
   receivedAt: string | null;
   createdAt: string;
   lines: { id: string; ingredientId: string; quantity: number; packPriceCents: number; receivedQuantity: number | null }[];

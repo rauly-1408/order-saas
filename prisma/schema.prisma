@@ -547,6 +547,14 @@ model CampaignSend {
 //  MÓDULO COSTES — proveedores, ingredientes y escandallos
 //  Ver docs/MODULO-COSTES.md
 // ─────────────────────────────────────────────
+// Cómo prefiere recibir los pedidos el proveedor (decide el botón principal en Compras).
+enum SupplierOrderMethod {
+  WHATSAPP
+  EMAIL
+  PHONE
+  IN_PERSON
+}
+
 model Supplier {
   id       String @id @default(cuid())
   tenantId String
@@ -555,8 +563,18 @@ model Supplier {
   name        String
   contactName String?
   phone       String?
+  whatsapp    String? // si es null se usa el teléfono
   email       String?
+  extraEmails String[] @default([]) // copias del pedido (administración, almacén…)
   notes       String?
+
+  orderMethod SupplierOrderMethod @default(WHATSAPP)
+
+  // Reparto estructurado → próxima entrega exacta (ver lib/purchasing nextDeliveryOffset)
+  deliveryDays  Int[]   @default([]) // 1 = lunes … 7 = domingo
+  leadDays      Int     @default(1) // con cuántos días de antelación hay que pedir
+  orderCutoff   String? // hora límite de ese día, "HH:MM" (null = todo el día)
+  minOrderCents Int? // pedido mínimo del proveedor
 
   ingredients    Ingredient[]
   purchaseOrders PurchaseOrder[]
@@ -662,6 +680,7 @@ model PurchaseOrder {
   status     PurchaseOrderStatus @default(DRAFT)
   notes      String?
   sentAt     DateTime?
+  expectedAt DateTime? // entrega prevista según el reparto del proveedor
   receivedAt DateTime?
 
   lines PurchaseOrderLine[]

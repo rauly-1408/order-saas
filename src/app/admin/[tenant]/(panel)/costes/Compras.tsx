@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { mailtoLink, priceChangePct, suggestedOrderQty, supplierMessage, whatsappLink } from "@/app/lib/purchasing";
+import { deliveryDateText, deliverySummary, mailtoLink, priceChangePct, suggestedOrderQty, supplierMessage, supplierWhatsapp, whatsappLink } from "@/app/lib/purchasing";
+import { nextDeliveryText } from "./Proveedores";
 import { UNIT_LABEL, euros, formatQty, type Ingredient, type Overview, type PurchaseOrder, type PurchaseStatus, type Supplier } from "./types";
 
 type Props = { data: Overview; api: string; onSaved: () => Promise<void> };
@@ -171,6 +172,10 @@ function PurchaseEditor({
   // Primero los del proveedor elegido, luego el resto.
   const options = [...data.ingredients].sort((a, b) => Number(b.supplierId === supplierId) - Number(a.supplierId === supplierId) || a.name.localeCompare(b.name, "es"));
   const total = lines.reduce((acc, l) => acc + lineCost(ingredients.get(l.ingredientId), Number(l.quantity.replace(",", ".")) || 0), 0);
+  const supplier = data.suppliers.find((s) => s.id === supplierId);
+  const summary = supplier ? deliverySummary(supplier) : null;
+  const next = supplier ? nextDeliveryText(supplier) : null;
+  const belowMin = supplier?.minOrderCents != null && total > 0 && total < supplier.minOrderCents;
 
   async function create() {
     setSaving(true);
@@ -197,6 +202,12 @@ function PurchaseEditor({
           ))}
         </select>
       </label>
+      {summary && (
+        <p className="-mt-1 mb-3 text-xs text-[var(--p-muted)]">
+          {summary}
+          {next && <> · si lo envías ahora llega <span className="font-semibold text-[var(--p-ink)]">{next}</span></>}
+        </p>
+      )}
       <ul className="space-y-2">
         {lines.map((l, idx) => {
           const ing = ingredients.get(l.ingredientId);
@@ -237,6 +248,11 @@ function PurchaseEditor({
           </button>
         </span>
       </div>
+      {belowMin && supplier?.minOrderCents != null && (
+        <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          {supplier.name} tiene un pedido mínimo de {euros(supplier.minOrderCents)}. Te faltan {euros(supplier.minOrderCents - total)}.
+        </p>
+      )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
@@ -271,10 +287,14 @@ function PurchaseRow({
       const i = ingredients.get(l.ingredientId);
       return i ? [{ name: i.name, quantity: l.quantity, baseUnit: i.baseUnit, packSize: i.packSize }] : [];
     }),
-    po.notes
+    po.notes,
+    po.expectedAt ? deliveryDateText(new Date(po.expectedAt)) : supplier ? nextDeliveryText(supplier) : null
   );
-  const wa = supplier?.phone ? whatsappLink(supplier.phone, message) : null;
-  const mail = supplier?.email ? mailtoLink(supplier.email, `Pedido nº ${po.number} — ${restaurant}`, message) : null;
+  const waNumber = supplier ? supplierWhatsapp(supplier) : null;
+  const wa = waNumber ? whatsappLink(waNumber, message) : null;
+  const mail = supplier?.email ? mailtoLink(supplier.email, `Pedido nº ${po.number} — ${restaurant}`, message, supplier.extraEmails) : null;
+  const tel = supplier?.phone ? `tel:${supplier.phone.replace(/[^\d+]/g, "")}` : null;
+  const preferred = supplier?.orderMethod ?? "WHATSAPP";
 
   async function act(body: Record<string, unknown>) {
     setError("");
@@ -318,13 +338,29 @@ function PurchaseRow({
           </div>
           <div className="text-[11px] text-[var(--p-faint)]">
             {euros(total)} · {new Date(po.createdAt).toLocaleDateString("es-ES")}
+            {po.expectedAt && !po.receivedAt && ` · llega el ${deliveryDateText(new Date(po.expectedAt))}`}
             {po.receivedAt && ` · recibido ${new Date(po.receivedAt).toLocaleDateString("es-ES")}`}
           </div>
         </div>
         {open && (
           <div className="flex flex-wrap gap-1.5">
-            {wa && <button onClick={() => send(wa)} className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">WhatsApp</button>}
-            {mail && <button onClick={() => send(mail)} className="rounded-lg border border-[var(--p-line)] px-2.5 py-1 text-xs font-semibold">Email</button>}
+            {/* El método preferido del proveedor va primero y destacado */}
+            {[
+              { key: "WHATSAPP", link: wa, text: "WhatsApp", strong: "bg-emerald-600 text-white" },
+              { key: "EMAIL", link: mail, text: "Email", strong: "bg-[var(--p-brand)] text-white" },
+              { key: "PHONE", link: tel, text: "Llamar", strong: "bg-[var(--p-brand)] text-white" },
+            ]
+              .filter((b) => b.link)
+              .sort((a, b) => Number(b.key === preferred) - Number(a.key === preferred))
+              .map((b) => (
+                <button
+                  key={b.key}
+                  onClick={() => (b.key === "PHONE" ? (window.location.href = b.link!) : send(b.link!))}
+                  className={`p-press rounded-full px-3 py-1 text-xs font-semibold ${b.key === preferred ? b.strong : "border border-[var(--p-line)]"}`}
+                >
+                  {b.text}
+                </button>
+              ))}
             {po.status === "DRAFT" && <button onClick={() => act({ action: "send" })} className="rounded-lg border border-[var(--p-line)] px-2.5 py-1 text-xs">Marcar enviado</button>}
             <button onClick={() => setReceiving(!receiving)} className="p-press rounded-full bg-[var(--p-brand)] px-2.5 py-1 text-xs font-semibold text-white">Recibir</button>
             <button onClick={() => window.confirm(`¿Cancelar el pedido nº ${po.number}?`) && act({ action: "cancel" })} className="rounded-lg px-2.5 py-1 text-xs text-[var(--p-faint)] hover:text-red-500">Cancelar</button>
