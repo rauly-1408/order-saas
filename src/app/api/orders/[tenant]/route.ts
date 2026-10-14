@@ -26,6 +26,7 @@ type OrderBody = {
 };
 
 const ORDER_NUMBER_RETRIES = 5;
+const HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // Normaliza el teléfono a una clave estable: solo dígitos (y un + inicial
 // opcional). Evita que "600 123 123" y "600123123" creen dos clientes.
@@ -330,13 +331,39 @@ export async function GET(req: NextRequest) {
     const orders = await prisma.order.findMany({
       where: {
         tenantId: tenant.id,
-        status: { in: ["CREATED", "ACCEPTED", "PREPARING", "READY"] },
+        status: { in: ["CREATED", "ACCEPTED", "PREPARING", "READY", "DELIVERING"] },
       },
       include: { items: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
     });
 
-    return NextResponse.json({ orders });
+    // Historial reciente (entregados/cancelados) para la sección plegada del panel.
+    const since = new Date(Date.now() - HISTORY_WINDOW_MS);
+    const history = await prisma.order.findMany({
+      where: {
+        tenantId: tenant.id,
+        status: { in: ["DELIVERED", "CANCELLED"] },
+        updatedAt: { gte: since },
+      },
+      include: { items: true },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+    });
+
+    // Tiempos estimados del local: el panel colorea el temporizador de cada pedido.
+    const store = await prisma.store.findFirst({
+      where: { tenantId: tenant.id },
+      select: { estimatedDeliveryMinutes: true, estimatedPickupMinutes: true },
+    });
+
+    return NextResponse.json({
+      orders,
+      history,
+      estimates: {
+        deliveryMinutes: store?.estimatedDeliveryMinutes ?? 45,
+        pickupMinutes: store?.estimatedPickupMinutes ?? 20,
+      },
+    });
   } catch (err) {
     console.error("[GET /api/orders]", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

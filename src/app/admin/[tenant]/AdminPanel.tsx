@@ -1,313 +1,279 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import OrderCard from "./OrderCard";
+import {
+  COLUMNS,
+  orderLabel,
+  toEuros,
+  type ColumnKey,
+  type Estimates,
+  type Order,
+} from "./orderBoard";
+import { playBeep, unlockAudio } from "./sound";
 
-const toEuros = (c: number) =>
-  new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(c / 100);
+const POLL_MS = 10_000;
+const CLOCK_MS = 15_000;
+// Mientras haya pedidos sin aceptar, el aviso se repite (como las tablets de
+// Glovo / Uber Eats) para que ninguno se quede olvidado.
+const REMIND_MS = 15_000;
 
-type OItem = {
-  id: string;
-  productName: string;
-  quantity: number;
-  totalCents: number;
-};
+type OrdersResponse = { orders: Order[]; history?: Order[]; estimates?: Estimates };
 
-type Order = {
-  id: string;
-  status: string;
-  channel: string;
-  customerName: string;
-  customerPhone: string;
-  customerAddress: string | null;
-  notes: string | null;
-  totalCents: number;
-  createdAt: string;
-  items: OItem[];
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  CREATED: "Nuevo",
-  ACCEPTED: "Aceptado",
-  PREPARING: "Preparando",
-  READY: "Listo",
-};
-
-const STATUS_NEXT: Record<string, string | null> = {
-  CREATED: "ACCEPTED",
-  ACCEPTED: "PREPARING",
-  PREPARING: "READY",
-  READY: "DELIVERED",
-  DELIVERED: null,
-  CANCELLED: null,
-};
-
-const STATUS_BTN: Record<string, string> = {
-  CREATED: "Aceptar",
-  ACCEPTED: "Preparando",
-  PREPARING: "Listo",
-  READY: "Entregado",
-};
-
-const CARD_CLS: Record<string, string> = {
-  CREATED: "border-yellow-400 bg-yellow-50",
-  ACCEPTED: "border-blue-400 bg-blue-50",
-  PREPARING: "border-orange-400 bg-orange-50",
-  READY: "border-green-400 bg-green-50",
-};
-
-const BADGE_CLS: Record<string, string> = {
-  CREATED: "bg-yellow-100 text-yellow-800",
-  ACCEPTED: "bg-blue-100 text-blue-800",
-  PREPARING: "bg-orange-100 text-orange-800",
-  READY: "bg-green-100 text-green-800",
-};
-
-function timeAgo(dateStr: string): string {
-  const secs = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (secs < 60) return secs + "s";
-  if (secs < 3600) return Math.floor(secs / 60) + " min";
-  return Math.floor(secs / 3600) + " h";
-}
-
-function OrderCard({
-  order,
-  updating,
-  onStatus,
-}: {
-  order: Order;
-  updating: string | null;
-  onStatus: (id: string, status: string) => void;
-}) {
-  const nextStatus = STATUS_NEXT[order.status];
-  const busy = updating === order.id;
-  // Re-evaluated every poll cycle (10s) — the "NUEVO" badge naturally clears on the next render.
-  // eslint-disable-next-line react-hooks/purity
-  const isNew = Date.now() - new Date(order.createdAt).getTime() < 120_000;
-
-  return (
-    <div className={`relative rounded-2xl border-2 p-4 ${CARD_CLS[order.status] ?? "border-zinc-700 bg-zinc-800"}`}>
-      {isNew && (
-        <span className="absolute -top-2 -right-2 rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white animate-pulse">
-          NUEVO
-        </span>
-      )}
-
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
-          <div className="font-mono text-xs text-zinc-500">{order.id.slice(0, 8).toUpperCase()}</div>
-          <div className="text-lg font-bold text-zinc-900">{order.customerName}</div>
-          <div className="text-sm text-zinc-600">{order.customerPhone}</div>
-        </div>
-        <div className="shrink-0 text-right">
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${BADGE_CLS[order.status] ?? ""}`}>
-            {STATUS_LABELS[order.status] ?? order.status}
-          </span>
-          <div className="mt-1 text-xs text-zinc-500">{timeAgo(order.createdAt)}</div>
-          <div className="text-xs text-zinc-500">
-            {order.channel === "DELIVERY" ? "Delivery" : "Recogida"}
-          </div>
-        </div>
-      </div>
-
-      <div className="mb-3 space-y-1">
-        {order.items.map((item) => (
-          <div key={item.id} className="flex justify-between text-sm text-zinc-700">
-            <span>{item.quantity}x {item.productName}</span>
-            <span>{toEuros(item.totalCents)}</span>
-          </div>
-        ))}
-      </div>
-
-      {order.channel === "DELIVERY" && order.customerAddress && (
-        <div className="mb-3 rounded-lg bg-white/60 px-3 py-2 text-xs text-zinc-600">
-          Direccion: {order.customerAddress}
-        </div>
-      )}
-
-      {order.notes && (
-        <div className="mb-3 rounded-lg bg-white/60 px-3 py-2 text-xs text-zinc-600">
-          Notas: {order.notes}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between">
-        <div className="font-bold text-zinc-900">{toEuros(order.totalCents)}</div>
-        <div className="flex gap-2">
-          {order.status !== "CANCELLED" && order.status !== "DELIVERED" && (
-            <button
-              onClick={() => onStatus(order.id, "CANCELLED")}
-              disabled={busy}
-              className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-          )}
-          {nextStatus && (
-            <button
-              onClick={() => onStatus(order.id, nextStatus)}
-              disabled={busy}
-              className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-700 disabled:opacity-50"
-            >
-              {busy ? "..." : (STATUS_BTN[order.status] ?? nextStatus)}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type AudioCtor = typeof AudioContext;
-
-function playBeep(ctxRef: React.MutableRefObject<AudioContext | null>) {
-  try {
-    if (typeof window === "undefined") return;
-    const Ctor: AudioCtor | undefined =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: AudioCtor }).webkitAudioContext;
-    if (!Ctor) return;
-    if (!ctxRef.current) ctxRef.current = new Ctor();
-    const ctx = ctxRef.current;
-
-    const beep = () => {
-      const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, now);
-      osc.frequency.setValueAtTime(660, now + 0.12);
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.25, now + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.36);
-    };
-
-    // resume() es asíncrono: si el contexto estaba suspendido, hay que esperar
-    // a que vuelva a "running" o el pitido se programa en un reloj parado.
-    if (ctx.state === "suspended") ctx.resume().then(beep).catch(() => null);
-    else beep();
-  } catch {
-    // browser blocked audio, swallow
-  }
-}
+const DEFAULT_ESTIMATES: Estimates = { deliveryMinutes: 45, pickupMinutes: 20 };
 
 export default function AdminPanel({ tenant }: { tenant: string }) {
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [history, setHistory] = useState<Order[]>([]);
+  const [estimates, setEstimates] = useState<Estimates>(DEFAULT_ESTIMATES);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
+  const [tab, setTab] = useState<ColumnKey>("NEW");
+  const [now, setNow] = useState(() => Date.now());
+  const [soundOn, setSoundOn] = useState(false);
+
   const prevIds = useRef<Set<string>>(new Set());
   // Distingue la primera carga (no debe sonar) de un panel vacío (el primer
-  // pedido SÍ debe sonar). Antes se usaba prevIds.size > 0 y un panel vacío
-  // nunca avisaba.
+  // pedido SÍ debe sonar).
   const initialLoadDone = useRef(false);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const newCount = orders.filter((o) => o.status === "CREATED" || o.status === "ACCEPTED").length;
 
   const loadOrders = useCallback(async () => {
     try {
       const res = await fetch(`/api/orders/${tenant}`, { cache: "no-store" });
-      if (!res.ok) return;
-      const data = await res.json() as { orders: Order[] };
+      if (res.status === 401) {
+        router.replace(`/admin/${tenant}/login`);
+        return;
+      }
+      if (!res.ok) {
+        setError("No se pudieron cargar los pedidos. Reintentando…");
+        return;
+      }
+      const data = (await res.json()) as OrdersResponse;
       const incoming = data.orders ?? [];
       const hasNew = incoming.some((o) => !prevIds.current.has(o.id));
       if (hasNew && initialLoadDone.current) {
-        playBeep(audioCtxRef);
-        if (document.hidden) document.title = "Nuevo pedido!";
+        playBeep();
+        setTab("NEW");
       }
       prevIds.current = new Set(incoming.map((o) => o.id));
       initialLoadDone.current = true;
       setOrders(incoming);
+      setHistory(data.history ?? []);
+      if (data.estimates) setEstimates(data.estimates);
+      setError("");
     } catch {
-      // silent fail
+      setError("Sin conexión. Reintentando…");
     } finally {
       setLoading(false);
+      setNow(Date.now());
     }
-  }, [tenant]);
+  }, [tenant, router]);
 
   useEffect(() => {
     loadOrders();
-    const interval = setInterval(loadOrders, 10_000);
-    const onVisibility = () => {
-      if (!document.hidden) document.title = "Admin - " + tenant;
-    };
-    document.addEventListener("visibilitychange", onVisibility);
+    const poll = setInterval(loadOrders, POLL_MS);
+    const clock = setInterval(() => setNow(Date.now()), CLOCK_MS);
     return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisibility);
+      clearInterval(poll);
+      clearInterval(clock);
     };
-  }, [loadOrders, tenant]);
+  }, [loadOrders]);
+
+  // Recordatorio sonoro mientras queden pedidos sin aceptar.
+  useEffect(() => {
+    if (!soundOn || newCount === 0) return;
+    const remind = setInterval(playBeep, REMIND_MS);
+    return () => clearInterval(remind);
+  }, [soundOn, newCount]);
+
+  // El título de la pestaña muestra los pendientes aunque esté en segundo plano.
+  useEffect(() => {
+    document.title = newCount > 0 ? `(${newCount}) Nuevos pedidos · ${tenant}` : `Pedidos · ${tenant}`;
+  }, [newCount, tenant]);
+
+  async function enableSound() {
+    const ok = await unlockAudio();
+    setSoundOn(ok);
+    if (ok) playBeep();
+  }
 
   async function handleStatus(orderId: string, newStatus: string) {
     setUpdating(orderId);
+    setError("");
     try {
-      await fetch(`/api/orders/status/${orderId}`, {
+      const res = await fetch(`/api/orders/status/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(data.error ?? "No se pudo actualizar el pedido");
+      }
       await loadOrders();
+    } catch {
+      setError("Sin conexión. No se pudo actualizar el pedido.");
     } finally {
       setUpdating(null);
     }
   }
 
-  const active = orders.filter((o) => ["CREATED", "ACCEPTED", "PREPARING"].includes(o.status));
-  const ready = orders.filter((o) => o.status === "READY");
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+    router.replace(`/admin/${tenant}/login`);
+  }
+
+  const byColumn = (key: ColumnKey) => {
+    const col = COLUMNS.find((c) => c.key === key);
+    return col ? orders.filter((o) => col.statuses.includes(o.status)) : [];
+  };
+
+  const delivered = history.filter((o) => o.status === "DELIVERED").length;
+  const cancelled = history.length - delivered;
 
   return (
-    <div className="min-h-screen bg-zinc-950 p-4 text-white">
-      <header className="mb-6 flex items-center justify-between">
+    <div className="min-h-screen bg-zinc-950 text-white">
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur">
         <div>
-          <h1 className="text-xl font-bold capitalize">{tenant}</h1>
-          <p className="text-sm text-zinc-400">Panel de pedidos - actualiza cada 10 s</p>
+          <h1 className="text-lg font-bold capitalize">{tenant}</h1>
+          <p className="flex items-center gap-1.5 text-xs text-zinc-400">
+            <span className={`h-2 w-2 rounded-full ${error ? "bg-red-500" : "bg-emerald-400"}`} />
+            {error ? "Problema de conexión" : "En directo"}
+            {!error && <span className="hidden sm:inline">· actualiza cada 10 s</span>}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="flex h-2 w-2 rounded-full bg-green-400" />
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => playBeep(audioCtxRef)}
-            className="rounded-lg border border-zinc-700 px-3 py-1 text-xs hover:bg-zinc-800"
+            onClick={enableSound}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+              soundOn
+                ? "border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                : "border-amber-400 bg-amber-400 text-zinc-950 hover:bg-amber-300"
+            }`}
           >
-            Test sonido
+            {soundOn ? "🔔 Probar" : "🔕 Activar sonido"}
+          </button>
+          <button
+            onClick={handleLogout}
+            className="rounded-lg px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-white"
+          >
+            Salir
           </button>
         </div>
       </header>
 
+      {!soundOn && (
+        <button
+          onClick={enableSound}
+          className="block w-full bg-amber-400/10 px-4 py-2 text-left text-sm text-amber-200 hover:bg-amber-400/20"
+        >
+          🔕 El navegador bloquea el sonido hasta que pulses algo. Toca aquí para recibir avisos de pedidos nuevos.
+        </button>
+      )}
+
+      {error && <div className="bg-red-500/10 px-4 py-2 text-sm text-red-300">{error}</div>}
+
+      {/* Pestañas con contador (móvil / tablet vertical) */}
+      <nav className="flex gap-1 overflow-x-auto border-b border-zinc-800 px-2 py-2 lg:hidden">
+        {COLUMNS.map((col) => {
+          const count = byColumn(col.key).length;
+          const active = tab === col.key;
+          return (
+            <button
+              key={col.key}
+              onClick={() => setTab(col.key)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold ${
+                active ? "bg-zinc-800 text-white" : "text-zinc-400"
+              }`}
+            >
+              {col.emoji} {col.label}
+              <span
+                className={`rounded-full px-1.5 text-xs tabular-nums ${
+                  col.key === "NEW" && count > 0 ? "bg-amber-400 text-zinc-950" : "bg-zinc-700 text-zinc-200"
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
       {loading ? (
-        <div className="flex justify-center py-20 text-zinc-400">Cargando...</div>
-      ) : orders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
-          <p className="text-4xl mb-2">-</p>
-          <p className="font-semibold">Sin pedidos activos</p>
-          <p className="text-sm">Los nuevos pedidos apareceran aqui automaticamente</p>
-        </div>
+        <div className="py-20 text-center text-zinc-400">Cargando pedidos…</div>
       ) : (
-        <div className="space-y-8">
-          {active.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-400">
-                Activos ({active.length})
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {active.map((o) => (
-                  <OrderCard key={o.id} order={o} updating={updating} onStatus={handleStatus} />
+        <main className="p-4">
+          <div className="grid gap-4 lg:grid-cols-4">
+            {COLUMNS.map((col) => {
+              const list = byColumn(col.key);
+              return (
+                <section key={col.key} className={tab === col.key ? "block" : "hidden lg:block"}>
+                  <h2
+                    className={`mb-3 hidden items-center justify-between border-b-2 pb-2 text-sm font-bold uppercase tracking-wider lg:flex ${col.accent}`}
+                  >
+                    <span>
+                      {col.emoji} {col.label}
+                    </span>
+                    <span className="text-2xl tabular-nums">{list.length}</span>
+                  </h2>
+                  <div className="space-y-3">
+                    {list.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-zinc-800 py-8 text-center text-sm text-zinc-600">
+                        {col.key === "NEW" ? "Sin pedidos nuevos" : "Vacío"}
+                      </p>
+                    ) : (
+                      list.map((o) => (
+                        <OrderCard
+                          key={o.id}
+                          order={o}
+                          estimates={estimates}
+                          now={now}
+                          busy={updating === o.id}
+                          onStatus={handleStatus}
+                        />
+                      ))
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+
+          <details className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/50">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-300">
+              Últimas 24 h · {delivered} entregados · {cancelled} cancelados
+            </summary>
+            {history.length === 0 ? (
+              <p className="px-4 pb-4 text-sm text-zinc-500">Todavía no hay pedidos cerrados.</p>
+            ) : (
+              <ul className="divide-y divide-zinc-800 px-4 pb-2">
+                {history.map((o) => (
+                  <li key={o.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <span className="min-w-0 truncate">
+                      <span className="font-bold">{orderLabel(o)}</span>{" "}
+                      <span className="text-zinc-400">{o.customerName}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-3">
+                      <span className="text-zinc-400">{toEuros(o.totalCents)}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          o.status === "DELIVERED" ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"
+                        }`}
+                      >
+                        {o.status === "DELIVERED" ? "Entregado" : "Cancelado"}
+                      </span>
+                    </span>
+                  </li>
                 ))}
-              </div>
-            </section>
-          )}
-          {ready.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-green-400">
-                Listos ({ready.length})
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {ready.map((o) => (
-                  <OrderCard key={o.id} order={o} updating={updating} onStatus={handleStatus} />
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
+              </ul>
+            )}
+          </details>
+        </main>
       )}
     </div>
   );

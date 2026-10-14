@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { OrderStatus } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Flujo del panel: Aceptar lleva directo a PREPARING (ACCEPTED se mantiene solo
+// por compatibilidad con pedidos antiguos). DELIVERING solo aplica a delivery.
 const VALID_TRANSITIONS: Record<string, string[]> = {
-      CREATED:   ["ACCEPTED", "CANCELLED"],
-      ACCEPTED:  ["PREPARING", "CANCELLED"],
-      PREPARING: ["READY", "CANCELLED"],
-      READY:     ["DELIVERED"],
-      DELIVERED: [],
-      CANCELLED: [],
+      CREATED:    ["PREPARING", "ACCEPTED", "CANCELLED"],
+      ACCEPTED:   ["PREPARING", "CANCELLED"],
+      PREPARING:  ["READY", "CANCELLED"],
+      READY:      ["DELIVERING", "DELIVERED"],
+      DELIVERING: ["DELIVERED"],
+      DELIVERED:  [],
+      CANCELLED:  [],
 };
 
 export async function PATCH(req: NextRequest) {
@@ -21,7 +25,10 @@ export async function PATCH(req: NextRequest) {
               // pathname: /api/orders/status/[orderId]
         const orderId = segments[segments.length - 1];
 
-        const { status: newStatus } = await req.json();
+        const { status: newStatus } = (await req.json()) as { status?: unknown };
+        if (typeof newStatus !== "string") {
+          return NextResponse.json({ error: "Estado inválido" }, { status: 400 });
+        }
 
         const order = await prisma.order.findUnique({ where: { id: orderId } });
               if (!order) return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 });
@@ -34,7 +41,8 @@ export async function PATCH(req: NextRequest) {
         }
 
         const allowed = VALID_TRANSITIONS[order.status] ?? [];
-              if (!allowed.includes(newStatus)) {
+              const deliveringOnPickup = newStatus === "DELIVERING" && order.channel !== "DELIVERY";
+              if (!allowed.includes(newStatus) || deliveringOnPickup) {
                         return NextResponse.json(
                             { error: `Transicion invalida: ${order.status} -> ${newStatus}` },
                             { status: 400 }
@@ -43,7 +51,7 @@ export async function PATCH(req: NextRequest) {
 
         const updated = await prisma.order.update({
                   where: { id: orderId },
-                  data: { status: newStatus },
+                  data: { status: newStatus as OrderStatus }, // validado contra VALID_TRANSITIONS
         });
 
         return NextResponse.json({ orderId: updated.id, status: updated.status });
