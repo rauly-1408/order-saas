@@ -1,49 +1,25 @@
-import MenuClient from "./MenuClient";
-import { prisma } from "@/app/lib/prisma";
 import { notFound } from "next/navigation";
+import MenuClient from "./MenuClient";
+import { loadMenu } from "@/app/lib/menu";
 
 export const dynamic = "force-dynamic";
 
 export default async function PedirPage({
-        params,
+  params,
 }: {
-        params: Promise<{ tenant: string }>;
+  params: Promise<{ tenant: string }>;
 }) {
-        const { tenant: tenantSlug } = await params;
-
-  const tenant = await prisma.tenant.findUnique({
-            where: { slug: tenantSlug },
-            select: { id: true, name: true, slug: true },
-  });
-
-  if (!tenant) notFound();
-
-  const categories = await prisma.category.findMany({
-            where: { tenantId: tenant.id, isActive: true },
-            orderBy: { sortOrder: "asc" },
-            select: {
-                        id: true,
-                        name: true,
-                        slug: true,
-                        products: {
-                                      where: { isActive: true, isAvailable: true },
-                                      orderBy: { sortOrder: "asc" },
-                                      select: {
-                                                      id: true,
-                                                      name: true,
-                                                      description: true,
-                                                      basePriceCents: true,
-                                                      imageUrl: true,
-                                      },
-                        },
-            },
-  });
+  const { tenant } = await params;
+  const menu = await loadMenu(tenant);
+  if (!menu) notFound();
 
   return (
-            <MenuClient
-                        tenant={tenantSlug}
-                        tenantName={tenant.name}
-                        categories={categories}
-                      />
-          );
+    <MenuClient
+      tenant={tenant}
+      tenantName={menu.tenant.name}
+      categories={menu.categories}
+      theme={menu.theme}
+      settings={menu.settings}
+    />
+  );
 }

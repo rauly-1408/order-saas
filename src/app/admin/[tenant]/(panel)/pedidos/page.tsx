@@ -1,6 +1,6 @@
-import PedidosClient from "./PedidosClient";
+import AdminPanel from "./AdminPanel";
 
 export default async function PedidosPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
-  return <PedidosClient tenant={tenant} />;
+  return <AdminPanel tenant={tenant} />;
 }

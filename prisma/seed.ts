@@ -1,8 +1,18 @@
 import { PrismaClient, Prisma, Channel } from "@prisma/client";
 import fs from "node:fs";
 import path from "node:path";
+import { scryptSync, randomBytes } from "node:crypto";
 
 const prisma = new PrismaClient();
+
+// Hash de contraseña con scrypt (inline para evitar problemas de resolución de
+// módulos ESM en el seed). Mismo formato "<saltHex>:<hashHex>" que
+// src/app/lib/password.ts — compatible con verifyPassword().
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
 
 // Helper: fuerza a Prisma JSON type (evita errores TS2322)
 const asJson = (v: unknown): Prisma.InputJsonValue => v as Prisma.InputJsonValue;
@@ -26,6 +36,7 @@ type SeedModifierGroup = {
 type SeedCategory = {
   name: string;
   slug: string;
+  description?: string;
   sortOrder?: number;
   isFeatured?: boolean;
 };
@@ -40,6 +51,9 @@ type SeedProduct = {
   tags?: string[];
   activeChannels?: Channel[];
   modifierGroupCodes?: string[];
+  sortOrder?: number;
+  // Opción preseleccionada por grupo: { "BREAD": "Tradicional" }
+  defaults?: Record<string, string>;
 };
 
 type SeedJson = {
@@ -64,8 +78,29 @@ type SeedJson = {
   products?: SeedProduct[];
 };
 
+// El seed REEMPLAZA la carta (categorías, productos, modificadores). En una base
+// remota (Neon = producción) exige SEED_ALLOW_REMOTE=1 para evitar accidentes.
+function assertSafeTarget(): { remote: boolean } {
+  const url = process.env.DATABASE_URL ?? "";
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    throw new Error("DATABASE_URL no es una URL válida");
+  }
+  const remote = !["localhost", "127.0.0.1", "::1"].includes(host);
+  if (remote && process.env.SEED_ALLOW_REMOTE !== "1") {
+    throw new Error(
+      `Seed bloqueado: DATABASE_URL apunta a "${host}" (no es local). ` +
+        "Si de verdad quieres reemplazar la carta ahí, ejecuta con SEED_ALLOW_REMOTE=1."
+    );
+  }
+  return { remote };
+}
+
 async function main() {
-  console.log("🌱 Iniciando seed Estafeten...");
+  const { remote } = assertSafeTarget();
+  console.log(`🌱 Iniciando seed Estafeten${remote ? " (BASE REMOTA)" : ""}...`);
 
   const filePath = path.join(process.cwd(), "src/app/data/seedMenu.estafeten.json");
   if (!fs.existsSync(filePath)) {
@@ -95,10 +130,29 @@ async function main() {
 
   console.log(`✅ Tenant creado: ${tenant.name}`);
 
-  // 2) Limpieza (para poder re-ejecutar sin choques)
-  await prisma.orderLine.deleteMany({ where: { order: { tenantId: tenant.id } } });
-  await prisma.order.deleteMany({ where: { tenantId: tenant.id } });
+  // Usuario admin del tenant. Solo se CREA si no existe: nunca se sobrescribe la
+  // contraseña de un usuario existente. En remoto exige SEED_ADMIN_PASSWORD.
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? "admin@estafeten.com").toLowerCase();
+  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail }, select: { id: true } });
+  if (existingAdmin) {
+    console.log(`✅ Usuario admin ya existe: ${adminEmail} (contraseña sin cambios)`);
+  } else if (remote && !process.env.SEED_ADMIN_PASSWORD) {
+    console.warn(`⚠️ Usuario admin NO creado: en remoto define SEED_ADMIN_PASSWORD`);
+  } else {
+    await prisma.user.create({
+      data: {
+        email: adminEmail,
+        password: hashPassword(process.env.SEED_ADMIN_PASSWORD ?? "changeme123"),
+        role: "TENANT_ADMIN",
+        tenantId: tenant.id,
+      },
+    });
+    console.log(`✅ Usuario admin creado: ${adminEmail}`);
+  }
 
+  // 2) Limpieza de la carta (para poder re-ejecutar sin choques).
+  // Los pedidos NO se tocan: sus líneas guardan nombre, precio y opciones como
+  // snapshot, así que no dependen de que el producto siga existiendo.
   await prisma.productModifierGroup.deleteMany({ where: { product: { tenantId: tenant.id } } });
   await prisma.product.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.category.deleteMany({ where: { tenantId: tenant.id } });
@@ -106,22 +160,22 @@ async function main() {
   await prisma.modifierOption.deleteMany({ where: { group: { tenantId: tenant.id } } });
   await prisma.modifierGroup.deleteMany({ where: { tenantId: tenant.id } });
 
-  await prisma.store.deleteMany({ where: { tenantId: tenant.id } });
+  // 3) Store: se actualiza si existe (los pedidos la referencian, no se puede borrar).
+  const storeData = {
+    name: seed.store.name,
+    address: seed.store.address,
+    openingHours: asJson(seed.store.hours ?? {}),
+  };
+  const existingStore = await prisma.store.findFirst({ where: { tenantId: tenant.id }, select: { id: true } });
+  const store = existingStore
+    ? await prisma.store.update({ where: { id: existingStore.id }, data: storeData })
+    : await prisma.store.create({ data: { tenantId: tenant.id, ...storeData } });
 
-  // 3) Store
-  const store = await prisma.store.create({
-    data: {
-      tenantId: tenant.id,
-      name: seed.store.name,
-      address: seed.store.address,
-      openingHours: asJson(seed.store.hours ?? {}),
-    },
-  });
-
-  console.log(`✅ Store creada: ${store.name}`);
+  console.log(`✅ Store ${existingStore ? "actualizada" : "creada"}: ${store.name}`);
 
   // 4) Modificadores
   const groupMap = new Map<string, string>(); // code -> groupId
+  const optionMap = new Map<string, string>(); // "CODE::Nombre opción" -> optionId
 
   for (const g of seed.modifierGroups ?? []) {
     const group = await prisma.modifierGroup.create({
@@ -140,8 +194,10 @@ async function main() {
           })),
         },
       },
+      include: { options: true },
     });
     groupMap.set(g.code, group.id);
+    for (const o of group.options) optionMap.set(`${g.code}::${o.name}`, o.id);
   }
 
   // 5) Categorías
@@ -153,6 +209,7 @@ async function main() {
         tenantId: tenant.id,
         name: c.name,
         slug: c.slug,
+        description: c.description ?? null,
         sortOrder: c.sortOrder ?? 0,
         isFeatured: !!c.isFeatured,
       },
@@ -179,6 +236,8 @@ async function main() {
         description: p.description ?? "",
         imageUrl: p.imageUrl ?? null,
         basePriceCents: p.basePriceCents ?? 0,
+        sortOrder: p.sortOrder ?? 0,
+        hasModifiers: (p.modifierGroupCodes ?? []).length > 0,
         isActive: true,
       },
     });
@@ -189,8 +248,13 @@ async function main() {
     for (let i = 0; i < codes.length; i++) {
       const gid = groupMap.get(codes[i]);
       if (!gid) continue;
+      const defaultName = p.defaults?.[codes[i]];
+      const defaultOptionId = defaultName ? optionMap.get(`${codes[i]}::${defaultName}`) : undefined;
+      if (defaultName && !defaultOptionId) {
+        console.warn(`⚠️ ${p.name}: no existe la opción "${defaultName}" en ${codes[i]}`);
+      }
       await prisma.productModifierGroup.create({
-        data: { productId: prod.id, groupId: gid, sortOrder: i },
+        data: { productId: prod.id, groupId: gid, sortOrder: i, defaultOptionId: defaultOptionId ?? null },
       });
     }
   }

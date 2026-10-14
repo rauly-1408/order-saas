@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 // Last.app-inspired design tokens — system level, no tenant hardcoding
 const S = {
@@ -43,7 +43,13 @@ export default function AdminSidebar({
   logoUrl: string | null;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const nav = buildNav(tenant);
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+    router.replace(`/admin/${tenant}/login`);
+  }
 
   function isActive(item: NavItem): boolean {
     if (item.exact) return pathname === item.href;
@@ -118,6 +124,17 @@ export default function AdminSidebar({
           <span>↗</span>
           <span>Ver carta pública</span>
         </Link>
+        <button
+          onClick={handleLogout}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+            padding: '8px 12px', borderRadius: 9999, border: 'none', background: 'transparent',
+            color: S.textMid, fontSize: 13, cursor: 'pointer', textAlign: 'left',
+          }}
+        >
+          <span>⎋</span>
+          <span>Cerrar sesión</span>
+        </button>
       </div>
     </aside>
   );

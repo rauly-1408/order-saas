@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
+import { denyUnlessTenantAdmin } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,8 @@ export async function GET(req: NextRequest) {
       select: { id: true, slug: true, name: true, branding: true, settings: true },
     });
     if (!tenant) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
+    const denied = await denyUnlessTenantAdmin(req, tenant.id);
+    if (denied) return denied;
 
     const categories = await prisma.category.findMany({
       where: { tenantId: tenant.id },
@@ -48,6 +51,8 @@ export async function PATCH(req: NextRequest) {
 
     const tenant = await prisma.tenant.findUnique({ where: { slug } });
     if (!tenant) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
+    const denied = await denyUnlessTenantAdmin(req, tenant.id);
+    if (denied) return denied;
 
     const currentBranding = (tenant.branding as Record<string, unknown>) ?? {};
     const currentSettings = (tenant.settings as Record<string, unknown>) ?? {};

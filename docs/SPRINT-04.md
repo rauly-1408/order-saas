@@ -1,4 +1,9 @@
-# 🏃 SPRINT 02 — Retención y gestión
+# 🏃 SPRINT 04 — Gestión sin fricción
+
+> Nota (2026-10-14): este documento se escribió como "Sprint 02" con el orden antiguo del
+> roadmap. Tras el reordenamiento del 2026-05-22 su contenido corresponde al Sprint 4.
+> Parte se adelantó en mayo: TASK-013 (API de productos) y TASK-016 (email en Tenant), más las
+> pantallas Carta, Personalización y Configuración del panel.
 
 **Objetivo:** Que el dueño pueda gestionar su menú sin fricción y recibir resúmenes automáticos de actividad.
 **Fecha inicio:** 2026-06-03 | **Duración:** 2 semanas | **Estado:** ⏳ PENDIENTE

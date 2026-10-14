@@ -6,9 +6,17 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/store/cart";
 import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
+import { formatModifier } from "@/app/lib/menuOptions";
 
 const euros = (cents: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
+
+// Valida un teléfono español: 9 dígitos que empiezan en 6/7/8/9,
+// aceptando prefijo +34 / 0034 y espacios o guiones.
+function isValidSpanishPhone(raw: string): boolean {
+  const cleaned = raw.replace(/[\s-]/g, "");
+  return /^(?:\+34|0034)?[6789]\d{8}$/.test(cleaned);
+}
 
 type CheckoutClientProps = {
   tenant: string;
@@ -18,12 +26,13 @@ type CheckoutClientProps = {
 
 export default function CheckoutClient({ tenant, theme, settings }: CheckoutClientProps) {
   const router = useRouter();
-  const { items, subtotalCents, clear } = useCart();
+  const { items, subtotalCents, clear, inc, dec } = useCart();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [channel, setChannel] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,8 +75,15 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError("");
+
+    // Validación de teléfono antes de enviar: protege la calidad del CRM.
+    if (!isValidSpanishPhone(phone)) {
+      setError("Introduce un teléfono válido (9 dígitos, empieza por 6, 7, 8 o 9).");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`/api/orders/${tenant}`, {
         method: "POST",
@@ -78,12 +94,12 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
           customerAddress: channel === "DELIVERY" ? address : undefined,
           channel,
           notes: notes || undefined,
+          marketingConsent,
+          // Solo qué se pide: el servidor pone nombres y precios desde la carta.
           items: items.map((item) => ({
             productId: item.productId,
-            name: item.name,
-            basePriceCents: item.unitPriceCents,
             quantity: item.quantity,
-            modifiersJson: item.modifiers ? [item.modifiers] : [],
+            optionIds: item.optionIds,
           })),
         }),
       });
@@ -133,14 +149,21 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {items.map((item) => (
-                <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{ minWidth: "22px", height: "22px", borderRadius: "6px", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {item.quantity}
-                    </span>
-                    <span style={{ fontSize: "14px", color: cssVars["--text-primary"] }}>{item.name}</span>
+                <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: cssVars["--text-primary"] }}>{item.name}</div>
+                    {item.modifiers.length > 0 && (
+                      <div style={{ fontSize: "12px", color: cssVars["--text-secondary"], marginTop: "2px", lineHeight: 1.4 }}>
+                        {item.modifiers.map(formatModifier).join(" · ")}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px" }}>
+                      <button type="button" aria-label={`Quitar un ${item.name}`} onClick={() => dec(item.id)} style={{ width: "26px", height: "26px", borderRadius: "50%", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 700, fontSize: "15px", cursor: "pointer", lineHeight: 1 }}>−</button>
+                      <span style={{ fontWeight: 700, fontSize: "14px", minWidth: "14px", textAlign: "center" }}>{item.quantity}</span>
+                      <button type="button" aria-label={`Añadir otro ${item.name}`} onClick={() => inc(item.id)} style={{ width: "26px", height: "26px", borderRadius: "50%", border: "none", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "15px", cursor: "pointer", lineHeight: 1 }}>+</button>
+                    </div>
                   </div>
-                  <span style={{ fontSize: "14px", fontWeight: 600, color: cssVars["--text-primary"] }}>
+                  <span style={{ fontSize: "14px", fontWeight: 600, color: cssVars["--text-primary"], flexShrink: 0 }}>
                     {euros(item.unitPriceCents * item.quantity)}
                   </span>
                 </div>
@@ -240,6 +263,20 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
               />
             </div>
           </div>
+
+          {/* CONSENTIMIENTO DE MARKETING — opt-in explícito, desmarcado por defecto (RGPD + LSSI) */}
+          <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "13px", lineHeight: 1.45, color: cssVars["--text-secondary"], cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={marketingConsent}
+              onChange={(e) => setMarketingConsent(e.target.checked)}
+              style={{ marginTop: "2px", width: "18px", height: "18px", flexShrink: 0, accentColor: cssVars["--brand-accent"] }}
+            />
+            <span>
+              Quiero recibir ofertas y novedades de este restaurante por WhatsApp o SMS.
+              Puedo darme de baja en cualquier momento.
+            </span>
+          </label>
 
           {/* ERROR */}
           {error && (

@@ -1,7 +1,30 @@
 # 🏃 SPRINT 01 — El ciclo mínimo viable
 
 > **Objetivo**: Que un cliente pueda hacer un pedido y el dueño pueda verlo y gestionarlo en tiempo real.
-> **Fecha inicio**: 2026-05-20 | **Duración**: 2 semanas | **Estado**: 🔄 EN CURSO
+> **Fecha inicio**: 2026-05-20 | **Duración**: 2 semanas | **Estado**: ✅ COMPLETADO (2026-10-14)
+
+---
+
+## ✅ Cierre del sprint (2026-10-14)
+
+Flujo E2E validado en local (Docker): menú con precios → checkout (delivery, 3 productos,
+consentimiento marcado) → pedido #1 aparece en `/admin/estafeten` con sonido →
+CREATED → … → DELIVERED. Se creó el `Customer` (segmento NEW, consentimiento con fecha).
+
+Desviaciones respecto al plan:
+- TASK-007/008 viven en `/api/orders/[tenant]` (GET) y `/api/orders/status/[orderId]` (PATCH), no en `/api/admin/...`.
+- TASK-009: el menú se rediseñó en tema oscuro (theme dinámico por tenant), no en fondo blanco.
+- Se adelantó del Sprint 2 la autenticación del panel (ya no aplica "Auth Sprint 1: sin autenticación").
+- Se adelantó del Sprint 3 el upsert de `Customer` con segmentación.
+- Fix: el aviso sonoro no saltaba con el primer pedido si el panel estaba vacío.
+
+Corrección posterior: el criterio de TASK-001 "los modificadores suman al precio base" NO se
+cumplía (el menú no permitía elegir pan/guarnición). Resuelto en `feat/menu-modifiers`: selector
+de opciones con pan recomendado preseleccionado, carta real 2026 y precios calculados en servidor.
+
+Migraciones: rebaseline hecho el 2026-10-14 (`0_init` marcada como aplicada en Neon, que se
+gestionaba con `db push`). A partir de ahora: `prisma migrate dev` en local y
+`prisma migrate deploy` en producción — nunca `db push` contra Neon.
 
 ---
 

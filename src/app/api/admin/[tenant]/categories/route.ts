@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
+import { denyUnlessTenantAdmin } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,8 @@ export async function POST(req: NextRequest) {
     const slug = getSlug(req);
     const tenant = await prisma.tenant.findUnique({ where: { slug } });
     if (!tenant) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
+    const denied = await denyUnlessTenantAdmin(req, tenant.id);
+    if (denied) return denied;
 
     const body = await req.json();
     const { name, description, imageUrl, sortOrder, isActive, isFeatured } = body;

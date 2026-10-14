@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
+import { denyUnlessTenantAdmin } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,8 @@ export async function PATCH(req: NextRequest) {
     const { tenantSlug, productId } = getParams(req);
     const tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
     if (!tenant) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
+    const denied = await denyUnlessTenantAdmin(req, tenant.id);
+    if (denied) return denied;
 
     const product = await prisma.product.findFirst({ where: { id: productId, tenantId: tenant.id } });
     if (!product) return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
@@ -50,11 +53,17 @@ export async function DELETE(req: NextRequest) {
     const { tenantSlug, productId } = getParams(req);
     const tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
     if (!tenant) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
+    const denied = await denyUnlessTenantAdmin(req, tenant.id);
+    if (denied) return denied;
 
     const product = await prisma.product.findFirst({ where: { id: productId, tenantId: tenant.id } });
     if (!product) return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
 
-    await prisma.product.delete({ where: { id: productId } });
+    // Los vínculos con grupos de modificadores tienen FK al producto: se borran antes.
+    await prisma.$transaction([
+      prisma.productModifierGroup.deleteMany({ where: { productId } }),
+      prisma.product.delete({ where: { id: productId } }),
+    ]);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
