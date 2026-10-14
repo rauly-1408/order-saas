@@ -44,13 +44,13 @@
 
 ## 📋 Backlog — P0 Crítico
 
-### TASK-201 — Permisos por rol
+### TASK-201 — Permisos por rol ✅
 - `TENANT_ADMIN`: todo su restaurante. `STORE_MANAGER`: solo **Pedidos** (ver y cambiar estados). `SUPERADMIN`: todos.
 - La barra lateral oculta lo que no corresponde y las páginas redirigen.
 - `/api/admin/*` (carta, personalización, configuración) exige `TENANT_ADMIN` o `SUPERADMIN`.
 - **Aceptación**: un `STORE_MANAGER` recibe 403 al llamar a `PATCH /api/admin/[tenant]` y no ve Carta en el menú.
 
-### TASK-202 — Modelo de pago en base de datos (migración)
+### TASK-202 — Modelo de pago en base de datos (migración) ✅ (aplicada en Neon 2026-10-14)
 - `Order`: `paymentMethod` (`IN_STORE` | `CARD`), `paymentStatus` (`UNPAID` | `PENDING` | `PAID` | `FAILED` | `REFUNDED`),
   `stripePaymentIntentId` (único), `applicationFeeCents`.
 - `Tenant`: `stripeAccountId`, `stripeChargesEnabled`.

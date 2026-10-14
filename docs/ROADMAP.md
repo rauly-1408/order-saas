@@ -30,6 +30,19 @@ Base de datos: ✅ Migraciones Prisma con baseline (0_init); nunca `db push` con
 
 ---
 
+## 📦 Productos y módulos
+
+| Módulo | Modelo de cobro | Estado |
+|---|---|---|
+| Pedidos (base) | 3 % por pedido pagado online; 0 % en "pagar en el local"; sin cuota fija | ✅ Producción |
+| Costes y margen | Add-on de pago (referencia Tavola: 0 / 45 / 75 €/mes) | 🔄 Fase 1 — ver [MODULO-COSTES.md](./MODULO-COSTES.md) |
+| Retención | Add-on de pago | ⏳ Sprint 3 |
+| TPV propio | — | 🅿️ Aparcado (ver backlog) |
+
+Los módulos se activan por restaurante (`Tenant.addons`).
+
+---
+
 ## 🏁 Sprints
 
 > Reordenado el 2026-05-22 tras el análisis competitivo (Ágora / Last.app).
@@ -60,7 +73,7 @@ Entregables:
 
 Entregables:
 - [x] **Autenticación del panel admin** (login + sesión JWT + scoping por tenant — adelantado en la rama del Sprint 1)
-- [ ] Permisos por rol (SUPERADMIN / TENANT_ADMIN / STORE_MANAGER)
+- [x] Permisos por rol (SUPERADMIN / TENANT_ADMIN / STORE_MANAGER) — `STORE_MANAGER` solo Pedidos
 - [ ] **Pago online con Stripe Connect** — el restaurante es el *merchant of record* (el dinero entra a su cuenta; nosotros cobramos un fee de SaaS por encima)
 - [ ] Validar el modelo fiscal con un asesor antes del primer cliente (ver Decisiones técnicas)
 
