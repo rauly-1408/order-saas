@@ -33,7 +33,7 @@
 
 ## 🧱 Fases
 
-### Fase 1 — Escandallos y margen (MVP vendible)
+### Fase 1 — Escandallos y margen (MVP vendible) ✅ HECHA 2026-10-14 (rama `feat/modulo-costes`)
 - Interruptor de módulos por restaurante (`Tenant.addons`): sin el módulo, el panel muestra la pantalla de "Contratar".
 - **Proveedores**: nombre, contacto, teléfono, email.
 - **Ingredientes**: unidad base (kg, g, l, ml, unidad), precio de compra por formato (p. ej. 12,50 € la caja de 5 kg), proveedor, **% de merma**, alérgenos.
@@ -77,7 +77,7 @@ Ventaja de venta: **Tavola cobra 75 €/mes por conectarse al TPV**; nosotros ya
   → coste por unidad base = `packPriceCents / packSize`, ajustado por merma.
 - `RecipeLine { tenantId, ingredientId, quantity, productId? | modifierOptionId? }` → escandallo de un producto **o** de una opción.
 
-## ✅ Definition of Done (Fase 1)
+## ✅ Definition of Done (Fase 1) — cumplida y verificada en local
 
 1. Un restaurante sin el módulo ve "Costes" en el menú con la pantalla de contratar; con el módulo, ve las pantallas.
 2. Se pueden crear proveedores e ingredientes y escandallar un mollete (con su pan) y la opción "Boniato".
@@ -88,3 +88,12 @@ Ventaja de venta: **Tavola cobra 75 €/mes por conectarse al TPV**; nosotros ya
 ## Fuentes
 - [Tavola — precios](https://tavola.app/es/precios) · [pricing.md](https://tavola.app/pricing.md)
 - [Tavola en GetApp](https://www.getapp.com/all-software/a/tavola/) · [Capterra](https://www.capterra.com/p/10044095/Tavola/)
+
+## 📝 Notas de implementación (Fase 1)
+
+- Activación: `Tenant.addons` contiene `COSTS`. En local lo activa el seed; en producción se activa a mano por restaurante (pendiente: pantalla de superadmin).
+- El coste de un plato en "Rentabilidad" es el **plato típico**: receta base + opción por defecto de cada grupo obligatorio (pan recomendado, guarnición incluida).
+- Margen calculado sobre precio **sin IVA (10 %)**.
+- Margen de pedidos: casa productos por ID y, si la carta se recargó, por nombre; opciones por grupo + nombre (snapshot del pedido).
+- ⚠️ Recargar la carta con el seed borra productos/opciones y, en cascada, sus escandallos.
+

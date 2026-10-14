@@ -30,6 +30,7 @@ function buildNav(tenant: string): NavItem[] {
     { label: 'Inicio',            href: `${base}/home`,             icon: '⊙', exact: true, managerOnly: true },
     { label: 'Pedidos',           href: `${base}/pedidos`,          icon: '🛒' },
     { label: 'Carta',             href: `${base}/carta`,            icon: '📋', managerOnly: true },
+    { label: 'Costes',            href: `${base}/costes`,           icon: '🧮', managerOnly: true },
     { label: 'Personalización',   href: `${base}/personalizacion`,  icon: '🎨', managerOnly: true },
     { label: 'Configuración',     href: `${base}/configuracion`,    icon: '⚙️', managerOnly: true },
   ];

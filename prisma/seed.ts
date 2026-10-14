@@ -168,6 +168,15 @@ async function main() {
     }
   }
 
+  // Módulo Costes activado en local para poder desarrollarlo y probarlo.
+  // En producción los módulos se contratan aparte (nunca desde el seed).
+  if (!remote && !tenant.addons.includes("COSTS")) {
+    await prisma.tenant.update({ where: { id: tenant.id }, data: { addons: { push: "COSTS" } } });
+    console.log("✅ Módulo Costes activado (solo local)");
+  }
+
+  // ⚠️ Recargar la carta borra productos y opciones y, en cascada, sus escandallos.
+
   // 2) Limpieza de la carta (para poder re-ejecutar sin choques).
   // Los pedidos NO se tocan: sus líneas guardan nombre, precio y opciones como
   // snapshot, así que no dependen de que el producto siga existiendo.
