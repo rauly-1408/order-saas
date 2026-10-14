@@ -132,7 +132,7 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
       </Section>
 
       <Section title="Precios y tiempos">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="grid gap-4 sm:grid-cols-2">
           <NumField label="Pedido mínimo (céntimos)" value={form.minimumOrderCents} onChange={v => setForm({ ...form, minimumOrderCents: v })} hint="cents" />
           <NumField label="Gastos de envío (céntimos)" value={form.deliveryFeeCents} onChange={v => setForm({ ...form, deliveryFeeCents: v })} hint="cents" />
           <div>
@@ -149,7 +149,7 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
       </Section>
 
       <Section title="Contacto">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="grid gap-4 sm:grid-cols-2">
           <TextField label="Teléfono" value={form.phone} onChange={v => setForm({ ...form, phone: v })} placeholder="+34 600 000 000" />
           <TextField label="WhatsApp" value={form.whatsapp} onChange={v => setForm({ ...form, whatsapp: v })} placeholder="+34 600 000 000" />
           <TextField label="Instagram" value={form.instagram} onChange={v => setForm({ ...form, instagram: v })} placeholder="@minegocio" />

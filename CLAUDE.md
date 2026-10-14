@@ -30,6 +30,15 @@ SaaS application built with Next.js 16 App Router, React 19, TypeScript, Prisma 
 - Tailwind CSS 4 for all styling — no inline styles
 - Prisma for all DB operations — no raw SQL unless necessary
 - Always handle loading and error states in UI
+- Mobile-first: the owner uses the panel on a phone. Avoid fixed multi-column grids and fixed widths (use responsive classes like `grid sm:grid-cols-2`); wide tables go inside an `overflow-x-auto` container
+
+## UI Verification (before declaring any UI change done)
+- Open EVERY page of the affected area — not only the files you edited — at 375px width (mobile) and at desktop width:
+  - Admin: `/admin/[tenant]/home`, `/pedidos`, `/carta`, `/personalizacion`, `/configuracion`, `/login`
+  - Customer: `/pedir/[tenant]`, `/pedir/[tenant]/checkout`, confirmation page
+- On each page check there is no horizontal page overflow: `document.documentElement.scrollWidth === window.innerWidth`
+- Check wide tables scroll horizontally inside their container and all columns are reachable
+- Report the result of this check explicitly
 
 ## Architecture Principles
 - Follow 12-Factor App methodology
