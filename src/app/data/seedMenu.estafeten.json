@@ -211,7 +211,7 @@
     },
     {
       "code": "DOUBLE",
-      "name": "¿La quieres doble?",
+      "name": "Añade ingredientes",
       "isRequired": false,
       "minSelect": 0,
       "maxSelect": 1,
@@ -225,7 +225,7 @@
     },
     {
       "code": "SAUCES",
-      "name": "Salsas extra",
+      "name": "Añade salsas",
       "isRequired": false,
       "minSelect": 0,
       "maxSelect": 13,

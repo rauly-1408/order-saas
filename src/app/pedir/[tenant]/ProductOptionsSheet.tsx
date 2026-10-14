@@ -105,14 +105,21 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
             const chosen = selection[group.id] ?? [];
             const multi = group.maxSelect > 1;
             const single = group.maxSelect === 1 && group.isRequired;
-            // Extras opcionales de varias opciones (salsas…): plegados por defecto
-            // para que el pan y la guarnición sean lo primero que se ve.
-            if (multi && !group.isRequired) {
+            // Grupos opcionales ("Añade ingredientes", "Añade salsas"): plegados por
+            // defecto para que el pan y la guarnición sean lo primero que se ve.
+            // El título es el nombre del grupo, editable por cada restaurante.
+            if (!group.isRequired) {
               const isOpen = !!open[group.id];
               const chosenOptions = group.options.filter((o) => chosen.includes(o.id));
               const extraCents = chosenOptions.reduce((acc, o) => acc + o.priceDeltaCents, 0);
               const prices = [...new Set(group.options.map((o) => o.priceDeltaCents))];
-              const priceHint = prices.length === 1 && prices[0] > 0 ? ` · +${euros(prices[0])} cada una` : "";
+              const uniformPrice = prices.length === 1 && prices[0] > 0 ? prices[0] : null;
+              const priceHint = uniformPrice != null && group.options.length > 1 ? ` · +${euros(uniformPrice)} cada una` : "";
+              // Con 1-2 opciones se nombran ("Doble burguer estilo smash · +3,95 €"); con más, se cuentan.
+              const available =
+                group.options.length <= 2
+                  ? group.options.map((o) => (o.priceDeltaCents > 0 ? `${o.name} · +${euros(o.priceDeltaCents)}` : o.name)).join(" / ")
+                  : `${group.options.length} opciones${priceHint}`;
               return (
                 <section key={group.id} className="overflow-hidden rounded-2xl bg-[var(--surface-1)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
                   <button
@@ -129,7 +136,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
-                        <span className="text-[15px] font-bold">Añade extras</span>
+                        <span className="text-[15px] font-bold">{group.name}</span>
                         {chosen.length > 0 && (
                           <span className="rounded-full bg-[var(--brand-secondary)] px-2 py-0.5 text-[11px] font-bold text-[var(--on-secondary)]">{chosen.length}</span>
                         )}
@@ -137,7 +144,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
                       <span className="block truncate text-[12px] text-[var(--text-secondary)]">
                         {chosenOptions.length
                           ? `${chosenOptions.map((o) => o.name).join(", ")} · +${euros(extraCents)}`
-                          : `${group.name.replace(/\s*extras?$/i, "")} · ${group.options.length} opciones${priceHint}`}
+                          : available}
                       </span>
                     </span>
                     <svg
