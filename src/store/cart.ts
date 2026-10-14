@@ -1,19 +1,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-
-export type CartModifiers = {
-  bread?: string;
-  side?: string;
-  sidePriceCents?: number;
-};
+import type { OrderLineModifier } from "@/app/lib/menuOptions";
 
 export type CartItem = {
-  id: string; // ✅ clave única por línea (producto + modificadores)
+  id: string; // ✅ clave única por línea (producto + opciones)
   productId: string;
   name: string;
-  unitPriceCents: number; // ✅ precio FINAL por unidad (base + extras)
+  unitPriceCents: number; // precio mostrado por unidad (base + extras); el servidor lo recalcula
   quantity: number;
-  modifiers?: CartModifiers;
+  optionIds: string[]; // lo que se envía a la API
+  modifiers: OrderLineModifier[]; // solo para mostrar (pan, guarnición, extras)
 };
 
 type AddItemInput = Omit<CartItem, "id" | "quantity">;
@@ -28,13 +24,9 @@ type CartState = {
   subtotalCents: () => number;
 };
 
-// ✅ helper: crea una key estable por producto + modificadores
-const makeLineId = (productId: string, modifiers?: CartModifiers) => {
-  const bread = modifiers?.bread ?? "";
-  const side = modifiers?.side ?? "";
-  const sidePrice = modifiers?.sidePriceCents ?? 0;
-  return `${productId}::${bread}::${side}::${sidePrice}`;
-};
+// Key estable por producto + opciones: el mismo mollete con otro pan es otra línea.
+const makeLineId = (productId: string, optionIds: string[]) =>
+  `${productId}::${[...optionIds].sort().join(",")}`;
 
 export const useCart = create<CartState>()(
   persist(
@@ -43,7 +35,7 @@ export const useCart = create<CartState>()(
 
       addItem: (item) =>
         set((state) => {
-          const id = makeLineId(item.productId, item.modifiers);
+          const id = makeLineId(item.productId, item.optionIds);
 
           const existingIndex = state.items.findIndex((i) => i.id === id);
 
@@ -64,6 +56,7 @@ export const useCart = create<CartState>()(
                 productId: item.productId,
                 name: item.name,
                 unitPriceCents: item.unitPriceCents,
+                optionIds: item.optionIds,
                 modifiers: item.modifiers,
                 quantity: 1,
               },
@@ -95,6 +88,8 @@ export const useCart = create<CartState>()(
       subtotalCents: () =>
         get().items.reduce((acc, i) => acc + i.unitPriceCents * i.quantity, 0),
     }),
-    { name: "order-saas-cart-v1" }
+    // v2: las líneas llevan optionIds. Cambiar el nombre descarta carritos v1
+    // guardados en el navegador (no tienen pan elegido y la API los rechazaría).
+    { name: "order-saas-cart-v2" }
   )
 );

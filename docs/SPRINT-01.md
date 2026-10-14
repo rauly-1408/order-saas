@@ -18,6 +18,10 @@ Desviaciones respecto al plan:
 - Se adelantó del Sprint 3 el upsert de `Customer` con segmentación.
 - Fix: el aviso sonoro no saltaba con el primer pedido si el panel estaba vacío.
 
+Corrección posterior: el criterio de TASK-001 "los modificadores suman al precio base" NO se
+cumplía (el menú no permitía elegir pan/guarnición). Resuelto en `feat/menu-modifiers`: selector
+de opciones con pan recomendado preseleccionado, carta real 2026 y precios calculados en servidor.
+
 Pendiente arrastrado: rebaseline de migraciones Prisma (Neon se gestionó con `db push`).
 
 ---

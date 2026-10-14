@@ -36,6 +36,7 @@ type SeedModifierGroup = {
 type SeedCategory = {
   name: string;
   slug: string;
+  description?: string;
   sortOrder?: number;
   isFeatured?: boolean;
 };
@@ -50,6 +51,9 @@ type SeedProduct = {
   tags?: string[];
   activeChannels?: Channel[];
   modifierGroupCodes?: string[];
+  sortOrder?: number;
+  // Opción preseleccionada por grupo: { "BREAD": "Tradicional" }
+  defaults?: Record<string, string>;
 };
 
 type SeedJson = {
@@ -149,6 +153,7 @@ async function main() {
 
   // 4) Modificadores
   const groupMap = new Map<string, string>(); // code -> groupId
+  const optionMap = new Map<string, string>(); // "CODE::Nombre opción" -> optionId
 
   for (const g of seed.modifierGroups ?? []) {
     const group = await prisma.modifierGroup.create({
@@ -167,8 +172,10 @@ async function main() {
           })),
         },
       },
+      include: { options: true },
     });
     groupMap.set(g.code, group.id);
+    for (const o of group.options) optionMap.set(`${g.code}::${o.name}`, o.id);
   }
 
   // 5) Categorías
@@ -180,6 +187,7 @@ async function main() {
         tenantId: tenant.id,
         name: c.name,
         slug: c.slug,
+        description: c.description ?? null,
         sortOrder: c.sortOrder ?? 0,
         isFeatured: !!c.isFeatured,
       },
@@ -206,6 +214,8 @@ async function main() {
         description: p.description ?? "",
         imageUrl: p.imageUrl ?? null,
         basePriceCents: p.basePriceCents ?? 0,
+        sortOrder: p.sortOrder ?? 0,
+        hasModifiers: (p.modifierGroupCodes ?? []).length > 0,
         isActive: true,
       },
     });
@@ -216,8 +226,13 @@ async function main() {
     for (let i = 0; i < codes.length; i++) {
       const gid = groupMap.get(codes[i]);
       if (!gid) continue;
+      const defaultName = p.defaults?.[codes[i]];
+      const defaultOptionId = defaultName ? optionMap.get(`${codes[i]}::${defaultName}`) : undefined;
+      if (defaultName && !defaultOptionId) {
+        console.warn(`⚠️ ${p.name}: no existe la opción "${defaultName}" en ${codes[i]}`);
+      }
       await prisma.productModifierGroup.create({
-        data: { productId: prod.id, groupId: gid, sortOrder: i },
+        data: { productId: prod.id, groupId: gid, sortOrder: i, defaultOptionId: defaultOptionId ?? null },
       });
     }
   }

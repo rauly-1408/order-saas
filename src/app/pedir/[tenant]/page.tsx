@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import MenuClient from "./MenuClient";
 import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
+import type { MenuModifierGroup } from "@/app/lib/menuOptions";
 
 type MenuProduct = {
   id: string;
@@ -10,6 +11,7 @@ type MenuProduct = {
   imageUrl?: string | null;
   isFeatured?: boolean;
   hasModifiers?: boolean;
+  modifierGroups: MenuModifierGroup[];
 };
 
 type MenuCategory = {

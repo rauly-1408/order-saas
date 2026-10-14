@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/store/cart";
 import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
+import type { MenuModifierGroup } from "@/app/lib/menuOptions";
+import ProductOptionsSheet from "./ProductOptionsSheet";
 
 type MenuProduct = {
   id: string;
@@ -13,12 +15,14 @@ type MenuProduct = {
   basePriceCents: number;
   imageUrl?: string | null;
   isFeatured?: boolean;
+  modifierGroups: MenuModifierGroup[];
 };
 
 type MenuCategory = {
   id: string;
   name: string;
   slug: string;
+  description?: string | null;
   sortOrder: number;
   isFeatured: boolean;
   products: MenuProduct[];
@@ -38,6 +42,8 @@ const euros = (cents: number) =>
 export default function MenuClient({ tenant, tenantName, categories, theme, settings }: MenuClientProps) {
   const { items, addItem, inc, dec, remove, clear } = useCart();
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
+  // Producto cuyo selector de opciones (pan, guarnición, extras) está abierto.
+  const [optionsFor, setOptionsFor] = useState<MenuProduct | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -95,6 +101,14 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
     return item ? item.id : null;
   }
 
+  function handleAdd(product: MenuProduct) {
+    if (product.modifierGroups.length > 0) {
+      setOptionsFor(product);
+      return;
+    }
+    addItem({ productId: product.id, name: product.name, unitPriceCents: product.basePriceCents, optionIds: [], modifiers: [] });
+  }
+
   const initials = tenantName.slice(0, 2).toUpperCase();
 
   return (
@@ -126,6 +140,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         {categories.map((cat) => (
           <section key={cat.slug} ref={(el) => { sectionRefs.current[cat.slug] = el; }} style={{ marginBottom: "40px" }}>
             <h2 style={{ fontSize: "18px", fontWeight: 700, color: cssVars["--text-primary"], marginBottom: "16px", paddingBottom: "8px", borderBottom: `1px solid ${cssVars["--border"]}` }}>{cat.name}</h2>
+            {cat.description && <p style={{ fontSize: "13px", color: cssVars["--text-secondary"], marginTop: "-8px", marginBottom: "16px" }}>{cat.description}</p>}
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               {cat.products.map((product) => {
                 const qty = getQty(product.id);
@@ -137,14 +152,21 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: "15px", color: cssVars["--text-primary"], marginBottom: "4px" }}>{product.name}</div>
-                      <div style={{ fontSize: "13px", color: cssVars["--text-secondary"], lineHeight: 1.4, marginBottom: "8px" }}>{product.description}</div>
+                      {product.description && <div style={{ fontSize: "13px", color: cssVars["--text-secondary"], lineHeight: 1.4, marginBottom: "8px" }}>{product.description}</div>}
                       <div style={{ fontWeight: 700, fontSize: "15px", color: cssVars["--brand-accent"] }}>{euros(product.basePriceCents)}</div>
                     </div>
                     <div style={{ flexShrink: 0 }}>
-                      {qty === 0 ? (
-                        <button onClick={() => addItem({ productId: product.id, name: product.name, unitPriceCents: product.basePriceCents })} style={{ padding: "8px 18px", borderRadius: "8px", border: "none", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "14px", cursor: "pointer" }}>
-                          Añadir
-                        </button>
+                      {product.modifierGroups.length > 0 || qty === 0 ? (
+                        // Con opciones, cada combinación es una línea distinta: siempre "Añadir"
+                        // (las cantidades se ajustan en el checkout).
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                          <button onClick={() => handleAdd(product)} style={{ padding: "8px 18px", borderRadius: "8px", border: "none", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "14px", cursor: "pointer" }}>
+                            Añadir
+                          </button>
+                          {qty > 0 && (
+                            <span style={{ fontSize: "11px", color: cssVars["--brand-accent"], fontWeight: 600 }}>{qty} en tu pedido</span>
+                          )}
+                        </div>
                       ) : (
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                           <button onClick={() => { if (qty === 1 && lineId) remove(lineId); else if (lineId) dec(lineId); }} style={{ width: "30px", height: "30px", borderRadius: "50%", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 700, fontSize: "18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>-</button>
@@ -160,6 +182,16 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           </section>
         ))}
       </main>
+      {optionsFor && (
+        <ProductOptionsSheet
+          product={optionsFor}
+          onClose={() => setOptionsFor(null)}
+          onAdd={(line) => {
+            addItem({ productId: optionsFor.id, name: optionsFor.name, ...line });
+            setOptionsFor(null);
+          }}
+        />
+      )}
       {totalItems > 0 && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, backgroundColor: cssVars["--surface-0"], borderTop: `1px solid ${cssVars["--border"]}`, padding: "12px 20px", display: "flex", alignItems: "center", gap: "12px" }}>
           <div style={{ flex: 1 }}>

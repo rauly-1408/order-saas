@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
+import { selectionToModifiers, validateSelection, type MenuModifierGroup } from "@/app/lib/menuOptions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// El cliente solo indica QUÉ pide; nombre y precios se toman de la base de
+// datos (nunca del navegador, que se puede manipular).
 type OrderLineInput = {
   productId: string;
-  name: string;
-  basePriceCents: number;
   quantity: number;
-  modifiersJson?: unknown;
+  optionIds?: string[];
 };
 
 type OrderBody = {
@@ -26,6 +27,7 @@ type OrderBody = {
 };
 
 const ORDER_NUMBER_RETRIES = 5;
+const MAX_QTY_PER_LINE = 50;
 const HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // Normaliza el teléfono a una clave estable: solo dígitos (y un + inicial
@@ -104,11 +106,12 @@ export async function POST(req: NextRequest) {
 
     for (const item of items) {
       if (
-        !item.productId ||
-        !item.name ||
-        typeof item.basePriceCents !== "number" ||
-        typeof item.quantity !== "number" ||
-        item.quantity < 1
+        typeof item.productId !== "string" ||
+        !Number.isInteger(item.quantity) ||
+        item.quantity < 1 ||
+        item.quantity > MAX_QTY_PER_LINE ||
+        (item.optionIds !== undefined &&
+          (!Array.isArray(item.optionIds) || item.optionIds.some((id) => typeof id !== "string")))
       ) {
         return NextResponse.json({ error: "Item inválido" }, { status: 400 });
       }
@@ -124,14 +127,43 @@ export async function POST(req: NextRequest) {
     }
 
     const productIds = [...new Set(items.map((i) => i.productId))];
-    const existingProducts = await prisma.product.findMany({
-      where: { tenantId: tenant.id, id: { in: productIds } },
-      select: { id: true },
+    const products = await prisma.product.findMany({
+      where: { tenantId: tenant.id, id: { in: productIds }, isActive: true, isAvailable: true },
+      select: {
+        id: true,
+        name: true,
+        basePriceCents: true,
+        modifierGroups: {
+          orderBy: { sortOrder: "asc" },
+          select: {
+            defaultOptionId: true,
+            group: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                isRequired: true,
+                minSelect: true,
+                maxSelect: true,
+                options: {
+                  where: { isAvailable: true },
+                  orderBy: { sortOrder: "asc" },
+                  select: { id: true, name: true, priceDeltaCents: true },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
-    if (existingProducts.length !== productIds.length) {
-      return NextResponse.json({ error: "Algunos productos no existen" }, { status: 400 });
+    if (products.length !== productIds.length) {
+      return NextResponse.json(
+        { error: "Algún producto ya no está disponible. Revisa tu pedido." },
+        { status: 400 }
+      );
     }
+    const productById = new Map(products.map((p) => [p.id, p]));
 
     const store = tenant.stores[0];
 
@@ -142,23 +174,47 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Recogida no disponible" }, { status: 400 });
     }
 
-    const subtotalCents = items.reduce(
-      (acc, item) => acc + item.basePriceCents * item.quantity,
-      0
-    );
+    // Precio de cada línea = precio base + suplementos de las opciones elegidas.
+    const linesCreate: Prisma.OrderLineCreateWithoutOrderInput[] = [];
+    for (const item of items) {
+      const product = productById.get(item.productId)!;
+      const groups: MenuModifierGroup[] = product.modifierGroups.map((pmg) => ({
+        ...pmg.group,
+        defaultOptionId: pmg.defaultOptionId,
+      }));
+
+      const selection: Record<string, string[]> = {};
+      for (const g of groups) selection[g.id] = [];
+      for (const optionId of new Set(item.optionIds ?? [])) {
+        const group = groups.find((g) => g.options.some((o) => o.id === optionId));
+        if (!group) {
+          return NextResponse.json({ error: `${product.name}: opción no válida` }, { status: 400 });
+        }
+        selection[group.id].push(optionId);
+      }
+
+      const selectionError = validateSelection(groups, selection);
+      if (selectionError) {
+        return NextResponse.json({ error: `${product.name} — ${selectionError}` }, { status: 400 });
+      }
+
+      const modifiers = selectionToModifiers(groups, selection);
+      const unitCents = product.basePriceCents + modifiers.reduce((acc, m) => acc + m.priceDeltaCents, 0);
+      linesCreate.push({
+        productId: product.id,
+        productName: product.name,
+        quantity: item.quantity,
+        basePriceCents: product.basePriceCents,
+        modifiers: modifiers as unknown as Prisma.InputJsonValue,
+        totalCents: unitCents * item.quantity,
+      });
+    }
+
+    const subtotalCents = linesCreate.reduce((acc, line) => acc + (line.totalCents ?? 0), 0);
     const feesCents = channel === "DELIVERY" ? store.deliveryFeeCents : 0;
     const totalCents = subtotalCents + feesCents;
     const settings = tenant.settings as Record<string, unknown>;
     const currency = (settings?.currency as string) ?? "EUR";
-
-    const linesCreate = items.map((item) => ({
-      productId: item.productId,
-      productName: item.name,
-      quantity: item.quantity,
-      basePriceCents: item.basePriceCents,
-      modifiers: (item.modifiersJson ?? []) as Prisma.InputJsonValue,
-      totalCents: item.basePriceCents * item.quantity,
-    }));
 
     let order: Awaited<ReturnType<typeof createOrderWithNumber>> | null = null;
     let lastError: unknown;

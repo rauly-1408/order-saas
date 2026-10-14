@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getTenantTheme, getTenantSettings } from "@/app/lib/tenantConfig";
+import type { MenuModifierGroup } from "@/app/lib/menuOptions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,10 +52,42 @@ export async function GET(req: NextRequest) {
             imageUrl: true,
             isFeatured: true,
             hasModifiers: true,
+            modifierGroups: {
+              orderBy: { sortOrder: "asc" },
+              select: {
+                defaultOptionId: true,
+                group: {
+                  select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                    isRequired: true,
+                    minSelect: true,
+                    maxSelect: true,
+                    options: {
+                      where: { isAvailable: true },
+                      orderBy: { sortOrder: "asc" },
+                      select: { id: true, name: true, priceDeltaCents: true },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
+
+    // Aplana ProductModifierGroup -> MenuModifierGroup (con la opción por defecto del producto).
+    const menuCategories = categories.map((cat) => ({
+      ...cat,
+      products: cat.products.map(({ modifierGroups, ...product }) => ({
+        ...product,
+        modifierGroups: modifierGroups.map(
+          (pmg): MenuModifierGroup => ({ ...pmg.group, defaultOptionId: pmg.defaultOptionId })
+        ),
+      })),
+    }));
 
     return NextResponse.json({
       tenant: {
@@ -64,7 +97,7 @@ export async function GET(req: NextRequest) {
       },
       theme,
       settings: storeSettings,
-      categories,
+      categories: menuCategories,
     });
   } catch {
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

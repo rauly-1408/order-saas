@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/store/cart";
 import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
+import { formatModifier } from "@/app/lib/menuOptions";
 
 const euros = (cents: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -25,7 +26,7 @@ type CheckoutClientProps = {
 
 export default function CheckoutClient({ tenant, theme, settings }: CheckoutClientProps) {
   const router = useRouter();
-  const { items, subtotalCents, clear } = useCart();
+  const { items, subtotalCents, clear, inc, dec } = useCart();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [channel, setChannel] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
@@ -94,12 +95,11 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
           channel,
           notes: notes || undefined,
           marketingConsent,
+          // Solo qué se pide: el servidor pone nombres y precios desde la carta.
           items: items.map((item) => ({
             productId: item.productId,
-            name: item.name,
-            basePriceCents: item.unitPriceCents,
             quantity: item.quantity,
-            modifiersJson: item.modifiers ? [item.modifiers] : [],
+            optionIds: item.optionIds,
           })),
         }),
       });
@@ -149,14 +149,21 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {items.map((item) => (
-                <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{ minWidth: "22px", height: "22px", borderRadius: "6px", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {item.quantity}
-                    </span>
-                    <span style={{ fontSize: "14px", color: cssVars["--text-primary"] }}>{item.name}</span>
+                <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: cssVars["--text-primary"] }}>{item.name}</div>
+                    {item.modifiers.length > 0 && (
+                      <div style={{ fontSize: "12px", color: cssVars["--text-secondary"], marginTop: "2px", lineHeight: 1.4 }}>
+                        {item.modifiers.map(formatModifier).join(" · ")}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px" }}>
+                      <button type="button" aria-label={`Quitar un ${item.name}`} onClick={() => dec(item.id)} style={{ width: "26px", height: "26px", borderRadius: "50%", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 700, fontSize: "15px", cursor: "pointer", lineHeight: 1 }}>−</button>
+                      <span style={{ fontWeight: 700, fontSize: "14px", minWidth: "14px", textAlign: "center" }}>{item.quantity}</span>
+                      <button type="button" aria-label={`Añadir otro ${item.name}`} onClick={() => inc(item.id)} style={{ width: "26px", height: "26px", borderRadius: "50%", border: "none", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "15px", cursor: "pointer", lineHeight: 1 }}>+</button>
+                    </div>
                   </div>
-                  <span style={{ fontSize: "14px", fontWeight: 600, color: cssVars["--text-primary"] }}>
+                  <span style={{ fontSize: "14px", fontWeight: 600, color: cssVars["--text-primary"], flexShrink: 0 }}>
                     {euros(item.unitPriceCents * item.quantity)}
                   </span>
                 </div>

@@ -6,7 +6,7 @@ export type OrderItem = {
   productName: string;
   quantity: number;
   totalCents: number;
-  modifiers: unknown; // JSON snapshot: [{ bread?, side?, sidePriceCents? }]
+  modifiers: unknown; // JSON snapshot: OrderLineModifier[] (ver lib/menuOptions)
 };
 
 export type Order = {
@@ -89,31 +89,7 @@ export function elapsedLabel(fromIso: string, now: number): string {
   return `${Math.floor(secs / 3600)} h ${Math.floor((secs % 3600) / 60)} min`;
 }
 
-// Orden de lectura en cocina. Hace falta porque jsonb de Postgres no conserva
-// el orden de las claves (las ordena por longitud).
-const MODIFIER_ORDER = ["bread", "side"];
-const modifierRank = (key: string) => {
-  const i = MODIFIER_ORDER.indexOf(key);
-  return i === -1 ? MODIFIER_ORDER.length : i;
-};
-
-// Extrae las opciones elegidas del snapshot JSON de la línea. Tolerante con
-// formatos antiguos: ignora precios, vacíos y cualquier valor que no sea texto.
-export function modifierLabels(modifiers: unknown): string[] {
-  const list = Array.isArray(modifiers) ? modifiers : modifiers ? [modifiers] : [];
-  const labels: string[] = [];
-  for (const entry of list) {
-    if (!entry || typeof entry !== "object") continue;
-    const entries = Object.entries(entry as Record<string, unknown>).sort(
-      ([a], [b]) => modifierRank(a) - modifierRank(b)
-    );
-    for (const [key, value] of entries) {
-      if (key.endsWith("PriceCents")) continue;
-      if (typeof value === "string" && value.trim()) labels.push(value.trim());
-    }
-  }
-  return labels;
-}
+export { modifierLabels } from "@/app/lib/menuOptions";
 
 // "612345678" -> "612 34 56 78"; "+34612345678" -> "+34 612 34 56 78".
 // Si no es un número español de 9 dígitos, se devuelve tal cual.

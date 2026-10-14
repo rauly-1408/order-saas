@@ -212,6 +212,8 @@ model ModifierOption {
   sortOrder      Int    @default(0)
   isAvailable    Boolean @default(true) // NUEVO
 
+  defaultFor ProductModifierGroup[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -223,6 +225,10 @@ model ProductModifierGroup {
   groupId   String
   group     ModifierGroup @relation(fields: [groupId], references: [id])
   sortOrder Int           @default(0)
+
+  // Opción preseleccionada para este producto (ej. el pan recomendado en la carta).
+  defaultOptionId String?
+  defaultOption   ModifierOption? @relation(fields: [defaultOptionId], references: [id], onDelete: SetNull)
 
   @@unique([productId, groupId])
 }
