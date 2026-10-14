@@ -99,3 +99,28 @@ nav { scrollbar-width: none; }
   .p-press,
   .p-press:active { transition: none; transform: none; }
 }
+
+/* Campos de formulario del panel al estilo iOS: fondo gris suave, sin borde y
+   anillo del color de la marca al enfocar. !important porque algunas pantallas
+   heredadas usan estilos en línea. */
+.panel input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+.panel select,
+.panel textarea {
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+  background-color: rgba(0, 0, 0, 0.045) !important;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.panel input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]):focus,
+.panel select:focus,
+.panel textarea:focus {
+  outline: none;
+  background-color: var(--p-surface) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--p-brand) 22%, transparent);
+}
+.panel input[type="color"] {
+  border-radius: 10px !important;
+}
+.panel ::placeholder {
+  color: var(--p-faint);
+}

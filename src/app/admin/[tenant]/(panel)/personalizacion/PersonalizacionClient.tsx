@@ -20,7 +20,7 @@ type BrandingForm = {
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: S.textDark, marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>{label}</div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <input type="color" value={value} onChange={e => onChange(e.target.value)}
           style={{ width: 40, height: 36, borderRadius: 4, cursor: 'pointer', border: `1px solid ${S.border}`, padding: 2 }} />
@@ -34,7 +34,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 function Field({ label, value, onChange, placeholder, note }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; note?: string }) {
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: S.textDark, marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>{label}</div>
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         style={{ width: '100%', padding: '8px 12px', fontSize: 14, border: `1px solid ${S.border}`, borderRadius: 4, outline: 'none', fontFamily: 'inherit', color: S.textDark, boxSizing: 'border-box' }} />
       {note && <div style={{ fontSize: 11, color: S.textMid, marginTop: 3 }}>{note}</div>}
@@ -91,7 +91,7 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
   return (
     <div style={{ maxWidth: 720 }}>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, color: S.textDark, margin: 0 }}>Personalización</h1>
+        <h1 style={{ fontSize: 34, fontWeight: 600, letterSpacing: '-0.025em', color: S.textDark, margin: 0 }}>Personalización</h1>
         <div style={{ fontSize: 13, color: S.textMid, marginTop: 4 }}>Configura la identidad visual de tu carta</div>
       </div>
 
@@ -101,8 +101,8 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
         </div>
       )}
 
-      <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 8, padding: 24, marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: S.textDark, marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Identidad</div>
+      <div style={{ background: S.white, borderRadius: 18, boxShadow: '0 1px 2px rgba(0,0,0,0.04)', padding: 24, marginBottom: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: S.textDark, marginBottom: 16 }}>Identidad</div>
         <div style={{ display: 'grid', gap: 16 }}>
           <Field label="Nombre del negocio" value={form.name} onChange={v => setForm({ ...form, name: v })} />
           <Field label="URL del logo" value={form.logoUrl} onChange={v => setForm({ ...form, logoUrl: v })} placeholder="https://..." />
@@ -111,22 +111,22 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
         </div>
       </div>
 
-      <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 8, padding: 24, marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: S.textDark, marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Colores</div>
+      <div style={{ background: S.white, borderRadius: 18, boxShadow: '0 1px 2px rgba(0,0,0,0.04)', padding: 24, marginBottom: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: S.textDark, marginBottom: 16 }}>Colores</div>
         <div className="grid gap-4 sm:grid-cols-2">
           <ColorField label="Color principal" value={form.primaryColor} onChange={v => setForm({ ...form, primaryColor: v })} />
           <ColorField label="Color secundario" value={form.secondaryColor} onChange={v => setForm({ ...form, secondaryColor: v })} />
           <ColorField label="Fondo de la carta" value={form.backgroundColor} onChange={v => setForm({ ...form, backgroundColor: v })} />
           <ColorField label="Color del texto" value={form.textPrimary} onChange={v => setForm({ ...form, textPrimary: v })} />
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: S.textDark, marginBottom: 6 }}>Radio de bordes</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>Radio de bordes</div>
             <input value={form.borderRadius} onChange={e => setForm({ ...form, borderRadius: e.target.value })} placeholder="8px"
               style={{ width: '100%', padding: '8px 12px', fontSize: 13, fontFamily: 'monospace', border: `1px solid ${S.border}`, borderRadius: 4, outline: 'none', color: S.textDark, boxSizing: 'border-box' }} />
           </div>
         </div>
 
         {/* Live preview */}
-        <div style={{ marginTop: 20, border: `1px solid ${S.border}`, borderRadius: 8, padding: 16 }}>
+        <div style={{ marginTop: 20, borderRadius: 18, boxShadow: '0 1px 2px rgba(0,0,0,0.04)', padding: 16 }}>
           <div style={{ fontSize: 11, color: S.textMid, marginBottom: 10, fontWeight: 600 }}>Vista previa</div>
           <div style={{ background: form.backgroundColor, padding: 16, borderRadius: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ background: form.secondaryColor, color: '#fff', padding: '8px 16px', borderRadius: form.borderRadius, fontSize: 14, fontWeight: 700 }}>
@@ -141,8 +141,8 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
       </div>
 
       <button onClick={save} disabled={saving} style={{
-        width: '100%', background: S.purpleLight, color: S.purpleDark, border: `1px solid ${S.purpleMid}`,
-        borderRadius: 6, padding: '12px', fontSize: 15, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
+        width: '100%', background: 'var(--p-brand)', color: '#fff', border: 'none',
+        borderRadius: 9999, padding: '12px', fontSize: 15, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
         opacity: saving ? 0.6 : 1, fontFamily: 'inherit',
       }}>
         {saving ? 'Guardando...' : 'Guardar personalización'}

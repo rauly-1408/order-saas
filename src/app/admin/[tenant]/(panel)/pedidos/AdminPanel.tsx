@@ -136,7 +136,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
     <div className="text-[var(--p-ink)]">
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Pedidos</h1>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Pedidos</h1>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--p-muted)]">
             <span className={`h-2 w-2 rounded-full ${error ? "bg-red-500" : "bg-emerald-400"}`} />
             {error ? "Problema de conexión" : "En directo"}
@@ -146,13 +146,13 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
         <div className="flex items-center gap-2">
           <button
             onClick={enableSound}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+            className={`p-press rounded-full border px-3.5 py-1.5 text-xs font-semibold ${
               soundOn
-                ? "border-[var(--p-line)] bg-white text-[var(--p-ink)] hover:bg-[var(--p-bg)]"
+                ? "border-transparent bg-black/[0.05] text-[var(--p-ink)] hover:bg-black/[0.08]"
                 : "border-[var(--p-brand)] bg-[var(--p-brand)] text-white hover:bg-[var(--p-brand-strong)]"
             }`}
           >
-            {soundOn ? "🔔 Probar" : "🔕 Activar sonido"}
+            {soundOn ? "Probar sonido" : "Activar sonido"}
           </button>
         </div>
       </header>
@@ -160,16 +160,16 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       {!soundOn && (
         <button
           onClick={enableSound}
-          className="mb-4 block w-full rounded-xl bg-[var(--p-brand-soft)]/50 px-4 py-2 text-left text-sm text-[var(--p-brand-strong)] hover:bg-[var(--p-brand-soft)]"
+          className="p-press mb-4 block w-full rounded-2xl bg-[var(--p-warm)] px-4 py-3 text-left text-sm text-[var(--p-brand)] hover:brightness-[0.98]"
         >
-          🔕 El navegador bloquea el sonido hasta que pulses algo. Toca aquí para recibir avisos de pedidos nuevos.
+          El navegador bloquea el sonido hasta que pulses algo. Toca aquí para recibir avisos de pedidos nuevos.
         </button>
       )}
 
-      {error && <div className="mb-4 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
+      {error && <div className="mb-4 rounded-2xl bg-[var(--p-accent-soft)] px-4 py-2 text-sm text-[var(--p-accent)]">{error}</div>}
 
       {/* Pestañas con contador (móvil / tablet vertical) */}
-      <nav className="mb-4 flex gap-1 overflow-x-auto lg:hidden">
+      <nav className="mb-4 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1 lg:hidden">
         {COLUMNS.map((col) => {
           const count = byColumn(col.key).length;
           const active = tab === col.key;
@@ -177,14 +177,14 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
             <button
               key={col.key}
               onClick={() => setTab(col.key)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold ${
-                active ? "bg-white text-[var(--p-brand-strong)] shadow-sm" : "text-[var(--p-muted)]"
+              className={`p-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${
+                active ? "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"
               }`}
             >
-              {col.emoji} {col.label}
+              {col.label}
               <span
                 className={`rounded-full px-1.5 text-xs tabular-nums ${
-                  col.key === "NEW" && count > 0 ? "bg-amber-400 text-zinc-950" : "bg-[var(--p-line)] text-[var(--p-ink)]"
+                  col.key === "NEW" && count > 0 ? "bg-[var(--p-accent)] text-white" : "bg-black/[0.06] text-[var(--p-ink)]"
                 }`}
               >
                 {count}
@@ -204,16 +204,16 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
               return (
                 <section key={col.key} className={tab === col.key ? "block" : "hidden lg:block"}>
                   <h2
-                    className={`mb-3 hidden items-center justify-between border-b-2 pb-2 text-sm font-bold uppercase tracking-wider lg:flex ${col.accent}`}
+                    className={`mb-3 hidden items-center justify-between px-1 text-[15px] font-semibold lg:flex ${col.accent}`}
                   >
                     <span>
-                      {col.emoji} {col.label}
+                      {col.label}
                     </span>
-                    <span className="text-2xl tabular-nums">{list.length}</span>
+                    <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-black/[0.05] px-2 text-sm tabular-nums text-[var(--p-ink)]">{list.length}</span>
                   </h2>
                   <div className="space-y-3">
                     {list.length === 0 ? (
-                      <p className="rounded-xl border border-dashed border-[var(--p-line)] bg-white/60 py-8 text-center text-sm text-[var(--p-faint)]">
+                      <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 py-8 text-center text-sm text-[var(--p-faint)]">
                         {col.key === "NEW" ? "Sin pedidos nuevos" : "Vacío"}
                       </p>
                     ) : (
@@ -234,8 +234,8 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
             })}
           </div>
 
-          <details className="mt-8 rounded-xl border border-[var(--p-line)] bg-white">
-            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
+          <details className="mt-8 rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <summary className="cursor-pointer px-5 py-4 text-[15px] font-semibold">
               Últimas 24 h · {delivered} entregados · {cancelled} cancelados
             </summary>
             {history.length === 0 ? (

@@ -21,9 +21,9 @@ function CostesUpsell() {
   ];
   return (
     <div className="mx-auto max-w-2xl text-[var(--p-ink)]">
-      <h1 className="text-2xl font-bold">Costes y margen</h1>
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Costes y margen</h1>
       <p className="mt-1 text-sm text-[var(--p-muted)]">Módulo opcional · no está activado en tu restaurante</p>
-      <div className="mt-6 rounded-xl border border-[var(--p-line)] bg-white p-6">
+      <div className="mt-6 rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-6">
         <p className="text-lg font-semibold">Sabe cuánto ganas en cada plato y en cada pedido.</p>
         <ul className="mt-4 space-y-3">
           {items.map(([title, text]) => (

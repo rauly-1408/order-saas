@@ -70,12 +70,12 @@ export default function Inventario({ data, api, onSaved }: Props) {
       )}
 
       {data.ingredients.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[var(--p-line)] bg-white p-6 text-center text-sm text-[var(--p-muted)]">
+        <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center text-sm text-[var(--p-muted)]">
           Crea primero tus ingredientes en la pestaña Ingredientes.
         </p>
       ) : (
-        <section className="rounded-xl border border-[var(--p-line)] bg-white">
-          <h2 className="border-b border-[var(--p-line)] px-4 py-3 text-xs font-bold uppercase tracking-wider">Stock por ingrediente</h2>
+        <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <h2 className="px-5 pt-4 pb-1 text-[17px] font-semibold">Stock por ingrediente</h2>
           <p className="px-4 pt-2 text-xs text-[var(--p-muted)]">
             Los ingredientes controlados se descuentan solos con cada pedido. Haz un recuento para empezar a controlar uno.
           </p>
@@ -128,8 +128,8 @@ export default function Inventario({ data, api, onSaved }: Props) {
         </section>
       )}
 
-      <section className="rounded-xl border border-[var(--p-line)] bg-white">
-        <h2 className="border-b border-[var(--p-line)] px-4 py-3 text-xs font-bold uppercase tracking-wider">Últimos movimientos</h2>
+      <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <h2 className="px-5 pt-4 pb-1 text-[17px] font-semibold">Últimos movimientos</h2>
         {data.movements.length === 0 ? (
           <p className="px-4 py-6 text-sm text-[var(--p-muted)]">Aún no hay movimientos de stock.</p>
         ) : (
@@ -214,7 +214,7 @@ function ActionForm({ action, api, onDone, onCancel }: { action: Action; api: st
       )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       <div className="mt-3 flex gap-2">
-        <button onClick={submit} disabled={saving} className="rounded-lg bg-[var(--p-brand)] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
+        <button onClick={submit} disabled={saving} className="p-press rounded-full bg-[var(--p-brand)] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
           {saving ? "Guardando…" : text.button}
         </button>
         <button onClick={onCancel} className="rounded-lg px-3 py-1.5 text-sm text-[var(--p-muted)] hover:bg-white">Cancelar</button>
@@ -225,8 +225,8 @@ function ActionForm({ action, api, onDone, onCancel }: { action: Action; api: st
 
 function Stat({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: "ok" | "warn" }) {
   return (
-    <div className="rounded-xl border border-[var(--p-line)] bg-white p-4">
-      <div className="text-xs font-bold uppercase tracking-wider text-[var(--p-faint)]">{label}</div>
+    <div className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-4">
+      <div className="text-sm text-[var(--p-muted)]">{label}</div>
       <div className={`mt-1 text-2xl font-bold ${tone === "warn" ? "text-amber-700" : ""}`}>{value}</div>
       <div className="mt-0.5 truncate text-xs text-[var(--p-muted)]">{sub}</div>
     </div>

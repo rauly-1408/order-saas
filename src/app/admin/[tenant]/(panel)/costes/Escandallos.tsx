@@ -16,10 +16,10 @@ export default function Escandallos({ data, api, onSaved, onGoToIngredients }: P
 
   if (data.ingredients.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[var(--p-brand-soft)] bg-white p-6 text-center">
+      <div className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center">
         <p className="font-semibold">Primero crea tus ingredientes</p>
         <p className="mt-1 text-sm text-[var(--p-muted)]">Un escandallo dice cuánto de cada ingrediente lleva un plato.</p>
-        <button onClick={onGoToIngredients} className="mt-4 rounded-lg bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
+        <button onClick={onGoToIngredients} className="mt-4 p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
           Ir a ingredientes
         </button>
       </div>
@@ -29,7 +29,7 @@ export default function Escandallos({ data, api, onSaved, onGoToIngredients }: P
   return (
     <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
       {/* Selector de plato */}
-      <aside className={`rounded-xl border border-[var(--p-line)] bg-white ${selected ? "hidden lg:block" : ""}`}>
+      <aside className={`rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${selected ? "hidden lg:block" : ""}`}>
         <div className="border-b border-[var(--p-line)] p-3">
           <input
             value={query}
@@ -62,7 +62,7 @@ export default function Escandallos({ data, api, onSaved, onGoToIngredients }: P
       {/* Editor */}
       <div className={selected ? "" : "hidden lg:block"}>
         {!selected ? (
-          <div className="rounded-xl border border-dashed border-[var(--p-line)] bg-white p-10 text-center text-sm text-[var(--p-muted)]">
+          <div className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-10 text-center text-sm text-[var(--p-muted)]">
             Elige un plato para escandallarlo.
           </div>
         ) : (
@@ -100,7 +100,7 @@ function ProductRecipes({
       />
 
       {product.modifierGroups.map((g) => (
-        <section key={g.group.code} className="rounded-xl border border-[var(--p-line)] bg-white">
+        <section key={g.group.code} className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <h3 className="border-b border-[var(--p-line)] px-4 py-3 text-sm font-bold">{g.group.name}</h3>
           <p className="px-4 pt-2 text-[11px] text-[var(--p-muted)]">
             Estas opciones son comunes a todos los platos que las usan: escandállalas una vez.
@@ -195,7 +195,7 @@ function RecipeEditor({
   }
 
   return (
-    <div className={compact ? "rounded-lg bg-[var(--p-bg)] p-3" : "rounded-xl border border-[var(--p-line)] bg-white p-4"}>
+    <div className={compact ? "rounded-lg bg-[var(--p-bg)] p-3" : "rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-4"}>
       {title && <h3 className="font-bold">{title}</h3>}
       {subtitle && <p className="mt-0.5 mb-3 text-xs text-[var(--p-muted)]">{subtitle}</p>}
 
@@ -244,7 +244,7 @@ function RecipeEditor({
         </span>
         <span className="flex items-center gap-3">
           {message && <span className={`text-sm ${message.ok ? "text-emerald-600" : "text-red-600"}`}>{message.text}</span>}
-          <button onClick={save} disabled={saving} className="rounded-lg bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <button onClick={save} disabled={saving} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {saving ? "Guardando…" : "Guardar"}
           </button>
         </span>

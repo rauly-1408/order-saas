@@ -63,8 +63,8 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat label="Platos escandallados" value={`${withRecipe.length} / ${rows.length}`} />
         <Stat label="Food cost medio" value={avgFoodCost == null ? "—" : `${avgFoodCost.toFixed(1)} %`} />
-        <label className="rounded-xl border border-[var(--p-line)] bg-white p-4">
-          <span className="text-xs font-bold uppercase tracking-wider text-[var(--p-faint)]">Food cost objetivo</span>
+        <label className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-4">
+          <span className="text-sm text-[var(--p-muted)]">Food cost objetivo</span>
           <span className="mt-1 flex items-center gap-2">
             <input
               type="number"
@@ -80,24 +80,24 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
       </div>
 
       {withRecipe.length === 0 && (
-        <div className="rounded-xl border border-dashed border-[var(--p-brand-soft)] bg-white p-6 text-center">
+        <div className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center">
           <p className="font-semibold">Aún no hay platos escandallados</p>
           <p className="mt-1 text-sm text-[var(--p-muted)]">Crea tus ingredientes y añade sus cantidades a cada plato para ver tu margen.</p>
-          <button onClick={onGoToRecipes} className="mt-4 rounded-lg bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
+          <button onClick={onGoToRecipes} className="mt-4 p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
             Ir a escandallos
           </button>
         </div>
       )}
 
-      <section className="rounded-xl border border-[var(--p-line)] bg-white">
-        <h2 className="border-b border-[var(--p-line)] px-4 py-3 text-xs font-bold uppercase tracking-wider">Margen por plato</h2>
+      <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <h2 className="px-5 pt-4 pb-1 text-[17px] font-semibold">Margen por plato</h2>
         <p className="px-4 pt-3 text-xs text-[var(--p-muted)]">
           Plato tal como sale de cocina (con el pan y la guarnición por defecto). Precios sin IVA (10 %).
         </p>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-[var(--p-muted)]">
+              <tr className="text-left text-xs text-[var(--p-muted)]">
                 {["Plato", "Precio", "Coste", "Margen", "Food cost", "Precio sugerido"].map((h) => (
                   <th key={h} className="px-4 py-2 font-semibold">{h}</th>
                 ))}
@@ -130,7 +130,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
                         <button
                           onClick={() => applyPrice(r)}
                           disabled={applying === r.id}
-                          className="rounded-md border border-[var(--p-brand)] px-2 py-0.5 text-[11px] font-semibold text-[var(--p-brand)] hover:bg-[var(--p-brand)] hover:text-white disabled:opacity-50"
+                          className="p-press rounded-full border border-[var(--p-brand)] px-2 py-0.5 text-[11px] font-semibold text-[var(--p-brand)] hover:bg-[var(--p-brand)] hover:text-white disabled:opacity-50"
                         >
                           {applying === r.id ? "…" : "Aplicar"}
                         </button>
@@ -144,8 +144,8 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
         </div>
       </section>
 
-      <section className="rounded-xl border border-[var(--p-line)] bg-white">
-        <h2 className="border-b border-[var(--p-line)] px-4 py-3 text-xs font-bold uppercase tracking-wider">Margen real de los últimos pedidos</h2>
+      <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <h2 className="px-5 pt-4 pb-1 text-[17px] font-semibold">Margen real de los últimos pedidos</h2>
         <p className="px-4 pt-3 text-xs text-[var(--p-muted)]">
           Con las opciones que eligió cada cliente. Ingresos sin IVA, sin gastos de envío; se descuenta la comisión de la plataforma.
         </p>
@@ -155,7 +155,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-[var(--p-muted)]">
+                <tr className="text-left text-xs text-[var(--p-muted)]">
                   {["Pedido", "Ingresos", "Ingredientes", "Comisión", "Margen"].map((h) => (
                     <th key={h} className="px-4 py-2 font-semibold">{h}</th>
                   ))}
@@ -191,8 +191,8 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[var(--p-line)] bg-white p-4">
-      <div className="text-xs font-bold uppercase tracking-wider text-[var(--p-faint)]">{label}</div>
+    <div className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-4">
+      <div className="text-sm text-[var(--p-muted)]">{label}</div>
       <div className="mt-1 text-2xl font-bold">{value}</div>
     </div>
   );

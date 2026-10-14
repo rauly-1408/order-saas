@@ -18,7 +18,7 @@ type Form = {
 const EMPTY: Form = { id: null, name: "", baseUnit: "G", packSize: "", packPrice: "", wastePct: "0", supplierId: "", allergens: [] };
 
 const input = "w-full rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm outline-none focus:border-[var(--p-brand)]";
-const label = "mb-1 block text-xs font-bold uppercase tracking-wider text-[var(--p-muted)]";
+const label = "mb-1 block text-[13px] font-medium text-[var(--p-muted)]";
 
 export default function Ingredientes({ data, api, onSaved }: { data: Overview; api: string; onSaved: () => Promise<void> }) {
   const [form, setForm] = useState<Form | null>(null);
@@ -82,13 +82,13 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
   return (
     <div className="space-y-4">
       {!form && (
-        <button onClick={() => { setError(""); setForm(EMPTY); }} className="rounded-lg bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
+        <button onClick={() => { setError(""); setForm(EMPTY); }} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
           + Nuevo ingrediente
         </button>
       )}
 
       {form && (
-        <div className="rounded-xl border border-[var(--p-brand-soft)] bg-white p-4 sm:p-6">
+        <div className="rounded-2xl bg-[var(--p-surface)] shadow-[0_12px_32px_-14px_rgba(0,0,0,0.22)] p-4 sm:p-6">
           <h3 className="mb-4 font-bold">{form.id ? "Editar ingrediente" : "Nuevo ingrediente"}</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -151,7 +151,7 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
           </div>
           {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
           <div className="mt-5 flex gap-2">
-            <button onClick={save} disabled={saving} className="rounded-lg bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <button onClick={save} disabled={saving} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
               {saving ? "Guardando…" : "Guardar"}
             </button>
             <button onClick={() => setForm(null)} className="rounded-lg px-4 py-2 text-sm text-[var(--p-muted)] hover:bg-[var(--p-bg)]">Cancelar</button>
@@ -160,11 +160,11 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
       )}
 
       {data.ingredients.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[var(--p-line)] bg-white p-6 text-center text-sm text-[var(--p-muted)]">
+        <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center text-sm text-[var(--p-muted)]">
           Añade los ingredientes que compras con su precio para calcular el coste de tus platos.
         </p>
       ) : (
-        <ul className="divide-y divide-[var(--p-line)] rounded-xl border border-[var(--p-line)] bg-white">
+        <ul className="divide-y divide-[var(--p-line)] rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           {data.ingredients.map((i) => (
             <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
               <div className="min-w-0">
