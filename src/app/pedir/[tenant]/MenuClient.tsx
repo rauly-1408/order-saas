@@ -136,37 +136,39 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           );
         })}
       </nav>
-      <main style={{ maxWidth: "760px", margin: "0 auto", padding: "24px 16px 120px" }}>
+      <main className="mx-auto max-w-6xl px-4 pt-6 pb-[120px]">
         {categories.map((cat) => (
           <section key={cat.slug} ref={(el) => { sectionRefs.current[cat.slug] = el; }} style={{ marginBottom: "40px" }}>
             <h2 style={{ fontSize: "18px", fontWeight: 700, color: cssVars["--text-primary"], marginBottom: "16px", paddingBottom: "8px", borderBottom: `1px solid ${cssVars["--border"]}` }}>{cat.name}</h2>
             {cat.description && <p style={{ fontSize: "13px", color: cssVars["--text-secondary"], marginTop: "-8px", marginBottom: "16px" }}>{cat.description}</p>}
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {/* Cuadrícula: 1 columna en móvil, 2 en tablet, 3 en escritorio */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {cat.products.map((product) => {
                 const qty = getQty(product.id);
                 const lineId = getLineId(product.id);
                 return (
-                  <div key={product.id} style={{ backgroundColor: cssVars["--surface-1"], borderRadius: t.borderRadius, border: qty > 0 ? `1px solid ${cssVars["--brand-accent"]}` : `1px solid ${cssVars["--border"]}`, padding: "16px", display: "flex", alignItems: "center", gap: "16px" }}>
+                  <div key={product.id} className="flex flex-col overflow-hidden" style={{ backgroundColor: cssVars["--surface-1"], borderRadius: t.borderRadius, border: qty > 0 ? `1px solid ${cssVars["--brand-accent"]}` : `1px solid ${cssVars["--border"]}` }}>
                     {product.imageUrl && (
-                      <img src={product.imageUrl} alt={product.name} style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "10px", flexShrink: 0 }} />
+                      <img src={product.imageUrl} alt={product.name} className="aspect-[4/3] w-full object-cover" />
                     )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: "15px", color: cssVars["--text-primary"], marginBottom: "4px" }}>{product.name}</div>
-                      {product.description && <div style={{ fontSize: "13px", color: cssVars["--text-secondary"], lineHeight: 1.4, marginBottom: "8px" }}>{product.description}</div>}
-                      <div style={{ fontWeight: 700, fontSize: "15px", color: cssVars["--brand-accent"] }}>{euros(product.basePriceCents)}</div>
+                    <div className="flex-1 px-4 pt-4">
+                      <div style={{ fontWeight: 700, fontSize: "16px", color: cssVars["--text-primary"], marginBottom: "4px" }}>{product.name}</div>
+                      {product.description && <div style={{ fontSize: "13px", color: cssVars["--text-secondary"], lineHeight: 1.45 }}>{product.description}</div>}
                     </div>
-                    <div style={{ flexShrink: 0 }}>
+                    {/* Pie de tarjeta: precio y acción alineados abajo en toda la fila */}
+                    <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-4">
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: "16px", color: cssVars["--brand-accent"] }}>{euros(product.basePriceCents)}</div>
+                        {product.modifierGroups.length > 0 && qty > 0 && (
+                          <div style={{ fontSize: "11px", color: cssVars["--brand-accent"], fontWeight: 600 }}>{qty} en tu pedido</div>
+                        )}
+                      </div>
                       {product.modifierGroups.length > 0 || qty === 0 ? (
                         // Con opciones, cada combinación es una línea distinta: siempre "Añadir"
                         // (las cantidades se ajustan en el checkout).
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
-                          <button onClick={() => handleAdd(product)} style={{ padding: "8px 18px", borderRadius: "8px", border: "none", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "14px", cursor: "pointer" }}>
-                            Añadir
-                          </button>
-                          {qty > 0 && (
-                            <span style={{ fontSize: "11px", color: cssVars["--brand-accent"], fontWeight: 600 }}>{qty} en tu pedido</span>
-                          )}
-                        </div>
+                        <button onClick={() => handleAdd(product)} style={{ padding: "8px 18px", borderRadius: "8px", border: "none", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "14px", cursor: "pointer" }}>
+                          Añadir
+                        </button>
                       ) : (
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                           <button onClick={() => { if (qty === 1 && lineId) remove(lineId); else if (lineId) dec(lineId); }} style={{ width: "30px", height: "30px", borderRadius: "50%", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 700, fontSize: "18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>-</button>
