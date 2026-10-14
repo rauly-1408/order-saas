@@ -25,7 +25,7 @@
 - [ ] Crear cuenta en **stripe.com** (empezar en **modo test**) y activar **Connect**.
 - [ ] Añadir en Vercel (proyecto `order-saas`) las claves de **test**: `STRIPE_SECRET_KEY`,
       `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` y, tras crear el webhook, `STRIPE_WEBHOOK_SECRET`.
-- [ ] Decidir la **comisión de la plataforma** (p. ej. 1,5 % por pedido, o fija).
+- [x] **Comisión de la plataforma decidida (2026-10-14): 3 % por pedido pagado online**, tarjeta aparte (la paga el restaurante a Stripe), sin cuota fija ni alta; 0 % en "pagar en el local". Ver `docs/competencia/LASTAPP.md`.
 - [ ] Validar el modelo fiscal con un asesor antes del primer cobro real (ver ROADMAP).
 
 ---
