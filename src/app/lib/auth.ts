@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE,
@@ -46,3 +46,18 @@ export async function getSessionFromRequest(
 }
 
 export type { SessionPayload };
+
+// Guard para Route Handlers de /api/admin/[tenant]/...: exige sesión y que el
+// usuario pertenezca a ese tenant (o sea SUPERADMIN). Devuelve la respuesta de
+// error a retornar, o null si tiene acceso.
+export async function denyUnlessTenantAdmin(
+  req: NextRequest,
+  tenantId: string
+): Promise<NextResponse | null> {
+  const session = await getSessionFromRequest(req);
+  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (session.role !== "SUPERADMIN" && session.tenantId !== tenantId) {
+    return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+  }
+  return null;
+}

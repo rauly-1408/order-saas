@@ -59,6 +59,11 @@ model Tenant {
   slug    String   @unique
   domains String[] @default([])
 
+  // Notificaciones (TASK-016)
+  email                String?
+  notificationsEnabled Boolean @default(true)
+  dailySummaryEnabled  Boolean @default(true)
+
   // Identidad visual — temporal en JSON
   // TODO: migrar a tabla TenantTheme cuando exista el dashboard
   // Estructura esperada: { primaryColor, secondaryColor, backgroundColor,

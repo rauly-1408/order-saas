@@ -79,13 +79,13 @@ Entregables:
 
 ---
 
-### Sprint 4 — Gestión sin fricción ⏳ PENDIENTE
+### Sprint 4 — Gestión sin fricción 🔶 PARCIALMENTE ADELANTADO
 **Objetivo**: Que el dueño gestione su negocio en segundos, mobile-first.  
 **Duración estimada**: 2 semanas  
-**Ver detalle**: [SPRINT-04.md](./SPRINT-04.md)
+**Ver detalle**: [SPRINT-04.md](./SPRINT-04.md) (incluye TASK-011..017, antes llamado SPRINT-02)
 
 Entregables:
-- [ ] Editor de menú en una sola pantalla (toggle disponibilidad, editar precio)
+- [~] Editor de menú en una sola pantalla (toggle disponibilidad, editar precio) — pantalla Carta del panel hecha en mayo; falta validar E2E y edición de opciones (pan/guarnición)
 - [ ] Toggle "86" — marcar producto agotado en 1 tap
 - [ ] Rediseño completo del menú del cliente (fotos, layout mobile-first)
 - [ ] Dashboard con alertas inteligentes ("hoy vas 30% por debajo del martes pasado")
