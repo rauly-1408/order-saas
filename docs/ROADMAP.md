@@ -127,6 +127,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 - **App nativa iOS/Android** para el panel del dueño
 - **Marketplace**: los clientes buscan restaurantes cercanos dentro de la plataforma
 - **Integración TPV físico**: sincronizar pedidos online con caja registradora
+- **TPV propio (aparcado 2026-10-14)**: se valoró construir TPV + app de pedidos y cobrar como Last.app (suscripción + instalación). Aparcado por: obligación VeriFactu para sistemas de facturación (sociedades 1-1-2027, autónomos 1-7-2027), meses de desarrollo (sala, comandas, impresoras, offline, cierres de caja) y mercado saturado. Retomar solo con validación fiscal y como línea de producto separada.
 
 ---
 
@@ -158,6 +159,8 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-14 | Baseline de migraciones (`0_init`) y `migrate deploy` en producción | Neon se gestionaba con `db push` y el historial no reflejaba la base real |
 | 2026-10-14 | Integración de las dos líneas de mayo: panel con barra lateral de main + login, CRM, kanban y opciones | Había dos ramas divergentes; main desplegado no tenía login y sus rutas /api/admin estaban abiertas |
 | 2026-10-14 | Menú cliente con tema por tenant (se descarta el diseño con colores fijos estilo BK) | Plataforma multi-restaurante: la marca es de cada tenant; sin fotos el diseño BK mostraba "?" |
+| 2026-10-14 | Comisión 3 % por pedido online, tarjeta aparte, sin cuota fija | Last Shop cobra 4 % + 0,20 € sin tarjeta + cuota hasta 40 €/local + suscripción TPV desde 50 €/mes y 500 € de alta (ver docs/competencia/) |
+| 2026-10-14 | TPV propio aparcado | VeriFactu, coste de desarrollo y mercado saturado; competimos en pedido directo + retención |
 | 2026-10-14 | Producción = proyecto Vercel `order-saas` (order-saas-delta.vercel.app) | Los proyectos `order-saas-d4a4` y `order-saas-tu7k` son duplicados rotos a eliminar |
 
 ---
