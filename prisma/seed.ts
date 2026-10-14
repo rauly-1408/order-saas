@@ -150,6 +150,24 @@ async function main() {
     console.log(`✅ Usuario admin creado: ${adminEmail}`);
   }
 
+  // Usuario encargado de tienda (STORE_MANAGER) para probar permisos. SOLO en
+  // bases locales: en producción el equipo se gestiona desde el panel.
+  if (!remote) {
+    const managerEmail = "encargado@estafeten.com";
+    const existingManager = await prisma.user.findUnique({ where: { email: managerEmail }, select: { id: true } });
+    if (!existingManager) {
+      await prisma.user.create({
+        data: {
+          email: managerEmail,
+          password: hashPassword(process.env.SEED_ADMIN_PASSWORD ?? "changeme123"),
+          role: "STORE_MANAGER",
+          tenantId: tenant.id,
+        },
+      });
+      console.log(`✅ Usuario encargado creado: ${managerEmail} (solo local)`);
+    }
+  }
+
   // 2) Limpieza de la carta (para poder re-ejecutar sin choques).
   // Los pedidos NO se tocan: sus líneas guardan nombre, precio y opciones como
   // snapshot, así que no dependen de que el producto siga existiendo.
