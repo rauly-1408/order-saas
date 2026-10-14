@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 // Last.app-inspired design tokens — system level, no tenant hardcoding
@@ -45,6 +46,7 @@ export default function AdminSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const nav = buildNav(tenant);
+  const [open, setOpen] = useState(false);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
@@ -57,11 +59,34 @@ export default function AdminSidebar({
   }
 
   return (
-    <aside style={{
-      width: 256, minWidth: 256, background: S.white,
-      borderRight: `1px solid ${S.border}`, display: 'flex',
-      flexDirection: 'column', height: '100vh', position: 'sticky', top: 0,
-    }}>
+    <>
+    {/* Móvil: barra superior con botón de menú */}
+    <div
+      className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 px-4 lg:hidden"
+      style={{ background: S.white, borderBottom: `1px solid ${S.border}` }}
+    >
+      <button
+        onClick={() => setOpen(true)}
+        aria-label="Abrir menú"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-xl"
+        style={{ color: S.textDark }}
+      >
+        ☰
+      </button>
+      <span style={{ fontSize: 15, fontWeight: 700, color: S.textDark }}>{tenantName}</span>
+    </div>
+
+    {open && (
+      <button aria-label="Cerrar menú" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-black/30 lg:hidden" />
+    )}
+
+    {/* Escritorio: barra fija. Móvil: panel deslizante. */}
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 min-w-64 flex-col transition-transform lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+        open ? "translate-x-0" : "-translate-x-full"
+      }`}
+      style={{ background: S.white, borderRight: `1px solid ${S.border}` }}
+    >
       {/* Header */}
       <div style={{ padding: '20px 16px 16px', borderBottom: `1px solid ${S.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -92,6 +117,7 @@ export default function AdminSidebar({
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setOpen(false)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '8px 12px', borderRadius: 9999,
@@ -137,5 +163,6 @@ export default function AdminSidebar({
         </button>
       </div>
     </aside>
+    </>
   );
 }
