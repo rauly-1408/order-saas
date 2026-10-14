@@ -16,13 +16,16 @@ Construir la plataforma de gestión de pedidos online más rápida de implementa
 ## 📊 Estado actual del producto
 
 ```
-Fase: Alpha (tenant único: Estafetén)
-Infraestructura: ✅ Next.js 16 + Neon PostgreSQL + Vercel
-Menú online: ✅ /pedir/estafeten funcional (diseño básico)
-Checkout: ✅ Con validación de teléfono y consentimiento de marketing (Sprint 1)
-Panel admin: ✅ Pedidos en tiempo real + sonido; login por tenant (adelantado de Sprint 2)
-Pagos: ❌ Pendiente Sprint 2 (Stripe Connect)
-CRM / retención: ⚠️ Upsert de Customer + segmentación al crear pedido; campañas pendientes (Sprint 3)
+Fase: Alpha en pruebas (tenant único: Estafetén, sin clientes reales)
+Producción: ✅ https://order-saas-delta.vercel.app (Vercel) + Neon PostgreSQL
+Menú online: ✅ Carta real 2026 (50 productos) en cuadrícula, tema por tenant,
+             selector de pan (recomendado preseleccionado), guarnición y extras
+Checkout: ✅ Teléfono validado, consentimiento de marketing, precios calculados en servidor
+Panel admin: ✅ Login + sesión por tenant; barra lateral (Inicio, Pedidos, Carta,
+             Personalización, Configuración); kanban de pedidos con sonido; usable en móvil
+Pagos: ❌ Pendiente Sprint 2 (Stripe Connect) — hoy solo pago en el local
+CRM / retención: ⚠️ Customer + segmentación al crear pedido; campañas pendientes (Sprint 3)
+Base de datos: ✅ Migraciones Prisma con baseline (0_init); nunca `db push` contra Neon
 ```
 
 ---
@@ -50,7 +53,7 @@ Entregables:
 
 ---
 
-### Sprint 2 — Vendible: autenticación + cobro ⏳ PENDIENTE
+### Sprint 2 — Vendible: autenticación + cobro 🔄 EN CURSO (plan 2026-10-14)
 **Objetivo**: Cerrar los bloqueantes que hoy impiden tener un cliente real pagando.  
 **Duración estimada**: 2 semanas  
 **Ver detalle**: [SPRINT-02.md](./SPRINT-02.md)
@@ -151,6 +154,11 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-05-22 | Motor de retención WhatsApp-first como diferenciador central | Es terreno de marketing automation (ventaja del fundador), no copiable por Last.app en su cancha de operativa |
 | 2026-05-22 | Stripe movido de Sprint 4 → Sprint 2 | El cobro es bloqueante de "vendible", no una feature tardía |
 | 2026-05-22 | CRM en tablas propias (Customer/Coupon/Campaign/CampaignSend) | El JSON suelto no sirve para segmentar ni medir conversión; la retención necesita relaciones reales |
+| 2026-10-14 | Precios de pedido calculados en el servidor desde la carta | El navegador podía enviar cualquier precio (incl. 0 €); con modificadores era imprescindible |
+| 2026-10-14 | Baseline de migraciones (`0_init`) y `migrate deploy` en producción | Neon se gestionaba con `db push` y el historial no reflejaba la base real |
+| 2026-10-14 | Integración de las dos líneas de mayo: panel con barra lateral de main + login, CRM, kanban y opciones | Había dos ramas divergentes; main desplegado no tenía login y sus rutas /api/admin estaban abiertas |
+| 2026-10-14 | Menú cliente con tema por tenant (se descarta el diseño con colores fijos estilo BK) | Plataforma multi-restaurante: la marca es de cada tenant; sin fotos el diseño BK mostraba "?" |
+| 2026-10-14 | Producción = proyecto Vercel `order-saas` (order-saas-delta.vercel.app) | Los proyectos `order-saas-d4a4` y `order-saas-tu7k` son duplicados rotos a eliminar |
 
 ---
 
