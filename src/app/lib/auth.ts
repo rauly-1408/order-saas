@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
+import { redirect } from "next/navigation";
+import { canManageTenant } from "@/app/lib/roles";
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE,
@@ -47,9 +49,10 @@ export async function getSessionFromRequest(
 
 export type { SessionPayload };
 
-// Guard para Route Handlers de /api/admin/[tenant]/...: exige sesión y que el
-// usuario pertenezca a ese tenant (o sea SUPERADMIN). Devuelve la respuesta de
-// error a retornar, o null si tiene acceso.
+// Guard para Route Handlers de /api/admin/[tenant]/... (carta, personalización,
+// configuración): exige sesión, que el usuario pertenezca a ese tenant (o sea
+// SUPERADMIN) y que pueda gestionarlo (no STORE_MANAGER). Devuelve la respuesta
+// de error a retornar, o null si tiene acceso.
 export async function denyUnlessTenantAdmin(
   req: NextRequest,
   tenantId: string
@@ -59,5 +62,16 @@ export async function denyUnlessTenantAdmin(
   if (session.role !== "SUPERADMIN" && session.tenantId !== tenantId) {
     return NextResponse.json({ error: "Prohibido" }, { status: 403 });
   }
+  if (!canManageTenant(session.role)) {
+    return NextResponse.json({ error: "Tu usuario solo puede gestionar pedidos" }, { status: 403 });
+  }
   return null;
+}
+
+// Para páginas del panel reservadas a quien gestiona el restaurante. El layout
+// (panel) ya garantiza sesión y tenant; aquí se filtra por rol.
+export async function requireManagerPage(tenant: string): Promise<void> {
+  const session = await getSession();
+  if (!session) redirect(`/admin/${tenant}/login`);
+  if (!canManageTenant(session.role)) redirect(`/admin/${tenant}/pedidos`);
 }
