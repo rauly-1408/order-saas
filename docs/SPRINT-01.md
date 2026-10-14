@@ -22,7 +22,9 @@ Corrección posterior: el criterio de TASK-001 "los modificadores suman al preci
 cumplía (el menú no permitía elegir pan/guarnición). Resuelto en `feat/menu-modifiers`: selector
 de opciones con pan recomendado preseleccionado, carta real 2026 y precios calculados en servidor.
 
-Pendiente arrastrado: rebaseline de migraciones Prisma (Neon se gestionó con `db push`).
+Migraciones: rebaseline hecho el 2026-10-14 (`0_init` marcada como aplicada en Neon, que se
+gestionaba con `db push`). A partir de ahora: `prisma migrate dev` en local y
+`prisma migrate deploy` en producción — nunca `db push` contra Neon.
 
 ---
 

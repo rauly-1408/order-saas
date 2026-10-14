@@ -78,8 +78,29 @@ type SeedJson = {
   products?: SeedProduct[];
 };
 
+// El seed REEMPLAZA la carta (categorías, productos, modificadores). En una base
+// remota (Neon = producción) exige SEED_ALLOW_REMOTE=1 para evitar accidentes.
+function assertSafeTarget(): { remote: boolean } {
+  const url = process.env.DATABASE_URL ?? "";
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    throw new Error("DATABASE_URL no es una URL válida");
+  }
+  const remote = !["localhost", "127.0.0.1", "::1"].includes(host);
+  if (remote && process.env.SEED_ALLOW_REMOTE !== "1") {
+    throw new Error(
+      `Seed bloqueado: DATABASE_URL apunta a "${host}" (no es local). ` +
+        "Si de verdad quieres reemplazar la carta ahí, ejecuta con SEED_ALLOW_REMOTE=1."
+    );
+  }
+  return { remote };
+}
+
 async function main() {
-  console.log("🌱 Iniciando seed Estafeten...");
+  const { remote } = assertSafeTarget();
+  console.log(`🌱 Iniciando seed Estafeten${remote ? " (BASE REMOTA)" : ""}...`);
 
   const filePath = path.join(process.cwd(), "src/app/data/seedMenu.estafeten.json");
   if (!fs.existsSync(filePath)) {
@@ -109,27 +130,29 @@ async function main() {
 
   console.log(`✅ Tenant creado: ${tenant.name}`);
 
-  // Usuario admin del tenant (para acceder al panel). Password hasheado con scrypt.
-  // Configurable con SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD; cámbialo tras el primer login.
+  // Usuario admin del tenant. Solo se CREA si no existe: nunca se sobrescribe la
+  // contraseña de un usuario existente. En remoto exige SEED_ADMIN_PASSWORD.
   const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? "admin@estafeten.com").toLowerCase();
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "changeme123";
-  const passwordHash = hashPassword(adminPassword);
-  await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: { password: passwordHash, role: "TENANT_ADMIN", tenantId: tenant.id },
-    create: {
-      email: adminEmail,
-      password: passwordHash,
-      role: "TENANT_ADMIN",
-      tenantId: tenant.id,
-    },
-  });
-  console.log(`✅ Usuario admin: ${adminEmail}`);
+  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail }, select: { id: true } });
+  if (existingAdmin) {
+    console.log(`✅ Usuario admin ya existe: ${adminEmail} (contraseña sin cambios)`);
+  } else if (remote && !process.env.SEED_ADMIN_PASSWORD) {
+    console.warn(`⚠️ Usuario admin NO creado: en remoto define SEED_ADMIN_PASSWORD`);
+  } else {
+    await prisma.user.create({
+      data: {
+        email: adminEmail,
+        password: hashPassword(process.env.SEED_ADMIN_PASSWORD ?? "changeme123"),
+        role: "TENANT_ADMIN",
+        tenantId: tenant.id,
+      },
+    });
+    console.log(`✅ Usuario admin creado: ${adminEmail}`);
+  }
 
-  // 2) Limpieza (para poder re-ejecutar sin choques)
-  await prisma.orderLine.deleteMany({ where: { order: { tenantId: tenant.id } } });
-  await prisma.order.deleteMany({ where: { tenantId: tenant.id } });
-
+  // 2) Limpieza de la carta (para poder re-ejecutar sin choques).
+  // Los pedidos NO se tocan: sus líneas guardan nombre, precio y opciones como
+  // snapshot, así que no dependen de que el producto siga existiendo.
   await prisma.productModifierGroup.deleteMany({ where: { product: { tenantId: tenant.id } } });
   await prisma.product.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.category.deleteMany({ where: { tenantId: tenant.id } });
@@ -137,19 +160,18 @@ async function main() {
   await prisma.modifierOption.deleteMany({ where: { group: { tenantId: tenant.id } } });
   await prisma.modifierGroup.deleteMany({ where: { tenantId: tenant.id } });
 
-  await prisma.store.deleteMany({ where: { tenantId: tenant.id } });
+  // 3) Store: se actualiza si existe (los pedidos la referencian, no se puede borrar).
+  const storeData = {
+    name: seed.store.name,
+    address: seed.store.address,
+    openingHours: asJson(seed.store.hours ?? {}),
+  };
+  const existingStore = await prisma.store.findFirst({ where: { tenantId: tenant.id }, select: { id: true } });
+  const store = existingStore
+    ? await prisma.store.update({ where: { id: existingStore.id }, data: storeData })
+    : await prisma.store.create({ data: { tenantId: tenant.id, ...storeData } });
 
-  // 3) Store
-  const store = await prisma.store.create({
-    data: {
-      tenantId: tenant.id,
-      name: seed.store.name,
-      address: seed.store.address,
-      openingHours: asJson(seed.store.hours ?? {}),
-    },
-  });
-
-  console.log(`✅ Store creada: ${store.name}`);
+  console.log(`✅ Store ${existingStore ? "actualizada" : "creada"}: ${store.name}`);
 
   // 4) Modificadores
   const groupMap = new Map<string, string>(); // code -> groupId
