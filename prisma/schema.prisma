@@ -18,6 +18,21 @@ enum Channel {
   TAKEAWAY
 }
 
+// Cómo paga el cliente: en el local (efectivo/datáfono) o con tarjeta online (Stripe).
+enum PaymentMethod {
+  IN_STORE
+  CARD
+}
+
+// Estado del cobro online. Los pedidos IN_STORE quedan en UNPAID (se cobran en el local).
+enum PaymentStatus {
+  UNPAID
+  PENDING // PaymentIntent creado, esperando confirmación del webhook
+  PAID
+  FAILED
+  REFUNDED
+}
+
 enum OrderStatus {
   CREATED
   PAID
@@ -63,6 +78,12 @@ model Tenant {
   email                String?
   notificationsEnabled Boolean @default(true)
   dailySummaryEnabled  Boolean @default(true)
+
+  // Stripe Connect (Express): el restaurante cobra a su nombre (merchant of record)
+  stripeAccountId      String? @unique
+  stripeChargesEnabled Boolean @default(false)
+  // Comisión de la plataforma en puntos básicos (300 = 3 %), solo en pagos online
+  platformFeeBps       Int     @default(300)
 
   // Identidad visual — temporal en JSON
   // TODO: migrar a tabla TenantTheme cuando exista el dashboard
@@ -269,6 +290,12 @@ model Order {
   subtotalCents Int    @default(0)
   feesCents     Int    @default(0)
   totalCents    Int    @default(0)
+
+  // Pago
+  paymentMethod         PaymentMethod @default(IN_STORE)
+  paymentStatus         PaymentStatus @default(UNPAID)
+  stripePaymentIntentId String?       @unique
+  applicationFeeCents   Int           @default(0) // comisión de la plataforma cobrada en este pedido
 
   posProvider   String?
   posExternalId String?
