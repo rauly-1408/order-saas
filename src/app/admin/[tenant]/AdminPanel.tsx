@@ -168,20 +168,26 @@ function playBeep(ctxRef: React.MutableRefObject<AudioContext | null>) {
     if (!Ctor) return;
     if (!ctxRef.current) ctxRef.current = new Ctor();
     const ctx = ctxRef.current;
-    if (ctx.state === "suspended") ctx.resume().catch(() => null);
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(880, now);
-    osc.frequency.setValueAtTime(660, now + 0.12);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.25, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.36);
+    const beep = () => {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(660, now + 0.12);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.25, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.36);
+    };
+
+    // resume() es asíncrono: si el contexto estaba suspendido, hay que esperar
+    // a que vuelva a "running" o el pitido se programa en un reloj parado.
+    if (ctx.state === "suspended") ctx.resume().then(beep).catch(() => null);
+    else beep();
   } catch {
     // browser blocked audio, swallow
   }
@@ -192,6 +198,10 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const prevIds = useRef<Set<string>>(new Set());
+  // Distingue la primera carga (no debe sonar) de un panel vacío (el primer
+  // pedido SÍ debe sonar). Antes se usaba prevIds.size > 0 y un panel vacío
+  // nunca avisaba.
+  const initialLoadDone = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   const loadOrders = useCallback(async () => {
@@ -201,11 +211,12 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       const data = await res.json() as { orders: Order[] };
       const incoming = data.orders ?? [];
       const hasNew = incoming.some((o) => !prevIds.current.has(o.id));
-      if (hasNew && prevIds.current.size > 0) {
+      if (hasNew && initialLoadDone.current) {
         playBeep(audioCtxRef);
         if (document.hidden) document.title = "Nuevo pedido!";
       }
       prevIds.current = new Set(incoming.map((o) => o.id));
+      initialLoadDone.current = true;
       setOrders(incoming);
     } catch {
       // silent fail
