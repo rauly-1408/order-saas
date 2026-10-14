@@ -25,7 +25,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         <input type="color" value={value} onChange={e => onChange(e.target.value)}
           style={{ width: 40, height: 36, borderRadius: 4, cursor: 'pointer', border: `1px solid ${S.border}`, padding: 2 }} />
         <input value={value} onChange={e => onChange(e.target.value)}
-          style={{ flex: 1, padding: '8px 12px', fontSize: 13, fontFamily: 'monospace', border: `1px solid ${S.border}`, borderRadius: 4, outline: 'none', color: S.textDark }} />
+          style={{ flex: 1, minWidth: 0, padding: '8px 12px', fontSize: 13, fontFamily: 'monospace', border: `1px solid ${S.border}`, borderRadius: 4, outline: 'none', color: S.textDark }} />
       </div>
     </div>
   );
@@ -113,7 +113,7 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
 
       <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 8, padding: 24, marginBottom: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: S.textDark, marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Colores</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="grid gap-4 sm:grid-cols-2">
           <ColorField label="Color principal" value={form.primaryColor} onChange={v => setForm({ ...form, primaryColor: v })} />
           <ColorField label="Color secundario" value={form.secondaryColor} onChange={v => setForm({ ...form, secondaryColor: v })} />
           <ColorField label="Fondo de la carta" value={form.backgroundColor} onChange={v => setForm({ ...form, backgroundColor: v })} />

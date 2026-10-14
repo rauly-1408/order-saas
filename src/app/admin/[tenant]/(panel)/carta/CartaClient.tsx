@@ -125,7 +125,7 @@ export default function CartaClient({ tenant }: { tenant: string }) {
           <div style={{ fontSize: 16, fontWeight: 700, color: S.textDark, marginBottom: 20 }}>
             {editingProduct ? `Editar: ${editingProduct.name}` : 'Nuevo producto'}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="grid gap-4 sm:grid-cols-2">
             {[
               { key: 'name', label: 'Nombre *', placeholder: 'Nombre del producto', span: false },
               { key: 'basePriceCents', label: 'Precio (céntimos) *', placeholder: '1200 = 12,00€', span: false },
@@ -183,7 +183,9 @@ export default function CartaClient({ tenant }: { tenant: string }) {
         {loading ? (
           <div style={{ padding: 48, textAlign: 'center', color: S.textMid }}>Cargando productos...</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          // En móvil la tabla se desplaza en horizontal en vez de cortarse
+          <div className="overflow-x-auto">
+          <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 {['Nombre', 'Categoría', 'Precio', 'Activo', 'Disponible', 'Acciones'].map(h => (
@@ -226,6 +228,7 @@ export default function CartaClient({ tenant }: { tenant: string }) {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
