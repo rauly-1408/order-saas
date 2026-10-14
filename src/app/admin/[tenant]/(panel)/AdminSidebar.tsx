@@ -21,16 +21,18 @@ type NavItem = {
   href: string;
   icon: string;
   exact?: boolean;
+  managerOnly?: boolean; // oculto para STORE_MANAGER
 };
 
 function buildNav(tenant: string): NavItem[] {
   const base = `/admin/${tenant}`;
   return [
-    { label: 'Inicio',            href: `${base}/home`,             icon: '⊙', exact: true },
+    { label: 'Inicio',            href: `${base}/home`,             icon: '⊙', exact: true, managerOnly: true },
     { label: 'Pedidos',           href: `${base}/pedidos`,          icon: '🛒' },
-    { label: 'Carta',             href: `${base}/carta`,            icon: '📋' },
-    { label: 'Personalización',   href: `${base}/personalizacion`,  icon: '🎨' },
-    { label: 'Configuración',     href: `${base}/configuracion`,    icon: '⚙️' },
+    { label: 'Carta',             href: `${base}/carta`,            icon: '📋', managerOnly: true },
+    { label: 'Costes',            href: `${base}/costes`,           icon: '🧮', managerOnly: true },
+    { label: 'Personalización',   href: `${base}/personalizacion`,  icon: '🎨', managerOnly: true },
+    { label: 'Configuración',     href: `${base}/configuracion`,    icon: '⚙️', managerOnly: true },
   ];
 }
 
@@ -38,14 +40,16 @@ export default function AdminSidebar({
   tenant,
   tenantName,
   logoUrl,
+  canManage,
 }: {
   tenant: string;
   tenantName: string;
   logoUrl: string | null;
+  canManage: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const nav = buildNav(tenant);
+  const nav = buildNav(tenant).filter((item) => canManage || !item.managerOnly);
   const [open, setOpen] = useState(false);
 
   async function handleLogout() {

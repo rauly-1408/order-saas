@@ -1,4 +1,5 @@
 import { prisma } from "@/app/lib/prisma";
+import { requireManagerPage } from "@/app/lib/auth";
 import { formatTimeIn, startOfTodayIn, tenantTimeZone } from "@/app/lib/time";
 
 const S = { textDark: '#393659', textMid: '#b8b6df', white: '#ffffff', border: '#eaeaf4', purple: '#7939fe', purpleLight: '#e0d1ff', purpleDark: '#5707fd', green: '#1ade92' };
@@ -15,6 +16,7 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
 
 export default async function AdminHomePage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
+  await requireManagerPage(tenant); // Inicio muestra ingresos: solo dueño/superadmin
 
   const tenantData = await prisma.tenant.findUnique({
     where: { slug: tenant },

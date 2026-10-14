@@ -18,6 +18,36 @@ enum Channel {
   TAKEAWAY
 }
 
+// Módulos de pago que un restaurante puede contratar aparte del producto base.
+enum Addon {
+  COSTS     // Costes y margen (escandallos, inventario, compras)
+  RETENTION // Motor de retención (campañas)
+}
+
+// Unidad base de un ingrediente: la misma para el formato de compra y el escandallo.
+enum BaseUnit {
+  KG
+  G
+  L
+  ML
+  UNIT
+}
+
+// Cómo paga el cliente: en el local (efectivo/datáfono) o con tarjeta online (Stripe).
+enum PaymentMethod {
+  IN_STORE
+  CARD
+}
+
+// Estado del cobro online. Los pedidos IN_STORE quedan en UNPAID (se cobran en el local).
+enum PaymentStatus {
+  UNPAID
+  PENDING // PaymentIntent creado, esperando confirmación del webhook
+  PAID
+  FAILED
+  REFUNDED
+}
+
 enum OrderStatus {
   CREATED
   PAID
@@ -64,6 +94,15 @@ model Tenant {
   notificationsEnabled Boolean @default(true)
   dailySummaryEnabled  Boolean @default(true)
 
+  // Stripe Connect (Express): el restaurante cobra a su nombre (merchant of record)
+  stripeAccountId      String? @unique
+  stripeChargesEnabled Boolean @default(false)
+  // Comisión de la plataforma en puntos básicos (300 = 3 %), solo en pagos online
+  platformFeeBps       Int     @default(300)
+
+  // Módulos contratados
+  addons Addon[] @default([])
+
   // Identidad visual — temporal en JSON
   // TODO: migrar a tabla TenantTheme cuando exista el dashboard
   // Estructura esperada: { primaryColor, secondaryColor, backgroundColor,
@@ -88,6 +127,9 @@ model Tenant {
   customers      Customer[]
   coupons        Coupon[]
   campaigns      Campaign[]
+  suppliers      Supplier[]
+  ingredients    Ingredient[]
+  recipeLines    RecipeLine[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -177,6 +219,7 @@ model Product {
   sortOrder Int @default(0) // NUEVO: orden dentro de categoría
 
   modifierGroups ProductModifierGroup[]
+  recipeLines    RecipeLine[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -217,7 +260,8 @@ model ModifierOption {
   sortOrder      Int    @default(0)
   isAvailable    Boolean @default(true) // NUEVO
 
-  defaultFor ProductModifierGroup[]
+  defaultFor  ProductModifierGroup[]
+  recipeLines RecipeLine[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -269,6 +313,12 @@ model Order {
   subtotalCents Int    @default(0)
   feesCents     Int    @default(0)
   totalCents    Int    @default(0)
+
+  // Pago
+  paymentMethod         PaymentMethod @default(IN_STORE)
+  paymentStatus         PaymentStatus @default(UNPAID)
+  stripePaymentIntentId String?       @unique
+  applicationFeeCents   Int           @default(0) // comisión de la plataforma cobrada en este pedido
 
   posProvider   String?
   posExternalId String?
@@ -451,4 +501,78 @@ model CampaignSend {
   updatedAt DateTime @updatedAt
 
   @@unique([campaignId, customerId])
+}
+
+// ─────────────────────────────────────────────
+//  MÓDULO COSTES — proveedores, ingredientes y escandallos
+//  Ver docs/MODULO-COSTES.md
+// ─────────────────────────────────────────────
+model Supplier {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  notes       String?
+
+  ingredients Ingredient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name])
+}
+
+model Ingredient {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  name     String
+  baseUnit BaseUnit
+
+  // Formato de compra: p. ej. caja de 5000 g a 12,50 € → packSize 5000, packPriceCents 1250
+  packSize       Float
+  packPriceCents Int
+
+  // Merma (% que se pierde al limpiar/preparar): encarece el coste útil
+  wastePct  Float    @default(0)
+  allergens String[] @default([])
+  isActive  Boolean  @default(true)
+
+  recipeLines RecipeLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name])
+}
+
+// Línea de escandallo: cantidad de un ingrediente (en su unidad base) que lleva
+// un producto O una opción de modificador (pan, guarnición, salsa…).
+model RecipeLine {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  quantity     Float
+
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  modifierOptionId String?
+  modifierOption   ModifierOption? @relation(fields: [modifierOptionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, productId])
+  @@index([tenantId, modifierOptionId])
 }
