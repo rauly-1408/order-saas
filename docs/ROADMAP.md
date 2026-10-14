@@ -24,7 +24,7 @@ Checkout: ✅ Teléfono validado, consentimiento de marketing, precios calculado
 Panel admin: ✅ Login + sesión por tenant; barra lateral (Inicio, Pedidos, Carta,
              Personalización, Configuración); kanban de pedidos con sonido; usable en móvil
 Pagos: ❌ Pendiente Sprint 2 (Stripe Connect) — hoy solo pago en el local
-CRM / retención: ⚠️ Customer + segmentación al crear pedido; campañas pendientes (Sprint 3)
+CRM / retención: ✅ Fase 1 (clientes, segmentos, cupones, campañas WhatsApp manuales, atribución) — IA y Business API en fase 2
 Base de datos: ✅ Migraciones Prisma con baseline (0_init); nunca `db push` contra Neon
 ```
 
@@ -36,7 +36,7 @@ Base de datos: ✅ Migraciones Prisma con baseline (0_init); nunca `db push` con
 |---|---|---|
 | Pedidos (base) | 3 % por pedido pagado online; 0 % en "pagar en el local"; sin cuota fija | ✅ Producción |
 | Costes y margen | Add-on de pago (referencia Tavola: 0 / 45 / 75 €/mes) | 🔄 Fases 1-3 (escandallos, inventario, compras) — ver [MODULO-COSTES.md](./MODULO-COSTES.md) |
-| Retención | Add-on de pago | ⏳ Sprint 3 |
+| Retención | Add-on de pago | 🔄 Fase 1 (clientes, cupones, campañas, atribución) — ver [SPRINT-03.md](./SPRINT-03.md) |
 | TPV propio | — | 🅿️ Aparcado (ver backlog) |
 
 Los módulos se activan por restaurante (`Tenant.addons`).
@@ -79,19 +79,19 @@ Entregables:
 
 ---
 
-### Sprint 3 — ⭐ Motor de retención (EL DIFERENCIADOR) ⏳ PENDIENTE
+### Sprint 3 — ⭐ Motor de retención (EL DIFERENCIADOR) 🔄 FASE 1 COMPLETADA (2026-10-16)
 **Objetivo**: Lo que Last.app no tiene. Devolverle al restaurante la propiedad del cliente y hacerlo volver solo.  
 **Duración estimada**: 3 semanas  
 **Ver detalle**: [SPRINT-03.md](./SPRINT-03.md)
 
 Entregables:
 - [x] Upsert de `Customer` (clave: tenant + teléfono) al confirmar cada pedido, con métricas agregadas
-- [~] Segmentación automática: NEW / REGULAR / VIP / AT_RISK (se calcula al crear pedido; falta job periódico para que AT_RISK se active sin nuevo pedido)
-- [ ] Campañas por segmento (`Campaign` + `CampaignSend`) con dedupe por cliente
-- [ ] Envío nativo por **WhatsApp** (Business API / Twilio)
-- [ ] Cupones de retención (`Coupon`) vinculados a campaña, creados en 1 click
+- [x] Segmentación automática: NEW / REGULAR / VIP / AT_RISK (se recalcula con la fecha actual al abrir Clientes y al crear campañas)
+- [x] Campañas por segmento (`Campaign` + `CampaignSend`) con dedupe por cliente y máximo 1 por semana
+- [~] Envío por **WhatsApp**: manual asistido (`wa.me`) hecho; Business API en fase 2, cuando exista la cuenta
+- [x] Cupones de retención (`Coupon`) vinculados a campaña, creados en 1 click y aplicables en el checkout
 - [ ] **IA que redacta la promo** según segmento y contexto del negocio
-- [ ] Atribución: marcar `CampaignSend` como CONVERTED cuando el cliente vuelve a pedir
+- [x] Atribución: marcar `CampaignSend` como CONVERTED cuando el cliente vuelve a pedir (14 días)
 
 ---
 
@@ -176,6 +176,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-14 | TPV propio aparcado | VeriFactu, coste de desarrollo y mercado saturado; competimos en pedido directo + retención |
 | 2026-10-14 | Producción = proyecto Vercel `order-saas` (order-saas-delta.vercel.app) | Los proyectos `order-saas-d4a4` y `order-saas-tu7k` son duplicados rotos a eliminar |
 | 2026-10-14 | Rediseño "Apple × marca del restaurante" en panel y carta pública | El panel era casi idéntico al de Last.app. Ahora: tipografía de sistema, movimiento suave, tarjetas que se elevan y la identidad de cada tenant (`branding.panel` en el panel; `headingFont`/`headingCase` y texto sobre acento calculado por contraste en la carta) |
+| 2026-10-16 | Retención fase 1 con envío manual asistido por WhatsApp (`wa.me`) | Funciona hoy sin cuenta de Business API ni coste por mensaje; el envío automático llega en fase 2 sobre el mismo modelo de datos |
 
 ---
 

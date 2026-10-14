@@ -4,6 +4,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { selectionToModifiers, validateSelection, type MenuModifierGroup } from "@/app/lib/menuOptions";
 import { applyStockDeltas, orderConsumption, type ConsumptionItem } from "@/app/lib/inventory";
+import { computeSegment, couponDiscount, couponProblem, normalizeCode, normalizePhone, withinAttribution, ATTRIBUTION_DAYS } from "@/app/lib/retention";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,21 +25,16 @@ type OrderBody = {
   channel: "DELIVERY" | "TAKEAWAY";
   notes?: string;
   marketingConsent?: boolean;
+  couponCode?: string;
   items: OrderLineInput[];
 };
+
+// Error de cupón detectado dentro de la transacción → 400 con el motivo.
+class CouponError extends Error {}
 
 const ORDER_NUMBER_RETRIES = 5;
 const MAX_QTY_PER_LINE = 50;
 const HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-// Normaliza el teléfono a una clave estable: solo dígitos (y un + inicial
-// opcional). Evita que "600 123 123" y "600123123" creen dos clientes.
-function normalizePhone(raw: string): string {
-  const trimmed = raw.trim();
-  const hasPlus = trimmed.startsWith("+");
-  const digits = trimmed.replace(/\D/g, "");
-  return hasPlus ? `+${digits}` : digits;
-}
 
 // Valida un teléfono español (móvil o fijo): 9 dígitos que empiezan en 6/7/8/9,
 // con prefijo +34 / 0034 opcional. Última línea de defensa del CRM: aunque el
@@ -46,29 +42,6 @@ function normalizePhone(raw: string): string {
 function isValidSpanishPhone(raw: string): boolean {
   const cleaned = raw.replace(/[\s-]/g, "");
   return /^(?:\+34|0034)?[6789]\d{8}$/.test(cleaned);
-}
-
-// Reglas de segmento. Heurística inicial — luego se puede afinar o mover a un job.
-// AT_RISK gana sobre todo: un buen cliente que dejó de venir es la prioridad de retención.
-const AT_RISK_DAYS = 30;
-
-function computeSegment(
-  ordersCount: number,
-  totalSpentCents: number,
-  lastOrderAt: Date
-): "NEW" | "REGULAR" | "VIP" | "AT_RISK" {
-  const daysSinceLast = (Date.now() - lastOrderAt.getTime()) / 86_400_000;
-
-  // Si tenía historial (2+ pedidos) y lleva >30 días sin pedir → en riesgo.
-  if (ordersCount >= 2 && daysSinceLast > AT_RISK_DAYS) return "AT_RISK";
-
-  // VIP: muchos pedidos o alto gasto acumulado (≥ 150 €).
-  if (ordersCount >= 6 || totalSpentCents >= 15_000) return "VIP";
-
-  // REGULAR: ya repitió al menos una vez.
-  if (ordersCount >= 2) return "REGULAR";
-
-  return "NEW";
 }
 
 export async function POST(req: NextRequest) {
@@ -86,6 +59,7 @@ export async function POST(req: NextRequest) {
       channel,
       notes,
       marketingConsent,
+      couponCode,
       items,
     } = body;
 
@@ -99,6 +73,10 @@ export async function POST(req: NextRequest) {
 
     if (marketingConsent !== undefined && typeof marketingConsent !== "boolean") {
       return NextResponse.json({ error: "Consentimiento inválido" }, { status: 400 });
+    }
+
+    if (couponCode !== undefined && typeof couponCode !== "string") {
+      return NextResponse.json({ error: "Cupón inválido" }, { status: 400 });
     }
 
     if (channel !== "DELIVERY" && channel !== "TAKEAWAY") {
@@ -215,7 +193,22 @@ export async function POST(req: NextRequest) {
 
     const subtotalCents = linesCreate.reduce((acc, line) => acc + (line.totalCents ?? 0), 0);
     const feesCents = channel === "DELIVERY" ? store.deliveryFeeCents : 0;
-    const totalCents = subtotalCents + feesCents;
+
+    // Cupón (motor de retención): solo si el restaurante lo tiene contratado.
+    const code = couponCode ? normalizeCode(couponCode) : "";
+    let coupon: { id: string; oncePerCustomer: boolean; maxRedemptions: number | null } | null = null;
+    let discountCents = 0;
+    if (code) {
+      const found = tenant.addons.includes("RETENTION")
+        ? await prisma.coupon.findUnique({ where: { tenantId_code: { tenantId: tenant.id, code } } })
+        : null;
+      if (!found) return NextResponse.json({ error: "Ese cupón no existe" }, { status: 400 });
+      const problem = couponProblem(found, subtotalCents);
+      if (problem) return NextResponse.json({ error: problem }, { status: 400 });
+      coupon = { id: found.id, oncePerCustomer: found.oncePerCustomer, maxRedemptions: found.maxRedemptions };
+      discountCents = couponDiscount(found, subtotalCents);
+    }
+    const totalCents = subtotalCents + feesCents - discountCents;
     const settings = tenant.settings as Record<string, unknown>;
     const currency = (settings?.currency as string) ?? "EUR";
 
@@ -237,13 +230,17 @@ export async function POST(req: NextRequest) {
           currency,
           subtotalCents,
           feesCents,
+          discountCents,
           totalCents,
+          coupon,
+          retention: tenant.addons.includes("RETENTION"),
           lines: linesCreate,
           // Inventario (módulo Costes): solo si el restaurante lo tiene contratado
           consumption: tenant.addons.includes("COSTS") ? consumption : [],
         });
         break;
       } catch (err) {
+        if (err instanceof CouponError) return NextResponse.json({ error: err.message }, { status: 400 });
         lastError = err;
         const isCollision =
           err instanceof Prisma.PrismaClientKnownRequestError &&
@@ -284,7 +281,10 @@ type CreateOrderInput = {
   currency: string;
   subtotalCents: number;
   feesCents: number;
+  discountCents: number;
   totalCents: number;
+  coupon: { id: string; oncePerCustomer: boolean; maxRedemptions: number | null } | null;
+  retention: boolean;
   lines: Prisma.OrderLineCreateWithoutOrderInput[];
   consumption: ConsumptionItem[];
 };
@@ -316,7 +316,7 @@ async function createOrderWithNumber(input: CreateOrderInput) {
 
     const newOrdersCount = (existing?.ordersCount ?? 0) + 1;
     const newTotalSpent = (existing?.totalSpentCents ?? 0) + input.totalCents;
-    const segment = computeSegment(newOrdersCount, newTotalSpent, now);
+    const segment = computeSegment(newOrdersCount, newTotalSpent, now, now);
 
     // Consentimiento: solo se CONCEDE desde el checkout (opt-in explícito).
     // Desmarcar la casilla en un pedido posterior no lo revoca — la baja va por
@@ -349,6 +349,22 @@ async function createOrderWithNumber(input: CreateOrderInput) {
       select: { id: true },
     });
 
+    // Cupón: un uso por teléfono (si así se creó) y tope de usos atómico.
+    if (input.coupon) {
+      if (input.coupon.oncePerCustomer && existing) {
+        const used = await tx.order.count({ where: { couponId: input.coupon.id, customerId: customer.id, status: { not: "CANCELLED" } } });
+        if (used > 0) throw new CouponError("Ya has usado este cupón");
+      }
+      const claimed = await tx.coupon.updateMany({
+        where: {
+          id: input.coupon.id,
+          ...(input.coupon.maxRedemptions != null && { redeemedCount: { lt: input.coupon.maxRedemptions } }),
+        },
+        data: { redeemedCount: { increment: 1 } },
+      });
+      if (claimed.count === 0) throw new CouponError("Este cupón ya se ha agotado");
+    }
+
     const order = await tx.order.create({
       data: {
         tenantId: input.tenantId,
@@ -365,11 +381,33 @@ async function createOrderWithNumber(input: CreateOrderInput) {
         currency: input.currency,
         subtotalCents: input.subtotalCents,
         feesCents: input.feesCents,
+        discountCents: input.discountCents,
         totalCents: input.totalCents,
+        couponId: input.coupon?.id ?? null,
         items: { create: input.lines },
       },
       include: { items: true },
     });
+
+    // Atribución: si el cliente recibió una campaña hace poco, ese envío se
+    // marca como convertido. Gana la campaña del cupón usado; si no, la última.
+    if (input.retention && existing) {
+      const since = new Date(now.getTime() - ATTRIBUTION_DAYS * 86_400_000);
+      const sends = await tx.campaignSend.findMany({
+        where: { customerId: customer.id, status: "SENT", sentAt: { gte: since } },
+        orderBy: { sentAt: "desc" },
+        select: { id: true, sentAt: true, campaign: { select: { couponId: true } } },
+      });
+      const match =
+        (input.coupon && sends.find((s) => s.campaign.couponId === input.coupon!.id)) ||
+        sends.find((s) => s.sentAt && withinAttribution(s.sentAt, now));
+      if (match) {
+        await tx.campaignSend.update({
+          where: { id: match.id },
+          data: { status: "CONVERTED", convertedAt: now, convertedOrderId: order.id },
+        });
+      }
+    }
 
     // Descuento de stock en la misma transacción: si falla, no hay pedido.
     if (input.consumption.length) {
@@ -404,7 +442,7 @@ export async function GET(req: NextRequest) {
         tenantId: tenant.id,
         status: { in: ["CREATED", "ACCEPTED", "PREPARING", "READY", "DELIVERING"] },
       },
-      include: { items: true },
+      include: { items: true, coupon: { select: { code: true } } },
       orderBy: { createdAt: "asc" },
     });
 
@@ -416,7 +454,7 @@ export async function GET(req: NextRequest) {
         status: { in: ["DELIVERED", "CANCELLED"] },
         updatedAt: { gte: since },
       },
-      include: { items: true },
+      include: { items: true, coupon: { select: { code: true } } },
       orderBy: { updatedAt: "desc" },
       take: 50,
     });

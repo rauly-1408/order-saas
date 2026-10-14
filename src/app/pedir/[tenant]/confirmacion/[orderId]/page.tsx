@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { prisma } from "@/app/lib/prisma";
-import { getTenantTheme, getTenantSettings, themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
+import { getTenantTheme, themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 
 const euros = (cents: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -18,12 +18,11 @@ export default async function ConfirmacionPage({
   });
 
   const theme = getTenantTheme((tenantData?.branding as Record<string, unknown>) ?? {});
-  const storeSettings = getTenantSettings((tenantData?.settings as Record<string, unknown>) ?? {});
   const cssVars = themeToCssVars(theme ?? SYSTEM_DEFAULT_THEME);
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true, store: true },
+    include: { items: true, store: true, coupon: { select: { code: true } } },
   });
 
   if (!order) {
@@ -52,9 +51,10 @@ export default async function ConfirmacionPage({
     CANCELLED: "Cancelado",
   };
   const statusLabel = statusMap[order.status] ?? order.status;
-  const subtotalCents = order.items.reduce((s, i) => s + i.basePriceCents * i.quantity, 0);
-  const deliveryFee = isDelivery ? (storeSettings.deliveryFeeCents ?? 200) : 0;
-  const total = subtotalCents + deliveryFee;
+  // Importes tal como se guardaron en el pedido (incluyen suplementos y cupón).
+  const subtotalCents = order.subtotalCents;
+  const deliveryFee = order.feesCents;
+  const total = order.totalCents;
   const tenantDisplayName = tenantData?.name ?? order.store?.name ?? tenant;
 
   return (
@@ -127,7 +127,7 @@ export default async function ConfirmacionPage({
                   <span style={{ fontWeight: 700, color: cssVars["--brand-accent"], marginRight: "8px" }}>{item.quantity}x</span>
                   {item.productName}
                 </span>
-                <span style={{ fontWeight: 600 }}>{euros(item.basePriceCents * item.quantity)}</span>
+                <span style={{ fontWeight: 600 }}>{euros(item.totalCents)}</span>
               </div>
             ))}
           </div>
@@ -136,6 +136,12 @@ export default async function ConfirmacionPage({
               <span>Subtotal</span>
               <span>{euros(subtotalCents)}</span>
             </div>
+            {order.discountCents > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 600, color: cssVars["--brand-secondary"] }}>
+                <span>Cupón {order.coupon?.code ?? ""}</span>
+                <span>−{euros(order.discountCents)}</span>
+              </div>
+            )}
             {isDelivery && (
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: cssVars["--text-secondary"] }}>
                 <span>Envio</span>

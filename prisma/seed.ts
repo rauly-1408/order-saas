@@ -174,6 +174,10 @@ async function main() {
     await prisma.tenant.update({ where: { id: tenant.id }, data: { addons: { push: "COSTS" } } });
     console.log("✅ Módulo Costes activado (solo local)");
   }
+  if (!remote && !tenant.addons.includes("RETENTION")) {
+    await prisma.tenant.update({ where: { id: tenant.id }, data: { addons: { push: "RETENTION" } } });
+    console.log("✅ Motor de retención activado (solo local)");
+  }
 
   // ⚠️ Recargar la carta borra productos y opciones y, en cascada, sus escandallos.
 

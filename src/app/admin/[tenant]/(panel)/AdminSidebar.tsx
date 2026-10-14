@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 // Barra lateral del panel: translúcida con desenfoque (estilo Apple), iconos de
 // línea y el elemento activo con el color de la marca del restaurante (--p-brand).
 
-type IconName = "home" | "orders" | "menu" | "costs" | "brush" | "gear" | "external" | "logout";
+type IconName = "home" | "orders" | "users" | "menu" | "costs" | "brush" | "gear" | "external" | "logout";
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, React.ReactNode> = {
@@ -17,6 +17,13 @@ function Icon({ name }: { name: IconName }) {
         <path d="M6 4h12l1 4H5z" />
         <path d="M5 8h14v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z" />
         <path d="M9 12h6" />
+      </>
+    ),
+    users: (
+      <>
+        <circle cx="9" cy="8" r="3.5" />
+        <path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" />
+        <path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.4c1.9.8 3 2.8 3 5.6" />
       </>
     ),
     menu: (
@@ -65,6 +72,7 @@ function buildNav(tenant: string): NavItem[] {
   return [
     { label: "Inicio", href: `${base}/home`, icon: "home", exact: true, managerOnly: true },
     { label: "Pedidos", href: `${base}/pedidos`, icon: "orders" },
+    { label: "Clientes", href: `${base}/clientes`, icon: "users", managerOnly: true },
     { label: "Carta", href: `${base}/carta`, icon: "menu", managerOnly: true },
     { label: "Costes", href: `${base}/costes`, icon: "costs", managerOnly: true },
     { label: "Personalización", href: `${base}/personalizacion`, icon: "brush", managerOnly: true },
