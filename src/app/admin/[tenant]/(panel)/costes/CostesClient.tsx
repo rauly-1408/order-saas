@@ -6,9 +6,11 @@ import Rentabilidad from "./Rentabilidad";
 import Escandallos from "./Escandallos";
 import Ingredientes from "./Ingredientes";
 import Proveedores from "./Proveedores";
+import Inventario from "./Inventario";
 
 const TABS = [
   { key: "rentabilidad", label: "Rentabilidad" },
+  { key: "inventario", label: "Inventario" },
   { key: "escandallos", label: "Escandallos" },
   { key: "ingredientes", label: "Ingredientes" },
   { key: "proveedores", label: "Proveedores" },
@@ -61,6 +63,8 @@ export default function CostesClient({ tenant }: { tenant: string }) {
         !error && <div className="py-16 text-center text-[#6b6890]">Cargando…</div>
       ) : tab === "rentabilidad" ? (
         <Rentabilidad data={data} onGoToRecipes={() => setTab("escandallos")} />
+      ) : tab === "inventario" ? (
+        <Inventario data={data} api={api} onSaved={reload} />
       ) : tab === "escandallos" ? (
         <Escandallos data={data} api={api} onSaved={reload} onGoToIngredients={() => setTab("ingredientes")} />
       ) : tab === "ingredientes" ? (

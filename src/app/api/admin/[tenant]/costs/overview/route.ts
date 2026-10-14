@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   if ("error" in ctx) return ctx.error;
   const tenantId = ctx.tenant.id;
 
-  const [suppliers, ingredients, categories, orders] = await Promise.all([
+  const [suppliers, ingredients, categories, orders, movements] = await Promise.all([
     prisma.supplier.findMany({ where: { tenantId }, orderBy: { name: "asc" } }),
     prisma.ingredient.findMany({ where: { tenantId }, orderBy: { name: "asc" } }),
     prisma.category.findMany({
@@ -30,6 +30,8 @@ export async function GET(req: NextRequest) {
             id: true,
             name: true,
             basePriceCents: true,
+            isAvailable: true,
+            stockOut: true,
             recipeLines: { select: { ingredientId: true, quantity: true } },
             modifierGroups: {
               orderBy: { sortOrder: "asc" },
@@ -46,6 +48,7 @@ export async function GET(req: NextRequest) {
                         id: true,
                         name: true,
                         priceDeltaCents: true,
+                        stockOut: true,
                         recipeLines: { select: { ingredientId: true, quantity: true } },
                       },
                     },
@@ -71,6 +74,12 @@ export async function GET(req: NextRequest) {
         applicationFeeCents: true,
         items: { select: { productId: true, productName: true, quantity: true, totalCents: true, modifiers: true } },
       },
+    }),
+    prisma.stockMovement.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: { id: true, ingredientId: true, type: true, quantity: true, stockAfter: true, valueCents: true, orderId: true, note: true, createdAt: true },
     }),
   ]);
 
@@ -130,5 +139,5 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ suppliers, ingredients, categories, orders: orderMargins });
+  return NextResponse.json({ suppliers, ingredients, categories, orders: orderMargins, movements });
 }

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { selectionToModifiers, validateSelection, type MenuModifierGroup } from "@/app/lib/menuOptions";
+import { applyStockDeltas, orderConsumption, type ConsumptionItem } from "@/app/lib/inventory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -128,7 +129,7 @@ export async function POST(req: NextRequest) {
 
     const productIds = [...new Set(items.map((i) => i.productId))];
     const products = await prisma.product.findMany({
-      where: { tenantId: tenant.id, id: { in: productIds }, isActive: true, isAvailable: true },
+      where: { tenantId: tenant.id, id: { in: productIds }, isActive: true, isAvailable: true, stockOut: false },
       select: {
         id: true,
         name: true,
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest) {
                 minSelect: true,
                 maxSelect: true,
                 options: {
-                  where: { isAvailable: true },
+                  where: { isAvailable: true, stockOut: false },
                   orderBy: { sortOrder: "asc" },
                   select: { id: true, name: true, priceDeltaCents: true },
                 },
@@ -176,6 +177,7 @@ export async function POST(req: NextRequest) {
 
     // Precio de cada línea = precio base + suplementos de las opciones elegidas.
     const linesCreate: Prisma.OrderLineCreateWithoutOrderInput[] = [];
+    const consumption: ConsumptionItem[] = [];
     for (const item of items) {
       const product = productById.get(item.productId)!;
       const groups: MenuModifierGroup[] = product.modifierGroups.map((pmg) => ({
@@ -200,6 +202,7 @@ export async function POST(req: NextRequest) {
 
       const modifiers = selectionToModifiers(groups, selection);
       const unitCents = product.basePriceCents + modifiers.reduce((acc, m) => acc + m.priceDeltaCents, 0);
+      consumption.push({ productId: product.id, quantity: item.quantity, optionIds: Object.values(selection).flat() });
       linesCreate.push({
         productId: product.id,
         productName: product.name,
@@ -236,6 +239,8 @@ export async function POST(req: NextRequest) {
           feesCents,
           totalCents,
           lines: linesCreate,
+          // Inventario (módulo Costes): solo si el restaurante lo tiene contratado
+          consumption: tenant.addons.includes("COSTS") ? consumption : [],
         });
         break;
       } catch (err) {
@@ -281,6 +286,7 @@ type CreateOrderInput = {
   feesCents: number;
   totalCents: number;
   lines: Prisma.OrderLineCreateWithoutOrderInput[];
+  consumption: ConsumptionItem[];
 };
 
 async function createOrderWithNumber(input: CreateOrderInput) {
@@ -343,7 +349,7 @@ async function createOrderWithNumber(input: CreateOrderInput) {
       select: { id: true },
     });
 
-    return tx.order.create({
+    const order = await tx.order.create({
       data: {
         tenantId: input.tenantId,
         storeId: input.storeId,
@@ -364,6 +370,15 @@ async function createOrderWithNumber(input: CreateOrderInput) {
       },
       include: { items: true },
     });
+
+    // Descuento de stock en la misma transacción: si falla, no hay pedido.
+    if (input.consumption.length) {
+      const used = await orderConsumption(tx, input.tenantId, input.consumption);
+      const deltas = new Map([...used].map(([id, qty]) => [id, -qty]));
+      await applyStockDeltas(tx, input.tenantId, deltas, "ORDER", { orderId: order.id });
+    }
+
+    return order;
   });
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { OrderStatus } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
+import { returnOrderStock } from "@/app/lib/inventory";
 import { getSessionFromRequest } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
@@ -49,9 +50,14 @@ export async function PATCH(req: NextRequest) {
                                   );
               }
 
-        const updated = await prisma.order.update({
-                  where: { id: orderId },
-                  data: { status: newStatus as OrderStatus }, // validado contra VALID_TRANSITIONS
+        // Al cancelar se devuelve al stock lo que consumió el pedido (si lo hubo).
+        const updated = await prisma.$transaction(async (tx) => {
+          const u = await tx.order.update({
+            where: { id: orderId },
+            data: { status: newStatus as OrderStatus }, // validado contra VALID_TRANSITIONS
+          });
+          if (newStatus === "CANCELLED") await returnOrderStock(tx, order.tenantId, orderId);
+          return u;
         });
 
         return NextResponse.json({ orderId: updated.id, status: updated.status });

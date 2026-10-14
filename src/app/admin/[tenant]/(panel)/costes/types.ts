@@ -11,13 +11,24 @@ export type Ingredient = CostIngredient & {
   baseUnit: BaseUnit;
   supplierId: string | null;
   allergens: string[];
+  trackStock: boolean;
+  stockQty: number;
+  minStock: number | null;
 };
 
 export type RecipeLine = { ingredientId: string; quantity: number };
 
-export type Option = { id: string; name: string; priceDeltaCents: number; recipeLines: RecipeLine[] };
+export type Option = { id: string; name: string; priceDeltaCents: number; stockOut: boolean; recipeLines: RecipeLine[] };
 export type Group = { defaultOptionId: string | null; group: { code: string; name: string; isRequired: boolean; options: Option[] } };
-export type Product = { id: string; name: string; basePriceCents: number; recipeLines: RecipeLine[]; modifierGroups: Group[] };
+export type Product = {
+  id: string;
+  name: string;
+  basePriceCents: number;
+  isAvailable: boolean;
+  stockOut: boolean;
+  recipeLines: RecipeLine[];
+  modifierGroups: Group[];
+};
 export type Category = { id: string; name: string; products: Product[] };
 
 export type OrderMargin = {
@@ -32,7 +43,35 @@ export type OrderMargin = {
   complete: boolean;
 };
 
-export type Overview = { suppliers: Supplier[]; ingredients: Ingredient[]; categories: Category[]; orders: OrderMargin[] };
+export type MovementType = "ORDER" | "ORDER_CANCEL" | "RECEIPT" | "COUNT" | "WASTE";
+
+export type Movement = {
+  id: string;
+  ingredientId: string;
+  type: MovementType;
+  quantity: number;
+  stockAfter: number;
+  valueCents: number;
+  orderId: string | null;
+  note: string | null;
+  createdAt: string;
+};
+
+export type Overview = {
+  suppliers: Supplier[];
+  ingredients: Ingredient[];
+  categories: Category[];
+  orders: OrderMargin[];
+  movements: Movement[];
+};
+
+// Cantidad legible: 1250 g → "1,25 kg"; 3 ud → "3 ud".
+export function formatQty(qty: number, unit: BaseUnit): string {
+  const n = (v: number, d = 2) => v.toLocaleString("es-ES", { maximumFractionDigits: d });
+  if (unit === "G" && Math.abs(qty) >= 1000) return `${n(qty / 1000)} kg`;
+  if (unit === "ML" && Math.abs(qty) >= 1000) return `${n(qty / 1000)} l`;
+  return `${n(qty, unit === "UNIT" ? 0 : 2)} ${UNIT_LABEL[unit]}`;
+}
 
 export const UNIT_LABEL: Record<BaseUnit, string> = { KG: "kg", G: "g", L: "l", ML: "ml", UNIT: "ud" };
 
