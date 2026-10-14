@@ -7,10 +7,6 @@ const nextConfig: NextConfig = {
     // TODO: Eliminar cuando Next.js resuelva el issue de RouteHandlerConfig.
     ignoreBuildErrors: true,
   },
-  eslint: {
-    // ESLint se ejecuta localmente. No bloquear el build de producción.
-    ignoreDuringBuilds: true,
-  },
 };
 
 export default nextConfig;

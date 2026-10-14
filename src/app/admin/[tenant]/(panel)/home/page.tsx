@@ -1,4 +1,5 @@
 import { prisma } from "@/app/lib/prisma";
+import { formatTimeIn, startOfTodayIn, tenantTimeZone } from "@/app/lib/time";
 
 const S = { textDark: '#393659', textMid: '#b8b6df', white: '#ffffff', border: '#eaeaf4', purple: '#7939fe', purpleLight: '#e0d1ff', purpleDark: '#5707fd', green: '#1ade92' };
 
@@ -17,15 +18,16 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
 
   const tenantData = await prisma.tenant.findUnique({
     where: { slug: tenant },
-    select: { id: true, name: true },
+    select: { id: true, name: true, settings: true },
   });
 
   if (!tenantData) {
     return <div style={{ color: '#ff5e6c', padding: 32 }}>Tenant no encontrado: {tenant}</div>;
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // "Hoy" en la zona horaria del restaurante (el servidor trabaja en UTC).
+  const timeZone = tenantTimeZone(tenantData.settings);
+  const today = startOfTodayIn(timeZone);
 
   const [totalOrders, activeOrders, products, categories] = await Promise.all([
     prisma.order.count({ where: { tenantId: tenantData.id, createdAt: { gte: today } } }),
@@ -67,7 +69,7 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, color: S.textDark, margin: 0 }}>Hoy en {tenantData.name}</h1>
         <div style={{ fontSize: 13, color: S.textMid, marginTop: 4 }}>
-          Última actualización: {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+          Última actualización: {formatTimeIn(timeZone)}
         </div>
       </div>
 
@@ -87,7 +89,9 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
         {recentOrders.length === 0 ? (
           <div style={{ padding: 48, textAlign: 'center', color: S.textMid, fontSize: 14 }}>Sin pedidos aún</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          // En móvil la tabla se desplaza en horizontal en vez de cortarse
+          <div className="overflow-x-auto">
+          <table style={{ width: '100%', minWidth: 520, borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#fafafa' }}>
                 {['#', 'Cliente', 'Estado', 'Canal', 'Total'].map(h => (
@@ -112,6 +116,7 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

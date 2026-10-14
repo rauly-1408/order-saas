@@ -1,7 +1,18 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { prisma } from "@/app/lib/prisma";
 import { getSession } from "@/app/lib/auth";
 import AdminSidebar from "./AdminSidebar";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}): Promise<Metadata> {
+  const { tenant } = await params;
+  const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { name: true } });
+  return { title: { absolute: `Panel · ${t?.name ?? tenant}` } };
+}
 
 export default async function AdminLayout({
   children,
@@ -31,9 +42,10 @@ export default async function AdminLayout({
   const logoUrl = (branding.logoUrl as string) ?? null;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif', background: '#f7f7fb' }}>
+    <div className="flex min-h-screen bg-[#f7f7fb] font-[Inter,system-ui,sans-serif]">
       <AdminSidebar tenant={tenant} tenantName={tenantName} logoUrl={logoUrl} />
-      <main style={{ flex: 1, minWidth: 0, padding: '32px', overflowY: 'auto' }}>
+      {/* pt-20 en móvil deja sitio a la barra superior fija */}
+      <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-20 pb-8 lg:p-8">
         {children}
       </main>
     </div>
