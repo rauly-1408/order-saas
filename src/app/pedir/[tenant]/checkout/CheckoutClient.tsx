@@ -53,7 +53,7 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
   const inputStyle: React.CSSProperties = {
     width: "100%",
     padding: "13px 16px",
-    borderRadius: cssVars["--border-radius"] ?? "12px",
+    borderRadius: "12px",
     border: `1px solid ${cssVars["--border"]}`,
     backgroundColor: cssVars["--surface-1"],
     color: cssVars["--text-primary"],
@@ -65,12 +65,10 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
 
   const labelStyle: React.CSSProperties = {
     display: "block",
-    fontSize: "12px",
-    fontWeight: 600,
+    fontSize: "13px",
+    fontWeight: 500,
     color: cssVars["--text-secondary"],
     marginBottom: "6px",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
   };
 
   async function handleSubmit(e: React.FormEvent) {
@@ -123,7 +121,7 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
       <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px", padding: "24px", ...(cssVars as any) }}>
         <div style={{ fontSize: "48px" }}>🛒</div>
         <div style={{ fontSize: "18px", fontWeight: 700, color: cssVars["--text-primary"] }}>Tu carrito está vacío</div>
-        <a href={`/pedir/${tenant}`} style={{ padding: "13px 28px", borderRadius: cssVars["--border-radius"] ?? "12px", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "15px", textDecoration: "none" }}>
+        <a href={`/pedir/${tenant}`} style={{ padding: "13px 28px", borderRadius: "999px", backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)", fontWeight: 700, fontSize: "15px", textDecoration: "none" }}>
           Volver al menú
         </a>
       </div>
@@ -134,17 +132,17 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
     <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], fontFamily: cssVars["--font-body"], ...(cssVars as any) }}>
 
       {/* HEADER */}
-      <header style={{ position: "sticky", top: 0, zIndex: 50, backgroundColor: cssVars["--surface-0"], borderBottom: `1px solid ${cssVars["--border"]}`, height: "56px", display: "flex", alignItems: "center", padding: "0 20px", gap: "14px" }}>
+      <header className="p-glass" style={{ position: "sticky", top: 0, zIndex: 50, ["--p-surface" as any]: cssVars["--surface-0"], borderBottom: `1px solid ${cssVars["--border"]}`, height: "56px", display: "flex", alignItems: "center", padding: "0 20px", gap: "14px" }}>
         <a href={`/pedir/${tenant}`} style={{ color: cssVars["--brand-accent"], fontSize: "22px", textDecoration: "none", lineHeight: "1" }}>←</a>
-        <span style={{ fontWeight: 700, fontSize: "16px" }}>Confirmar pedido</span>
+        <span style={{ fontWeight: 600, fontSize: "16px" }}>Confirmar pedido</span>
       </header>
 
       <main style={{ maxWidth: "560px", margin: "0 auto", padding: "24px 16px 120px" }}>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
           {/* RESUMEN DEL PEDIDO */}
-          <div style={{ backgroundColor: cssVars["--surface-1"], border: `1px solid ${cssVars["--border"]}`, borderRadius: "16px", padding: "20px" }}>
-            <div style={{ fontSize: "13px", fontWeight: 700, color: cssVars["--text-secondary"], textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "14px" }}>
+          <div style={{ backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)", borderRadius: "18px", padding: "20px" }}>
+            <div style={{ fontSize: "13px", fontWeight: 500, color: cssVars["--text-secondary"], marginBottom: "14px" }}>
               Tu pedido · {count} {count === 1 ? "producto" : "productos"}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -160,7 +158,7 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px" }}>
                       <button type="button" aria-label={`Quitar un ${item.name}`} onClick={() => dec(item.id)} style={{ width: "26px", height: "26px", borderRadius: "50%", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 700, fontSize: "15px", cursor: "pointer", lineHeight: 1 }}>−</button>
                       <span style={{ fontWeight: 700, fontSize: "14px", minWidth: "14px", textAlign: "center" }}>{item.quantity}</span>
-                      <button type="button" aria-label={`Añadir otro ${item.name}`} onClick={() => inc(item.id)} style={{ width: "26px", height: "26px", borderRadius: "50%", border: "none", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "15px", cursor: "pointer", lineHeight: 1 }}>+</button>
+                      <button type="button" aria-label={`Añadir otro ${item.name}`} onClick={() => inc(item.id)} style={{ width: "26px", height: "26px", borderRadius: "50%", border: "none", backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)", fontWeight: 700, fontSize: "15px", cursor: "pointer", lineHeight: 1 }}>+</button>
                     </div>
                   </div>
                   <span style={{ fontSize: "14px", fontWeight: 600, color: cssVars["--text-primary"], flexShrink: 0 }}>
@@ -289,7 +287,7 @@ export default function CheckoutClient({ tenant, theme, settings }: CheckoutClie
           <button
             type="submit"
             disabled={loading}
-            style={{ width: "100%", padding: "16px", borderRadius: cssVars["--border-radius"] ?? "14px", border: "none", backgroundColor: loading ? cssVars["--surface-2"] : cssVars["--brand-accent"], color: loading ? cssVars["--text-secondary"] : "#0d0d0d", fontWeight: 800, fontSize: "16px", cursor: loading ? "not-allowed" : "pointer", letterSpacing: "0.3px" }}
+            style={{ width: "100%", padding: "16px", borderRadius: "999px", border: "none", backgroundColor: loading ? cssVars["--border"] : cssVars["--brand-accent"], color: loading ? cssVars["--text-secondary"] : "var(--on-accent)", fontWeight: 600, fontSize: "16px", cursor: loading ? "not-allowed" : "pointer", letterSpacing: "0.3px" }}
           >
             {loading ? "Enviando pedido..." : `Confirmar pedido · ${euros(total)}`}
           </button>

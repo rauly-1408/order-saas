@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export default function LoginForm({ tenant }: { tenant: string }) {
+export default function LoginForm({ tenant, tenantName }: { tenant: string; tenantName: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,51 +33,49 @@ export default function LoginForm({ tenant }: { tenant: string }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4 text-white">
-      <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-        <h1 className="mb-1 text-xl font-bold capitalize">{tenant}</h1>
-        <p className="mb-6 text-sm text-zinc-400">Panel de pedidos — acceso</p>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--p-warm)] px-4 py-10">
+      <div className="p-rise w-full max-w-sm">
+        <p className="text-center text-sm font-medium text-[var(--p-brand)]/70">Panel del restaurante</p>
+        <h1 className="p-display mt-2 text-center text-6xl text-[var(--p-brand)]">{tenantName}</h1>
 
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs text-zinc-400">Email</label>
-            <input
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-              placeholder="tu@email.com"
-            />
+        <div className="mt-8 rounded-[28px] bg-[var(--p-surface)] p-6 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.35)] sm:p-8">
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-1.5 block text-[13px] font-medium text-[var(--p-muted)]">Email</span>
+              <input
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                className="w-full px-4 py-3 text-[15px] text-[var(--p-ink)]"
+                placeholder="tu@email.com"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-[13px] font-medium text-[var(--p-muted)]">Contraseña</span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                className="w-full px-4 py-3 text-[15px] text-[var(--p-ink)]"
+                placeholder="••••••••"
+              />
+            </label>
+
+            {error && <div className="rounded-2xl bg-[var(--p-accent-soft)] px-4 py-3 text-sm text-[var(--p-accent)]">{error}</div>}
+
+            <button
+              onClick={handleSubmit}
+              disabled={loading || !email || !password}
+              className="p-press w-full rounded-full bg-[var(--p-brand)] py-3.5 text-[15px] font-semibold text-white hover:bg-[var(--p-brand-strong)] disabled:opacity-40"
+            >
+              {loading ? "Entrando…" : "Entrar"}
+            </button>
           </div>
-
-          <div>
-            <label className="mb-1 block text-xs text-zinc-400">Contraseña</label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-              placeholder="••••••••"
-            />
-          </div>
-
-          {error && (
-            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {error}
-            </div>
-          )}
-
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !email || !password}
-            className="w-full rounded-lg bg-white px-3 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200 disabled:opacity-50"
-          >
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
         </div>
       </div>
     </div>

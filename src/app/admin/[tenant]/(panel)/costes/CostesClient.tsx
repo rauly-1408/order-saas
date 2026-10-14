@@ -42,17 +42,17 @@ export default function CostesClient({ tenant }: { tenant: string }) {
   }, [reload]);
 
   return (
-    <div className="text-[#393659]">
-      <h1 className="text-2xl font-bold">Costes y margen</h1>
-      <p className="mt-1 text-sm text-[#6b6890]">Escandallos, ingredientes y lo que ganas en cada plato</p>
+    <div className="text-[var(--p-ink)]">
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Costes y margen</h1>
+      <p className="mt-1 text-sm text-[var(--p-muted)]">Escandallos, ingredientes y lo que ganas en cada plato</p>
 
-      <nav className="mt-5 mb-5 flex gap-1 overflow-x-auto rounded-xl bg-white p-1 shadow-sm">
+      <nav className="mt-6 mb-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold ${
-              tab === t.key ? "bg-[#7939fe] text-white" : "text-[#6b6890] hover:bg-[#f7f7fb]"
+            className={`p-press shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-300 ${
+              tab === t.key ? "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"
             }`}
           >
             {t.label}
@@ -60,9 +60,9 @@ export default function CostesClient({ tenant }: { tenant: string }) {
         ))}
       </nav>
 
-      {error && <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+      {error && <div className="mb-4 rounded-2xl bg-[var(--p-accent-soft)] px-4 py-3 text-sm text-[var(--p-accent)]">{error}</div>}
       {!data ? (
-        !error && <div className="py-16 text-center text-[#6b6890]">Cargando…</div>
+        !error && <div className="py-16 text-center text-[var(--p-muted)]">Cargando…</div>
       ) : tab === "rentabilidad" ? (
         <Rentabilidad data={data} api={api} onSaved={reload} onGoToRecipes={() => setTab("escandallos")} />
       ) : tab === "compras" ? (

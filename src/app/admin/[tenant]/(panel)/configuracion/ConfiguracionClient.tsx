@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 
 const S = {
-  white: '#ffffff', pageBg: '#f7f7fb', border: '#eaeaf4',
-  purpleDark: '#5707fd', purpleLight: '#e0d1ff', purpleMid: '#9c6dfe',
-  textDark: '#393659', textMid: '#b8b6df', green: '#1ade92', red: '#ff5e6c',
+  white: '#ffffff', pageBg: 'var(--p-bg)', border: 'var(--p-line)',
+  purpleDark: 'var(--p-brand-strong)', purpleLight: 'var(--p-brand-soft)', purpleMid: 'var(--p-brand)',
+  textDark: 'var(--p-ink)', textMid: 'var(--p-faint)', green: '#1ade92', red: 'var(--p-accent)',
 };
 
 type SettingsForm = {
@@ -18,11 +18,11 @@ type SettingsForm = {
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', border: `1px solid ${S.border}`, borderRadius: 8, cursor: 'pointer', background: S.white }}>
+    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderRadius: 18, boxShadow: '0 1px 2px rgba(0,0,0,0.04)', cursor: 'pointer', background: S.white }}>
       <div>
         <div style={{ fontSize: 14, fontWeight: 500, color: S.textDark }}>{label}</div>
       </div>
-      <div onClick={() => onChange(!checked)} style={{ width: 40, height: 22, borderRadius: 9999, cursor: 'pointer', position: 'relative', background: checked ? S.green : S.red, transition: 'background 0.2s', flexShrink: 0 }}>
+      <div onClick={() => onChange(!checked)} style={{ width: 40, height: 22, borderRadius: 9999, cursor: 'pointer', position: 'relative', background: checked ? 'var(--p-brand)' : 'rgba(0,0,0,0.15)', transition: 'background 0.2s', flexShrink: 0 }}>
         <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, transition: 'left 0.2s', left: checked ? 21 : 3 }} />
       </div>
     </label>
@@ -33,7 +33,7 @@ function NumField({ label, value, onChange, hint }: { label: string; value: numb
   const fmt = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: S.textDark, marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>{label}</div>
       <input type="number" min={0} value={value} onChange={e => onChange(Number(e.target.value))}
         style={{ width: '100%', padding: '8px 12px', fontSize: 14, border: `1px solid ${S.border}`, borderRadius: 4, outline: 'none', fontFamily: 'inherit', color: S.textDark, boxSizing: 'border-box' }} />
       {hint && <div style={{ fontSize: 11, color: S.textMid, marginTop: 3 }}>= {fmt.format(value / 100)}</div>}
@@ -44,7 +44,7 @@ function NumField({ label, value, onChange, hint }: { label: string; value: numb
 function TextField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: S.textDark, marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>{label}</div>
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         style={{ width: '100%', padding: '8px 12px', fontSize: 14, border: `1px solid ${S.border}`, borderRadius: 4, outline: 'none', fontFamily: 'inherit', color: S.textDark, boxSizing: 'border-box' }} />
     </div>
@@ -53,8 +53,8 @@ function TextField({ label, value, onChange, placeholder }: { label: string; val
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 8, padding: 24, marginBottom: 20 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: S.textDark, marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
+    <div style={{ background: S.white, borderRadius: 18, boxShadow: '0 1px 2px rgba(0,0,0,0.04)', padding: 24, marginBottom: 20 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: S.textDark, marginBottom: 16 }}>{title}</div>
       {children}
     </div>
   );
@@ -114,12 +114,12 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
   return (
     <div style={{ maxWidth: 720 }}>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, color: S.textDark, margin: 0 }}>Configuración</h1>
+        <h1 style={{ fontSize: 34, fontWeight: 600, letterSpacing: '-0.025em', color: S.textDark, margin: 0 }}>Configuración</h1>
         <div style={{ fontSize: 13, color: S.textMid, marginTop: 4 }}>Gestiona los canales, horarios y datos de contacto</div>
       </div>
 
       {msg && (
-        <div style={{ background: msg.startsWith('Error') ? '#fff0f0' : '#f0fff4', border: `1px solid ${msg.startsWith('Error') ? S.red : S.green}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: msg.startsWith('Error') ? S.red : '#166534', marginBottom: 20 }}>
+        <div style={{ background: msg.startsWith('Error') ? 'var(--p-accent-soft)' : '#f0fff4', border: `1px solid ${msg.startsWith('Error') ? S.red : S.green}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: msg.startsWith('Error') ? S.red : '#166534', marginBottom: 20 }}>
           {msg}
         </div>
       )}
@@ -136,12 +136,12 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
           <NumField label="Pedido mínimo (céntimos)" value={form.minimumOrderCents} onChange={v => setForm({ ...form, minimumOrderCents: v })} hint="cents" />
           <NumField label="Gastos de envío (céntimos)" value={form.deliveryFeeCents} onChange={v => setForm({ ...form, deliveryFeeCents: v })} hint="cents" />
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: S.textDark, marginBottom: 6 }}>Tiempo delivery (min)</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>Tiempo delivery (min)</div>
             <input type="number" min={1} value={form.estimatedDeliveryMinutes} onChange={e => setForm({ ...form, estimatedDeliveryMinutes: Number(e.target.value) })}
               style={{ width: '100%', padding: '8px 12px', fontSize: 14, border: `1px solid ${S.border}`, borderRadius: 4, outline: 'none', fontFamily: 'inherit', color: S.textDark, boxSizing: 'border-box' }} />
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: S.textDark, marginBottom: 6 }}>Tiempo recogida (min)</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>Tiempo recogida (min)</div>
             <input type="number" min={1} value={form.estimatedPickupMinutes} onChange={e => setForm({ ...form, estimatedPickupMinutes: Number(e.target.value) })}
               style={{ width: '100%', padding: '8px 12px', fontSize: 14, border: `1px solid ${S.border}`, borderRadius: 4, outline: 'none', fontFamily: 'inherit', color: S.textDark, boxSizing: 'border-box' }} />
           </div>
@@ -161,8 +161,8 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
       </Section>
 
       <button onClick={save} disabled={saving} style={{
-        width: '100%', background: S.purpleLight, color: S.purpleDark, border: `1px solid ${S.purpleMid}`,
-        borderRadius: 6, padding: '12px', fontSize: 15, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
+        width: '100%', background: 'var(--p-brand)', color: '#fff', border: 'none',
+        borderRadius: 9999, padding: '12px', fontSize: 15, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
         opacity: saving ? 0.6 : 1, fontFamily: 'inherit',
       }}>
         {saving ? 'Guardando...' : 'Guardar configuración'}

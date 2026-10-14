@@ -3,7 +3,14 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/app/lib/prisma";
 import { getSession } from "@/app/lib/auth";
 import { canManageTenant } from "@/app/lib/roles";
+import { Anton, Inter } from "next/font/google";
+import { panelBrand, panelCssVars } from "@/app/lib/panelTheme";
 import AdminSidebar from "./AdminSidebar";
+
+// Texto: tipografía del sistema de Apple (SF) con Inter como respaldo fuera de
+// Apple. Titulares de marca: condensada en mayúsculas, como la carta impresa.
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const display = Anton({ subsets: ["latin"], weight: "400", variable: "--font-display", display: "swap" });
 
 export async function generateMetadata({
   params,
@@ -43,11 +50,11 @@ export default async function AdminLayout({
   const logoUrl = (branding.logoUrl as string) ?? null;
 
   return (
-    <div className="flex min-h-screen bg-[#f7f7fb] font-[Inter,system-ui,sans-serif]">
+    <div className={`panel ${inter.variable} ${display.variable} flex min-h-screen`} style={panelCssVars(panelBrand(branding))}>
       <AdminSidebar tenant={tenant} tenantName={tenantName} logoUrl={logoUrl} canManage={canManageTenant(session.role)} />
       {/* pt-20 en móvil deja sitio a la barra superior fija */}
-      <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-20 pb-8 lg:p-8">
-        {children}
+      <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-20 pb-12 lg:px-10 lg:pt-10">
+        <div className="p-page mx-auto max-w-6xl">{children}</div>
       </main>
     </div>
   );

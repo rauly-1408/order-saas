@@ -175,6 +175,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-14 | Comisión 3 % por pedido online, tarjeta aparte, sin cuota fija | Last Shop cobra 4 % + 0,20 € sin tarjeta + cuota hasta 40 €/local + suscripción TPV desde 50 €/mes y 500 € de alta (ver docs/competencia/) |
 | 2026-10-14 | TPV propio aparcado | VeriFactu, coste de desarrollo y mercado saturado; competimos en pedido directo + retención |
 | 2026-10-14 | Producción = proyecto Vercel `order-saas` (order-saas-delta.vercel.app) | Los proyectos `order-saas-d4a4` y `order-saas-tu7k` son duplicados rotos a eliminar |
+| 2026-10-14 | Rediseño "Apple × marca del restaurante" en panel y carta pública | El panel era casi idéntico al de Last.app. Ahora: tipografía de sistema, movimiento suave, tarjetas que se elevan y la identidad de cada tenant (`branding.panel` en el panel; `headingFont`/`headingCase` y texto sobre acento calculado por contraste en la carta) |
 
 ---
 

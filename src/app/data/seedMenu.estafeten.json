@@ -3,20 +3,26 @@
     "name": "Estafetén",
     "slug": "estafeten",
     "branding": {
-      "primaryColor": "#e8a020",
-      "secondaryColor": "#f0b030",
-      "backgroundColor": "#0d0d0d",
-      "surfaceColor": "#1a1a1a",
-      "borderColor": "#2a2a2a",
-      "textPrimary": "#f0ece4",
-      "textSecondary": "#888888",
-      "bodyFont": "Arial, Helvetica, sans-serif",
-      "headingFont": "Arial, Helvetica, sans-serif",
-      "borderRadius": "14px",
+      "primaryColor": "#0d3328",
+      "secondaryColor": "#e2382b",
+      "backgroundColor": "#f2e4bf",
+      "surfaceColor": "#fbf6ea",
+      "borderColor": "#e3d3a6",
+      "textPrimary": "#0d3328",
+      "textSecondary": "#5b6b62",
+      "bodyFont": "var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+      "headingFont": "var(--font-display), Anton, Impact, sans-serif",
+      "borderRadius": "18px",
       "cardStyle": "rounded",
       "logoUrl": null,
       "faviconUrl": null,
-      "heroImageUrl": null
+      "heroImageUrl": null,
+      "panel": {
+        "brand": "#0d3328",
+        "accent": "#e2382b",
+        "warm": "#f2e4bf"
+      },
+      "headingCase": "uppercase"
     },
     "settings": {
       "deliveryEnabled": true,

@@ -41,26 +41,26 @@ export default function OrderCard({ order, estimates, now, busy, onStatus }: Ord
 
   return (
     <article
-      className={`rounded-xl border bg-white p-4 shadow-sm ${
-        isNew ? "border-amber-400 ring-2 ring-amber-200" : "border-[#eaeaf4]"
+      className={`p-lift rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+        isNew ? "ring-2 ring-[var(--p-accent)]" : ""
       }`}
     >
       <header className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-extrabold text-[#393659]">{orderLabel(order)}</span>
-            <span className="rounded-md bg-[#f7f7fb] px-1.5 py-0.5 text-[11px] font-medium text-[#6b6890]">
-              {order.channel === "DELIVERY" ? "🛵 Delivery" : "🏪 Recoger"}
+            <span className="text-lg font-bold tracking-tight text-[var(--p-ink)]">{orderLabel(order)}</span>
+            <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[11px] font-medium text-[var(--p-muted)]">
+              {order.channel === "DELIVERY" ? "A domicilio" : "Para recoger"}
             </span>
           </div>
-          <div className="truncate font-semibold text-[#393659]">{order.customerName}</div>
-          <a href={`tel:${order.customerPhone}`} className="text-sm text-[#6b6890] hover:text-[#5707fd]">
+          <div className="truncate font-semibold text-[var(--p-ink)]">{order.customerName}</div>
+          <a href={`tel:${order.customerPhone}`} className="text-sm text-[var(--p-muted)] hover:text-[var(--p-brand-strong)]">
             {formatPhone(order.customerPhone)}
           </a>
         </div>
         <div className="shrink-0 text-right">
           <span className={`rounded-full px-2 py-1 text-xs font-bold tabular-nums ${TONE_CLS[tone]}`}>
-            ⏱ {elapsedLabel(order.createdAt, now)}
+            {elapsedLabel(order.createdAt, now)}
           </span>
           {/* updatedAt ≈ momento en que salió a reparto (último cambio de estado) */}
           {order.status === "DELIVERING" && (
@@ -73,33 +73,33 @@ export default function OrderCard({ order, estimates, now, busy, onStatus }: Ord
         {order.items.map((item) => {
           const mods = modifierLabels(item.modifiers);
           return (
-            <li key={item.id} className="text-[#393659]">
+            <li key={item.id} className="text-[var(--p-ink)]">
               <div className="flex justify-between gap-2">
                 <span>
                   <span className="font-bold">{item.quantity}×</span> {item.productName}
                 </span>
-                <span className="text-[#6b6890]">{toEuros(item.totalCents)}</span>
+                <span className="text-[var(--p-muted)]">{toEuros(item.totalCents)}</span>
               </div>
-              {mods.length > 0 && <div className="pl-6 text-xs text-[#6b6890]">{mods.join(" · ")}</div>}
+              {mods.length > 0 && <div className="pl-6 text-xs text-[var(--p-muted)]">{mods.join(" · ")}</div>}
             </li>
           );
         })}
       </ul>
 
       {order.channel === "DELIVERY" && order.customerAddress && (
-        <p className="mb-2 rounded-lg bg-[#f7f7fb] px-3 py-2 text-xs text-[#6b6890]">📍 {order.customerAddress}</p>
+        <p className="mb-2 rounded-xl bg-black/[0.04] px-3 py-2 text-xs text-[var(--p-muted)]">{order.customerAddress}</p>
       )}
       {order.notes && (
-        <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">📝 {order.notes}</p>
+        <p className="mb-2 rounded-xl bg-[var(--p-warm)] px-3 py-2 text-xs text-[var(--p-brand)]">Nota: {order.notes}</p>
       )}
 
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="font-bold text-[#393659]">{toEuros(order.totalCents)}</span>
+        <span className="font-bold text-[var(--p-ink)]">{toEuros(order.totalCents)}</span>
         {canCancel(order) && (
           <button
             onClick={handleCancel}
             disabled={busy}
-            className="rounded-lg px-2 py-1 text-xs font-medium text-[#b8b6df] hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+            className="rounded-lg px-2 py-1 text-xs font-medium text-[var(--p-faint)] hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
           >
             Cancelar
           </button>
@@ -110,8 +110,8 @@ export default function OrderCard({ order, estimates, now, busy, onStatus }: Ord
         <button
           onClick={() => onStatus(order.id, action.status)}
           disabled={busy}
-          className={`mt-3 w-full rounded-lg py-3 text-sm font-extrabold uppercase tracking-wide transition disabled:opacity-50 ${
-            isNew ? "bg-amber-400 text-zinc-950 hover:bg-amber-300" : "bg-[#7939fe] text-white hover:bg-[#5707fd]"
+          className={`p-press mt-3 w-full rounded-full py-3 text-[15px] font-semibold disabled:opacity-50 ${
+            isNew ? "bg-[var(--p-accent)] text-white hover:brightness-95" : "bg-[var(--p-brand)] text-white hover:bg-[var(--p-brand-strong)]"
           }`}
         >
           {busy ? "…" : action.label}

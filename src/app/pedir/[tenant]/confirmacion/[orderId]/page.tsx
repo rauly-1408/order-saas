@@ -31,7 +31,7 @@ export default async function ConfirmacionPage({
       <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px", padding: "24px", color: cssVars["--text-primary"] }}>
         <div style={{ fontSize: "48px" }}>?</div>
         <div style={{ fontSize: "18px", fontWeight: 700 }}>Pedido no encontrado</div>
-        <a href={"/pedir/" + tenant} style={{ padding: "13px 28px", borderRadius: "12px", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 700, fontSize: "15px", textDecoration: "none" }}>
+        <a href={"/pedir/" + tenant} style={{ padding: "13px 28px", borderRadius: "999px", backgroundColor: cssVars["--brand-accent"], color: cssVars["--on-accent"], fontWeight: 700, fontSize: "15px", textDecoration: "none" }}>
           Volver al menu
         </a>
       </div>
@@ -61,14 +61,16 @@ export default async function ConfirmacionPage({
     <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], fontFamily: cssVars["--font-body"] }}>
 
       <header style={{ backgroundColor: cssVars["--surface-0"], borderBottom: "1px solid " + cssVars["--border"], height: "56px", display: "flex", alignItems: "center", padding: "0 20px" }}>
-        <span style={{ fontWeight: 700, fontSize: "16px" }}>{tenantDisplayName}</span>
+        <span style={{ fontWeight: 600, fontSize: "16px" }}>{tenantDisplayName}</span>
       </header>
 
       <main style={{ maxWidth: "560px", margin: "0 auto", padding: "32px 16px 60px" }}>
 
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div style={{ fontSize: "56px", marginBottom: "12px" }}>OK</div>
-          <h1 style={{ fontSize: "22px", fontWeight: 800, marginBottom: "6px", color: cssVars["--text-primary"] }}>Pedido recibido!</h1>
+          <div className="p-rise" style={{ width: "72px", height: "72px", margin: "0 auto 18px", borderRadius: "999px", backgroundColor: cssVars["--brand-accent"], color: cssVars["--on-accent"], display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+          </div>
+          <h1 className="p-rise" style={{ ["--i" as string]: 1, fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as "none", fontSize: "40px", lineHeight: 1, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, marginBottom: "10px", color: cssVars["--brand-accent"] }}>¡Pedido recibido!</h1>
           <p style={{ color: cssVars["--text-secondary"], fontSize: "14px", margin: "0" }}>
             {"Referencia: "}
             <span style={{ color: cssVars["--brand-accent"], fontWeight: 700 }}>
@@ -79,13 +81,13 @@ export default async function ConfirmacionPage({
           </p>
         </div>
 
-        <div style={{ backgroundColor: cssVars["--surface-1"], border: "1px solid " + cssVars["--border"], borderRadius: "16px", padding: "20px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)", borderRadius: "18px", padding: "20px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ fontSize: "14px", color: cssVars["--text-secondary"], fontWeight: 600 }}>Estado del pedido</span>
           <span style={{ fontSize: "15px", fontWeight: 700, color: cssVars["--brand-accent"] }}>{statusLabel}</span>
         </div>
 
-        <div style={{ backgroundColor: cssVars["--surface-1"], border: "1px solid " + cssVars["--border"], borderRadius: "16px", padding: "20px", marginBottom: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
-          <div style={{ fontSize: "12px", fontWeight: 700, color: cssVars["--text-secondary"], textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>
+        <div style={{ backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)", borderRadius: "18px", padding: "20px", marginBottom: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ fontSize: "13px", fontWeight: 500, color: cssVars["--text-secondary"], marginBottom: "4px" }}>
             Datos del pedido
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
@@ -114,8 +116,8 @@ export default async function ConfirmacionPage({
           )}
         </div>
 
-        <div style={{ backgroundColor: cssVars["--surface-1"], border: "1px solid " + cssVars["--border"], borderRadius: "16px", padding: "20px", marginBottom: "16px" }}>
-          <div style={{ fontSize: "12px", fontWeight: 700, color: cssVars["--text-secondary"], textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "14px" }}>
+        <div style={{ backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)", borderRadius: "18px", padding: "20px", marginBottom: "16px" }}>
+          <div style={{ fontSize: "13px", fontWeight: 500, color: cssVars["--text-secondary"], marginBottom: "14px" }}>
             Productos
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -149,7 +151,7 @@ export default async function ConfirmacionPage({
 
         <a
           href={"/pedir/" + tenant}
-          style={{ display: "block", width: "100%", padding: "16px", borderRadius: "14px", backgroundColor: cssVars["--brand-accent"], color: "#0d0d0d", fontWeight: 800, fontSize: "16px", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}
+          style={{ display: "block", width: "100%", padding: "16px", borderRadius: "14px", backgroundColor: cssVars["--brand-accent"], color: cssVars["--on-accent"], fontWeight: 800, fontSize: "16px", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}
         >
           Hacer otro pedido
         </a>

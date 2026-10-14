@@ -36,6 +36,8 @@ export type TenantTheme = {
   // Tipografía
   bodyFont: string;
   headingFont: string;
+  /** Títulos en mayúsculas (útil con fuentes de rótulo condensadas como Anton). */
+  headingCase: 'normal' | 'uppercase';
 
   // Visual
   borderRadius: string;
@@ -89,6 +91,7 @@ export const SYSTEM_DEFAULT_THEME: TenantTheme = {
   textSecondary:   '#b8b6df',
   bodyFont:    'Inter, system-ui, sans-serif',
   headingFont: 'Inter, system-ui, sans-serif',
+  headingCase: 'normal',
   borderRadius: '8px',
   cardStyle:    'rounded',
   logoUrl:      null,
@@ -137,6 +140,23 @@ export function getTenantSettings(
 
 
 /**
+ * Color de texto legible sobre un fondo dado: oscuro sobre colores claros
+ * (ámbar, crema) y blanco sobre colores oscuros (verde, rojo intenso).
+ */
+export function readableOn(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return '#ffffff';
+  const n = parseInt(m[1], 16);
+  const lin = (c: number) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const lum = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  // Contraste con blanco vs. con casi negro: gana el mayor.
+  return (1.05 / (lum + 0.05)) >= ((lum + 0.05) / 0.0559) ? '#ffffff' : '#111111';
+}
+
+/**
  * Convierte un TenantTheme en un objeto de variables CSS inline.
  * Usado para aplicar el tema del tenant mediante style props en React.
  */
@@ -149,9 +169,12 @@ export function themeToCssVars(theme: TenantTheme): Record<string, string> {
           '--text-primary': theme.textPrimary,
           '--text-secondary': theme.textSecondary,
           '--brand-accent': theme.primaryColor,
+          '--on-accent': readableOn(theme.primaryColor),
           '--brand-secondary': theme.secondaryColor,
+          '--on-secondary': readableOn(theme.secondaryColor),
           '--font-body': theme.bodyFont,
           '--font-heading': theme.headingFont,
+          '--heading-case': theme.headingCase === 'uppercase' ? 'uppercase' : 'none',
           '--border-radius': theme.borderRadius,
     };
 }

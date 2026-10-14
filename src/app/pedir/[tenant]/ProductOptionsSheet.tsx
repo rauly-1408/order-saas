@@ -76,9 +76,9 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={product.name}>
-      <button aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/60" />
+      <button aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
 
-      <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-[var(--surface-0)] text-[var(--text-primary)] sm:rounded-2xl">
+      <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden p-rise rounded-t-[28px] bg-[var(--surface-0)] text-[var(--text-primary)] shadow-2xl sm:rounded-[28px]">
         <header className="flex items-start gap-3 border-b border-[var(--border)] p-5">
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-bold">{product.name}</h2>
@@ -123,7 +123,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
                           aria-pressed={selected}
                           className={`rounded-full border px-3 py-1.5 text-[13px] ${
                             selected
-                              ? "border-[var(--brand-accent)] bg-[var(--brand-accent)] font-semibold text-[#0d0d0d]"
+                              ? "border-[var(--brand-accent)] bg-[var(--brand-accent)] font-semibold text-[var(--on-accent)]"
                               : "border-[var(--border)] text-[var(--text-primary)]"
                           }`}
                         >
@@ -152,7 +152,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
                         <span className="flex-1 text-[14px]">
                           {option.name}
                           {recommended && (
-                            <span className="ml-2 rounded-md bg-[var(--brand-accent)]/15 px-1.5 py-0.5 text-[11px] font-semibold text-[var(--brand-accent)]">
+                            <span className="ml-2 rounded-md bg-[var(--brand-secondary)]/10 px-1.5 py-0.5 text-[11px] font-semibold text-[var(--brand-secondary)]">
                               Recomendado
                             </span>
                           )}
@@ -176,7 +176,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
           {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
           <button
             onClick={handleAdd}
-            className="w-full rounded-xl bg-[var(--brand-accent)] py-3.5 text-[15px] font-extrabold text-[#0d0d0d]"
+            className="p-press w-full rounded-full bg-[var(--brand-accent)] py-3.5 text-[15px] font-semibold text-[var(--on-accent)]"
           >
             Añadir al pedido · {euros(unitPriceCents)}
           </button>
