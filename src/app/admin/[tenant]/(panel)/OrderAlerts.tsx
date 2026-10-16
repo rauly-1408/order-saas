@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { audioRunning, playOrderChime, SOUND_EVENT, soundEnabled, unlockAudio } from "./sound";
+import { audioRunning, playOrderChime, repeatUntilAccepted, SOUND_EVENT, soundEnabled, unlockAudio } from "./sound";
 
 // Aviso de pedidos nuevos en TODO el panel (no solo en Pedidos):
-// - suena un "cha-ching" una vez cuando entra un pedido nuevo;
+// - suena un "cha-ching" cuando entra un pedido nuevo y, si está activado
+//   «Repetir hasta aceptar» (por defecto), cada ~8 s mientras haya pedidos sin aceptar;
 // - muestra un aviso flotante con enlace a Pedidos;
 // - el sonido se desbloquea solo con el primer toque/clic/tecla en el panel.
 
@@ -56,15 +57,15 @@ export default function OrderAlerts({ tenant }: { tenant: string }) {
       const { pending: list } = (await res.json()) as { pending: Pending[] };
       const ids = new Set(list.map((p) => p.id));
       // Primera carga: no suena por lo que ya había; solo por lo que entre después.
-      if (known.current) {
-        const fresh = list.filter((p) => !known.current!.has(p.id));
-        if (fresh.length) {
-          if (soundEnabled()) playOrderChime();
-          setToast(fresh[fresh.length - 1]);
-          // El tablero de Pedidos se refresca al instante sin esperar a su ciclo.
-          window.dispatchEvent(new Event("panel-new-order"));
-        }
+      const fresh = known.current ? list.filter((p) => !known.current!.has(p.id)) : [];
+      if (fresh.length) {
+        setToast(fresh[fresh.length - 1]);
+        // El tablero de Pedidos se refresca al instante sin esperar a su ciclo.
+        window.dispatchEvent(new Event("panel-new-order"));
       }
+      // Suena por un pedido nuevo o, si se repite, mientras quede alguno sin aceptar.
+      // Al aceptarlos todos (lista vacía) deja de sonar.
+      if (soundEnabled() && (fresh.length > 0 || (repeatUntilAccepted() && list.length > 0))) playOrderChime();
       known.current = ids;
       setPending(list);
     } catch {
@@ -73,9 +74,12 @@ export default function OrderAlerts({ tenant }: { tenant: string }) {
   }, [tenant, router]);
 
   useEffect(() => {
-    poll();
+    const first = setTimeout(poll, 0); // primera consulta nada más montar
     const id = setInterval(poll, POLL_MS);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
   }, [poll]);
 
   // El título de la pestaña muestra los pendientes aunque esté en segundo plano.
