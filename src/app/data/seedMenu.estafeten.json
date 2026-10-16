@@ -296,6 +296,75 @@
           "sortOrder": 13
         }
       ]
+    },
+    {
+      "code": "COMPLEMENTS",
+      "name": "Añade complementos",
+      "isRequired": false,
+      "minSelect": 0,
+      "maxSelect": 12,
+      "options": [
+        {
+          "name": "Degustación – Especialidad de la casa",
+          "priceDeltaCents": 695,
+          "sortOrder": 1
+        },
+        {
+          "name": "Patatas Brutalmente Fetén",
+          "priceDeltaCents": 995,
+          "sortOrder": 2
+        },
+        {
+          "name": "Ración de patatas Tafetén",
+          "priceDeltaCents": 395,
+          "sortOrder": 3
+        },
+        {
+          "name": "Pollo Kentucky",
+          "priceDeltaCents": 695,
+          "sortOrder": 4
+        },
+        {
+          "name": "Aros de queso y bacon (6 uds)",
+          "priceDeltaCents": 550,
+          "sortOrder": 5
+        },
+        {
+          "name": "Ración de boniato frito",
+          "priceDeltaCents": 400,
+          "sortOrder": 6
+        },
+        {
+          "name": "Fingers de pollo (6 uds)",
+          "priceDeltaCents": 600,
+          "sortOrder": 7
+        },
+        {
+          "name": "Tiras de lomo rebozado",
+          "priceDeltaCents": 695,
+          "sortOrder": 8
+        },
+        {
+          "name": "Bolitas de queso y jalapeño (6 uds)",
+          "priceDeltaCents": 395,
+          "sortOrder": 9
+        },
+        {
+          "name": "Bolitas de queso y jalapeño (12 uds)",
+          "priceDeltaCents": 550,
+          "sortOrder": 10
+        },
+        {
+          "name": "Picachos queso cheddar (6 uds)",
+          "priceDeltaCents": 550,
+          "sortOrder": 11
+        },
+        {
+          "name": "Albóndigas en salsa (veganas)",
+          "priceDeltaCents": 550,
+          "sortOrder": 12
+        }
+      ]
     }
   ],
   "categories": [
@@ -321,14 +390,19 @@
       "description": "Carne dry aged 45 días o pollo 100% natural, siempre técnica smash"
     },
     {
+      "name": "Entrantes y complementos",
+      "slug": "entrantes-complementos",
+      "sortOrder": 5
+    },
+    {
       "name": "Bebidas",
       "slug": "bebidas",
-      "sortOrder": 5
+      "sortOrder": 6
     },
     {
       "name": "Postres",
       "slug": "postres",
-      "sortOrder": 6
+      "sortOrder": 7
     }
   ],
   "products": [
@@ -341,7 +415,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tradicional"
@@ -357,7 +432,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Alga nori y sésamo"
@@ -373,7 +449,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tomate y pesto picante"
@@ -389,7 +466,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tomate y pesto picante"
@@ -405,7 +483,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tradicional"
@@ -421,7 +500,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tradicional"
@@ -437,7 +517,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tradicional"
@@ -453,7 +534,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Lechuga de mar y aceitunas"
@@ -469,7 +551,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Alga nori y sésamo"
@@ -485,7 +568,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Cúrcuma y jengibre"
@@ -501,7 +585,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tradicional"
@@ -517,7 +602,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Cúrcuma y jengibre"
@@ -533,7 +619,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Mantequilla"
@@ -549,7 +636,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tomate y pesto picante"
@@ -565,7 +653,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Queso cheddar"
@@ -581,7 +670,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tomate y pesto"
@@ -597,7 +687,8 @@
       "modifierGroupCodes": [
         "BREAD",
         "SIDE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tradicional"
@@ -614,7 +705,8 @@
         "BREAD",
         "SIDE",
         "DOUBLE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tradicional"
@@ -631,7 +723,8 @@
         "BREAD",
         "SIDE",
         "DOUBLE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Mantequilla"
@@ -648,7 +741,8 @@
         "BREAD",
         "SIDE",
         "DOUBLE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Queso cheddar"
@@ -665,7 +759,8 @@
         "BREAD",
         "SIDE",
         "DOUBLE",
-        "SAUCES"
+        "SAUCES",
+        "COMPLEMENTS"
       ],
       "defaults": {
         "BREAD": "Tomate y pesto"
@@ -932,6 +1027,102 @@
       "basePriceCents": 650,
       "modifierGroupCodes": [],
       "sortOrder": 50
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Degustación – Especialidad de la casa",
+      "slug": "degustacion",
+      "description": "Elige dos variedades de pan especial tostado acompañado de mozzarella de búfala y AOVE aromatizado de la casa. Recomendado para 2 personas.",
+      "basePriceCents": 695,
+      "sortOrder": 51
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Patatas Brutalmente Fetén",
+      "slug": "patatas-brutalmente-feten",
+      "description": "300 g de patatas con pulled beef, queso gratinado y salsa bacon casera.",
+      "basePriceCents": 995,
+      "sortOrder": 52
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Ración de patatas Tafetén",
+      "slug": "patatas-tafeten",
+      "description": "300 g de patatas fritas con pimentón dulce, ajo y especias de la casa.",
+      "basePriceCents": 395,
+      "sortOrder": 53
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Pollo Kentucky",
+      "slug": "pollo-kentucky",
+      "description": "250 g de solomillo de pollo rebozado con extra crispy crujiente.",
+      "basePriceCents": 695,
+      "sortOrder": 54
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Aros de queso y bacon (6 uds)",
+      "slug": "aros-queso-bacon",
+      "description": "Aros de queso gouda con bacon.",
+      "basePriceCents": 550,
+      "sortOrder": 55
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Ración de boniato frito",
+      "slug": "racion-boniato",
+      "description": "250 g de boniato frito (patata dulce).",
+      "basePriceCents": 400,
+      "sortOrder": 56
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Fingers de pollo (6 uds)",
+      "slug": "fingers-pollo",
+      "description": "Incluye 200 g de patatas fritas.",
+      "basePriceCents": 600,
+      "sortOrder": 57
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Tiras de lomo rebozado",
+      "slug": "tiras-lomo",
+      "description": "250 g de tiras de lomo con empanado casero.",
+      "basePriceCents": 695,
+      "sortOrder": 58
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Bolitas de queso y jalapeño (6 uds)",
+      "slug": "bolitas-jalapeno-6",
+      "description": "Bolitas de queso y jalapeños rebozadas.",
+      "basePriceCents": 395,
+      "sortOrder": 59
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Bolitas de queso y jalapeño (12 uds)",
+      "slug": "bolitas-jalapeno-12",
+      "description": "Bolitas de queso y jalapeños rebozadas.",
+      "basePriceCents": 550,
+      "sortOrder": 60
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Picachos queso cheddar (6 uds)",
+      "slug": "picachos-cheddar",
+      "description": "Triángulos rellenos de queso cheddar empanados.",
+      "basePriceCents": 550,
+      "sortOrder": 61
+    },
+    {
+      "categorySlug": "entrantes-complementos",
+      "name": "Albóndigas en salsa (veganas)",
+      "slug": "albondigas-veganas",
+      "description": "Ración de patatas fritas + 6 unidades de albóndigas veganas en salsa de tomate y vegetales.",
+      "basePriceCents": 550,
+      "sortOrder": 62
     }
   ]
 }

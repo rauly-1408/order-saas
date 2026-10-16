@@ -16,6 +16,8 @@ import { ComboCard, ProductCard, PromoTile } from "./StoreCards";
 import StoreFooter from "./StoreFooter";
 import type { BusinessInfo } from "@/app/lib/business";
 import type { WeeklyHours } from "@/app/lib/storeStatus";
+import { useRouter } from "next/navigation";
+import { rememberLang, storeMessage, ui, whenText, type Lang } from "@/app/lib/i18n";
 import DeliveryPartners, { type PartnerLink } from "./DeliveryPartners";
 import type { ChoiceProduct, ComboSlotDef } from "@/app/lib/combos";
 
@@ -54,12 +56,21 @@ type MenuClientProps = {
   deliveryPartners?: PartnerLink[];
   business: BusinessInfo;
   hours: WeeklyHours | null;
+  lang?: Lang;
+  languages?: Lang[];
 };
 
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online, deliveryPartners = [], business, hours }: MenuClientProps) {
+export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online, deliveryPartners = [], business, hours, lang = "es", languages = ["es"] }: MenuClientProps) {
+  const T = ui(lang);
+  const router = useRouter();
+  // Cambiar de idioma: se guarda la elección y se vuelve a pedir la página.
+  function setLang(next: Lang) {
+    rememberLang(next);
+    router.refresh();
+  }
   const { items, addItem, inc, dec, remove, clear } = useCart();
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   // Producto cuyo selector de opciones (pan, guarnición, extras) está abierto.
@@ -82,12 +93,12 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
 
   // Mostrar delivery o takeaway según config
   const deliveryLabel = settings?.deliveryEnabled && settings?.takeawayEnabled
-    ? "Delivery y recogida"
+    ? T.deliveryAndPickup
     : settings?.deliveryEnabled
-    ? "Delivery"
+    ? T.deliveryOnly
     : settings?.takeawayEnabled
-    ? deliveryPartners.length ? "Recogida · a domicilio con plataformas" : "Solo recogida"
-    : "Pedidos online";
+    ? deliveryPartners.length ? T.pickupPlatforms : T.pickupOnly
+    : T.onlineOrders;
 
   useEffect(() => {
     const observers: IntersectionObserver[] = [];
@@ -173,8 +184,8 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
       {/* Aviso de cerrado: franja fina arriba, no un bloque que tape la portada */}
       {store && !store.status.open && (
         <div className="px-4 py-2 text-center text-[13px] font-semibold" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
-          🕐 {store.status.message}{store.status.reopens ? ` · abrimos ${store.status.reopens}` : ""}
-          {canSchedule ? " · Puedes programar tu pedido" : ""}
+          🕐 {storeMessage(store.status.kind, store.status.message, lang)}{!store.status.open && store.status.reopens ? ` · ${T.closedOpens(whenText(store.status.reopens, lang)!)}` : ""}
+          {canSchedule ? ` · ${T.canSchedule}` : ""}
         </div>
       )}
 
@@ -197,17 +208,33 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
             {store && (
               <span className="hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold sm:inline-flex" style={{ border: `1px solid ${cssVars["--border"]}`, color: cssVars["--on-header"] }}>
                 <span className={`h-2 w-2 rounded-full ${store.status.open ? "bg-emerald-500" : ""}`} style={store.status.open ? undefined : { backgroundColor: cssVars["--brand-secondary"] }} />
-                {store.status.open ? "Abierto" : "Cerrado"}
+                {store.status.open ? T.open : T.closed}
               </span>
             )}
             {deliveryPartners.length > 0 && !settings?.deliveryEnabled ? (
               <a href="#a-domicilio" className="p-press hidden rounded-full px-4 py-2 text-[13px] font-bold no-underline sm:inline-block" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
-                🛵 A domicilio
+                🛵 {T.delivery}
               </a>
             ) : null}
+            {/* Idioma: ES / EN (solo si el restaurante tiene la carta traducida) */}
+            {languages.includes("en") && (
+              <div className="flex rounded-full p-0.5 text-[12px] font-bold" style={{ border: `1px solid ${cssVars["--border"]}` }} role="group" aria-label={T.language}>
+                {(["es", "en"] as const).map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => l !== lang && setLang(l)}
+                    aria-pressed={l === lang}
+                    className="p-press rounded-full px-2.5 py-1 uppercase"
+                    style={l === lang ? { backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)" } : { color: cssVars["--on-header"] }}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            )}
             <a
               href={`/pedir/${tenant}/checkout`}
-              aria-label={`Ver pedido: ${totalItems} ${totalItems === 1 ? "artículo" : "artículos"}`}
+              aria-label={`${T.viewOrder}: ${T.items(totalItems)}`}
               className="p-press relative flex h-10 items-center gap-2 rounded-full px-4 text-[14px] font-bold no-underline"
               style={{ backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)" }}
             >
@@ -215,7 +242,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                 <path d="M6 7h12l-1 13H7z" />
                 <path d="M9 7a3 3 0 0 1 6 0" />
               </svg>
-              <span key={bump} className={bump ? "s-bump inline-block" : "inline-block"}>{totalItems > 0 ? euros(totalCents) : "Pedido"}</span>
+              <span key={bump} className={bump ? "s-bump inline-block" : "inline-block"}>{totalItems > 0 ? euros(totalCents) : T.order}</span>
               {totalItems > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
                   {totalItems}
@@ -237,16 +264,16 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           <h1 className="s-up mt-3 max-w-3xl text-[56px] sm:text-[104px]" style={{ ...heading, ["--i" as any]: 1, color: t.heroImageUrl ? "#ffffff" : cssVars["--bg-base"] }}>
             {tenantName}
           </h1>
-          <p className="s-up mt-4 max-w-md text-[16px] opacity-90" style={{ ["--i" as any]: 2 }}>Elige, personaliza y te lo preparamos al momento.</p>
+          <p className="s-up mt-4 max-w-md text-[16px] opacity-90" style={{ ["--i" as any]: 2 }}>{T.tagline}</p>
           <div className="s-up mt-7 flex flex-wrap gap-3" style={{ ["--i" as any]: 3 }}>
             {firstSlug && (
               <button onClick={() => scrollToCategory(firstSlug)} className="p-press rounded-full px-6 py-3.5 text-[15px] font-bold shadow-[0_12px_28px_-12px_rgba(0,0,0,0.6)]" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
-                Ver la carta
+                {T.seeMenu}
               </button>
             )}
             {deliveryPartners.length > 0 && (
               <a href="#a-domicilio" className="p-press rounded-full border-2 px-6 py-3 text-[15px] font-bold no-underline" style={{ borderColor: "currentColor", color: "inherit" }}>
-                🛵 A domicilio
+                🛵 {T.delivery}
               </a>
             )}
           </div>
@@ -254,7 +281,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
       </section>
 
       {/* Categorías: barra fija bajo la cabecera, alineada con el contenido */}
-      <nav className="sticky top-16 z-40 border-b border-[var(--border)] shadow-[0_8px_20px_-18px_rgba(0,0,0,0.4)]" style={{ backgroundColor: cssVars["--surface-0"] }} aria-label="Categorías">
+      <nav className="sticky top-16 z-40 border-b border-[var(--border)] shadow-[0_8px_20px_-18px_rgba(0,0,0,0.4)]" style={{ backgroundColor: cssVars["--surface-0"] }} aria-label={T.categories}>
         <div ref={navRef} className={`${wrap} flex gap-2 overflow-x-auto py-3`} style={{ scrollbarWidth: "none" }}>
           {categories.map((cat) => {
             const isActive = activeCategory === cat.slug;
@@ -281,15 +308,15 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
       <main className={`${wrap} pt-10 pb-4`}>
         {/* A domicilio con plataformas (sin repartidores propios): como McDonald's */}
         {deliveryPartners.length > 0 && (
-          <section id="a-domicilio" data-reveal className="mb-12 scroll-mt-32 rounded-[26px] p-6 sm:p-8" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }} aria-label="A domicilio">
+          <section id="a-domicilio" data-reveal className="mb-12 scroll-mt-32 rounded-[26px] p-6 sm:p-8" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }} aria-label={T.delivery}>
             <div className="grid gap-5 lg:grid-cols-[1fr_minmax(0,520px)] lg:items-center">
               <div>
-                <p className="text-[12px] font-bold uppercase tracking-[0.12em]" style={{ color: cssVars["--brand-secondary"] }}>🛵 A domicilio</p>
+                <p className="text-[12px] font-bold uppercase tracking-[0.12em]" style={{ color: cssVars["--brand-secondary"] }}>🛵 {T.delivery}</p>
                 <h2 className="mt-2 text-[34px] sm:text-[44px]" style={{ ...heading, color: cssVars["--heading-color"] }}>
-                  {settings?.deliveryEnabled ? "También en tu app" : "Escoge quién te lo lleva"}
+                  {settings?.deliveryEnabled ? T.alsoInYourApp : T.chooseCourier}
                 </h2>
                 <p className="mt-2 max-w-md text-[14px]" style={{ color: cssVars["--text-secondary"] }}>
-                  {settings?.deliveryEnabled ? "Si lo prefieres, pídenos en tu app de siempre." : "Te llevamos a nuestra tienda en esa app, donde haces el pedido y el pago. Para recoger, pide aquí."}
+                  {settings?.deliveryEnabled ? T.alsoInYourAppText : T.courierText}
                 </p>
               </div>
               <DeliveryPartners partners={deliveryPartners} />
@@ -299,17 +326,17 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
 
         {/* Promociones y tarjeta de sellos: fila deslizante de tarjetas de color */}
         {perks && (visiblePromos.length > 0 || perks.loyalty) && (
-          <section className="mb-14" aria-label="Promociones">
-            <h2 data-reveal className="mb-5 text-[34px] sm:text-[44px]" style={{ ...heading, color: cssVars["--heading-color"] }}>Promociones</h2>
+          <section className="mb-14" aria-label={T.promotions}>
+            <h2 data-reveal className="mb-5 text-[34px] sm:text-[44px]" style={{ ...heading, color: cssVars["--heading-color"] }}>{T.promotions}</h2>
             <div className="s-row -mx-4 flex items-stretch gap-4 overflow-x-auto px-4 pb-2 sm:-mx-8 sm:px-8">
               {perks.loyalty && (
                 <div data-reveal className="w-[85vw] max-w-[380px] shrink-0 sm:w-[380px]">
-                  <StampCard ordersRequired={perks.loyalty.ordersRequired} stamps={null} rewardName={perks.loyalty.rewardName} upperHeadings={upper} />
+                  <StampCard ordersRequired={perks.loyalty.ordersRequired} stamps={null} rewardName={perks.loyalty.rewardName} upperHeadings={upper} lang={lang} />
                 </div>
               )}
               {visiblePromos.map((p, i) => (
                 <div key={p.id} data-reveal className="flex" style={{ ["--i" as any]: i + 1 }}>
-                  <PromoTile promo={p} tone={i % 2 === 0 ? "secondary" : "accent"} upperHeadings={upper} />
+                  <PromoTile promo={p} tone={i % 2 === 0 ? "secondary" : "accent"} upperHeadings={upper} lang={lang} />
                 </div>
               ))}
             </div>
@@ -333,6 +360,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                     <div key={product.id} data-reveal style={{ ["--i" as any]: Math.min(i, 6) }}>
                       {product.isCombo ? (
                         <ComboCard
+                          lang={lang}
                           name={product.name}
                           description={product.description}
                           priceCents={product.basePriceCents}
@@ -343,6 +371,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                         />
                       ) : (
                         <ProductCard
+                          lang={lang}
                           name={product.name}
                           description={product.description}
                           priceCents={product.basePriceCents}
@@ -367,10 +396,11 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
 
       {/* Pie con los datos del negocio (Personalización → Datos del negocio) */}
       <div className={totalItems > 0 ? "pb-24" : ""}>
-        <StoreFooter tenant={tenant} tenantName={tenantName} logoUrl={t.logoUrl} business={business} hours={hours} online={online} upperHeadings={upper} />
+        <StoreFooter tenant={tenant} tenantName={tenantName} logoUrl={t.logoUrl} business={business} hours={hours} online={online} upperHeadings={upper} lang={lang} />
       </div>
       {optionsFor && (
         <ProductOptionsSheet
+          lang={lang}
           product={optionsFor}
           onClose={() => setOptionsFor(null)}
           onAdd={(line) => {
@@ -382,6 +412,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
       )}
       {comboFor && (
         <ComboSheet
+          lang={lang}
           combo={{ id: comboFor.id, name: comboFor.name, description: comboFor.description, basePriceCents: comboFor.basePriceCents, comboSlots: comboFor.comboSlots ?? [] }}
           catalog={catalog}
           onClose={() => setComboFor(null)}
@@ -398,11 +429,11 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           <div className="s-up mx-auto flex max-w-xl items-center gap-3 rounded-full p-2 pl-5 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.55)]" style={{ backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)" }}>
             <div className="min-w-0 flex-1">
               <div key={bump} className={`text-[16px] font-bold tabular-nums ${bump ? "s-bump inline-block" : ""}`}>{euros(totalCents)}</div>
-              <div className="text-[12px] opacity-80">{totalItems} {totalItems === 1 ? "artículo" : "artículos"}</div>
+              <div className="text-[12px] opacity-80">{T.items(totalItems)}</div>
             </div>
-            <button onClick={clear} className="p-press shrink-0 rounded-full px-3 py-2 text-[13px] opacity-80 hover:opacity-100">Vaciar</button>
+            <button onClick={clear} className="p-press shrink-0 rounded-full px-3 py-2 text-[13px] opacity-80 hover:opacity-100">{T.clear}</button>
             <a href={`/pedir/${tenant}/checkout`} className="p-press shrink-0 rounded-full px-6 py-3 text-[15px] font-bold no-underline" style={{ backgroundColor: cssVars["--bg-base"], color: cssVars["--brand-accent"] }}>
-              Ver pedido →
+              {T.viewOrder}
             </a>
           </div>
         </div>

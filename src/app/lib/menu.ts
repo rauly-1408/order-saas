@@ -7,12 +7,13 @@ import { loadPerks, publicPerks } from "@/app/lib/perks";
 import { parseOnline } from "@/app/lib/brand";
 import { activePartners, parsePartners } from "@/app/lib/deliveryPartners";
 import { readBusiness } from "@/app/lib/business";
+import { allergenName, enabledLangs, tr, type Lang } from "@/app/lib/i18n";
 
 // Carga la carta pública de un tenant (tema, ajustes, categorías y productos
 // con sus opciones). La usan la API /api/menu/[tenant] y las páginas de
 // /pedir directamente — las páginas NO deben llamarse a sí mismas por HTTP
 // (en Vercel esa auto-llamada fallaba en producción).
-export async function loadMenu(tenantSlug: string) {
+export async function loadMenu(tenantSlug: string, lang: Lang = "es") {
   const tenant = await prisma.tenant.findUnique({
     where: { slug: tenantSlug },
     select: { id: true, slug: true, name: true, branding: true, settings: true, addons: true },
@@ -36,7 +37,7 @@ export async function loadMenu(tenantSlug: string) {
   };
   const store = ops ? publicStoreInfo(ops) : null;
   // Promociones en vigor y tarjeta de fidelidad (motor de retención).
-  const perks = publicPerks(await loadPerks(tenant.id, tenant.settings, tenant.addons));
+  const perks = publicPerks(await loadPerks(tenant.id, tenant.settings, tenant.addons), lang);
 
   const categories = await prisma.category.findMany({
     where: { tenantId: tenant.id, isActive: true },
@@ -49,6 +50,7 @@ export async function loadMenu(tenantSlug: string) {
           id: true,
           name: true,
           description: true,
+          translations: true,
           basePriceCents: true,
           imageUrl: true,
           isFeatured: true,
@@ -57,7 +59,7 @@ export async function loadMenu(tenantSlug: string) {
           isCombo: true,
           comboSlots: {
             orderBy: { sortOrder: "asc" },
-            select: { id: true, name: true, items: { orderBy: { sortOrder: "asc" }, select: { productId: true, extraCents: true } } },
+            select: { id: true, name: true, translations: true, items: { orderBy: { sortOrder: "asc" }, select: { productId: true, extraCents: true } } },
           },
           // Alérgenos derivados del escandallo (módulo Costes); vacío si no hay receta.
           recipeLines: { select: { ingredient: { select: { allergens: true } } } },
@@ -70,6 +72,7 @@ export async function loadMenu(tenantSlug: string) {
                   id: true,
                   code: true,
                   name: true,
+                  translations: true,
                   isRequired: true,
                   minSelect: true,
                   maxSelect: true,
@@ -79,6 +82,7 @@ export async function loadMenu(tenantSlug: string) {
                     select: {
                       id: true,
                       name: true,
+                      translations: true,
                       priceDeltaCents: true,
                       recipeLines: { select: { ingredient: { select: { allergens: true } } } },
                     },
@@ -92,18 +96,25 @@ export async function loadMenu(tenantSlug: string) {
     },
   });
 
-  // Aplana ProductModifierGroup -> MenuModifierGroup (con la opción por defecto del producto).
-  const menuCategories = categories.map((cat) => ({
+  // Aplana ProductModifierGroup -> MenuModifierGroup (con la opción por defecto del
+  // producto) y pone cada texto en el idioma del cliente (o el original si falta).
+  const allergens = (lines: { ingredient: { allergens: string[] } }[]) => allergensOf(lines).map((a) => allergenName(a, lang));
+  const menuCategories = categories.map(({ translations: catTr, ...cat }) => ({
     ...cat,
-    products: cat.products.map(({ modifierGroups, recipeLines, ...product }) => ({
+    name: tr(catTr, lang, "name", cat.name),
+    description: tr(catTr, lang, "description", cat.description),
+    products: cat.products.map(({ modifierGroups, recipeLines, translations: pTr, comboSlots, ...product }) => ({
       ...product,
-      description: product.description ?? "",
-      allergens: allergensOf(recipeLines),
+      name: tr(pTr, lang, "name", product.name),
+      description: tr(pTr, lang, "description", product.description ?? ""),
+      allergens: allergens(recipeLines),
+      comboSlots: comboSlots.map(({ translations: sTr, ...s }) => ({ ...s, name: tr(sTr, lang, "name", s.name) })),
       modifierGroups: modifierGroups.map(
-        (pmg): MenuModifierGroup => ({
-          ...pmg.group,
-          defaultOptionId: pmg.defaultOptionId,
-          options: pmg.group.options.map(({ recipeLines: optLines, ...o }) => ({ ...o, allergens: allergensOf(optLines) })),
+        ({ group: { translations: gTr, options, ...group }, defaultOptionId }): MenuModifierGroup => ({
+          ...group,
+          name: tr(gTr, lang, "name", group.name),
+          defaultOptionId,
+          options: options.map(({ recipeLines: optLines, translations: oTr, ...o }) => ({ ...o, name: tr(oTr, lang, "name", o.name), allergens: allergens(optLines) })),
         })
       ),
     })),
@@ -111,6 +122,8 @@ export async function loadMenu(tenantSlug: string) {
 
   return {
     tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name },
+    lang,
+    languages: enabledLangs(tenant.settings),
     theme,
     settings,
     store,

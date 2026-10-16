@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { initialSelection, type MenuModifierGroup, type OrderLineModifier } from "@/app/lib/menuOptions";
+import { optionError, ui, type Lang } from "@/app/lib/i18n";
 import { priceCombo, type ChoiceProduct, type ComboChoice, type ComboSlotDef } from "@/app/lib/combos";
 
 // Hoja para montar un combo/menú: en cada paso el cliente elige un producto
@@ -11,6 +12,7 @@ import { priceCombo, type ChoiceProduct, type ComboChoice, type ComboSlotDef } f
 export type ComboProduct = { id: string; name: string; description: string; basePriceCents: number; comboSlots: ComboSlotDef[] };
 
 type Props = {
+  lang?: Lang;
   combo: ComboProduct;
   catalog: Map<string, ChoiceProduct>; // productos disponibles en la carta
   onClose: () => void;
@@ -19,7 +21,8 @@ type Props = {
 
 const euros = (cents: number) => (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function ComboSheet({ combo, catalog, onClose, onAdd }: Props) {
+export default function ComboSheet({ combo, catalog, onClose, onAdd, lang = "es" }: Props) {
+  const T = ui(lang);
   // Solo se ofrecen los productos que hoy están disponibles en la carta.
   const slots = useMemo(
     () => combo.comboSlots.map((s) => ({ ...s, items: s.items.filter((i) => catalog.has(i.productId)) })),
@@ -70,22 +73,22 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd }: Props) {
 
   function handleAdd() {
     const missing = slots.find((s) => !picked[s.id]);
-    if (missing) return setError(`${missing.name}: elige una opción`);
-    if (typeof priced === "string") return setError(priced);
+    if (missing) return setError(T.chooseOption(missing.name));
+    if (typeof priced === "string") return setError(optionError(priced, lang));
     onAdd({ comboChoices: choices, modifiers: priced.modifiers, unitPriceCents: priced.unitCents });
   }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={combo.name}>
-      <button aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+      <button aria-label={T.close} onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
       <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden p-rise rounded-t-[28px] bg-[var(--surface-0)] text-[var(--text-primary)] shadow-2xl sm:rounded-[28px]">
         <header className="flex items-start gap-3 border-b border-[var(--border)] p-5">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--brand-secondary)]">Menú · {euros(combo.basePriceCents)}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--brand-secondary)]">{T.menuLabel(euros(combo.basePriceCents))}</p>
             <h2 className="text-lg font-bold">{combo.name}</h2>
             {combo.description && <p className="mt-1 text-[13px] leading-snug text-[var(--text-secondary)]">{combo.description}</p>}
           </div>
-          <button onClick={onClose} aria-label="Cerrar" className="h-8 w-8 shrink-0 rounded-full text-xl leading-none text-[var(--text-secondary)] hover:bg-[var(--surface-1)]">
+          <button onClick={onClose} aria-label={T.close} className="h-8 w-8 shrink-0 rounded-full text-xl leading-none text-[var(--text-secondary)] hover:bg-[var(--surface-1)]">
             ×
           </button>
         </header>
@@ -103,14 +106,14 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd }: Props) {
                   </h3>
                   {chosen && editing !== slot.id ? (
                     <button onClick={() => setEditing(slot.id)} className="text-xs font-semibold text-[var(--brand-accent)]">
-                      Cambiar
+                      {T.change}
                     </button>
                   ) : (
-                    <span className="text-xs text-[var(--text-secondary)]">Elige uno</span>
+                    <span className="text-xs text-[var(--text-secondary)]">{T.chooseOne}</span>
                   )}
                 </div>
                 {slot.items.length === 0 ? (
-                  <p className="text-[13px] text-[var(--text-secondary)]">Ahora mismo no hay opciones disponibles.</p>
+                  <p className="text-[13px] text-[var(--text-secondary)]">{T.noOptionsNow}</p>
                 ) : (
                   <div className="space-y-2">
                     {slot.items.filter((item) => !chosen || editing === slot.id || item.productId === chosenId).map((item) => {
@@ -127,7 +130,7 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd }: Props) {
                             {selected && <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand-accent)]" />}
                           </span>
                           <span className="min-w-0 flex-1 text-[14px]">{p.name}</span>
-                          <span className="shrink-0 text-[13px] text-[var(--text-secondary)]">{item.extraCents > 0 ? `+${euros(item.extraCents)}` : "Incluido"}</span>
+                          <span className="shrink-0 text-[13px] text-[var(--text-secondary)]">{item.extraCents > 0 ? `+${euros(item.extraCents)}` : T.included}</span>
                         </button>
                       );
                     })}
@@ -139,7 +142,7 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd }: Props) {
                     {chosen.modifierGroups.map((g) => (
                       <div key={g.id}>
                         <p className="mb-1.5 text-[13px] font-semibold">
-                          {g.name} <span className="font-normal text-[var(--text-secondary)]">· {g.isRequired ? "obligatorio" : "opcional"}</span>
+                          {g.name} <span className="font-normal text-[var(--text-secondary)]">· {g.isRequired ? T.requiredLower : T.optionalLower}</span>
                         </p>
                         <div className="flex flex-wrap gap-1.5">
                           {g.options.map((o) => {
@@ -173,7 +176,7 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd }: Props) {
             onClick={handleAdd}
             className={`p-press w-full rounded-full bg-[var(--brand-accent)] py-3.5 text-[15px] font-semibold text-[var(--on-accent)] ${complete ? "" : "opacity-60"}`}
           >
-            {complete ? `Añadir menú · ${euros(unitPriceCents)}` : `Elige ${slots.length - choices.length === 1 ? "1 opción más" : `${slots.length - choices.length} opciones más`} · ${euros(unitPriceCents)}`}
+            {complete ? T.addMenu(euros(unitPriceCents)) : T.chooseMore(slots.length - choices.length, euros(unitPriceCents))}
           </button>
         </footer>
       </div>

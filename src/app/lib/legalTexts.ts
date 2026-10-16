@@ -82,7 +82,7 @@ export function legalText(doc: LegalSlug, b: BusinessInfo, brand: string, siteUr
       {
         heading: "Qué usamos",
         paragraphs: [
-          "Esta tienda solo usa almacenamiento técnico imprescindible para que funcione: recordar tu pedido mientras lo preparas (carrito) y, si lo activas, el aviso de estado de tu pedido.",
+          "Esta tienda solo usa almacenamiento técnico imprescindible para que funcione: recordar tu pedido mientras lo preparas (carrito), el idioma que eliges (cookie «pedir_lang», un año) y, si lo activas, el aviso de estado de tu pedido.",
           "No usamos cookies de publicidad ni de analítica de terceros. Por eso no te pedimos que las aceptes: las técnicas están exentas de consentimiento (art. 22.2 LSSI).",
         ],
       },

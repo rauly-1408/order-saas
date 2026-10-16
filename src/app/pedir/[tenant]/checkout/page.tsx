@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import CheckoutClient from "./CheckoutClient";
 import { loadMenu } from "@/app/lib/menu";
 import { prisma } from "@/app/lib/prisma";
+import { storeLang } from "@/app/lib/storeLang";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,8 @@ export default async function CheckoutPage({
   params: Promise<{ tenant: string }>;
 }) {
   const { tenant } = await params;
-  const menu = await loadMenu(tenant);
+  const settings = (await prisma.tenant.findUnique({ where: { slug: tenant }, select: { settings: true } }))?.settings;
+  const menu = await loadMenu(tenant, await storeLang(settings));
   if (!menu) notFound();
   // El campo de cupón solo aparece si el restaurante tiene el motor de retención.
   const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { addons: true } });
@@ -28,6 +30,7 @@ export default async function CheckoutPage({
       perks={menu.perks}
       productInfo={productInfo}
       deliveryPartners={menu.deliveryPartners}
+      lang={menu.lang}
     />
   );
 }

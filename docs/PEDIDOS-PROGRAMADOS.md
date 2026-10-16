@@ -4,11 +4,12 @@
 
 - En el checkout, «¿Cuándo lo quieres?»: **⚡ Lo antes posible** (unos X min) o **🕐 Programar** (día y hora).
 - Con la tienda **cerrada**, solo se puede programar. La carta lo avisa: «Puedes hacer tu pedido ya y programarlo para cuando abramos».
-- Horas cada 15 min, para **hoy y los dos días siguientes**. Una hora vale si el local está abierto **a esa hora y cuando la cocina tiene que empezar** (hora − tiempo de preparación o entrega).
+- El día y la hora se eligen con una **rueda como la del iPhone** (Día · Hora · Minutos): se desliza con el dedo y vale la fila del centro. Al cambiar el día se intenta mantener la misma hora. Componente `checkout/TimeWheel.tsx`.
+- Horas cada **5 min** (`SLOT_STEP_MIN` en `schedule.ts`), para **hoy y los dos días siguientes**. Una hora vale si el local está abierto **a esa hora y cuando la cocina tiene que empezar** (hora − tiempo de preparación o entrega).
   - Ejemplo con apertura a las 20:00: recoger desde las 20:30 (20 min) y a domicilio desde las 20:45 (35 min).
   - Se tienen en cuenta los cierres programados y la pausa.
 - El servidor vuelve a comprobar la hora (`scheduleProblem`): ni pasada, ni desalineada, ni fuera de horario.
-- El pedido guarda `scheduledFor` y la hora estimada pasa a ser la programada. El seguimiento muestra «Listo hacia las 21:30».
+- El pedido guarda `scheduledFor` y la hora estimada pasa a ser la programada. El seguimiento muestra «Listo hacia las 21:30» y, si es otro día, «· mañana» o el día («· sábado 18»).
 - Panel → Pedidos: la tarjeta muestra **⏰ Programado: hoy a las 21:30**. Entra como pedido nuevo: hay que aceptarlo, y el aviso sonoro suena hasta que se acepta.
 
 ## Dirección con sugerencias

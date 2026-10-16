@@ -4,7 +4,7 @@
 import { hasSchedule, openAt, type WeeklyHours } from "@/app/lib/storeStatus";
 import { addDays, localParts, startOfDayIn, wallClockIn } from "@/app/lib/time";
 
-export const SLOT_STEP_MIN = 15;
+export const SLOT_STEP_MIN = 5; // minutos de 5 en 5 (rueda tipo iPhone)
 export const SCHEDULE_DAYS = 3; // hoy y los dos días siguientes
 
 export type ScheduleInput = {
@@ -33,7 +33,7 @@ export function slotWorkable(input: ScheduleInput, at: Date, tz: string, leadMin
 }
 
 // Horas disponibles desde `now + leadMin` (tiempo de preparación/entrega) en
-// los próximos días, cada 15 minutos.
+// los próximos días, cada 5 minutos.
 export function availableSlots(input: ScheduleInput, now: Date, tz: string, leadMin: number): Slot[] {
   const earliest = now.getTime() + leadMin * 60_000;
   const today = localParts(now, tz).ymd;
