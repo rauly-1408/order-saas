@@ -62,8 +62,8 @@
 - Migración `20261016100000_supplier_profile` (solo añade columnas y el enum `SupplierOrderMethod`).
 - Pendiente (necesita proveedor de email): enviar el pedido por email automáticamente, sin abrir el cliente de correo.
 
-### Fase 4 — IA
-- **Albaranes y facturas**: foto → IA extrae proveedor, ingredientes, cantidades y precios → actualiza costes y stock.
+### Fase 4 — IA 🔄 en curso
+- ✅ **Albaranes y facturas** (2026-10-16): en Compras, "📷 Hacer foto o subir" (foto JPG/PNG/WebP o PDF ≤ 4 MB; las fotos se reducen en el móvil a 2000 px). Claude Opus 5.5 lee proveedor, nº, fecha y líneas, relaciona cada línea con un ingrediente del restaurante y convierte la cantidad a su unidad base y el precio (sin IVA) a su formato de compra. Pantalla de revisión línea a línea con % de cambio de precio, aviso si cantidad × precio no cuadra con el importe y notas de la IA (abonos, IVA incluido…). "Aplicar" = entrada de stock (`RECEIPT`, nota "Albarán nº … de …") + nuevo precio con historial (`IngredientPriceChange` origen `RECEIPT`), la misma lógica que recibir un pedido. Sin migración. Límite: 20 lecturas al día por restaurante. Código: `lib/invoice.ts` (puro), `lib/invoiceScan.ts` (IA), `costs/invoice-scan` y `costs/invoice-apply`.
 - **Asistente**: preguntas en lenguaje natural ("¿qué plato me deja menos margen?", "¿qué pido mañana?").
 - **Previsión de demanda** por día de la semana a partir del histórico de pedidos.
 - Inventario por voz.

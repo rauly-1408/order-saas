@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { aiConfigured } from "@/app/lib/anthropic";
 import { prisma } from "@/app/lib/prisma";
 import { costsTenant } from "@/app/lib/costsApi";
 import { netOfVat, recipeCostCents, type CostIngredient } from "@/app/lib/costs";
@@ -149,6 +150,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     restaurantName: tenantInfo?.name ?? "",
+    aiEnabled: aiConfigured(),
     suppliers,
     ingredients,
     categories,
