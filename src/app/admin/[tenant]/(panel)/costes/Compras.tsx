@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { deliveryDateText, deliverySummary, mailtoLink, priceChangePct, suggestedOrderQty, supplierMessage, supplierWhatsapp, whatsappLink } from "@/app/lib/purchasing";
 import { nextDeliveryText } from "./Proveedores";
+import Albaran from "./Albaran";
 import { UNIT_LABEL, euros, formatQty, type Ingredient, type Overview, type PurchaseOrder, type PurchaseStatus, type Supplier } from "./types";
 
 type Props = { data: Overview; api: string; onSaved: () => Promise<void> };
@@ -41,6 +42,9 @@ export default function Compras({ data, api, onSaved }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Lectura de albaranes con IA */}
+      <Albaran data={data} api={api} onSaved={onSaved} />
+
       {/* Sugerencias de pedido */}
       <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <h2 className="px-5 pt-4 pb-1 text-[17px] font-semibold">Hay que pedir</h2>

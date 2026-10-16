@@ -101,6 +101,7 @@ export type PriceChange = {
 
 export type Overview = {
   restaurantName: string;
+  aiEnabled: boolean;
   purchaseOrders: PurchaseOrder[];
   priceChanges: PriceChange[];
   suppliers: Supplier[];

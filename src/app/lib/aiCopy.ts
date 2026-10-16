@@ -1,21 +1,13 @@
 // Redacción de mensajes de campaña con Claude (motor de retención, fase 2).
 // El servidor arma el contexto (restaurante, grupo, cupón, platos más pedidos)
 // y pide 3 versiones en JSON. Cada versión se valida antes de devolverla.
-import Anthropic from "@anthropic-ai/sdk";
+import { aiConfigured, AiError, claudeClient, toAiError } from "@/app/lib/anthropic";
 import { SEGMENT_LABEL, type Segment } from "@/app/lib/retention";
 
 const MODEL = "claude-opus-5-5";
 const MAX_MESSAGE_CHARS = 600;
 
-// La clave se limpia de espacios, saltos de línea y comillas por si se colaron
-// al pegarla en el panel de Vercel.
-function apiKey(): string {
-  return (process.env.ANTHROPIC_API_KEY ?? "").replace(/\s+/g, "").replace(/^"|"$/g, "");
-}
-
-export function aiConfigured(): boolean {
-  return apiKey().length > 0;
-}
+export { aiConfigured };
 
 const SEGMENT_CONTEXT: Record<Segment, string> = {
   NEW: "clientes que han pedido una sola vez: el objetivo es que hagan el segundo pedido",
@@ -77,10 +69,10 @@ export function variantProblem(text: string, hasCoupon: boolean): string | null 
   return null;
 }
 
-export class AiCopyError extends Error {}
+export { AiError as AiCopyError };
 
 export async function draftCampaignMessages(input: CopyInput): Promise<string[]> {
-  const client = new Anthropic({ apiKey: apiKey() });
+  const client = claudeClient();
   let response;
   try {
     response = await client.beta.messages.create({
@@ -94,31 +86,21 @@ export async function draftCampaignMessages(input: CopyInput): Promise<string[]>
       messages: [{ role: "user", content: userPrompt(input) }],
     });
   } catch (err) {
-    // Motivo real en los logs del servidor (el usuario ve un mensaje simple).
-    console.error("[aiCopy] error de la API de Claude", {
-      type: err instanceof Error ? err.constructor.name : typeof err,
-      status: err instanceof Anthropic.APIError ? err.status : undefined,
-      requestId: err instanceof Anthropic.APIError ? err.requestID : undefined,
-      message: err instanceof Error ? err.message.slice(0, 300) : String(err),
-    });
-    if (err instanceof Anthropic.RateLimitError) throw new AiCopyError("La IA está muy solicitada ahora mismo. Prueba en un minuto.");
-    if (err instanceof Anthropic.AuthenticationError) throw new AiCopyError("La clave de la IA no es válida. Revisa ANTHROPIC_API_KEY.");
-    if (err instanceof Anthropic.APIError) throw new AiCopyError("La IA no está disponible ahora mismo. Inténtalo de nuevo.");
-    throw err;
+    throw toAiError(err, "aiCopy");
   }
 
-  if (response.stop_reason === "refusal") throw new AiCopyError("La IA no ha podido redactar este mensaje. Prueba con otra idea.");
+  if (response.stop_reason === "refusal") throw new AiError("La IA no ha podido redactar este mensaje. Prueba con otra idea.");
   const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
   let variants: unknown;
   try {
     variants = (JSON.parse(text) as { variants?: unknown }).variants;
   } catch {
-    throw new AiCopyError("La IA devolvió una respuesta inesperada. Inténtalo de nuevo.");
+    throw new AiError("La IA devolvió una respuesta inesperada. Inténtalo de nuevo.");
   }
   const valid = (Array.isArray(variants) ? variants : [])
     .filter((v): v is string => typeof v === "string")
     .map((v) => v.trim())
     .filter((v) => variantProblem(v, !!input.coupon) === null);
-  if (!valid.length) throw new AiCopyError("La IA no ha dado ninguna versión válida. Inténtalo de nuevo.");
+  if (!valid.length) throw new AiError("La IA no ha dado ninguna versión válida. Inténtalo de nuevo.");
   return valid.slice(0, 3);
 }
