@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { retentionTenant } from "@/app/lib/retentionApi";
 import { computeSegment, SEGMENTS, type Segment } from "@/app/lib/retention";
+import { aiConfigured } from "@/app/lib/aiCopy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,6 +65,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     restaurant: ctx.tenant.name,
+    aiEnabled: aiConfigured(),
     segments,
     customers: rows,
     coupons,

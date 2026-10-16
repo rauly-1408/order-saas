@@ -44,6 +44,7 @@ export type CampaignRow = {
 
 export type Overview = {
   restaurant: string;
+  aiEnabled: boolean;
   segments: SegmentStat[];
   customers: CustomerRow[];
   coupons: CouponRow[];
