@@ -8,6 +8,8 @@ import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import { formatModifier } from "@/app/lib/menuOptions";
 import { couponDiscount } from "@/app/lib/retention";
+import type { PublicStoreInfo } from "@/app/lib/storeOps";
+import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
 
 type AppliedCoupon = { code: string; label: string; type: "PERCENT" | "FIXED"; value: number; minOrderCents: number };
 
@@ -26,15 +28,17 @@ type CheckoutClientProps = {
   theme?: TenantTheme;
   settings?: StoreSettings;
   couponsEnabled?: boolean;
+  store?: PublicStoreInfo | null;
 };
 
-export default function CheckoutClient({ tenant, theme, settings, couponsEnabled = false }: CheckoutClientProps) {
+export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false }: CheckoutClientProps) {
   const router = useRouter();
   const { items, subtotalCents, clear, inc, dec } = useCart();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [channel, setChannel] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
   const [address, setAddress] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [notes, setNotes] = useState("");
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -54,7 +58,16 @@ export default function CheckoutClient({ tenant, theme, settings, couponsEnabled
   const takeawayEnabled = settings?.takeawayEnabled ?? true;
 
   const subtotal = subtotalCents();
-  const fee = channel === "DELIVERY" ? deliveryFee : 0;
+  // Zonas de reparto: el código postal decide el envío y el pedido mínimo.
+  const zones = store?.zones ?? [];
+  const cp = normalizePostalCode(postalCode);
+  const zone = channel === "DELIVERY" && zones.length && cp.length === 5 ? zoneForPostalCode(zones, cp) : null;
+  const outOfZone = channel === "DELIVERY" && zones.length > 0 && cp.length === 5 && !zone;
+  const zoneFee = zone ? zone.feeCents : deliveryFee;
+  const minimum = channel !== "DELIVERY" ? 0 : zone ? zone.minOrderCents : zones.length ? 0 : settings?.minimumOrderCents ?? 0;
+  const belowMinimum = channel === "DELIVERY" && minimum > 0 && subtotal < minimum;
+  const closed = store ? !store.status.open : false;
+  const fee = channel === "DELIVERY" ? zoneFee : 0;
   // El descuento se recalcula al cambiar cantidades; bajo el mínimo no se aplica.
   const couponBelowMin = coupon ? subtotal < coupon.minOrderCents : false;
   const discount = coupon && !couponBelowMin ? couponDiscount(coupon, subtotal) : 0;
@@ -123,6 +136,7 @@ export default function CheckoutClient({ tenant, theme, settings, couponsEnabled
           customerName: name,
           customerPhone: phone,
           customerAddress: channel === "DELIVERY" ? address : undefined,
+          customerPostalCode: channel === "DELIVERY" && cp ? cp : undefined,
           channel,
           notes: notes || undefined,
           marketingConsent,
@@ -217,7 +231,7 @@ export default function CheckoutClient({ tenant, theme, settings, couponsEnabled
               {channel === "DELIVERY" && (
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: cssVars["--text-secondary"] }}>
                   <span>Gastos de envío</span>
-                  <span>{deliveryFee === 0 ? "Gratis" : euros(deliveryFee)}</span>
+                  <span>{zones.length && !zone ? "Según código postal" : fee === 0 ? "Gratis" : euros(fee)}</span>
                 </div>
               )}
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "16px", fontWeight: 700, color: cssVars["--text-primary"] }}>
@@ -319,6 +333,31 @@ export default function CheckoutClient({ tenant, theme, settings, couponsEnabled
                 required
               />
             </div>
+            {channel === "DELIVERY" && zones.length > 0 && (
+              <div>
+                <label style={labelStyle}>Código postal *</label>
+                <input
+                  style={{ ...inputStyle, maxWidth: "160px" }}
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  placeholder="18004"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                  required
+                />
+                {zone && (
+                  <div style={{ fontSize: "13px", color: cssVars["--text-secondary"], marginTop: "6px" }}>
+                    Repartimos en {zone.name}: envío {zone.feeCents === 0 ? "gratis" : euros(zone.feeCents)}
+                    {zone.minOrderCents > 0 && ` · pedido mínimo ${euros(zone.minOrderCents)}`}
+                  </div>
+                )}
+                {outOfZone && (
+                  <div style={{ fontSize: "13px", color: cssVars["--brand-secondary"], marginTop: "6px", fontWeight: 600 }}>
+                    No repartimos en el {cp}. Puedes pedir para recoger.
+                  </div>
+                )}
+              </div>
+            )}
             {channel === "DELIVERY" && (
               <div>
                 <label style={labelStyle}>Dirección de entrega *</label>
@@ -357,9 +396,21 @@ export default function CheckoutClient({ tenant, theme, settings, couponsEnabled
             </span>
           </label>
 
+          {/* CERRADO / MÍNIMO */}
+          {store && !store.status.open && (
+            <div style={{ padding: "12px 16px", borderRadius: "14px", backgroundColor: cssVars["--surface-1"], color: cssVars["--brand-secondary"], fontSize: "14px", fontWeight: 600 }}>
+              {store.status.message}.{store.status.reopens ? ` Volvemos a abrir ${store.status.reopens}.` : ""}
+            </div>
+          )}
+          {!closed && belowMinimum && (
+            <div style={{ padding: "12px 16px", borderRadius: "14px", backgroundColor: cssVars["--surface-1"], color: cssVars["--text-primary"], fontSize: "14px" }}>
+              El pedido mínimo a domicilio es de {euros(minimum)}. Te faltan {euros(minimum - subtotal)}.
+            </div>
+          )}
+
           {/* ERROR */}
           {error && (
-            <div style={{ padding: "12px 16px", borderRadius: "10px", backgroundColor: "#3d1515", border: "1px solid #7d2525", color: "#ff8080", fontSize: "14px" }}>
+            <div style={{ padding: "12px 16px", borderRadius: "14px", backgroundColor: cssVars["--surface-1"], color: cssVars["--brand-secondary"], fontSize: "14px", fontWeight: 600 }}>
               {error}
             </div>
           )}
@@ -367,10 +418,10 @@ export default function CheckoutClient({ tenant, theme, settings, couponsEnabled
           {/* SUBMIT */}
           <button
             type="submit"
-            disabled={loading}
-            style={{ width: "100%", padding: "16px", borderRadius: "999px", border: "none", backgroundColor: loading ? cssVars["--border"] : cssVars["--brand-accent"], color: loading ? cssVars["--text-secondary"] : "var(--on-accent)", fontWeight: 600, fontSize: "16px", cursor: loading ? "not-allowed" : "pointer", letterSpacing: "0.3px" }}
+            disabled={loading || closed || belowMinimum || outOfZone}
+            style={{ width: "100%", padding: "16px", borderRadius: "999px", border: "none", backgroundColor: loading || closed || belowMinimum || outOfZone ? cssVars["--border"] : cssVars["--brand-accent"], color: loading || closed || belowMinimum || outOfZone ? cssVars["--text-secondary"] : "var(--on-accent)", fontWeight: 600, fontSize: "16px", cursor: loading || closed || belowMinimum || outOfZone ? "not-allowed" : "pointer", letterSpacing: "0.3px" }}
           >
-            {loading ? "Enviando pedido..." : `Confirmar pedido · ${euros(total)}`}
+            {loading ? "Enviando pedido..." : closed ? "Ahora mismo no aceptamos pedidos" : `Confirmar pedido · ${euros(total)}`}
           </button>
 
         </form>

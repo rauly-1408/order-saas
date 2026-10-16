@@ -4,6 +4,8 @@ import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { selectionToModifiers, validateSelection, type MenuModifierGroup } from "@/app/lib/menuOptions";
 import { applyStockDeltas, orderConsumption, type ConsumptionItem } from "@/app/lib/inventory";
+import { getStoreOps } from "@/app/lib/storeOps";
+import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
 import { computeSegment, couponDiscount, couponProblem, normalizeCode, normalizePhone, withinAttribution, ATTRIBUTION_DAYS } from "@/app/lib/retention";
 
 export const runtime = "nodejs";
@@ -145,12 +147,32 @@ export async function POST(req: NextRequest) {
     const productById = new Map(products.map((p) => [p.id, p]));
 
     const store = tenant.stores[0];
+    // Operativa del local (horario, cierres, pausa, zonas): la referencia es Store.
+    const ops = await getStoreOps(tenant.id, tenant.settings);
+    if (!ops) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
 
-    if (channel === "DELIVERY" && !store.deliveryEnabled) {
+    if (!ops.status.open) {
+      const when = ops.status.reopens ? ` Volvemos a abrir ${ops.status.reopens}.` : "";
+      return NextResponse.json({ error: `${ops.status.message}.${when}`, closed: true }, { status: 409 });
+    }
+    if (channel === "DELIVERY" && !ops.deliveryEnabled) {
       return NextResponse.json({ error: "Delivery no disponible" }, { status: 400 });
     }
-    if (channel === "TAKEAWAY" && !store.takeawayEnabled) {
+    if (channel === "TAKEAWAY" && !ops.takeawayEnabled) {
       return NextResponse.json({ error: "Recogida no disponible" }, { status: 400 });
+    }
+
+    // Reparto: si hay zonas activas, el código postal decide coste y mínimo.
+    const postalCode = customerPostalCode ? normalizePostalCode(customerPostalCode) : "";
+    let deliveryFeeCents = ops.deliveryFeeCents;
+    let minimumOrderCents = ops.minimumOrderCents;
+    const activeZones = ops.zones.filter((z) => z.active);
+    if (channel === "DELIVERY" && activeZones.length) {
+      if (postalCode.length !== 5) return NextResponse.json({ error: "Indica el código postal de la entrega" }, { status: 400 });
+      const zone = zoneForPostalCode(activeZones, postalCode);
+      if (!zone) return NextResponse.json({ error: `No repartimos en el código postal ${postalCode}. Puedes pedir para recoger.` }, { status: 400 });
+      deliveryFeeCents = zone.feeCents;
+      minimumOrderCents = zone.minOrderCents;
     }
 
     // Precio de cada línea = precio base + suplementos de las opciones elegidas.
@@ -192,7 +214,12 @@ export async function POST(req: NextRequest) {
     }
 
     const subtotalCents = linesCreate.reduce((acc, line) => acc + (line.totalCents ?? 0), 0);
-    const feesCents = channel === "DELIVERY" ? store.deliveryFeeCents : 0;
+    const feesCents = channel === "DELIVERY" ? deliveryFeeCents : 0;
+    // Pedido mínimo: solo a domicilio.
+    if (channel === "DELIVERY" && subtotalCents < minimumOrderCents) {
+      const eur = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(minimumOrderCents / 100);
+      return NextResponse.json({ error: `El pedido mínimo a domicilio es de ${eur}` }, { status: 400 });
+    }
 
     // Cupón (motor de retención): solo si el restaurante lo tiene contratado.
     const code = couponCode ? normalizeCode(couponCode) : "";
@@ -224,7 +251,7 @@ export async function POST(req: NextRequest) {
           customerName,
           customerPhone,
           customerAddress: customerAddress ?? null,
-          customerPostalCode: customerPostalCode ?? null,
+          customerPostalCode: postalCode || null,
           notes: notes ?? null,
           marketingConsent: marketingConsent === true,
           currency,
@@ -259,8 +286,8 @@ export async function POST(req: NextRequest) {
       totalCents: order.totalCents,
       estimatedMinutes:
         channel === "DELIVERY"
-          ? store.estimatedDeliveryMinutes
-          : store.estimatedPickupMinutes,
+          ? ops.estimatedDeliveryMinutes + ops.prepExtraMinutes
+          : ops.estimatedPickupMinutes + ops.prepExtraMinutes,
     });
   } catch (err) {
     console.error("[POST /api/orders]", err);
@@ -459,19 +486,17 @@ export async function GET(req: NextRequest) {
       take: 50,
     });
 
-    // Tiempos estimados del local: el panel colorea el temporizador de cada pedido.
-    const store = await prisma.store.findFirst({
-      where: { tenantId: tenant.id },
-      select: { estimatedDeliveryMinutes: true, estimatedPickupMinutes: true },
-    });
+    // Tiempos estimados (con el tiempo extra) y estado de la tienda para la cabecera.
+    const ops = await getStoreOps(tenant.id, tenant.settings);
 
     return NextResponse.json({
       orders,
       history,
       estimates: {
-        deliveryMinutes: store?.estimatedDeliveryMinutes ?? 45,
-        pickupMinutes: store?.estimatedPickupMinutes ?? 20,
+        deliveryMinutes: (ops?.estimatedDeliveryMinutes ?? 45) + (ops?.prepExtraMinutes ?? 0),
+        pickupMinutes: (ops?.estimatedPickupMinutes ?? 20) + (ops?.prepExtraMinutes ?? 0),
       },
+      store: ops ? { status: ops.status, pausedUntil: ops.pausedUntil, prepExtraMinutes: ops.prepExtraMinutes } : null,
     });
   } catch (err) {
     console.error("[GET /api/orders]", err);

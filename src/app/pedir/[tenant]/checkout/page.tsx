@@ -16,5 +16,5 @@ export default async function CheckoutPage({
   // El campo de cupón solo aparece si el restaurante tiene el motor de retención.
   const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { addons: true } });
   const couponsEnabled = t?.addons.includes("RETENTION") ?? false;
-  return <CheckoutClient tenant={tenant} theme={menu.theme} settings={menu.settings} couponsEnabled={couponsEnabled} />;
+  return <CheckoutClient tenant={tenant} theme={menu.theme} settings={menu.settings} store={menu.store} couponsEnabled={couponsEnabled} />;
 }

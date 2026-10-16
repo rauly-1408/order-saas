@@ -6,6 +6,7 @@ import { useCart } from "@/store/cart";
 import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import type { MenuModifierGroup } from "@/app/lib/menuOptions";
+import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import ProductOptionsSheet from "./ProductOptionsSheet";
 
 type MenuProduct = {
@@ -35,12 +36,13 @@ type MenuClientProps = {
   categories: MenuCategory[];
   theme?: TenantTheme;
   settings?: StoreSettings;
+  store?: PublicStoreInfo | null;
 };
 
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function MenuClient({ tenant, tenantName, categories, theme, settings }: MenuClientProps) {
+export default function MenuClient({ tenant, tenantName, categories, theme, settings, store }: MenuClientProps) {
   const { items, addItem, inc, dec, remove, clear } = useCart();
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   // Producto cuyo selector de opciones (pan, guarnición, extras) está abierto.
@@ -138,6 +140,15 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         })}
       </nav>
       <main className="mx-auto max-w-6xl px-4 pt-6 pb-[120px]">
+        {/* Cerrado / en pausa: se puede mirar la carta, pero no pedir */}
+        {store && !store.status.open && (
+          <div className="p-rise mb-4 rounded-2xl px-5 py-4" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
+            <p style={{ fontWeight: 700, fontSize: "16px", color: cssVars["--brand-secondary"] }}>{store.status.message}</p>
+            <p style={{ fontSize: "14px", color: cssVars["--text-secondary"] }}>
+              {store.status.reopens ? `Volvemos a abrir ${store.status.reopens}. ` : ""}Puedes ver la carta mientras tanto.
+            </p>
+          </div>
+        )}
         {/* Portada: nombre del restaurante en la fuente de rótulo de la marca */}
         <section className="p-rise mb-10 overflow-hidden rounded-[28px] px-6 py-10 sm:px-10 sm:py-14" style={{ backgroundColor: cssVars["--brand-accent"], color: cssVars["--on-accent"] }}>
           <p style={{ fontSize: "14px", fontWeight: 500, opacity: 0.75 }}>{deliveryLabel}</p>
