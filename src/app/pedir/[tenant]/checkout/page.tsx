@@ -27,6 +27,7 @@ export default async function CheckoutPage({
       couponsEnabled={couponsEnabled}
       perks={menu.perks}
       productInfo={productInfo}
+      deliveryPartners={menu.deliveryPartners}
     />
   );
 }

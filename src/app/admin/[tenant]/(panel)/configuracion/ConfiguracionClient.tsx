@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Operativa from "./Operativa";
+import { PARTNERS, type PartnerKey } from "@/app/lib/deliveryPartners";
 
 const S = {
   white: '#ffffff', pageBg: 'var(--p-bg)', border: 'var(--p-line)',
@@ -15,6 +16,7 @@ type SettingsForm = {
   estimatedDeliveryMinutes: number; estimatedPickupMinutes: number;
   phone: string; whatsapp: string; instagram: string; address: string;
   currency: string;
+  deliveryPartners: Record<PartnerKey, string>;
 };
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -67,6 +69,7 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
     minimumOrderCents: 0, deliveryFeeCents: 0,
     estimatedDeliveryMinutes: 45, estimatedPickupMinutes: 20,
     phone: '', whatsapp: '', instagram: '', address: '', currency: 'EUR',
+    deliveryPartners: { glovo: '', ubereats: '', justeat: '' },
   });
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -89,6 +92,7 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
           instagram: (s.instagram as string) ?? '',
           address:   (s.address as string) ?? '',
           currency:  (s.currency as string) ?? 'EUR',
+          deliveryPartners: Object.fromEntries(PARTNERS.map(p => [p.key, ((s.deliveryPartners as Record<string, string | null> | undefined)?.[p.key]) ?? ''])) as Record<PartnerKey, string>,
         });
         setLoaded(true);
       })
@@ -108,7 +112,7 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
           address:   form.address   || null,
         }}),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'no se pudo guardar');
       setMsg('Configuración guardada');
     } catch (e: unknown) {
       setMsg('Error: ' + (e instanceof Error ? e.message : 'desconocido'));
@@ -136,6 +140,18 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Toggle checked={form.deliveryEnabled} onChange={v => setForm({ ...form, deliveryEnabled: v })} label="Delivery — Envío a domicilio" />
           <Toggle checked={form.takeawayEnabled} onChange={v => setForm({ ...form, takeawayEnabled: v })} label="Recogida — Takeaway / Click & Collect" />
+        </div>
+        {/* Reparto con plataformas: para quien no tiene repartidores propios */}
+        <div className="mt-5 border-t border-[var(--p-line)] pt-4">
+          <p className="text-sm font-semibold">Reparto con plataformas</p>
+          <p className="mt-0.5 mb-3 text-xs text-[var(--p-muted)]">
+            ¿No tienes repartidores? Pega el enlace de tu tienda en cada plataforma. En la carta, «A domicilio» mostrará «Escoge quién te lo lleva» (como McDonald&apos;s) y el cliente pedirá en esa app. Desactiva «Delivery» arriba si no haces reparto propio.
+          </p>
+          <div className="grid gap-3">
+            {PARTNERS.map(p => (
+              <TextField key={p.key} label={p.label} value={form.deliveryPartners[p.key]} onChange={v => setForm({ ...form, deliveryPartners: { ...form.deliveryPartners, [p.key]: v } })} placeholder={p.example} />
+            ))}
+          </div>
         </div>
       </Section>
 

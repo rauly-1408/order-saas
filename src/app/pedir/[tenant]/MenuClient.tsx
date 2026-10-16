@@ -12,6 +12,7 @@ import { promotionConditions, promotionLabel } from "@/app/lib/promotions";
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import ProductOptionsSheet from "./ProductOptionsSheet";
 import ComboSheet from "./ComboSheet";
+import DeliveryPartners, { type PartnerLink } from "./DeliveryPartners";
 import type { ChoiceProduct, ComboSlotDef } from "@/app/lib/combos";
 
 type MenuProduct = {
@@ -46,12 +47,13 @@ type MenuClientProps = {
   store?: PublicStoreInfo | null;
   perks?: PublicPerks;
   online?: OnlinePresence;
+  deliveryPartners?: PartnerLink[];
 };
 
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online }: MenuClientProps) {
+export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online, deliveryPartners = [] }: MenuClientProps) {
   const { items, addItem, inc, dec, remove, clear } = useCart();
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   // Producto cuyo selector de opciones (pan, guarnición, extras) está abierto.
@@ -78,7 +80,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
     : settings?.deliveryEnabled
     ? "Delivery"
     : settings?.takeawayEnabled
-    ? "Solo recogida"
+    ? deliveryPartners.length ? "Recogida · a domicilio con plataformas" : "Solo recogida"
     : "Pedidos online";
 
   useEffect(() => {
@@ -183,8 +185,21 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           <h1 className="mt-2 text-5xl sm:text-7xl" style={{ fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, lineHeight: 0.95, color: t.heroImageUrl ? "#ffffff" : cssVars["--bg-base"] }}>{tenantName}</h1>
           <p className="mt-4 max-w-md" style={{ fontSize: "15px", opacity: 0.8 }}>Elige, personaliza y te lo preparamos al momento.</p>
         </section>
+        {/* A domicilio con plataformas (sin repartidores propios): como McDonald's,
+            el cliente elige quién se lo lleva y pide en esa app. */}
+        {deliveryPartners.length > 0 && (
+          <section className="p-rise -mt-6 mb-10 rounded-2xl px-5 py-4" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }} aria-label="A domicilio">
+            <p style={{ fontWeight: 700, fontSize: "15px", color: cssVars["--text-primary"] }}>
+              🛵 {settings?.deliveryEnabled ? "También a domicilio con" : "¿Lo quieres en casa? Escoge quién te lo lleva"}
+            </p>
+            <p style={{ fontSize: "13px", color: cssVars["--text-secondary"], margin: "2px 0 12px" }}>
+              {settings?.deliveryEnabled ? "Si lo prefieres, pídenos en tu app de siempre." : "Te llevamos a nuestra tienda en esa app, donde haces el pedido y el pago. Para recoger, pide aquí."}
+            </p>
+            <DeliveryPartners partners={deliveryPartners} />
+          </section>
+        )}
         {/* Promociones en vigor y tarjeta de fidelidad: se aplican solas en el checkout */}
-        {perks && (perks.promotions.length > 0 || perks.loyalty) && (
+        {perks && (perks.promotions.some((p) => settings?.deliveryEnabled || (p.channel !== "DELIVERY" && p.kind !== "FREE_DELIVERY")) || perks.loyalty) && (
           <section className="p-rise -mt-6 mb-10 grid gap-3 sm:grid-cols-2" aria-label="Promociones">
             {perks.loyalty && (
               <div className="rounded-2xl px-5 py-4" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
@@ -194,7 +209,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                 </p>
               </div>
             )}
-            {perks.promotions.map((p) => {
+            {perks.promotions.filter((p) => settings?.deliveryEnabled || (p.channel !== "DELIVERY" && p.kind !== "FREE_DELIVERY")).map((p) => {
               const cond = promotionConditions(p);
               return (
                 <div key={p.id} className="rounded-2xl px-5 py-4" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
