@@ -24,6 +24,8 @@ export default async function PedirPage({
       perks={menu.perks}
       online={menu.online}
       deliveryPartners={menu.deliveryPartners}
+      business={menu.business}
+      hours={menu.hours}
     />
   );
 }

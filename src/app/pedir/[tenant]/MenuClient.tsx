@@ -7,12 +7,15 @@ import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import type { MenuModifierGroup } from "@/app/lib/menuOptions";
 import type { PublicPerks } from "@/app/lib/perks";
-import { SOCIAL_FIELDS, type OnlinePresence } from "@/app/lib/brand";
+import type { OnlinePresence } from "@/app/lib/brand";
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import ProductOptionsSheet from "./ProductOptionsSheet";
 import ComboSheet from "./ComboSheet";
 import StampCard from "./StampCard";
 import { ComboCard, ProductCard, PromoTile } from "./StoreCards";
+import StoreFooter from "./StoreFooter";
+import type { BusinessInfo } from "@/app/lib/business";
+import type { WeeklyHours } from "@/app/lib/storeStatus";
 import DeliveryPartners, { type PartnerLink } from "./DeliveryPartners";
 import type { ChoiceProduct, ComboSlotDef } from "@/app/lib/combos";
 
@@ -49,12 +52,14 @@ type MenuClientProps = {
   perks?: PublicPerks;
   online?: OnlinePresence;
   deliveryPartners?: PartnerLink[];
+  business: BusinessInfo;
+  hours: WeeklyHours | null;
 };
 
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online, deliveryPartners = [] }: MenuClientProps) {
+export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online, deliveryPartners = [], business, hours }: MenuClientProps) {
   const { items, addItem, inc, dec, remove, clear } = useCart();
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   // Producto cuyo selector de opciones (pan, guarnición, extras) está abierto.
@@ -273,7 +278,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         </div>
       </nav>
 
-      <main className={`${wrap} pt-10 pb-[140px]`}>
+      <main className={`${wrap} pt-10 pb-4`}>
         {/* A domicilio con plataformas (sin repartidores propios): como McDonald's */}
         {deliveryPartners.length > 0 && (
           <section id="a-domicilio" data-reveal className="mb-12 scroll-mt-32 rounded-[26px] p-6 sm:p-8" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }} aria-label="A domicilio">
@@ -358,20 +363,12 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           );
         })}
 
-        {/* Pie: marca y redes (Personalización → Presencia online) */}
-        <footer data-reveal className="mt-6 flex flex-col items-center gap-4 border-t border-[var(--border)] pt-10 text-center" aria-label="Síguenos">
-          <p className="text-[28px]" style={{ ...heading, color: cssVars["--heading-color"] }}>{tenantName}</p>
-          {online && SOCIAL_FIELDS.some((f) => online[f.key]) && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {SOCIAL_FIELDS.filter((f) => online[f.key]).map((f) => (
-                <a key={f.key} href={online[f.key]!} target="_blank" rel="noopener noreferrer" className="p-press rounded-full px-4 py-2 text-sm font-semibold no-underline" style={{ border: `1px solid ${cssVars["--border"]}`, color: cssVars["--text-primary"] }}>
-                  {f.key === "reviewsUrl" ? "★ Déjanos una reseña" : f.label}
-                </a>
-              ))}
-            </div>
-          )}
-        </footer>
       </main>
+
+      {/* Pie con los datos del negocio (Personalización → Datos del negocio) */}
+      <div className={totalItems > 0 ? "pb-24" : ""}>
+        <StoreFooter tenant={tenant} tenantName={tenantName} logoUrl={t.logoUrl} business={business} hours={hours} online={online} upperHeadings={upper} />
+      </div>
       {optionsFor && (
         <ProductOptionsSheet
           product={optionsFor}

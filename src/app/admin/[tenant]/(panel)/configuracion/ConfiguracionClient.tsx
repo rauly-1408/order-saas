@@ -172,16 +172,13 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
         </div>
       </Section>
 
-      <Section title="Contacto">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <TextField label="Teléfono" value={form.phone} onChange={v => setForm({ ...form, phone: v })} placeholder="+34 600 000 000" />
-          <TextField label="WhatsApp" value={form.whatsapp} onChange={v => setForm({ ...form, whatsapp: v })} placeholder="+34 600 000 000" />
-          <TextField label="Instagram" value={form.instagram} onChange={v => setForm({ ...form, instagram: v })} placeholder="@minegocio" />
-          <TextField label="Moneda" value={form.currency} onChange={v => setForm({ ...form, currency: v })} placeholder="EUR" />
-          <div style={{ gridColumn: '1 / -1' }}>
-            <TextField label="Dirección" value={form.address} onChange={v => setForm({ ...form, address: v })} placeholder="Calle, número, ciudad" />
-          </div>
-        </div>
+      {/* El teléfono, la dirección y el resto de datos del negocio se editan en
+          Personalización → Datos del negocio (salen en el pie de la tienda). */}
+      <Section title="Datos de contacto">
+        <p className="text-sm text-[var(--p-muted)]">
+          El teléfono, la dirección, el email y los datos legales están ahora en{' '}
+          <a href={`/admin/${tenant}/personalizacion`} className="font-semibold text-[var(--p-brand)]">Personalización → Datos del negocio</a>. Salen en el pie de tu tienda.
+        </p>
       </Section>
 
       <button onClick={save} disabled={saving} style={{
