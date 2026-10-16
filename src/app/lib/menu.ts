@@ -6,6 +6,7 @@ import { getStoreOps, publicStoreInfo } from "@/app/lib/storeOps";
 import { loadPerks, publicPerks } from "@/app/lib/perks";
 import { parseOnline } from "@/app/lib/brand";
 import { activePartners, parsePartners } from "@/app/lib/deliveryPartners";
+import { readBusiness } from "@/app/lib/business";
 
 // Carga la carta pública de un tenant (tema, ajustes, categorías y productos
 // con sus opciones). La usan la API /api/menu/[tenant] y las páginas de
@@ -116,6 +117,9 @@ export async function loadMenu(tenantSlug: string) {
     perks,
     online: parseOnline((tenant.branding as Record<string, unknown> | null)?.online),
     // Plataformas de reparto configuradas (Configuración → Canales de venta).
+    // Datos del negocio para el pie (obligatorios en una tienda online) y horario.
+    business: readBusiness(tenant.settings),
+    hours: ops?.hours ?? null,
     deliveryPartners: activePartners(parsePartners((tenant.settings as Record<string, unknown> | null)?.deliveryPartners)),
     categories: menuCategories,
   };
