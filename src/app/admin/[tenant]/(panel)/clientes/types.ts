@@ -42,12 +42,44 @@ export type CampaignRow = {
   revenueCents: number;
 };
 
+export type PromotionRow = {
+  id: string;
+  name: string;
+  kind: "ORDER_PERCENT" | "ORDER_FIXED" | "FREE_DELIVERY";
+  value: number;
+  minOrderCents: number;
+  weekdays: number[];
+  startTime: string | null;
+  endTime: string | null;
+  channel: "DELIVERY" | "TAKEAWAY" | null;
+  firstOrderOnly: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  active: boolean;
+  uses: number;
+  discountCents: number;
+};
+
+export type LoyaltyRow = {
+  active: boolean;
+  ordersRequired: number;
+  rewardName: string;
+  rewardSlots: { label: string; categoryIds: string[] }[];
+  maxRewardCents: number | null;
+  startsAt: string;
+  rewardsGiven: number;
+  rewardsCents: number;
+};
+
 export type Overview = {
   restaurant: string;
   aiEnabled: boolean;
   segments: SegmentStat[];
   customers: CustomerRow[];
   coupons: CouponRow[];
+  promotions: PromotionRow[];
+  loyalty: LoyaltyRow | null;
+  categories: { id: string; name: string }[];
   campaigns: CampaignRow[];
 };
 

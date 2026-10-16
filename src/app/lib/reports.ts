@@ -10,6 +10,9 @@ export type ReportOrder = {
   discountCents: number;
   feesCents: number;
   couponCode: string | null;
+  promotionName?: string | null;
+  promotionDiscountCents?: number;
+  loyaltyDiscountCents?: number;
   customerId: string | null;
   customerFirstOrderAt: Date | null;
   lines: { productId: string; productName: string; categoryName: string | null; quantity: number; totalCents: number }[];
@@ -35,7 +38,8 @@ export type Report = {
   topProducts: { name: string; quantity: number; revenueCents: number }[];
   topCategories: { name: string; quantity: number; revenueCents: number }[];
   heatmap: number[][]; // [día ISO 0-6 (lun-dom)][hora 0-23] → nº de pedidos
-  coupons: { code: string; uses: number; discountCents: number }[];
+  ordersWithDiscount: number;
+  coupons: { code: string; uses: number; discountCents: number }[]; // cupones, promociones (🏷️) y premio de fidelidad (🎁)
 };
 
 export const MAX_RANGE_DAYS = 366;
@@ -94,9 +98,17 @@ export function buildReport(
     heatmap[p.isoWeekday - 1][p.hour] += 1;
     const ch = channels.get(o.channel) ?? { orders: 0, revenueCents: 0 };
     channels.set(o.channel, { orders: ch.orders + 1, revenueCents: ch.revenueCents + o.totalCents });
-    if (o.couponCode) {
-      const c = coupons.get(o.couponCode) ?? { uses: 0, discountCents: 0 };
-      coupons.set(o.couponCode, { uses: c.uses + 1, discountCents: c.discountCents + o.discountCents });
+    const promoCents = o.promotionDiscountCents ?? 0;
+    const loyaltyCents = o.loyaltyDiscountCents ?? 0;
+    const discounts: [string | null | undefined, number][] = [
+      [o.couponCode, o.discountCents - promoCents - loyaltyCents],
+      [o.promotionName ? `🏷️ ${o.promotionName}` : null, promoCents],
+      [loyaltyCents > 0 ? "🎁 Premio de fidelidad" : null, loyaltyCents],
+    ];
+    for (const [key, cents] of discounts) {
+      if (!key) continue;
+      const c = coupons.get(key) ?? { uses: 0, discountCents: 0 };
+      coupons.set(key, { uses: c.uses + 1, discountCents: c.discountCents + cents });
     }
     for (const l of o.lines) {
       const pr = products.get(l.productName) ?? { quantity: 0, revenueCents: 0 };
@@ -117,6 +129,7 @@ export function buildReport(
     topProducts: rank(products, 10),
     topCategories: rank(categories, 8),
     heatmap,
+    ordersWithDiscount: valid.filter((o) => o.discountCents > 0).length,
     coupons: [...coupons.entries()].map(([code, v]) => ({ code, ...v })).sort((a, b) => b.uses - a.uses),
   };
 }

@@ -21,6 +21,9 @@ export type Order = {
   totalCents: number;
   discountCents?: number;
   coupon?: { code: string } | null;
+  promotion?: { name: string } | null;
+  promotionDiscountCents?: number;
+  loyaltyDiscountCents?: number;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];

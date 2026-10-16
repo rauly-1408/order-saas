@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/store/cart";
 import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
@@ -10,6 +10,10 @@ import { formatModifier } from "@/app/lib/menuOptions";
 import { couponDiscount } from "@/app/lib/retention";
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
+import type { PublicPerks } from "@/app/lib/perks";
+import { bestPromotion, joinLabels, rewardDiscount } from "@/app/lib/promotions";
+
+type PerkState = { firstOrder: boolean; loyalty: { stamps: number; needed: number; rewardAvailable: boolean } | null };
 
 type AppliedCoupon = { code: string; label: string; type: "PERCENT" | "FIXED"; value: number; minOrderCents: number };
 
@@ -29,9 +33,11 @@ type CheckoutClientProps = {
   settings?: StoreSettings;
   couponsEnabled?: boolean;
   store?: PublicStoreInfo | null;
+  perks?: PublicPerks;
+  productInfo?: Record<string, { categoryId: string; basePriceCents: number }>;
 };
 
-export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false }: CheckoutClientProps) {
+export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false, perks, productInfo = {} }: CheckoutClientProps) {
   const router = useRouter();
   const { items, subtotalCents, clear, inc, dec } = useCart();
   const [name, setName] = useState("");
@@ -47,6 +53,26 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
+  const [perkState, setPerkState] = useState<PerkState | null>(null);
+  const hasPerks = !!perks && (perks.promotions.length > 0 || !!perks.loyalty);
+
+  // Con un teléfono válido, el servidor dice si es su primer pedido y cuántos sellos lleva.
+  const phoneOk = isValidSpanishPhone(phone);
+  useEffect(() => {
+    if (!hasPerks || !phoneOk) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      fetch(`/api/perks/${tenant}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone }) })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => !cancelled && setPerkState(d as PerkState | null))
+        .catch(() => {});
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [tenant, phone, phoneOk, hasPerks]);
+  const perksFor = phoneOk ? perkState : null;
 
   // Theme dinámico del tenant
   const t = theme ?? SYSTEM_DEFAULT_THEME;
@@ -68,10 +94,25 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   const belowMinimum = channel === "DELIVERY" && minimum > 0 && subtotal < minimum;
   const closed = store ? !store.status.open : false;
   const fee = channel === "DELIVERY" ? zoneFee : 0;
+  // Mismo orden que el servidor: 1) premio de la tarjeta, 2) la mejor promoción
+  // o el cupón (no se acumulan). El importe final lo recalcula el servidor.
+  const reward =
+    perks?.loyalty && perksFor?.loyalty?.rewardAvailable
+      ? rewardDiscount(
+          perks.loyalty,
+          items.map((i) => ({ key: i.id, categoryId: productInfo[i.productId]?.categoryId ?? null, unitBaseCents: productInfo[i.productId]?.basePriceCents ?? 0, quantity: i.quantity }))
+        )
+      : null;
+  const loyaltyDiscount = reward?.discountCents ?? 0;
+  const afterLoyalty = subtotal - loyaltyDiscount;
+  const promo = perks ? bestPromotion(perks.promotions, { subtotalCents: afterLoyalty, feesCents: fee, channel, firstOrder: perksFor ? perksFor.firstOrder : null }) : null;
   // El descuento se recalcula al cambiar cantidades; bajo el mínimo no se aplica.
   const couponBelowMin = coupon ? subtotal < coupon.minOrderCents : false;
-  const discount = coupon && !couponBelowMin ? couponDiscount(coupon, subtotal) : 0;
-  const total = subtotal + fee - discount;
+  const couponAmount = coupon && !couponBelowMin ? couponDiscount(coupon, afterLoyalty) : 0;
+  const promoWins = !!promo && promo.discountCents > couponAmount;
+  const discount = promoWins ? 0 : couponAmount;
+  const promoDiscount = promoWins ? promo.discountCents : 0;
+  const total = Math.max(subtotal + fee - loyaltyDiscount - promoDiscount - discount, 0);
 
   async function applyCoupon() {
     const code = couponInput.trim();
@@ -222,6 +263,18 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 <span>Subtotal</span>
                 <span>{euros(subtotal)}</span>
               </div>
+              {loyaltyDiscount > 0 && reward && (
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "13px", color: cssVars["--brand-secondary"], fontWeight: 600 }}>
+                  <span>🎁 Premio: {joinLabels(reward.matched).toLowerCase()} gratis</span>
+                  <span>−{euros(loyaltyDiscount)}</span>
+                </div>
+              )}
+              {promoDiscount > 0 && promo && (
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "13px", color: cssVars["--brand-secondary"], fontWeight: 600 }}>
+                  <span>🏷️ {promo.promotion.name}</span>
+                  <span>−{euros(promoDiscount)}</span>
+                </div>
+              )}
               {discount > 0 && coupon && (
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: cssVars["--brand-secondary"], fontWeight: 600 }}>
                   <span>Cupón {coupon.code} ({coupon.label})</span>
@@ -249,6 +302,9 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 16px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: "15px" }}>{coupon.code} · {coupon.label}</div>
+                    {!couponBelowMin && promoWins && promo && (
+                      <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>No se acumula: «{promo.promotion.name}» te ahorra más y es la que se aplica</div>
+                    )}
                     {couponBelowMin && (
                       <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>Añade productos hasta {euros(coupon.minOrderCents)} para usarlo</div>
                     )}
@@ -332,6 +388,30 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 onChange={(e) => setPhone(e.target.value)}
                 required
               />
+              {perks?.loyalty && perksFor?.loyalty && (
+                <div style={{ marginTop: "10px", padding: "12px 14px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)", fontSize: "13px", color: cssVars["--text-secondary"] }}>
+                  {perksFor.loyalty.rewardAvailable ? (
+                    <>
+                      <div style={{ fontWeight: 700, fontSize: "14px", color: cssVars["--text-primary"] }}>🎁 ¡Este pedido tiene premio: {perks.loyalty.rewardName.toLowerCase()}!</div>
+                      {reward && reward.missing.length > 0 && (
+                        <div style={{ marginTop: "2px" }}>
+                          {reward.matched.length ? `Añade también ${joinLabels(reward.missing).toLowerCase()}: entra en el premio.` : `Añade ${joinLabels(reward.missing).toLowerCase()} para usarlo. Si no, lo guardamos para tu próximo pedido.`}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", gap: "4px", marginBottom: "6px" }} aria-hidden>
+                        {Array.from({ length: perksFor.loyalty.needed }, (_, i) => (
+                          <span key={i} style={{ width: "18px", height: "18px", borderRadius: "50%", backgroundColor: i < perksFor.loyalty!.stamps + 1 ? cssVars["--brand-accent"] : cssVars["--border"] }} />
+                        ))}
+                      </div>
+                      Con este pedido llevas {perksFor.loyalty.stamps + 1} de {perksFor.loyalty.needed} sellos.{" "}
+                      {perksFor.loyalty.stamps + 1 >= perksFor.loyalty.needed ? `¡En tu próximo pedido: ${perks.loyalty.rewardName.toLowerCase()}!` : `En tu ${perks.loyalty.ordersRequired}.º pedido: ${perks.loyalty.rewardName.toLowerCase()}.`}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             {channel === "DELIVERY" && zones.length > 0 && (
               <div>

@@ -3,6 +3,7 @@ import { getTenantTheme, getTenantSettings } from "@/app/lib/tenantConfig";
 import type { MenuModifierGroup } from "@/app/lib/menuOptions";
 import { ALLERGENS } from "@/app/lib/costs";
 import { getStoreOps, publicStoreInfo } from "@/app/lib/storeOps";
+import { loadPerks, publicPerks } from "@/app/lib/perks";
 
 // Carga la carta pública de un tenant (tema, ajustes, categorías y productos
 // con sus opciones). La usan la API /api/menu/[tenant] y las páginas de
@@ -11,7 +12,7 @@ import { getStoreOps, publicStoreInfo } from "@/app/lib/storeOps";
 export async function loadMenu(tenantSlug: string) {
   const tenant = await prisma.tenant.findUnique({
     where: { slug: tenantSlug },
-    select: { id: true, slug: true, name: true, branding: true, settings: true },
+    select: { id: true, slug: true, name: true, branding: true, settings: true, addons: true },
   });
   if (!tenant) return null;
 
@@ -31,6 +32,8 @@ export async function loadMenu(tenantSlug: string) {
     }),
   };
   const store = ops ? publicStoreInfo(ops) : null;
+  // Promociones en vigor y tarjeta de fidelidad (motor de retención).
+  const perks = publicPerks(await loadPerks(tenant.id, tenant.settings, tenant.addons));
 
   const categories = await prisma.category.findMany({
     where: { tenantId: tenant.id, isActive: true },
@@ -102,6 +105,7 @@ export async function loadMenu(tenantSlug: string) {
     theme,
     settings,
     store,
+    perks,
     categories: menuCategories,
   };
 }

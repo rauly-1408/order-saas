@@ -150,6 +150,8 @@ model Tenant {
   customers      Customer[]
   coupons        Coupon[]
   campaigns      Campaign[]
+  promotions     Promotion[]
+  loyaltyProgram LoyaltyProgram?
   suppliers      Supplier[]
   ingredients    Ingredient[]
   recipeLines    RecipeLine[]
@@ -380,12 +382,19 @@ model Order {
   currency      String @default("EUR")
   subtotalCents Int    @default(0)
   feesCents     Int    @default(0)
-  discountCents Int    @default(0) // descuento de cupón (ya restado en totalCents)
+  discountCents Int    @default(0) // descuento total: cupón + promoción + fidelización (ya restado en totalCents)
   totalCents    Int    @default(0)
 
   // Cupón aplicado (motor de retención)
   couponId String?
   coupon   Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+
+  // Promoción automática aplicada (sin código) y premio de fidelización
+  promotionId            String?
+  promotion              Promotion? @relation(fields: [promotionId], references: [id], onDelete: SetNull)
+  promotionDiscountCents Int        @default(0)
+  loyaltyReward          Boolean    @default(false) // este pedido canjeó el premio de la tarjeta
+  loyaltyDiscountCents   Int        @default(0)
 
   // Pago
   paymentMethod         PaymentMethod @default(IN_STORE)
@@ -502,6 +511,60 @@ model Coupon {
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, code])
+}
+
+// ─────────────────────────────────────────────
+//  PROMOCIONES AUTOMÁTICAS (sin código) y TARJETA DE FIDELIDAD
+//  Ver docs/PROMOCIONES-Y-FIDELIZACION.md
+// ─────────────────────────────────────────────
+enum PromotionKind {
+  ORDER_PERCENT // value = % sobre el subtotal
+  ORDER_FIXED // value = céntimos de descuento
+  FREE_DELIVERY // envío gratis
+}
+
+model Promotion {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  name  String
+  kind  PromotionKind
+  value Int           @default(0)
+
+  minOrderCents  Int       @default(0)
+  weekdays       Int[]     @default([]) // días ISO 1-7 (lun-dom); vacío = todos
+  startTime      String? // "HH:MM" en la hora del restaurante; null = todo el día
+  endTime        String?
+  channel        Channel? // null = domicilio y recogida
+  firstOrderOnly Boolean   @default(false)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  active         Boolean   @default(true)
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, active])
+}
+
+model LoyaltyProgram {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  active         Boolean  @default(true)
+  ordersRequired Int      @default(5) // el premio llega en el pedido nº N
+  rewardName     String // "Bocadillo + bebida gratis"
+  // Huecos del premio: [{ label: "Bocadillo", categoryIds: [...] }, { label: "Bebida", ... }]
+  rewardSlots    Json     @default("[]")
+  maxRewardCents Int? // tope del premio (null = sin tope)
+  startsAt       DateTime @default(now()) // solo cuentan los pedidos desde aquí
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ─────────────────────────────────────────────

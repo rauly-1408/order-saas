@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const tenantId = ctx.tenant.id;
   const now = new Date();
 
-  const [customers, coupons, campaigns] = await Promise.all([
+  const [customers, coupons, campaigns, promotions, loyalty, categories, promoUses, loyaltyUses] = await Promise.all([
     prisma.customer.findMany({
       where: { tenantId },
       orderBy: { lastOrderAt: "desc" },
@@ -35,7 +35,13 @@ export async function GET(req: NextRequest) {
         sends: { select: { status: true, convertedOrderId: true } },
       },
     }),
+    prisma.promotion.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } }),
+    prisma.loyaltyProgram.findUnique({ where: { tenantId } }),
+    prisma.category.findMany({ where: { tenantId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
+    prisma.order.groupBy({ by: ["promotionId"], where: { tenantId, promotionId: { not: null }, status: { not: "CANCELLED" } }, _count: true, _sum: { promotionDiscountCents: true } }),
+    prisma.order.aggregate({ where: { tenantId, loyaltyReward: true, status: { not: "CANCELLED" } }, _count: true, _sum: { loyaltyDiscountCents: true } }),
   ]);
+  const usesByPromo = new Map(promoUses.map((u) => [u.promotionId, { uses: u._count, discountCents: u._sum.promotionDiscountCents ?? 0 }]));
 
   // Segmento recalculado con la fecha de hoy ("en riesgo" no espera a un pedido
   // nuevo) y guardado para que las consultas por segmento estén al día.
@@ -69,6 +75,9 @@ export async function GET(req: NextRequest) {
     segments,
     customers: rows,
     coupons,
+    promotions: promotions.map((p) => ({ ...p, ...(usesByPromo.get(p.id) ?? { uses: 0, discountCents: 0 }) })),
+    loyalty: loyalty && { ...loyalty, rewardsGiven: loyaltyUses._count, rewardsCents: loyaltyUses._sum.loyaltyDiscountCents ?? 0 },
+    categories,
     campaigns: campaigns.map(({ sends, ...c }) => ({
       ...c,
       couponCode: c.coupon?.code ?? null,

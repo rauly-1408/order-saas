@@ -6,6 +6,8 @@ import { useCart } from "@/store/cart";
 import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import type { MenuModifierGroup } from "@/app/lib/menuOptions";
+import type { PublicPerks } from "@/app/lib/perks";
+import { promotionConditions, promotionLabel } from "@/app/lib/promotions";
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import ProductOptionsSheet from "./ProductOptionsSheet";
 
@@ -37,12 +39,13 @@ type MenuClientProps = {
   theme?: TenantTheme;
   settings?: StoreSettings;
   store?: PublicStoreInfo | null;
+  perks?: PublicPerks;
 };
 
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function MenuClient({ tenant, tenantName, categories, theme, settings, store }: MenuClientProps) {
+export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks }: MenuClientProps) {
   const { items, addItem, inc, dec, remove, clear } = useCart();
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   // Producto cuyo selector de opciones (pan, guarnición, extras) está abierto.
@@ -155,6 +158,28 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           <h1 className="mt-2 text-5xl sm:text-7xl" style={{ fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, lineHeight: 0.95, color: cssVars["--bg-base"] }}>{tenantName}</h1>
           <p className="mt-4 max-w-md" style={{ fontSize: "15px", opacity: 0.8 }}>Elige, personaliza y te lo preparamos al momento.</p>
         </section>
+        {/* Promociones en vigor y tarjeta de fidelidad: se aplican solas en el checkout */}
+        {perks && (perks.promotions.length > 0 || perks.loyalty) && (
+          <section className="p-rise -mt-6 mb-10 grid gap-3 sm:grid-cols-2" aria-label="Promociones">
+            {perks.loyalty && (
+              <div className="rounded-2xl px-5 py-4" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
+                <p style={{ fontWeight: 700, fontSize: "15px", color: cssVars["--text-primary"] }}>🎁 {perks.loyalty.rewardName}</p>
+                <p style={{ fontSize: "13px", color: cssVars["--text-secondary"], marginTop: "2px" }}>
+                  En tu {perks.loyalty.ordersRequired}.º pedido. Cada pedido suma un sello con tu teléfono, sin registrarte.
+                </p>
+              </div>
+            )}
+            {perks.promotions.map((p) => {
+              const cond = promotionConditions(p);
+              return (
+                <div key={p.id} className="rounded-2xl px-5 py-4" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
+                  <p style={{ fontWeight: 700, fontSize: "15px", color: cssVars["--text-primary"] }}>🏷️ {p.name.toLowerCase() === promotionLabel(p).toLowerCase() ? p.name : `${p.name}: ${promotionLabel(p).toLowerCase()}`}</p>
+                  <p style={{ fontSize: "13px", color: cssVars["--text-secondary"], marginTop: "2px" }}>{cond ? `${cond[0].toUpperCase()}${cond.slice(1)}. ` : ""}Se aplica sola al pedir.</p>
+                </div>
+              );
+            })}
+          </section>
+        )}
         {categories.map((cat) => (
           <section key={cat.slug} ref={(el) => { sectionRefs.current[cat.slug] = el; }} style={{ marginBottom: "40px" }}>
             <h2 style={{ fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontSize: "30px", lineHeight: 1, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, letterSpacing: "-0.01em", color: cssVars["--brand-accent"], marginBottom: "16px" }}>{cat.name}</h2>

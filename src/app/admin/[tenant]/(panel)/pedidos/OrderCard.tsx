@@ -1,5 +1,6 @@
 "use client";
 
+import { discountLines } from "@/app/lib/promotions";
 import {
   canCancel,
   elapsedLabel,
@@ -89,11 +90,12 @@ export default function OrderCard({ order, estimates, now, busy, onStatus }: Ord
       {order.channel === "DELIVERY" && order.customerAddress && (
         <p className="mb-2 rounded-xl bg-black/[0.04] px-3 py-2 text-xs text-[var(--p-muted)]">{order.customerAddress}</p>
       )}
-      {!!order.discountCents && (
-        <p className="mb-2 rounded-xl bg-[var(--p-accent-soft)] px-3 py-2 text-xs font-medium text-[var(--p-accent)]">
-          Cupón {order.coupon?.code ?? ""}: −{toEuros(order.discountCents)}
-        </p>
-      )}
+      {!!order.discountCents &&
+        discountLines({ ...order, discountCents: order.discountCents }).map((d) => (
+          <p key={d.label} className="mb-2 rounded-xl bg-[var(--p-accent-soft)] px-3 py-2 text-xs font-medium text-[var(--p-accent)]">
+            {d.label}: −{toEuros(d.cents)}
+          </p>
+        ))}
       {order.notes && (
         <p className="mb-2 rounded-xl bg-[var(--p-warm)] px-3 py-2 text-xs text-[var(--p-brand)]">Nota: {order.notes}</p>
       )}

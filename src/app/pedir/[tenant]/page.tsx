@@ -33,6 +33,7 @@ export default async function PedirPage({
       theme={menu.theme}
       settings={menu.settings}
       store={menu.store}
+      perks={menu.perks}
     />
   );
 }
