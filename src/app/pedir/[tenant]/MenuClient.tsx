@@ -129,8 +129,9 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
             {initials}
           </div>
         )}
+        {/* Con logo, el nombre escrito sobra (el logo ya lo dice y lleva el nombre como alt) */}
         <div>
-          <div style={{ fontWeight: 600, fontSize: "16px", color: cssVars["--on-header"], lineHeight: 1.2 }}>{tenantName}</div>
+          {!t.logoUrl && <div style={{ fontWeight: 600, fontSize: "16px", color: cssVars["--on-header"], lineHeight: 1.2 }}>{tenantName}</div>}
           <div style={{ fontSize: "12px", color: cssVars["--on-header"], opacity: 0.7 }}>{deliveryLabel}</div>
         </div>
       </header>

@@ -6,7 +6,7 @@ Panel → **Personalización**. Solo gerentes. Dos pestañas, como en Last.app: 
 
 | Bloque | Dónde se usa |
 |---|---|
-| Nombre de la marca | Carta, pestaña del navegador, panel |
+| Nombre de la marca | Pestaña del navegador, Google y panel. En la carta solo se escribe si no hay logotipo (con logo sería repetirlo) |
 | Favicon | Icono de la pestaña de la carta |
 | Logotipo principal | Cabecera de la carta |
 | Logotipo cuadrado | Icono de la barra lateral del panel y de la app instalada (PWA) |
