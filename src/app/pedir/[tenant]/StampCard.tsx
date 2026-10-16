@@ -19,7 +19,7 @@ export default function StampCard({ ordersRequired, stamps, rewardName, rewardRe
   const title = rewardReady
     ? "¡Este pedido tiene premio!"
     : stamps == null
-      ? `Tarjeta de sellos: ${rewardName.toLowerCase()}`
+      ? rewardName
       : filled >= needed
         ? "¡Tarjeta completa!"
         : `Con este pedido llevas ${filled} de ${needed}`;
@@ -33,7 +33,7 @@ export default function StampCard({ ordersRequired, stamps, rewardName, rewardRe
 
   return (
     <div
-      className="overflow-hidden rounded-2xl p-4"
+      className="flex h-full flex-col overflow-hidden rounded-2xl p-4"
       style={{ backgroundColor: rewardReady ? "var(--brand-secondary)" : "var(--brand-accent)", color: rewardReady ? "var(--on-secondary)" : "var(--on-accent)" }}
     >
       <p className="text-[11px] font-bold uppercase tracking-[0.08em] opacity-75">Tarjeta de sellos</p>
@@ -64,10 +64,10 @@ export default function StampCard({ ordersRequired, stamps, rewardName, rewardRe
           className="flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-bold"
           style={{ backgroundColor: "var(--bg-base)", color: "var(--brand-secondary)" }}
         >
-          🎁 {ordersRequired}.º
+          <span className="s-float inline-block">🎁</span> {ordersRequired}.º
         </span>
       </div>
-      <p className="mt-3 text-[13px] opacity-90">{subtitle}</p>
+      <p className="mt-auto pt-3 text-[13px] opacity-90">{subtitle}</p>
       {note && <p className="mt-1 text-[13px] font-semibold">{note}</p>}
     </div>
   );

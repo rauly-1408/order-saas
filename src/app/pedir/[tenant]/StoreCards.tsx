@@ -1,0 +1,177 @@
+"use client";
+
+import type { CSSProperties } from "react";
+import { promotionConditions, type PromotionRule } from "@/app/lib/promotions";
+import type { ComboSlotDef } from "@/app/lib/combos";
+
+// Tarjetas de la tienda pública: promoción, menú (combo) y producto. Cada una
+// con su propio aspecto para que no parezcan todas iguales. Usan las CSS vars
+// del theme del tenant (definidas en MenuClient).
+
+const euros = (cents: number) => (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+
+type Heading = { upperHeadings: boolean };
+const headingStyle = (upper: boolean): CSSProperties => ({
+  fontFamily: "var(--font-heading)",
+  textTransform: upper ? "uppercase" : "none",
+  fontWeight: upper ? 400 : 800,
+  lineHeight: 0.95,
+});
+
+// ── Promoción: el número grande manda ("−15 %", "Envío gratis") ──────────
+function bigValue(p: PromotionRule): { value: string; caption: string } {
+  if (p.kind === "FREE_DELIVERY") return { value: "Envío gratis", caption: "a domicilio" };
+  if (p.kind === "ORDER_PERCENT") return { value: `−${p.value} %`, caption: "en tu pedido" };
+  return { value: `−${euros(p.value).replace(",00", "")}`, caption: "en tu pedido" };
+}
+
+export function PromoTile({ promo, tone, upperHeadings }: { promo: PromotionRule; tone: "accent" | "secondary" } & Heading) {
+  const { value, caption } = bigValue(promo);
+  const cond = promotionConditions(promo);
+  const bg = tone === "accent" ? "var(--brand-accent)" : "var(--brand-secondary)";
+  const fg = tone === "accent" ? "var(--on-accent)" : "var(--on-secondary)";
+  return (
+    <article className="s-shine p-lift relative flex min-h-[188px] w-[78vw] max-w-[320px] shrink-0 flex-col justify-between rounded-[22px] p-5 sm:w-[300px]" style={{ backgroundColor: bg, color: fg }}>
+      {/* Formas decorativas en el tono de fondo de la carta */}
+      <span aria-hidden className="absolute -right-10 -top-10 h-36 w-36 rounded-full opacity-15" style={{ backgroundColor: "var(--bg-base)" }} />
+      <span aria-hidden className="absolute -bottom-12 right-8 h-24 w-24 rounded-full opacity-10" style={{ backgroundColor: "var(--bg-base)" }} />
+      <p className="relative text-[11px] font-bold uppercase tracking-[0.1em] opacity-80">🏷️ {promo.name}</p>
+      <div className="relative">
+        <p className="text-[44px]" style={headingStyle(upperHeadings)}>
+          {value}
+        </p>
+        <p className="mt-1 text-[13px] font-semibold opacity-90">{caption}</p>
+      </div>
+      <p className="relative text-[12px] opacity-85">{cond ? `${cond.charAt(0).toUpperCase()}${cond.slice(1)} · ` : ""}se aplica sola</p>
+    </article>
+  );
+}
+
+// ── Menú / combo: tarjeta ancha con los pasos numerados y el precio cerrado ─
+export function ComboCard({
+  name,
+  description,
+  priceCents,
+  slots,
+  qty,
+  onAdd,
+  upperHeadings,
+}: { name: string; description: string; priceCents: number; slots: ComboSlotDef[]; qty: number; onAdd: () => void } & Heading) {
+  const steps = slots.map((s) => {
+    const t = s.name.replace(/^elige (tu |un |una )?/i, "");
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  });
+  return (
+    <article
+      className="p-lift relative flex flex-col overflow-hidden rounded-[26px] p-6 sm:p-7"
+      style={{ background: "linear-gradient(135deg, var(--brand-accent) 0%, color-mix(in srgb, var(--brand-accent) 78%, black) 100%)", color: "var(--on-accent)" }}
+    >
+      <span aria-hidden className="absolute -right-16 -top-16 h-56 w-56 rounded-full opacity-10" style={{ backgroundColor: "var(--bg-base)" }} />
+      <div className="relative flex items-start justify-between gap-3">
+        <span className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em]" style={{ backgroundColor: "var(--brand-secondary)", color: "var(--on-secondary)" }}>
+          Menú
+        </span>
+        {qty > 0 && <span className="rounded-full bg-white/15 px-2.5 py-1 text-[12px] font-semibold">{qty} en tu pedido</span>}
+      </div>
+      <h3 className="relative mt-4 text-[34px] sm:text-[40px]" style={headingStyle(upperHeadings)}>
+        {name}
+      </h3>
+      {description && <p className="relative mt-2 max-w-md text-[14px] opacity-85">{description}</p>}
+      <ol className="relative mt-5 flex flex-wrap items-center gap-2" aria-label="Pasos del menú">
+        {steps.map((s, i) => (
+          <li key={i} className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1 text-[13px] font-semibold" style={{ backgroundColor: "color-mix(in srgb, var(--bg-base) 18%, transparent)" }}>
+              <span className="flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-bold" style={{ backgroundColor: "var(--bg-base)", color: "var(--brand-accent)" }}>
+                {i + 1}
+              </span>
+              {s}
+            </span>
+            {i < steps.length - 1 && <span aria-hidden className="opacity-60">+</span>}
+          </li>
+        ))}
+      </ol>
+      <div className="relative mt-6 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[12px] opacity-75">Todo por</p>
+          <p className="text-[38px]" style={headingStyle(upperHeadings)}>
+            {euros(priceCents)}
+          </p>
+        </div>
+        <button onClick={onAdd} className="p-press shrink-0 rounded-full px-5 py-3 text-[15px] font-bold shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5)]" style={{ backgroundColor: "var(--bg-base)", color: "var(--brand-accent)" }}>
+          Montar mi menú →
+        </button>
+      </div>
+    </article>
+  );
+}
+
+// ── Producto: tarjeta clara con botón redondo "+" ─────────────────────────
+export function ProductCard({
+  name,
+  description,
+  priceCents,
+  imageUrl,
+  allergens,
+  qty,
+  simple,
+  onAdd,
+  onInc,
+  onDec,
+}: {
+  name: string;
+  description: string;
+  priceCents: number;
+  imageUrl?: string | null;
+  allergens?: string[];
+  qty: number;
+  simple: boolean; // sin opciones: se puede sumar/restar aquí mismo
+  onAdd: () => void;
+  onInc: () => void;
+  onDec: () => void;
+}) {
+  return (
+    <article
+      className="p-lift group relative flex h-full flex-col overflow-hidden rounded-[var(--border-radius)] bg-[var(--surface-1)]"
+      style={{ boxShadow: qty > 0 ? "0 0 0 2px var(--brand-accent)" : "0 1px 2px rgba(0,0,0,0.05)" }}
+    >
+      {imageUrl && (
+        <div className="overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt={name} className="aspect-[4/3] w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+        </div>
+      )}
+      {qty > 0 && (
+        <span className="absolute right-3 top-3 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[13px] font-bold" style={{ backgroundColor: "var(--brand-accent)", color: "var(--on-accent)" }}>
+          {qty}
+        </span>
+      )}
+      <div className="flex flex-1 flex-col px-5 pt-5">
+        <h3 className="pr-8 text-[17px] font-bold leading-snug tracking-[-0.01em] text-[var(--text-primary)]">{name}</h3>
+        {description && <p className="mt-1.5 line-clamp-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">{description}</p>}
+        {allergens && allergens.length > 0 && <p className="mt-2 text-[11px] text-[var(--text-secondary)]">Alérgenos: {allergens.join(", ")}</p>}
+      </div>
+      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-5">
+        <span className="text-[18px] font-bold tabular-nums text-[var(--brand-secondary)]">{euros(priceCents)}</span>
+        {simple && qty > 0 ? (
+          <div className="flex items-center gap-2">
+            <button onClick={onDec} aria-label={`Quitar un ${name}`} className="p-press flex h-10 w-10 items-center justify-center rounded-full border-2 border-[var(--brand-accent)] text-xl font-bold text-[var(--brand-accent)]">
+              −
+            </button>
+            <span className="min-w-5 text-center text-[16px] font-bold tabular-nums">{qty}</span>
+            <button onClick={onInc} aria-label={`Añadir otro ${name}`} className="p-press flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-accent)] text-xl font-bold text-[var(--on-accent)]">
+              +
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onAdd}
+            aria-label={`Añadir ${name}`}
+            className="p-press flex h-11 items-center gap-1.5 rounded-full bg-[var(--brand-accent)] pr-4 pl-3 text-[15px] font-bold text-[var(--on-accent)] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.5)] transition-transform group-hover:scale-105"
+          >
+            <span className="text-xl leading-none">+</span> Añadir
+          </button>
+        )}
+      </div>
+    </article>
+  );
+}

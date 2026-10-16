@@ -8,11 +8,11 @@ import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import type { MenuModifierGroup } from "@/app/lib/menuOptions";
 import type { PublicPerks } from "@/app/lib/perks";
 import { SOCIAL_FIELDS, type OnlinePresence } from "@/app/lib/brand";
-import { promotionConditions, promotionLabel } from "@/app/lib/promotions";
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import ProductOptionsSheet from "./ProductOptionsSheet";
 import ComboSheet from "./ComboSheet";
 import StampCard from "./StampCard";
+import { ComboCard, ProductCard, PromoTile } from "./StoreCards";
 import DeliveryPartners, { type PartnerLink } from "./DeliveryPartners";
 import type { ChoiceProduct, ComboSlotDef } from "@/app/lib/combos";
 
@@ -132,158 +132,240 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
       return;
     }
     addItem({ productId: product.id, name: product.name, unitPriceCents: product.basePriceCents, optionIds: [], modifiers: [] });
+    bumpCart();
   }
 
   const initials = tenantName.slice(0, 2).toUpperCase();
+  const upper = cssVars["--heading-case"] === "uppercase";
+  const heading = { fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontWeight: upper ? 400 : 800, lineHeight: 0.95 };
+  const visiblePromos = (perks?.promotions ?? []).filter((p) => settings?.deliveryEnabled || (p.channel !== "DELIVERY" && p.kind !== "FREE_DELIVERY"));
+  const canSchedule = !!store?.slots && (store.slots.TAKEAWAY.length > 0 || store.slots.DELIVERY.length > 0);
+  const firstSlug = categories[0]?.slug;
+
+  // Animaciones al hacer scroll: los bloques con data-reveal aparecen al entrar en pantalla.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    root.classList.add("s-js");
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && (e.target.classList.add("is-in"), io.unobserve(e.target))),
+      { rootMargin: "0px 0px -8% 0px" }
+    );
+    root.querySelectorAll("[data-reveal]").forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [categories]);
+
+  // El carrito "salta" cada vez que se añade algo.
+  const [bump, setBump] = useState(0);
+  const bumpCart = () => setBump((b) => b + 1);
+
+  // Contenedor común: mismo margen para todo (como las webs de las cadenas).
+  const wrap = "mx-auto w-full max-w-7xl px-4 sm:px-8";
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], fontFamily: cssVars["--font-body"], ...cssVars as any }}>
-      <header className="p-glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: `1px solid ${cssVars["--border"]}`, height: "64px", ["--p-surface" as any]: cssVars["--header-bg"], display: "flex", alignItems: "center", padding: "0 20px", gap: "14px" }}>
-        {t.logoUrl ? (
-          <img src={t.logoUrl} alt={tenantName} style={{ height: "36px", width: "auto", borderRadius: "8px", flexShrink: 0 }} />
-        ) : (
-          <div style={{ width: "40px", height: "40px", borderRadius: "12px", backgroundColor: cssVars["--brand-accent"], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "15px", color: "var(--on-accent)", flexShrink: 0 }}>
-            {initials}
+    <div ref={rootRef} className="min-h-screen" style={{ backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], fontFamily: cssVars["--font-body"], ...(cssVars as any) }}>
+      {/* Aviso de cerrado: franja fina arriba, no un bloque que tape la portada */}
+      {store && !store.status.open && (
+        <div className="px-4 py-2 text-center text-[13px] font-semibold" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
+          🕐 {store.status.message}{store.status.reopens ? ` · abrimos ${store.status.reopens}` : ""}
+          {canSchedule ? " · Puedes programar tu pedido" : ""}
+        </div>
+      )}
+
+      {/* Cabecera: logo a la izquierda; estado, a domicilio y carrito a la derecha */}
+      <header className="sticky top-0 z-50 border-b border-[var(--border)]" style={{ backgroundColor: cssVars["--header-bg"] }}>
+        <div className={`${wrap} flex h-16 items-center gap-3`}>
+          <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-w-0 items-center gap-3 no-underline">
+            {t.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={t.logoUrl} alt={tenantName} className="h-9 w-auto max-w-[150px] shrink-0 object-contain" />
+            ) : (
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[15px] font-extrabold" style={{ backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)" }}>
+                {initials}
+              </span>
+            )}
+            {/* Con logo, el nombre escrito sobra (el logo ya lo dice y lleva el nombre como alt) */}
+            {!t.logoUrl && <span className="truncate text-[16px] font-semibold" style={{ color: cssVars["--on-header"] }}>{tenantName}</span>}
+          </a>
+          <div className="ml-auto flex items-center gap-2">
+            {store && (
+              <span className="hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold sm:inline-flex" style={{ border: `1px solid ${cssVars["--border"]}`, color: cssVars["--on-header"] }}>
+                <span className={`h-2 w-2 rounded-full ${store.status.open ? "bg-emerald-500" : ""}`} style={store.status.open ? undefined : { backgroundColor: cssVars["--brand-secondary"] }} />
+                {store.status.open ? "Abierto" : "Cerrado"}
+              </span>
+            )}
+            {deliveryPartners.length > 0 && !settings?.deliveryEnabled ? (
+              <a href="#a-domicilio" className="p-press hidden rounded-full px-4 py-2 text-[13px] font-bold no-underline sm:inline-block" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
+                🛵 A domicilio
+              </a>
+            ) : null}
+            <a
+              href={`/pedir/${tenant}/checkout`}
+              aria-label={`Ver pedido: ${totalItems} ${totalItems === 1 ? "artículo" : "artículos"}`}
+              className="p-press relative flex h-10 items-center gap-2 rounded-full px-4 text-[14px] font-bold no-underline"
+              style={{ backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M6 7h12l-1 13H7z" />
+                <path d="M9 7a3 3 0 0 1 6 0" />
+              </svg>
+              <span key={bump} className={bump ? "s-bump inline-block" : "inline-block"}>{totalItems > 0 ? euros(totalCents) : "Pedido"}</span>
+              {totalItems > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
+                  {totalItems}
+                </span>
+              )}
+            </a>
           </div>
-        )}
-        {/* Con logo, el nombre escrito sobra (el logo ya lo dice y lleva el nombre como alt) */}
-        <div>
-          {!t.logoUrl && <div style={{ fontWeight: 600, fontSize: "16px", color: cssVars["--on-header"], lineHeight: 1.2 }}>{tenantName}</div>}
-          <div style={{ fontSize: "12px", color: cssVars["--on-header"], opacity: 0.7 }}>{deliveryLabel}</div>
         </div>
       </header>
-      <nav ref={navRef} className="p-glass" style={{ position: "sticky", top: "64px", zIndex: 40, ["--p-surface" as any]: cssVars["--surface-0"], borderBottom: `1px solid ${cssVars["--border"]}`, display: "flex", gap: "8px", overflowX: "auto", padding: "10px 16px", scrollbarWidth: "none" }}>
-        {categories.map((cat) => {
-          const isActive = activeCategory === cat.slug;
-          return (
-            <button key={cat.slug} data-slug={cat.slug} onClick={() => scrollToCategory(cat.slug)} className="p-press" style={{ flexShrink: 0, padding: "7px 16px", borderRadius: "999px", border: isActive ? "none" : `1px solid ${cssVars["--border"]}`, backgroundColor: isActive ? cssVars["--brand-accent"] : "transparent", color: isActive ? "var(--on-accent)" : cssVars["--text-secondary"], fontWeight: isActive ? 600 : 500, fontSize: "14px", cursor: "pointer" }}>
-              {cat.name}
-            </button>
-          );
-        })}
-      </nav>
-      <main className="mx-auto max-w-6xl px-4 pt-6 pb-[120px]">
-        {/* Cerrado / en pausa: se puede mirar la carta, pero no pedir */}
-        {store && !store.status.open && (
-          <div className="p-rise mb-4 rounded-2xl px-5 py-4" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
-            <p style={{ fontWeight: 700, fontSize: "16px", color: cssVars["--brand-secondary"] }}>{store.status.message}</p>
-            <p style={{ fontSize: "14px", color: cssVars["--text-secondary"] }}>
-              {store.status.reopens ? `Volvemos a abrir ${store.status.reopens}. ` : ""}
-              {store.slots && (store.slots.TAKEAWAY.length > 0 || store.slots.DELIVERY.length > 0)
-                ? "Puedes hacer tu pedido ya y programarlo para cuando abramos."
-                : "Puedes ver la carta mientras tanto."}
-            </p>
+
+      {/* Portada a todo lo ancho: foto con zoom lento y titular grande a la izquierda */}
+      <section className="relative overflow-hidden" style={{ backgroundColor: cssVars["--brand-accent"], color: t.heroImageUrl ? "#ffffff" : "var(--on-accent)" }}>
+        {t.heroImageUrl && (
+          <div aria-hidden className="s-kenburns absolute inset-0" style={{ backgroundImage: `url("${t.heroImageUrl}")`, backgroundSize: "cover", backgroundPosition: "center" }} />
+        )}
+        <div aria-hidden className="absolute inset-0" style={{ background: t.heroImageUrl ? "linear-gradient(90deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.1) 100%)" : "radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--bg-base) 18%, transparent) 0, transparent 45%)" }} />
+        <div className={`${wrap} relative flex min-h-[380px] flex-col justify-end py-12 sm:min-h-[520px] sm:py-20`}>
+          <p className="s-up text-[13px] font-semibold uppercase tracking-[0.14em] opacity-85" style={{ ["--i" as any]: 0 }}>{deliveryLabel}</p>
+          <h1 className="s-up mt-3 max-w-3xl text-[56px] sm:text-[104px]" style={{ ...heading, ["--i" as any]: 1, color: t.heroImageUrl ? "#ffffff" : cssVars["--bg-base"] }}>
+            {tenantName}
+          </h1>
+          <p className="s-up mt-4 max-w-md text-[16px] opacity-90" style={{ ["--i" as any]: 2 }}>Elige, personaliza y te lo preparamos al momento.</p>
+          <div className="s-up mt-7 flex flex-wrap gap-3" style={{ ["--i" as any]: 3 }}>
+            {firstSlug && (
+              <button onClick={() => scrollToCategory(firstSlug)} className="p-press rounded-full px-6 py-3.5 text-[15px] font-bold shadow-[0_12px_28px_-12px_rgba(0,0,0,0.6)]" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
+                Ver la carta
+              </button>
+            )}
+            {deliveryPartners.length > 0 && (
+              <a href="#a-domicilio" className="p-press rounded-full border-2 px-6 py-3 text-[15px] font-bold no-underline" style={{ borderColor: "currentColor", color: "inherit" }}>
+                🛵 A domicilio
+              </a>
+            )}
           </div>
-        )}
-        {/* Portada: nombre del restaurante en la fuente de rótulo de la marca */}
-        <section
-          className="p-rise mb-10 overflow-hidden rounded-[28px] px-6 py-10 sm:px-10 sm:py-14"
-          style={{
-            backgroundColor: cssVars["--brand-accent"],
-            color: t.heroImageUrl ? "#ffffff" : cssVars["--on-accent"],
-            // Foto de portada (Personalización) con un velo oscuro para que el texto se lea.
-            ...(t.heroImageUrl && { backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url("${t.heroImageUrl}")`, backgroundSize: "cover", backgroundPosition: "center" }),
-          }}
-        >
-          <p style={{ fontSize: "14px", fontWeight: 500, opacity: 0.75 }}>{deliveryLabel}</p>
-          <h1 className="mt-2 text-5xl sm:text-7xl" style={{ fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, lineHeight: 0.95, color: t.heroImageUrl ? "#ffffff" : cssVars["--bg-base"] }}>{tenantName}</h1>
-          <p className="mt-4 max-w-md" style={{ fontSize: "15px", opacity: 0.8 }}>Elige, personaliza y te lo preparamos al momento.</p>
-        </section>
-        {/* A domicilio con plataformas (sin repartidores propios): como McDonald's,
-            el cliente elige quién se lo lleva y pide en esa app. */}
+        </div>
+      </section>
+
+      {/* Categorías: barra fija bajo la cabecera, alineada con el contenido */}
+      <nav className="sticky top-16 z-40 border-b border-[var(--border)] shadow-[0_8px_20px_-18px_rgba(0,0,0,0.4)]" style={{ backgroundColor: cssVars["--surface-0"] }} aria-label="Categorías">
+        <div ref={navRef} className={`${wrap} flex gap-2 overflow-x-auto py-3`} style={{ scrollbarWidth: "none" }}>
+          {categories.map((cat) => {
+            const isActive = activeCategory === cat.slug;
+            return (
+              <button
+                key={cat.slug}
+                data-slug={cat.slug}
+                onClick={() => scrollToCategory(cat.slug)}
+                className="p-press shrink-0 rounded-full px-4 py-2 text-[14px] transition-colors duration-300"
+                style={{ border: isActive ? "1px solid transparent" : `1px solid ${cssVars["--border"]}`, backgroundColor: isActive ? cssVars["--brand-accent"] : "transparent", color: isActive ? "var(--on-accent)" : cssVars["--text-secondary"], fontWeight: isActive ? 700 : 500 }}
+              >
+                {cat.name}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      <main className={`${wrap} pt-10 pb-[140px]`}>
+        {/* A domicilio con plataformas (sin repartidores propios): como McDonald's */}
         {deliveryPartners.length > 0 && (
-          <section className="p-rise -mt-6 mb-10 rounded-2xl px-5 py-4" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }} aria-label="A domicilio">
-            <p style={{ fontWeight: 700, fontSize: "15px", color: cssVars["--text-primary"] }}>
-              🛵 {settings?.deliveryEnabled ? "También a domicilio con" : "¿Lo quieres en casa? Escoge quién te lo lleva"}
-            </p>
-            <p style={{ fontSize: "13px", color: cssVars["--text-secondary"], margin: "2px 0 12px" }}>
-              {settings?.deliveryEnabled ? "Si lo prefieres, pídenos en tu app de siempre." : "Te llevamos a nuestra tienda en esa app, donde haces el pedido y el pago. Para recoger, pide aquí."}
-            </p>
-            <DeliveryPartners partners={deliveryPartners} />
-          </section>
-        )}
-        {/* Promociones en vigor y tarjeta de fidelidad: se aplican solas en el checkout */}
-        {perks && (perks.promotions.some((p) => settings?.deliveryEnabled || (p.channel !== "DELIVERY" && p.kind !== "FREE_DELIVERY")) || perks.loyalty) && (
-          <section className="p-rise -mt-6 mb-10 grid gap-3 sm:grid-cols-2" aria-label="Promociones">
-            {perks.loyalty && <StampCard ordersRequired={perks.loyalty.ordersRequired} stamps={null} rewardName={perks.loyalty.rewardName} upperHeadings={cssVars["--heading-case"] === "uppercase"} />}
-            {perks.promotions.filter((p) => settings?.deliveryEnabled || (p.channel !== "DELIVERY" && p.kind !== "FREE_DELIVERY")).map((p) => {
-              const cond = promotionConditions(p);
-              return (
-                <div key={p.id} className="rounded-2xl px-5 py-4" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
-                  <p style={{ fontWeight: 700, fontSize: "15px", color: cssVars["--text-primary"] }}>🏷️ {p.name.toLowerCase() === promotionLabel(p).toLowerCase() ? p.name : `${p.name}: ${promotionLabel(p).toLowerCase()}`}</p>
-                  <p style={{ fontSize: "13px", color: cssVars["--text-secondary"], marginTop: "2px" }}>{cond ? `${cond[0].toUpperCase()}${cond.slice(1)}. ` : ""}Se aplica sola al pedir.</p>
-                </div>
-              );
-            })}
-          </section>
-        )}
-        {categories.map((cat) => (
-          <section key={cat.slug} ref={(el) => { sectionRefs.current[cat.slug] = el; }} style={{ marginBottom: "40px" }}>
-            <h2 style={{ fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontSize: "30px", lineHeight: 1, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, letterSpacing: "-0.01em", color: cssVars["--heading-color"], marginBottom: "16px" }}>{cat.name}</h2>
-            {cat.description && <p style={{ fontSize: "14px", color: cssVars["--text-secondary"], marginTop: "-6px", marginBottom: "16px" }}>{cat.description}</p>}
-            {/* Cuadrícula: 1 columna en móvil, 2 en tablet, 3 en escritorio */}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {cat.products.map((product, i) => {
-                const qty = getQty(product.id);
-                const lineId = getLineId(product.id);
-                return (
-                  <div key={product.id} className="p-rise p-lift flex flex-col overflow-hidden" style={{ ["--i" as any]: Math.min(i, 8), backgroundColor: cssVars["--surface-1"], borderRadius: t.borderRadius, boxShadow: qty > 0 ? `0 0 0 2px ${cssVars["--brand-accent"]}` : "0 1px 2px rgba(0,0,0,0.05)" }}>
-                    {product.imageUrl && (
-                      <img src={product.imageUrl} alt={product.name} className="aspect-[4/3] w-full object-cover" />
-                    )}
-                    <div className="flex-1 px-4 pt-4">
-                      {product.isCombo && (
-                        <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: cssVars["--brand-secondary"], marginBottom: "2px" }}>Menú</div>
-                      )}
-                      <div style={{ fontWeight: 600, fontSize: "17px", letterSpacing: "-0.01em", color: cssVars["--text-primary"], marginBottom: "4px" }}>{product.name}</div>
-                      {product.isCombo && product.comboSlots && product.comboSlots.length > 0 && (
-                        <div style={{ fontSize: "13px", fontWeight: 600, color: cssVars["--text-primary"], marginBottom: "2px" }}>{(() => { const t = product.comboSlots.map((sl) => sl.name.replace(/^elige (tu |un |una )?/i, "")).join(" + "); return t.charAt(0).toUpperCase() + t.slice(1); })()}</div>
-                      )}
-                      {product.description && <div style={{ fontSize: "13px", color: cssVars["--text-secondary"], lineHeight: 1.45 }}>{product.description}</div>}
-                      {product.allergens && product.allergens.length > 0 && (
-                        <div style={{ fontSize: "11px", color: cssVars["--text-secondary"], marginTop: "6px" }}>
-                          Alérgenos: {product.allergens.join(", ")}
-                        </div>
-                      )}
-                    </div>
-                    {/* Pie de tarjeta: precio y acción alineados abajo en toda la fila */}
-                    <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-4">
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: "17px", color: cssVars["--brand-secondary"] }}>{euros(product.basePriceCents)}</div>
-                        {(product.modifierGroups.length > 0 || product.isCombo) && qty > 0 && (
-                          <div style={{ fontSize: "11px", color: cssVars["--brand-accent"], fontWeight: 600 }}>{qty} en tu pedido</div>
-                        )}
-                      </div>
-                      {product.modifierGroups.length > 0 || product.isCombo || qty === 0 ? (
-                        // Con opciones, cada combinación es una línea distinta: siempre "Añadir"
-                        // (las cantidades se ajustan en el checkout).
-                        <button onClick={() => handleAdd(product)} className="p-press" style={{ padding: "9px 20px", borderRadius: "999px", border: "none", backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)", fontWeight: 700, fontSize: "14px", cursor: "pointer" }}>
-                          Añadir
-                        </button>
-                      ) : (
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <button onClick={() => { if (qty === 1 && lineId) remove(lineId); else if (lineId) dec(lineId); }} style={{ width: "30px", height: "30px", borderRadius: "50%", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 700, fontSize: "18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>-</button>
-                          <span style={{ fontWeight: 700, fontSize: "15px", color: cssVars["--text-primary"], minWidth: "16px", textAlign: "center" }}>{qty}</span>
-                          <button onClick={() => { if (lineId) inc(lineId); }} style={{ width: "30px", height: "30px", borderRadius: "50%", border: "none", backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)", fontWeight: 700, fontSize: "18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+          <section id="a-domicilio" data-reveal className="mb-12 scroll-mt-32 rounded-[26px] p-6 sm:p-8" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }} aria-label="A domicilio">
+            <div className="grid gap-5 lg:grid-cols-[1fr_minmax(0,520px)] lg:items-center">
+              <div>
+                <p className="text-[12px] font-bold uppercase tracking-[0.12em]" style={{ color: cssVars["--brand-secondary"] }}>🛵 A domicilio</p>
+                <h2 className="mt-2 text-[34px] sm:text-[44px]" style={{ ...heading, color: cssVars["--heading-color"] }}>
+                  {settings?.deliveryEnabled ? "También en tu app" : "Escoge quién te lo lleva"}
+                </h2>
+                <p className="mt-2 max-w-md text-[14px]" style={{ color: cssVars["--text-secondary"] }}>
+                  {settings?.deliveryEnabled ? "Si lo prefieres, pídenos en tu app de siempre." : "Te llevamos a nuestra tienda en esa app, donde haces el pedido y el pago. Para recoger, pide aquí."}
+                </p>
+              </div>
+              <DeliveryPartners partners={deliveryPartners} />
             </div>
           </section>
-        ))}
-        {/* Redes y reseñas (Personalización → Presencia online) */}
-        {online && SOCIAL_FIELDS.some((f) => online[f.key]) && (
-          <footer className="mt-4 flex flex-wrap items-center justify-center gap-2 pb-4" aria-label="Síguenos">
-            {SOCIAL_FIELDS.filter((f) => online[f.key]).map((f) => (
-              <a key={f.key} href={online[f.key]!} target="_blank" rel="noopener noreferrer" className="p-press rounded-full px-4 py-2 text-sm font-semibold" style={{ border: `1px solid ${cssVars["--border"]}`, color: cssVars["--text-primary"], textDecoration: "none" }}>
-                {f.key === "reviewsUrl" ? "★ Déjanos una reseña" : f.label}
-              </a>
-            ))}
-          </footer>
         )}
+
+        {/* Promociones y tarjeta de sellos: fila deslizante de tarjetas de color */}
+        {perks && (visiblePromos.length > 0 || perks.loyalty) && (
+          <section className="mb-14" aria-label="Promociones">
+            <h2 data-reveal className="mb-5 text-[34px] sm:text-[44px]" style={{ ...heading, color: cssVars["--heading-color"] }}>Promociones</h2>
+            <div className="s-row -mx-4 flex items-stretch gap-4 overflow-x-auto px-4 pb-2 sm:-mx-8 sm:px-8">
+              {perks.loyalty && (
+                <div data-reveal className="w-[85vw] max-w-[380px] shrink-0 sm:w-[380px]">
+                  <StampCard ordersRequired={perks.loyalty.ordersRequired} stamps={null} rewardName={perks.loyalty.rewardName} upperHeadings={upper} />
+                </div>
+              )}
+              {visiblePromos.map((p, i) => (
+                <div key={p.id} data-reveal className="flex" style={{ ["--i" as any]: i + 1 }}>
+                  <PromoTile promo={p} tone={i % 2 === 0 ? "secondary" : "accent"} upperHeadings={upper} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {categories.map((cat) => {
+          const combos = cat.products.every((p) => p.isCombo);
+          return (
+            <section key={cat.slug} ref={(el) => { sectionRefs.current[cat.slug] = el; }} className="mb-14 scroll-mt-36">
+              <div data-reveal className="mb-5">
+                <h2 className="text-[34px] sm:text-[44px]" style={{ ...heading, color: cssVars["--heading-color"] }}>{cat.name}</h2>
+                {cat.description && <p className="mt-2 text-[14px]" style={{ color: cssVars["--text-secondary"] }}>{cat.description}</p>}
+              </div>
+              {/* Menús: tarjetas anchas (1 o 2 por fila). Productos: 1 / 2 / 3 / 4 columnas. */}
+              <div className={combos ? "grid gap-5 lg:grid-cols-2" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}>
+                {cat.products.map((product, i) => {
+                  const qty = getQty(product.id);
+                  const lineId = getLineId(product.id);
+                  return (
+                    <div key={product.id} data-reveal style={{ ["--i" as any]: Math.min(i, 6) }}>
+                      {product.isCombo ? (
+                        <ComboCard
+                          name={product.name}
+                          description={product.description}
+                          priceCents={product.basePriceCents}
+                          slots={product.comboSlots ?? []}
+                          qty={qty}
+                          onAdd={() => handleAdd(product)}
+                          upperHeadings={upper}
+                        />
+                      ) : (
+                        <ProductCard
+                          name={product.name}
+                          description={product.description}
+                          priceCents={product.basePriceCents}
+                          imageUrl={product.imageUrl}
+                          allergens={product.allergens}
+                          qty={qty}
+                          simple={product.modifierGroups.length === 0}
+                          onAdd={() => handleAdd(product)}
+                          onInc={() => { if (lineId) { inc(lineId); bumpCart(); } }}
+                          onDec={() => { if (!lineId) return; if (qty === 1) remove(lineId); else dec(lineId); }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+
+        {/* Pie: marca y redes (Personalización → Presencia online) */}
+        <footer data-reveal className="mt-6 flex flex-col items-center gap-4 border-t border-[var(--border)] pt-10 text-center" aria-label="Síguenos">
+          <p className="text-[28px]" style={{ ...heading, color: cssVars["--heading-color"] }}>{tenantName}</p>
+          {online && SOCIAL_FIELDS.some((f) => online[f.key]) && (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {SOCIAL_FIELDS.filter((f) => online[f.key]).map((f) => (
+                <a key={f.key} href={online[f.key]!} target="_blank" rel="noopener noreferrer" className="p-press rounded-full px-4 py-2 text-sm font-semibold no-underline" style={{ border: `1px solid ${cssVars["--border"]}`, color: cssVars["--text-primary"] }}>
+                  {f.key === "reviewsUrl" ? "★ Déjanos una reseña" : f.label}
+                </a>
+              ))}
+            </div>
+          )}
+        </footer>
       </main>
       {optionsFor && (
         <ProductOptionsSheet
@@ -291,6 +373,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           onClose={() => setOptionsFor(null)}
           onAdd={(line) => {
             addItem({ productId: optionsFor.id, name: optionsFor.name, ...line });
+            bumpCart();
             setOptionsFor(null);
           }}
         />
@@ -302,18 +385,24 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           onClose={() => setComboFor(null)}
           onAdd={(line) => {
             addItem({ productId: comboFor.id, name: comboFor.name, optionIds: [], ...line });
+            bumpCart();
             setComboFor(null);
           }}
         />
       )}
+      {/* Barra flotante del pedido */}
       {totalItems > 0 && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, backgroundColor: cssVars["--surface-0"], boxShadow: "0 -8px 24px -16px rgba(0,0,0,0.25)", borderTop: `1px solid ${cssVars["--border"]}`, padding: "12px 16px calc(12px + env(safe-area-inset-bottom))", display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: "16px", color: cssVars["--text-primary"], whiteSpace: "nowrap" }}>{euros(totalCents)}</div>
-            <div style={{ fontSize: "12px", color: cssVars["--text-secondary"], whiteSpace: "nowrap" }}>{totalItems} {totalItems === 1 ? "artículo" : "artículos"}</div>
+        <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(12px+env(safe-area-inset-bottom))] sm:px-6">
+          <div className="s-up mx-auto flex max-w-xl items-center gap-3 rounded-full p-2 pl-5 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.55)]" style={{ backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)" }}>
+            <div className="min-w-0 flex-1">
+              <div key={bump} className={`text-[16px] font-bold tabular-nums ${bump ? "s-bump inline-block" : ""}`}>{euros(totalCents)}</div>
+              <div className="text-[12px] opacity-80">{totalItems} {totalItems === 1 ? "artículo" : "artículos"}</div>
+            </div>
+            <button onClick={clear} className="p-press shrink-0 rounded-full px-3 py-2 text-[13px] opacity-80 hover:opacity-100">Vaciar</button>
+            <a href={`/pedir/${tenant}/checkout`} className="p-press shrink-0 rounded-full px-6 py-3 text-[15px] font-bold no-underline" style={{ backgroundColor: cssVars["--bg-base"], color: cssVars["--brand-accent"] }}>
+              Ver pedido →
+            </a>
           </div>
-          <button onClick={clear} className="p-press" style={{ padding: "8px 12px", borderRadius: "999px", border: `1px solid ${cssVars["--border"]}`, backgroundColor: "transparent", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer", flexShrink: 0 }}>Vaciar</button>
-          <a href={`/pedir/${tenant}/checkout`} className="p-press" style={{ padding: "11px 20px", borderRadius: "999px", backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)", fontWeight: 600, fontSize: "15px", textDecoration: "none", display: "inline-block", whiteSpace: "nowrap", flexShrink: 0 }}>Ver pedido</a>
         </div>
       )}
     </div>
