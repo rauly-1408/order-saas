@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/store/cart";
 import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
@@ -11,6 +11,8 @@ import { SOCIAL_FIELDS, type OnlinePresence } from "@/app/lib/brand";
 import { promotionConditions, promotionLabel } from "@/app/lib/promotions";
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import ProductOptionsSheet from "./ProductOptionsSheet";
+import ComboSheet from "./ComboSheet";
+import type { ChoiceProduct, ComboSlotDef } from "@/app/lib/combos";
 
 type MenuProduct = {
   id: string;
@@ -21,6 +23,8 @@ type MenuProduct = {
   isFeatured?: boolean;
   modifierGroups: MenuModifierGroup[];
   allergens?: string[];
+  isCombo?: boolean;
+  comboSlots?: ComboSlotDef[];
 };
 
 type MenuCategory = {
@@ -52,6 +56,12 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   // Producto cuyo selector de opciones (pan, guarnición, extras) está abierto.
   const [optionsFor, setOptionsFor] = useState<MenuProduct | null>(null);
+  // Combo cuyo selector de pasos está abierto, y lo que se puede elegir dentro.
+  const [comboFor, setComboFor] = useState<MenuProduct | null>(null);
+  const catalog = useMemo(
+    () => new Map<string, ChoiceProduct>(categories.flatMap((c) => c.products.filter((p) => !p.isCombo).map((p) => [p.id, { id: p.id, name: p.name, modifierGroups: p.modifierGroups }]))),
+    [categories]
+  );
   const navRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -110,6 +120,10 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
   }
 
   function handleAdd(product: MenuProduct) {
+    if (product.isCombo) {
+      setComboFor(product);
+      return;
+    }
     if (product.modifierGroups.length > 0) {
       setOptionsFor(product);
       return;
@@ -206,7 +220,13 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                       <img src={product.imageUrl} alt={product.name} className="aspect-[4/3] w-full object-cover" />
                     )}
                     <div className="flex-1 px-4 pt-4">
+                      {product.isCombo && (
+                        <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: cssVars["--brand-secondary"], marginBottom: "2px" }}>Menú</div>
+                      )}
                       <div style={{ fontWeight: 600, fontSize: "17px", letterSpacing: "-0.01em", color: cssVars["--text-primary"], marginBottom: "4px" }}>{product.name}</div>
+                      {product.isCombo && product.comboSlots && product.comboSlots.length > 0 && (
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: cssVars["--text-primary"], marginBottom: "2px" }}>{(() => { const t = product.comboSlots.map((sl) => sl.name.replace(/^elige (tu |un |una )?/i, "")).join(" + "); return t.charAt(0).toUpperCase() + t.slice(1); })()}</div>
+                      )}
                       {product.description && <div style={{ fontSize: "13px", color: cssVars["--text-secondary"], lineHeight: 1.45 }}>{product.description}</div>}
                       {product.allergens && product.allergens.length > 0 && (
                         <div style={{ fontSize: "11px", color: cssVars["--text-secondary"], marginTop: "6px" }}>
@@ -218,11 +238,11 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                     <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-4">
                       <div>
                         <div style={{ fontWeight: 600, fontSize: "17px", color: cssVars["--brand-secondary"] }}>{euros(product.basePriceCents)}</div>
-                        {product.modifierGroups.length > 0 && qty > 0 && (
+                        {(product.modifierGroups.length > 0 || product.isCombo) && qty > 0 && (
                           <div style={{ fontSize: "11px", color: cssVars["--brand-accent"], fontWeight: 600 }}>{qty} en tu pedido</div>
                         )}
                       </div>
-                      {product.modifierGroups.length > 0 || qty === 0 ? (
+                      {product.modifierGroups.length > 0 || product.isCombo || qty === 0 ? (
                         // Con opciones, cada combinación es una línea distinta: siempre "Añadir"
                         // (las cantidades se ajustan en el checkout).
                         <button onClick={() => handleAdd(product)} className="p-press" style={{ padding: "9px 20px", borderRadius: "999px", border: "none", backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)", fontWeight: 700, fontSize: "14px", cursor: "pointer" }}>
@@ -260,6 +280,17 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           onAdd={(line) => {
             addItem({ productId: optionsFor.id, name: optionsFor.name, ...line });
             setOptionsFor(null);
+          }}
+        />
+      )}
+      {comboFor && (
+        <ComboSheet
+          combo={{ id: comboFor.id, name: comboFor.name, description: comboFor.description, basePriceCents: comboFor.basePriceCents, comboSlots: comboFor.comboSlots ?? [] }}
+          catalog={catalog}
+          onClose={() => setComboFor(null)}
+          onAdd={(line) => {
+            addItem({ productId: comboFor.id, name: comboFor.name, optionIds: [], ...line });
+            setComboFor(null);
           }}
         />
       )}

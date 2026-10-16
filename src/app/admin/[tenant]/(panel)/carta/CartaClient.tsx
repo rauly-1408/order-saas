@@ -33,7 +33,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   );
 }
 
-export default function CartaClient({ tenant }: { tenant: string }) {
+export default function CartaClient({ tenant, embedded = false }: { tenant: string; embedded?: boolean }) {
   const cacheKey = `carta:${tenant}`;
   const [categories, setCategories] = useState<Category[]>(() => readPanelCache<Category[]>(cacheKey) ?? []);
   const [loading, setLoading] = useState(() => readPanelCache(cacheKey) === undefined);
@@ -109,12 +109,12 @@ export default function CartaClient({ tenant }: { tenant: string }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      {!embedded && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 34, fontWeight: 600, letterSpacing: '-0.025em', color: S.textDark, margin: 0 }}>Productos</h1>
           <div style={{ fontSize: 13, color: S.textMid, marginTop: 4 }}>Esta es tu lista completa de productos</div>
         </div>
-      </div>
+      </div>}
 
       {msg && (
         <div style={{ background: msg.startsWith('Error') ? 'var(--p-accent-soft)' : '#f0fff4', border: `1px solid ${msg.startsWith('Error') ? S.red : S.green}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: msg.startsWith('Error') ? S.red : '#166534', marginBottom: 16 }}>

@@ -186,6 +186,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-16 | Informes de ventas en el producto base (sin módulo de pago) y solo para gerentes (ver INFORMES.md) | Es lo mínimo que espera cualquier restaurante (Last.app lo tiene); se calcula al vuelo desde `Order` en la hora del restaurante, sin tablas nuevas ni migración |
 | 2026-10-16 | Promociones automáticas sin código y tarjeta de fidelidad por teléfono (ver PROMOCIONES-Y-FIDELIZACION.md) | Paridad con Last.app en promociones; el premio por sellos es la palanca de recurrencia más simple. No se acumulan con cupones: gana el mayor ahorro |
 | 2026-10-16 | Personalización completa al nivel de Last.app: favicon, 3 logotipos, portada, paleta con vista previa, fuentes de Google y presencia online (ver PERSONALIZACION.md) | Imágenes guardadas en la propia base de datos (tabla `BrandAsset`), comprimidas en el navegador: sin proveedor externo ni claves nuevas mientras el volumen sea pequeño |
+| 2026-10-16 | Combos / menús a precio cerrado con pasos y suplementos (ver COMBOS.md) | Subir el ticket medio como Last.app. El combo es un producto más (pedidos, informes y carta sin cambios); el stock sale de lo elegido |
 
 ---
 

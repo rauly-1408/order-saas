@@ -187,6 +187,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
             productId: item.productId,
             quantity: item.quantity,
             optionIds: item.optionIds,
+            ...(item.comboChoices && { comboChoices: item.comboChoices }),
           })),
         }),
       });

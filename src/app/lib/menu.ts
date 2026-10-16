@@ -51,6 +51,12 @@ export async function loadMenu(tenantSlug: string) {
           imageUrl: true,
           isFeatured: true,
           hasModifiers: true,
+          // Combos: huecos y productos elegibles (el cliente solo ve los disponibles).
+          isCombo: true,
+          comboSlots: {
+            orderBy: { sortOrder: "asc" },
+            select: { id: true, name: true, items: { orderBy: { sortOrder: "asc" }, select: { productId: true, extraCents: true } } },
+          },
           // Alérgenos derivados del escandallo (módulo Costes); vacío si no hay receta.
           recipeLines: { select: { ingredient: { select: { allergens: true } } } },
           modifierGroups: {

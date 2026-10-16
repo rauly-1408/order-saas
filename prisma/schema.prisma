@@ -153,6 +153,7 @@ model Tenant {
   promotions     Promotion[]
   loyaltyProgram LoyaltyProgram?
   brandAssets    BrandAsset[]
+  comboSlots     ComboSlot[]
   suppliers      Supplier[]
   ingredients    Ingredient[]
   recipeLines    RecipeLine[]
@@ -257,6 +258,12 @@ model Product {
 
   modifierGroups ProductModifierGroup[]
   recipeLines    RecipeLine[]
+
+  // Combo / menú a precio cerrado: basePriceCents es el precio del menú y
+  // comboSlots los huecos que elige el cliente (ver docs/COMBOS.md)
+  isCombo     Boolean         @default(false)
+  comboSlots  ComboSlot[]     @relation("ComboSlots")
+  comboChoice ComboSlotItem[] @relation("ComboChoice")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -857,4 +864,39 @@ model BrandAsset {
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, kind])
+}
+
+// ─────────────────────────────────────────────
+//  COMBOS / MENÚS
+//  Un combo es un Product (isCombo) con huecos: "Elige tu mollete",
+//  "Elige tu bebida"… En cada hueco el cliente elige un producto de la lista,
+//  con suplemento opcional. Ver docs/COMBOS.md
+// ─────────────────────────────────────────────
+model ComboSlot {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  comboId String
+  combo   Product @relation("ComboSlots", fields: [comboId], references: [id], onDelete: Cascade)
+
+  name      String
+  sortOrder Int    @default(0)
+
+  items ComboSlotItem[]
+
+  @@index([comboId])
+}
+
+model ComboSlotItem {
+  id     String    @id @default(cuid())
+  slotId String
+  slot   ComboSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+
+  productId  String
+  product    Product @relation("ComboChoice", fields: [productId], references: [id], onDelete: Cascade)
+  extraCents Int     @default(0) // suplemento por elegir este producto
+  sortOrder  Int     @default(0)
+
+  @@unique([slotId, productId])
 }

@@ -8,6 +8,7 @@ import { getStoreOps } from "@/app/lib/storeOps";
 import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
 import { customerPerkState, loadPerks } from "@/app/lib/perks";
 import { bestPromotion, rewardDiscount, type CartLine } from "@/app/lib/promotions";
+import { priceCombo, type ChoiceProduct, type ComboChoice } from "@/app/lib/combos";
 import { computeSegment, couponDiscount, couponProblem, normalizeCode, normalizePhone, withinAttribution, ATTRIBUTION_DAYS } from "@/app/lib/retention";
 
 export const runtime = "nodejs";
@@ -19,6 +20,7 @@ type OrderLineInput = {
   productId: string;
   quantity: number;
   optionIds?: string[];
+  comboChoices?: ComboChoice[]; // solo para combos: lo elegido en cada hueco
 };
 
 type OrderBody = {
@@ -94,7 +96,15 @@ export async function POST(req: NextRequest) {
         item.quantity < 1 ||
         item.quantity > MAX_QTY_PER_LINE ||
         (item.optionIds !== undefined &&
-          (!Array.isArray(item.optionIds) || item.optionIds.some((id) => typeof id !== "string")))
+          (!Array.isArray(item.optionIds) || item.optionIds.some((id) => typeof id !== "string"))) ||
+        (item.comboChoices !== undefined &&
+          (!Array.isArray(item.comboChoices) ||
+            item.comboChoices.length > 10 ||
+            item.comboChoices.some(
+              (c) =>
+                !c || typeof c.slotId !== "string" || typeof c.productId !== "string" ||
+                (c.optionIds !== undefined && (!Array.isArray(c.optionIds) || c.optionIds.some((id) => typeof id !== "string")))
+            )))
       ) {
         return NextResponse.json({ error: "Item inválido" }, { status: 400 });
       }
@@ -110,36 +120,49 @@ export async function POST(req: NextRequest) {
     }
 
     const productIds = [...new Set(items.map((i) => i.productId))];
+    const groupsSelect = {
+      orderBy: { sortOrder: "asc" as const },
+      select: {
+        defaultOptionId: true,
+        group: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            isRequired: true,
+            minSelect: true,
+            maxSelect: true,
+            options: {
+              where: { isAvailable: true, stockOut: false },
+              orderBy: { sortOrder: "asc" as const },
+              select: { id: true, name: true, priceDeltaCents: true },
+            },
+          },
+        },
+      },
+    };
+    const available = { tenantId: tenant.id, isActive: true, isAvailable: true, stockOut: false };
     const products = await prisma.product.findMany({
-      where: { tenantId: tenant.id, id: { in: productIds }, isActive: true, isAvailable: true, stockOut: false },
+      where: { ...available, id: { in: productIds } },
       select: {
         id: true,
         name: true,
         basePriceCents: true,
         categoryId: true,
-        modifierGroups: {
-          orderBy: { sortOrder: "asc" },
-          select: {
-            defaultOptionId: true,
-            group: {
-              select: {
-                id: true,
-                code: true,
-                name: true,
-                isRequired: true,
-                minSelect: true,
-                maxSelect: true,
-                options: {
-                  where: { isAvailable: true, stockOut: false },
-                  orderBy: { sortOrder: "asc" },
-                  select: { id: true, name: true, priceDeltaCents: true },
-                },
-              },
-            },
-          },
-        },
+        isCombo: true,
+        comboSlots: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, items: { select: { productId: true, extraCents: true } } } },
+        modifierGroups: groupsSelect,
       },
     });
+
+    // Productos elegidos dentro de los combos (tienen que estar disponibles).
+    const choiceIds = [...new Set(items.flatMap((i) => (i.comboChoices ?? []).map((c) => c.productId)))];
+    const choiceProducts = choiceIds.length
+      ? await prisma.product.findMany({ where: { ...available, isCombo: false, id: { in: choiceIds } }, select: { id: true, name: true, modifierGroups: groupsSelect } })
+      : [];
+    const choiceById = new Map<string, ChoiceProduct>(
+      choiceProducts.map((p) => [p.id, { id: p.id, name: p.name, modifierGroups: p.modifierGroups.map((pmg) => ({ ...pmg.group, defaultOptionId: pmg.defaultOptionId })) }])
+    );
 
     if (products.length !== productIds.length) {
       return NextResponse.json(
@@ -184,6 +207,23 @@ export async function POST(req: NextRequest) {
     const consumption: ConsumptionItem[] = [];
     for (const item of items) {
       const product = productById.get(item.productId)!;
+      // Combo: precio cerrado + suplementos; el stock sale de lo elegido.
+      if (product.isCombo) {
+        const choices = (item.comboChoices ?? []).map((c) => ({ ...c, optionIds: c.optionIds ?? [] }));
+        const priced = priceCombo({ name: product.name, basePriceCents: product.basePriceCents, slots: product.comboSlots }, choices, choiceById);
+        if (typeof priced === "string") return NextResponse.json({ error: priced }, { status: 400 });
+        cartLines.push({ key: String(cartLines.length), categoryId: product.categoryId, unitBaseCents: product.basePriceCents, quantity: item.quantity });
+        for (const c of choices) consumption.push({ productId: c.productId, quantity: item.quantity, optionIds: c.optionIds });
+        linesCreate.push({
+          productId: product.id,
+          productName: product.name,
+          quantity: item.quantity,
+          basePriceCents: product.basePriceCents,
+          modifiers: priced.modifiers as unknown as Prisma.InputJsonValue,
+          totalCents: priced.unitCents * item.quantity,
+        });
+        continue;
+      }
       const groups: MenuModifierGroup[] = product.modifierGroups.map((pmg) => ({
         ...pmg.group,
         defaultOptionId: pmg.defaultOptionId,
