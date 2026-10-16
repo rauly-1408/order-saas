@@ -326,6 +326,9 @@ export async function POST(req: NextRequest) {
           promotionId: usePromo ? promo.promotion.id : null,
           promotionDiscountCents,
           loyaltyDiscountCents,
+          estimatedReadyAt: new Date(
+            Date.now() + 60_000 * ((channel === "DELIVERY" ? ops.estimatedDeliveryMinutes : ops.estimatedPickupMinutes) + ops.prepExtraMinutes)
+          ),
           retention: tenant.addons.includes("RETENTION"),
           lines: linesCreate,
           // Inventario (módulo Costes): solo si el restaurante lo tiene contratado
@@ -380,6 +383,7 @@ type CreateOrderInput = {
   promotionId: string | null;
   promotionDiscountCents: number;
   loyaltyDiscountCents: number;
+  estimatedReadyAt: Date;
   retention: boolean;
   lines: Prisma.OrderLineCreateWithoutOrderInput[];
   consumption: ConsumptionItem[];
@@ -484,6 +488,7 @@ async function createOrderWithNumber(input: CreateOrderInput) {
         promotionDiscountCents: input.promotionDiscountCents,
         loyaltyReward: input.loyaltyDiscountCents > 0,
         loyaltyDiscountCents: input.loyaltyDiscountCents,
+        estimatedReadyAt: input.estimatedReadyAt,
         items: { create: input.lines },
       },
       include: { items: true },

@@ -154,6 +154,7 @@ model Tenant {
   loyaltyProgram LoyaltyProgram?
   brandAssets    BrandAsset[]
   comboSlots     ComboSlot[]
+  reviews        Review[]
   suppliers      Supplier[]
   ingredients    Ingredient[]
   recipeLines    RecipeLine[]
@@ -412,6 +413,11 @@ model Order {
 
   posProvider   String?
   posExternalId String?
+
+  // Hora estimada (listo para recoger / entregado) calculada al crear el pedido,
+  // con el tiempo extra que hubiera en ese momento. La ve el cliente al seguirlo.
+  estimatedReadyAt DateTime?
+  review           Review?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -899,4 +905,25 @@ model ComboSlotItem {
   sortOrder  Int     @default(0)
 
   @@unique([slotId, productId])
+}
+
+// ─────────────────────────────────────────────
+//  RESEÑAS
+//  El cliente valora su pedido (1-5 estrellas) desde la página de seguimiento,
+//  una vez entregado. Una por pedido. Ver docs/SEGUIMIENTO-Y-RESENAS.md
+// ─────────────────────────────────────────────
+model Review {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  rating  Int // 1-5
+  comment String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
 }

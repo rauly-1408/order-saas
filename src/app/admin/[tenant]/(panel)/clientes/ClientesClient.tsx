@@ -8,6 +8,7 @@ import Campanas from "./Campanas";
 import Cupones from "./Cupones";
 import Promociones from "./Promociones";
 import Fidelizacion from "./Fidelizacion";
+import Resenas from "./Resenas";
 
 const TABS = [
   { key: "clientes", label: "Clientes" },
@@ -15,6 +16,7 @@ const TABS = [
   { key: "cupones", label: "Cupones" },
   { key: "promociones", label: "Promociones" },
   { key: "fidelizacion", label: "Fidelización" },
+  { key: "resenas", label: "Reseñas" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -75,8 +77,10 @@ export default function ClientesClient({ tenant }: { tenant: string }) {
         <Cupones data={data} api={api} onSaved={reload} />
       ) : tab === "promociones" ? (
         <Promociones data={data} api={api} onSaved={reload} />
-      ) : (
+      ) : tab === "fidelizacion" ? (
         <Fidelizacion data={data} api={api} onSaved={reload} />
+      ) : (
+        <Resenas tenant={tenant} />
       )}
     </div>
   );
