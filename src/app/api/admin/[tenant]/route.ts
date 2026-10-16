@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parsePartners, partnersProblem } from "@/app/lib/deliveryPartners";
 import { prisma } from "@/app/lib/prisma";
 import { denyUnlessTenantAdmin } from "@/app/lib/auth";
 
@@ -56,6 +57,14 @@ export async function PATCH(req: NextRequest) {
 
     const currentBranding = (tenant.branding as Record<string, unknown>) ?? {};
     const currentSettings = (tenant.settings as Record<string, unknown>) ?? {};
+
+    // Reparto con plataformas: solo enlaces a la web de cada una.
+    if (settings !== undefined && (settings as Record<string, unknown>).deliveryPartners !== undefined) {
+      const raw = (settings as Record<string, unknown>).deliveryPartners;
+      const problem = partnersProblem(raw);
+      if (problem) return NextResponse.json({ error: problem }, { status: 400 });
+      (settings as Record<string, unknown>).deliveryPartners = parsePartners(raw);
+    }
 
     // Lo operativo vive en el local (Store): es lo que usan los pedidos.
     if (settings !== undefined) {

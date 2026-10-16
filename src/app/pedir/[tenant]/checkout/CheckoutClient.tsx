@@ -11,6 +11,7 @@ import { couponDiscount } from "@/app/lib/retention";
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
 import type { PublicPerks } from "@/app/lib/perks";
+import DeliveryPartners, { type PartnerLink } from "../DeliveryPartners";
 import { bestPromotion, joinLabels, rewardDiscount } from "@/app/lib/promotions";
 
 type PerkState = { firstOrder: boolean; loyalty: { stamps: number; needed: number; rewardAvailable: boolean } | null };
@@ -35,9 +36,10 @@ type CheckoutClientProps = {
   store?: PublicStoreInfo | null;
   perks?: PublicPerks;
   productInfo?: Record<string, { categoryId: string; basePriceCents: number }>;
+  deliveryPartners?: PartnerLink[];
 };
 
-export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false, perks, productInfo = {} }: CheckoutClientProps) {
+export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false, perks, productInfo = {}, deliveryPartners = [] }: CheckoutClientProps) {
   const router = useRouter();
   const { items, subtotalCents, clear, inc, dec } = useCart();
   const [name, setName] = useState("");
@@ -54,6 +56,9 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [perkState, setPerkState] = useState<PerkState | null>(null);
+  // Sin reparto propio: "A domicilio" muestra las plataformas en vez de un formulario.
+  const [showPartners, setShowPartners] = useState(false);
+  const takeawayOn = channel === "TAKEAWAY" && !showPartners;
   const hasPerks = !!perks && (perks.promotions.length > 0 || !!perks.loyalty);
 
   // Con un teléfono válido, el servidor dice si es su primer pedido y cuántos sellos lleva.
@@ -340,15 +345,15 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           )}
 
           {/* MODALIDAD */}
-          {(deliveryEnabled || takeawayEnabled) && (
+          {(deliveryEnabled || takeawayEnabled || deliveryPartners.length > 0) && (
             <div>
               <div style={labelStyle}>Modalidad</div>
               <div style={{ display: "flex", gap: "10px" }}>
                 {takeawayEnabled && (
                   <button
                     type="button"
-                    onClick={() => setChannel("TAKEAWAY")}
-                    style={{ flex: 1, padding: "12px", borderRadius: "12px", border: `2px solid ${channel === "TAKEAWAY" ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: channel === "TAKEAWAY" ? `${cssVars["--brand-accent"]}15` : "transparent", color: channel === "TAKEAWAY" ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: channel === "TAKEAWAY" ? 700 : 400, fontSize: "14px", cursor: "pointer" }}
+                    onClick={() => { setChannel("TAKEAWAY"); setShowPartners(false); }}
+                    style={{ flex: 1, padding: "12px", borderRadius: "12px", border: `2px solid ${takeawayOn ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: takeawayOn ? `${cssVars["--brand-accent"]}15` : "transparent", color: takeawayOn ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: takeawayOn ? 700 : 400, fontSize: "14px", cursor: "pointer" }}
                   >
                     🏪 Recoger
                   </button>
@@ -362,7 +367,26 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                     🛵 Delivery
                   </button>
                 )}
+                {!deliveryEnabled && deliveryPartners.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPartners(!showPartners)}
+                    aria-expanded={showPartners}
+                    style={{ flex: 1, padding: "12px", borderRadius: "12px", border: `2px solid ${showPartners ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: showPartners ? `${cssVars["--brand-accent"]}15` : "transparent", color: showPartners ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: showPartners ? 700 : 400, fontSize: "14px", cursor: "pointer" }}
+                  >
+                    🛵 A domicilio
+                  </button>
+                )}
               </div>
+              {showPartners && !deliveryEnabled && (
+                <div style={{ marginTop: "12px", padding: "14px", borderRadius: "14px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                  <div style={{ fontWeight: 700, fontSize: "14px", marginBottom: "2px" }}>Escoge quién te lo lleva</div>
+                  <div style={{ fontSize: "12px", color: cssVars["--text-secondary"], marginBottom: "10px" }}>
+                    El reparto lo hacen estas plataformas: el pedido y el pago se hacen en su app (tu carrito de aquí no se pasa). Para recoger, sigue aquí.
+                  </div>
+                  <DeliveryPartners partners={deliveryPartners} compact />
+                </div>
+              )}
             </div>
           )}
 

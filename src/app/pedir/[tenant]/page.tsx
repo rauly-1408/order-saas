@@ -23,6 +23,7 @@ export default async function PedirPage({
       store={menu.store}
       perks={menu.perks}
       online={menu.online}
+      deliveryPartners={menu.deliveryPartners}
     />
   );
 }
