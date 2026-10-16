@@ -4,7 +4,8 @@ import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { selectionToModifiers, validateSelection, type MenuModifierGroup } from "@/app/lib/menuOptions";
 import { applyStockDeltas, orderConsumption, type ConsumptionItem } from "@/app/lib/inventory";
-import { getStoreOps } from "@/app/lib/storeOps";
+import { getStoreOps, leadMinutes } from "@/app/lib/storeOps";
+import { scheduleProblem } from "@/app/lib/schedule";
 import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
 import { customerPerkState, loadPerks } from "@/app/lib/perks";
 import { bestPromotion, rewardDiscount, type CartLine } from "@/app/lib/promotions";
@@ -32,6 +33,7 @@ type OrderBody = {
   notes?: string;
   marketingConsent?: boolean;
   couponCode?: string;
+  scheduledFor?: string; // ISO: pedido programado (también con la tienda cerrada)
   items: OrderLineInput[];
 };
 
@@ -66,6 +68,7 @@ export async function POST(req: NextRequest) {
       notes,
       marketingConsent,
       couponCode,
+      scheduledFor,
       items,
     } = body;
 
@@ -177,7 +180,16 @@ export async function POST(req: NextRequest) {
     const ops = await getStoreOps(tenant.id, tenant.settings);
     if (!ops) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
 
-    if (!ops.status.open) {
+    // Programado: la hora tiene que caer en horario y dar tiempo a prepararlo.
+    // Sin programar, la tienda tiene que estar abierta ahora.
+    if (scheduledFor !== undefined && typeof scheduledFor !== "string") {
+      return NextResponse.json({ error: "Hora programada no válida" }, { status: 400 });
+    }
+    const scheduledAt = scheduledFor ? new Date(scheduledFor) : null;
+    if (scheduledAt) {
+      const problem = scheduleProblem({ hours: ops.hours, closures: ops.closures, pausedUntil: ops.pausedUntil }, scheduledAt, new Date(), ops.timeZone, leadMinutes(ops, channel));
+      if (problem) return NextResponse.json({ error: problem }, { status: 400 });
+    } else if (!ops.status.open) {
       const when = ops.status.reopens ? ` Volvemos a abrir ${ops.status.reopens}.` : "";
       return NextResponse.json({ error: `${ops.status.message}.${when}`, closed: true }, { status: 409 });
     }
@@ -326,9 +338,8 @@ export async function POST(req: NextRequest) {
           promotionId: usePromo ? promo.promotion.id : null,
           promotionDiscountCents,
           loyaltyDiscountCents,
-          estimatedReadyAt: new Date(
-            Date.now() + 60_000 * ((channel === "DELIVERY" ? ops.estimatedDeliveryMinutes : ops.estimatedPickupMinutes) + ops.prepExtraMinutes)
-          ),
+          estimatedReadyAt: scheduledAt ?? new Date(Date.now() + 60_000 * leadMinutes(ops, channel)),
+          scheduledFor: scheduledAt,
           retention: tenant.addons.includes("RETENTION"),
           lines: linesCreate,
           // Inventario (módulo Costes): solo si el restaurante lo tiene contratado
@@ -384,6 +395,7 @@ type CreateOrderInput = {
   promotionDiscountCents: number;
   loyaltyDiscountCents: number;
   estimatedReadyAt: Date;
+  scheduledFor: Date | null;
   retention: boolean;
   lines: Prisma.OrderLineCreateWithoutOrderInput[];
   consumption: ConsumptionItem[];
@@ -489,6 +501,7 @@ async function createOrderWithNumber(input: CreateOrderInput) {
         loyaltyReward: input.loyaltyDiscountCents > 0,
         loyaltyDiscountCents: input.loyaltyDiscountCents,
         estimatedReadyAt: input.estimatedReadyAt,
+        scheduledFor: input.scheduledFor,
         items: { create: input.lines },
       },
       include: { items: true },

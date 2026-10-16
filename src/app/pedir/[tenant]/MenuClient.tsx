@@ -12,6 +12,7 @@ import { promotionConditions, promotionLabel } from "@/app/lib/promotions";
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import ProductOptionsSheet from "./ProductOptionsSheet";
 import ComboSheet from "./ComboSheet";
+import StampCard from "./StampCard";
 import DeliveryPartners, { type PartnerLink } from "./DeliveryPartners";
 import type { ChoiceProduct, ComboSlotDef } from "@/app/lib/combos";
 
@@ -167,7 +168,10 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           <div className="p-rise mb-4 rounded-2xl px-5 py-4" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
             <p style={{ fontWeight: 700, fontSize: "16px", color: cssVars["--brand-secondary"] }}>{store.status.message}</p>
             <p style={{ fontSize: "14px", color: cssVars["--text-secondary"] }}>
-              {store.status.reopens ? `Volvemos a abrir ${store.status.reopens}. ` : ""}Puedes ver la carta mientras tanto.
+              {store.status.reopens ? `Volvemos a abrir ${store.status.reopens}. ` : ""}
+              {store.slots && (store.slots.TAKEAWAY.length > 0 || store.slots.DELIVERY.length > 0)
+                ? "Puedes hacer tu pedido ya y programarlo para cuando abramos."
+                : "Puedes ver la carta mientras tanto."}
             </p>
           </div>
         )}
@@ -201,14 +205,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         {/* Promociones en vigor y tarjeta de fidelidad: se aplican solas en el checkout */}
         {perks && (perks.promotions.some((p) => settings?.deliveryEnabled || (p.channel !== "DELIVERY" && p.kind !== "FREE_DELIVERY")) || perks.loyalty) && (
           <section className="p-rise -mt-6 mb-10 grid gap-3 sm:grid-cols-2" aria-label="Promociones">
-            {perks.loyalty && (
-              <div className="rounded-2xl px-5 py-4" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
-                <p style={{ fontWeight: 700, fontSize: "15px", color: cssVars["--text-primary"] }}>🎁 {perks.loyalty.rewardName}</p>
-                <p style={{ fontSize: "13px", color: cssVars["--text-secondary"], marginTop: "2px" }}>
-                  En tu {perks.loyalty.ordersRequired}.º pedido. Cada pedido suma un sello con tu teléfono, sin registrarte.
-                </p>
-              </div>
-            )}
+            {perks.loyalty && <StampCard ordersRequired={perks.loyalty.ordersRequired} stamps={null} rewardName={perks.loyalty.rewardName} upperHeadings={cssVars["--heading-case"] === "uppercase"} />}
             {perks.promotions.filter((p) => settings?.deliveryEnabled || (p.channel !== "DELIVERY" && p.kind !== "FREE_DELIVERY")).map((p) => {
               const cond = promotionConditions(p);
               return (

@@ -3,9 +3,11 @@
 import { prisma } from "@/app/lib/prisma";
 import { tenantTimeZone, wallClockIn } from "@/app/lib/time";
 import { parseHours, storeStatus, type StoreStatus, type WeeklyHours } from "@/app/lib/storeStatus";
+import { availableSlots } from "@/app/lib/schedule";
 
 export type StoreOps = {
   storeId: string;
+  timeZone: string;
   hours: WeeklyHours;
   status: StoreStatus;
   pausedUntil: Date | null;
@@ -35,6 +37,7 @@ export async function getStoreOps(tenantId: string, settings: unknown, now = new
   const status = storeStatus({ hours, closures: store.closures, pausedUntil: store.pausedUntil }, now, wallClockIn(tz, now), tz);
   return {
     storeId: store.id,
+    timeZone: tz,
     hours,
     status,
     pausedUntil: store.pausedUntil,
@@ -50,11 +53,22 @@ export async function getStoreOps(tenantId: string, settings: unknown, now = new
   };
 }
 
+// Minutos mínimos hasta un pedido programado (lo que tarda en estar listo o llegar).
+export function leadMinutes(ops: StoreOps, channel: "DELIVERY" | "TAKEAWAY"): number {
+  return (channel === "DELIVERY" ? ops.estimatedDeliveryMinutes : ops.estimatedPickupMinutes) + ops.prepExtraMinutes;
+}
+
 // Lo que necesita la carta pública (sin ids internos de cierres).
-export function publicStoreInfo(ops: StoreOps) {
+export function publicStoreInfo(ops: StoreOps, now = new Date()) {
+  const sched = { hours: ops.hours, closures: ops.closures, pausedUntil: ops.pausedUntil };
   return {
     status: ops.status,
     prepExtraMinutes: ops.prepExtraMinutes,
+    // Horas para programar el pedido (hoy y los próximos días), por canal.
+    slots: {
+      DELIVERY: ops.deliveryEnabled ? availableSlots(sched, now, ops.timeZone, leadMinutes(ops, "DELIVERY")) : [],
+      TAKEAWAY: ops.takeawayEnabled ? availableSlots(sched, now, ops.timeZone, leadMinutes(ops, "TAKEAWAY")) : [],
+    },
     zones: ops.zones.filter((z) => z.active).map((z) => ({ id: z.id, name: z.name, postalCodes: z.postalCodes, feeCents: z.feeCents, minOrderCents: z.minOrderCents })),
   };
 }

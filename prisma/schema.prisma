@@ -417,6 +417,8 @@ model Order {
   // Hora estimada (listo para recoger / entregado) calculada al crear el pedido,
   // con el tiempo extra que hubiera en ese momento. La ve el cliente al seguirlo.
   estimatedReadyAt DateTime?
+  // Pedido programado por el cliente ("hoy a las 20:30"); null = lo antes posible
+  scheduledFor     DateTime?
   review           Review?
 
   createdAt DateTime @default(now())

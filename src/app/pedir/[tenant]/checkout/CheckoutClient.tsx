@@ -12,6 +12,8 @@ import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
 import type { PublicPerks } from "@/app/lib/perks";
 import DeliveryPartners, { type PartnerLink } from "../DeliveryPartners";
+import AddressInput from "./AddressInput";
+import StampCard from "../StampCard";
 import { bestPromotion, joinLabels, rewardDiscount } from "@/app/lib/promotions";
 
 type PerkState = { firstOrder: boolean; loyalty: { stamps: number; needed: number; rewardAvailable: boolean } | null };
@@ -98,6 +100,14 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   const minimum = channel !== "DELIVERY" ? 0 : zone ? zone.minOrderCents : zones.length ? 0 : settings?.minimumOrderCents ?? 0;
   const belowMinimum = channel === "DELIVERY" && minimum > 0 && subtotal < minimum;
   const closed = store ? !store.status.open : false;
+  // ¿Cuándo? Lo antes posible o programado (obligatorio si ahora está cerrado).
+  const slots = (store?.slots?.[channel] ?? []) as { at: string; day: string; time: string }[];
+  const [wantSchedule, setWantSchedule] = useState(false);
+  const [slotAt, setSlotAt] = useState("");
+  const scheduling = closed || wantSchedule;
+  const chosenSlot = scheduling ? slots.find((sl) => sl.at === slotAt) ?? slots[0] ?? null : null;
+  const days = [...new Set(slots.map((sl) => sl.day))];
+  const blocked = scheduling && !chosenSlot;
   const fee = channel === "DELIVERY" ? zoneFee : 0;
   // Mismo orden que el servidor: 1) premio de la tarjeta, 2) la mejor promoción
   // o el cupón (no se acumulan). El importe final lo recalcula el servidor.
@@ -187,6 +197,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           notes: notes || undefined,
           marketingConsent,
           couponCode: coupon && !couponBelowMin ? coupon.code : undefined,
+          scheduledFor: chosenSlot?.at,
           // Solo qué se pide: el servidor pone nombres y precios desde la carta.
           items: items.map((item) => ({
             productId: item.productId,
@@ -390,6 +401,53 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
             </div>
           )}
 
+          {/* ¿CUÁNDO? — lo antes posible o programado */}
+          {(slots.length > 0 || closed) && (
+            <div>
+              <div style={labelStyle}>¿Cuándo lo quieres?</div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                {!closed && (
+                  <button type="button" onClick={() => setWantSchedule(false)} aria-pressed={!scheduling}
+                    style={{ flex: 1, padding: "12px", borderRadius: "12px", border: `2px solid ${!scheduling ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: !scheduling ? `${cssVars["--brand-accent"]}15` : "transparent", color: !scheduling ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: !scheduling ? 700 : 400, fontSize: "14px", cursor: "pointer" }}>
+                    ⚡ Lo antes posible
+                    <span style={{ display: "block", fontSize: "12px", fontWeight: 400 }}>unos {channel === "DELIVERY" ? settings?.estimatedDeliveryMinutes ?? 45 : settings?.estimatedPickupMinutes ?? 20} min</span>
+                  </button>
+                )}
+                {slots.length > 0 && (
+                  <button type="button" onClick={() => setWantSchedule(true)} aria-pressed={scheduling}
+                    style={{ flex: 1, padding: "12px", borderRadius: "12px", border: `2px solid ${scheduling ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: scheduling ? `${cssVars["--brand-accent"]}15` : "transparent", color: scheduling ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: scheduling ? 700 : 400, fontSize: "14px", cursor: "pointer" }}>
+                    🕐 Programar
+                    <span style={{ display: "block", fontSize: "12px", fontWeight: 400 }}>{chosenSlot ? `${chosenSlot.day}, ${chosenSlot.time}` : "elige día y hora"}</span>
+                  </button>
+                )}
+              </div>
+              {scheduling && slots.length > 0 && (
+                <div style={{ marginTop: "12px", padding: "14px", borderRadius: "14px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
+                    {days.map((d) => {
+                      const on = chosenSlot?.day === d;
+                      return (
+                        <button key={d} type="button" onClick={() => setSlotAt(slots.find((sl) => sl.day === d)!.at)} aria-pressed={on}
+                          style={{ padding: "7px 14px", borderRadius: "999px", border: on ? "none" : `1px solid ${cssVars["--border"]}`, backgroundColor: on ? cssVars["--brand-accent"] : "transparent", color: on ? "var(--on-accent)" : cssVars["--text-primary"], fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <label style={{ ...labelStyle, marginBottom: "4px" }} htmlFor="slot-time">{channel === "DELIVERY" ? "Hora de entrega" : "Hora de recogida"}</label>
+                  <select id="slot-time" value={chosenSlot?.at ?? ""} onChange={(e) => setSlotAt(e.target.value)} style={{ ...inputStyle, appearance: "auto" }}>
+                    {slots.filter((sl) => sl.day === chosenSlot?.day).map((sl) => (
+                      <option key={sl.at} value={sl.at}>{sl.time}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {closed && slots.length === 0 && (
+                <div style={{ marginTop: "8px", fontSize: "13px", color: cssVars["--text-secondary"] }}>No hay horas disponibles para programar en los próximos días.</div>
+              )}
+            </div>
+          )}
+
           {/* DATOS DE CONTACTO */}
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <div>
@@ -414,30 +472,40 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 required
               />
               {perks?.loyalty && perksFor?.loyalty && (
-                <div style={{ marginTop: "10px", padding: "12px 14px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)", fontSize: "13px", color: cssVars["--text-secondary"] }}>
-                  {perksFor.loyalty.rewardAvailable ? (
-                    <>
-                      <div style={{ fontWeight: 700, fontSize: "14px", color: cssVars["--text-primary"] }}>🎁 ¡Este pedido tiene premio: {perks.loyalty.rewardName.toLowerCase()}!</div>
-                      {reward && reward.missing.length > 0 && (
-                        <div style={{ marginTop: "2px" }}>
-                          {reward.matched.length ? `Añade también ${joinLabels(reward.missing).toLowerCase()}: entra en el premio.` : `Añade ${joinLabels(reward.missing).toLowerCase()} para usarlo. Si no, lo guardamos para tu próximo pedido.`}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ display: "flex", gap: "4px", marginBottom: "6px" }} aria-hidden>
-                        {Array.from({ length: perksFor.loyalty.needed }, (_, i) => (
-                          <span key={i} style={{ width: "18px", height: "18px", borderRadius: "50%", backgroundColor: i < perksFor.loyalty!.stamps + 1 ? cssVars["--brand-accent"] : cssVars["--border"] }} />
-                        ))}
-                      </div>
-                      Con este pedido llevas {perksFor.loyalty.stamps + 1} de {perksFor.loyalty.needed} sellos.{" "}
-                      {perksFor.loyalty.stamps + 1 >= perksFor.loyalty.needed ? `¡En tu próximo pedido: ${perks.loyalty.rewardName.toLowerCase()}!` : `En tu ${perks.loyalty.ordersRequired}.º pedido: ${perks.loyalty.rewardName.toLowerCase()}.`}
-                    </>
-                  )}
+                <div style={{ marginTop: "10px" }}>
+                  <StampCard
+                    ordersRequired={perks.loyalty.ordersRequired}
+                    stamps={perksFor.loyalty.stamps + 1}
+                    rewardName={perks.loyalty.rewardName}
+                    rewardReady={perksFor.loyalty.rewardAvailable}
+                    upperHeadings={cssVars["--heading-case"] === "uppercase"}
+                    note={
+                      perksFor.loyalty.rewardAvailable && reward && reward.missing.length > 0
+                        ? reward.matched.length
+                          ? `Añade también ${joinLabels(reward.missing).toLowerCase()}: entra en el premio.`
+                          : `Añade ${joinLabels(reward.missing).toLowerCase()} para usarlo. Si no, lo guardamos para tu próximo pedido.`
+                        : null
+                    }
+                  />
                 </div>
               )}
             </div>
+            {channel === "DELIVERY" && (
+              <div>
+                <label style={labelStyle}>Dirección de entrega *</label>
+                <AddressInput
+                  tenant={tenant}
+                  value={address}
+                  onChange={setAddress}
+                  onPick={(sug) => {
+                    setAddress(sug.street);
+                    if (sug.postalCode) setPostalCode(sug.postalCode);
+                  }}
+                  inputStyle={inputStyle}
+                />
+                <div style={{ fontSize: "12px", color: cssVars["--text-secondary"], marginTop: "4px" }}>Piso y puerta, en las notas.</div>
+              </div>
+            )}
             {channel === "DELIVERY" && zones.length > 0 && (
               <div>
                 <label style={labelStyle}>Código postal *</label>
@@ -461,19 +529,6 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                     No repartimos en el {cp}. Puedes pedir para recoger.
                   </div>
                 )}
-              </div>
-            )}
-            {channel === "DELIVERY" && (
-              <div>
-                <label style={labelStyle}>Dirección de entrega *</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  placeholder="Calle, número, piso..."
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  required
-                />
               </div>
             )}
             <div>
@@ -505,9 +560,10 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           {store && !store.status.open && (
             <div style={{ padding: "12px 16px", borderRadius: "14px", backgroundColor: cssVars["--surface-1"], color: cssVars["--brand-secondary"], fontSize: "14px", fontWeight: 600 }}>
               {store.status.message}.{store.status.reopens ? ` Volvemos a abrir ${store.status.reopens}.` : ""}
+              {chosenSlot && <span style={{ display: "block", fontWeight: 400, color: cssVars["--text-secondary"], marginTop: "2px" }}>Tu pedido quedará programado para {chosenSlot.day.toLowerCase()} a las {chosenSlot.time}.</span>}
             </div>
           )}
-          {!closed && belowMinimum && (
+          {!blocked && belowMinimum && (
             <div style={{ padding: "12px 16px", borderRadius: "14px", backgroundColor: cssVars["--surface-1"], color: cssVars["--text-primary"], fontSize: "14px" }}>
               El pedido mínimo a domicilio es de {euros(minimum)}. Te faltan {euros(minimum - subtotal)}.
             </div>
@@ -523,10 +579,10 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           {/* SUBMIT */}
           <button
             type="submit"
-            disabled={loading || closed || belowMinimum || outOfZone}
-            style={{ width: "100%", padding: "16px", borderRadius: "999px", border: "none", backgroundColor: loading || closed || belowMinimum || outOfZone ? cssVars["--border"] : cssVars["--brand-accent"], color: loading || closed || belowMinimum || outOfZone ? cssVars["--text-secondary"] : "var(--on-accent)", fontWeight: 600, fontSize: "16px", cursor: loading || closed || belowMinimum || outOfZone ? "not-allowed" : "pointer", letterSpacing: "0.3px" }}
+            disabled={loading || blocked || belowMinimum || outOfZone}
+            style={{ width: "100%", padding: "16px", borderRadius: "999px", border: "none", backgroundColor: loading || blocked || belowMinimum || outOfZone ? cssVars["--border"] : cssVars["--brand-accent"], color: loading || blocked || belowMinimum || outOfZone ? cssVars["--text-secondary"] : "var(--on-accent)", fontWeight: 600, fontSize: "16px", cursor: loading || blocked || belowMinimum || outOfZone ? "not-allowed" : "pointer", letterSpacing: "0.3px" }}
           >
-            {loading ? "Enviando pedido..." : closed ? "Ahora mismo no aceptamos pedidos" : `Confirmar pedido · ${euros(total)}`}
+            {loading ? "Enviando pedido..." : blocked ? "Ahora mismo no aceptamos pedidos" : chosenSlot ? `Programar pedido · ${euros(total)}` : `Confirmar pedido · ${euros(total)}`}
           </button>
 
         </form>
