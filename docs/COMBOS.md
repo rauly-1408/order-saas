@@ -6,7 +6,7 @@ Panel → **Carta → Combos y menús**. Solo gerentes. Incluido en el producto 
 
 - Un combo es un **menú a precio cerrado** (p. ej. «Menú mollete», 12,50 €) con **pasos**: «Elige tu mollete», «Elige tu bebida», «Elige tu postre».
 - En cada paso el dueño elige qué productos entran (por categorías enteras o uno a uno) y, si quiere, un **suplemento** por producto (p. ej. +2 € por una burger).
-- El cliente elige uno por paso. El **pan, la guarnición y los extras** de cada producto se eligen igual que en la carta; los extras de pago se suman.
+- El cliente elige uno por paso. El **pan, la guarnición y los extras** de cada producto se eligen igual que en la carta; los extras de pago se suman. Esto incluye **«Añade complementos»** (entrantes como patatas, fingers o bolitas de jalapeño) en molletes y burgers.
 - Los combos se crean en la categoría **«Menús»**, que aparece la primera de la carta (se crea sola con el primer combo).
 - Solo se ofrecen los productos disponibles en ese momento: un producto agotado desaparece del paso sin tocar el combo.
 - «Agotar» quita el combo de la carta sin borrarlo.

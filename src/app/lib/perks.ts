@@ -4,12 +4,13 @@ import { prisma } from "@/app/lib/prisma";
 import { normalizePhone } from "@/app/lib/retention";
 import { tenantTimeZone, wallClockIn } from "@/app/lib/time";
 import { loyaltyProgress, parseSlots, promotionLiveAt, type LoyaltyRule, type PromotionRule } from "@/app/lib/promotions";
+import { tr, type Lang } from "@/app/lib/i18n";
 
 type Db = Pick<typeof prisma, "order" | "customer">;
 
 export type Perks = {
-  promotions: PromotionRule[]; // solo las que están en vigor ahora mismo
-  loyalty: (LoyaltyRule & { startsAt: Date }) | null;
+  promotions: (PromotionRule & { translations?: unknown })[]; // solo las que están en vigor ahora mismo
+  loyalty: (LoyaltyRule & { startsAt: Date; translations?: unknown }) | null;
 };
 
 export async function loadPerks(tenantId: string, settings: unknown, addons: string[], now = new Date()): Promise<Perks> {
@@ -20,7 +21,8 @@ export async function loadPerks(tenantId: string, settings: unknown, addons: str
   ]);
   const clock = wallClockIn(tenantTimeZone(settings), now);
   const promotions = promos
-    .map((p): PromotionRule => ({
+    .map((p): PromotionRule & { translations?: unknown } => ({
+      translations: p.translations,
       id: p.id, name: p.name, kind: p.kind, value: p.value, minOrderCents: p.minOrderCents, weekdays: p.weekdays,
       startTime: p.startTime, endTime: p.endTime, channel: p.channel, firstOrderOnly: p.firstOrderOnly,
       startsAt: p.startsAt, endsAt: p.endsAt, active: p.active,
@@ -29,19 +31,19 @@ export async function loadPerks(tenantId: string, settings: unknown, addons: str
   const slots = program ? parseSlots(program.rewardSlots) : [];
   const loyalty =
     program && program.active && slots.length
-      ? { active: true, ordersRequired: program.ordersRequired, rewardName: program.rewardName, rewardSlots: slots, maxRewardCents: program.maxRewardCents, startsAt: program.startsAt }
+      ? { active: true, ordersRequired: program.ordersRequired, rewardName: program.rewardName, rewardSlots: slots, maxRewardCents: program.maxRewardCents, startsAt: program.startsAt, translations: program.translations }
       : null;
   return { promotions, loyalty };
 }
 
-// Lo que ve el cliente en la carta y el checkout (sin datos internos).
-export function publicPerks(perks: Perks) {
+// Lo que ve el cliente en la carta y el checkout (sin datos internos), en su idioma.
+export function publicPerks(perks: Perks, lang: Lang = "es") {
   return {
-    promotions: perks.promotions,
+    promotions: perks.promotions.map(({ translations, ...p }) => ({ ...p, name: tr(translations, lang, "name", p.name) })),
     loyalty: perks.loyalty && {
       ordersRequired: perks.loyalty.ordersRequired,
-      rewardName: perks.loyalty.rewardName,
-      rewardSlots: perks.loyalty.rewardSlots,
+      rewardName: tr(perks.loyalty.translations, lang, "rewardName", perks.loyalty.rewardName),
+      rewardSlots: perks.loyalty.rewardSlots.map((s, i) => ({ ...s, label: tr(perks.loyalty!.translations, lang, `slot${i}`, s.label) })),
       maxRewardCents: perks.loyalty.maxRewardCents,
     },
   };

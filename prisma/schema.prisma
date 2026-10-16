@@ -229,6 +229,9 @@ model Category {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  // Traducciones de la carta: { "en": { "name": "...", "description": "..." } } (ver docs/CARTA-IDIOMAS.md)
+  translations Json @default("{}")
+
   @@unique([tenantId, slug])
 }
 
@@ -269,6 +272,9 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Traducciones de la carta: { "en": { "name": "...", "description": "..." } } (ver docs/CARTA-IDIOMAS.md)
+  translations Json @default("{}")
+
   @@unique([tenantId, slug])
 }
 
@@ -292,6 +298,9 @@ model ModifierGroup {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Traducciones de la carta: { "en": { "name": "...", "description": "..." } } (ver docs/CARTA-IDIOMAS.md)
+  translations Json @default("{}")
+
   @@unique([tenantId, code])
 }
 
@@ -309,8 +318,10 @@ model ModifierOption {
   defaultFor  ProductModifierGroup[]
   recipeLines RecipeLine[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  // Traducciones de la carta: { "en": { "name": "...", "description": "..." } } (ver docs/CARTA-IDIOMAS.md)
+  translations Json     @default("{}")
 }
 
 model ProductModifierGroup {
@@ -563,6 +574,9 @@ model Promotion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Traducciones de la carta: { "en": { "name": "...", "description": "..." } } (ver docs/CARTA-IDIOMAS.md)
+  translations Json @default("{}")
+
   @@index([tenantId, active])
 }
 
@@ -579,8 +593,10 @@ model LoyaltyProgram {
   maxRewardCents Int? // tope del premio (null = sin tope)
   startsAt       DateTime @default(now()) // solo cuentan los pedidos desde aquí
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  // Traducciones de la carta: { "en": { "name": "...", "description": "..." } } (ver docs/CARTA-IDIOMAS.md)
+  translations Json     @default("{}")
 }
 
 // ─────────────────────────────────────────────
@@ -892,6 +908,9 @@ model ComboSlot {
   sortOrder Int    @default(0)
 
   items ComboSlotItem[]
+
+  // Traducciones de la carta: { "en": { "name": "...", "description": "..." } } (ver docs/CARTA-IDIOMAS.md)
+  translations Json @default("{}")
 
   @@index([comboId])
 }

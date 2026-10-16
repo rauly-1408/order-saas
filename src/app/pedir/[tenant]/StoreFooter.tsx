@@ -3,6 +3,7 @@
 import { fullAddress, LEGAL_DOCS, mapsUrl, telHref, whatsappHref, type BusinessInfo } from "@/app/lib/business";
 import { SOCIAL_FIELDS, type OnlinePresence } from "@/app/lib/brand";
 import { DAY_KEYS, DAY_LABEL, rangesLabel, type WeeklyHours } from "@/app/lib/storeStatus";
+import { dayName, ui, type Lang } from "@/app/lib/i18n";
 
 // Pie de la tienda: logo, contacto, horario, redes y enlaces legales, con los
 // datos de Personalización → Datos del negocio (obligatorios por la LSSI).
@@ -15,34 +16,37 @@ type Props = {
   hours: WeeklyHours | null;
   online?: OnlinePresence;
   upperHeadings: boolean;
+  lang?: Lang;
 };
 
 // Agrupa días seguidos con el mismo horario: "Lunes a jueves · 13:00–16:00 · 20:00–23:30".
-function groupedHours(hours: WeeklyHours): { days: string; ranges: string }[] {
+function groupedHours(hours: WeeklyHours, lang: Lang): { days: string; ranges: string }[] {
+  const day = (i: number) => dayName(DAY_LABEL[DAY_KEYS[i]], lang);
   const out: { from: number; to: number; ranges: string }[] = [];
   DAY_KEYS.forEach((d, i) => {
-    const r = rangesLabel(hours[d]);
+    const r = hours[d].length ? rangesLabel(hours[d]) : lang === "en" ? "Closed" : "Cerrado";
     const last = out[out.length - 1];
     if (last && last.ranges === r && last.to === i - 1) last.to = i;
     else out.push({ from: i, to: i, ranges: r });
   });
   return out.map((g) => ({
-    days: g.from === g.to ? DAY_LABEL[DAY_KEYS[g.from]] : `${DAY_LABEL[DAY_KEYS[g.from]]} a ${DAY_LABEL[DAY_KEYS[g.to]].toLowerCase()}`,
+    days: g.from === g.to ? day(g.from) : lang === "en" ? `${day(g.from)} to ${day(g.to)}` : `${day(g.from)} a ${day(g.to).toLowerCase()}`,
     ranges: g.ranges,
   }));
 }
 
-export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, hours, online, upperHeadings }: Props) {
+export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, hours, online, upperHeadings, lang = "es" }: Props) {
+  const T = ui(lang);
   const address = fullAddress(b);
   const maps = mapsUrl(b, tenantName);
   const socials = online ? SOCIAL_FIELDS.filter((f) => online[f.key]) : [];
-  const schedule = hours && DAY_KEYS.some((d) => hours[d].length) ? groupedHours(hours) : null;
+  const schedule = hours && DAY_KEYS.some((d) => hours[d].length) ? groupedHours(hours, lang) : null;
   const year = new Date().getFullYear();
   const colTitle = "mb-3 text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]";
   const link = "text-[14px] text-[var(--text-primary)] no-underline hover:text-[var(--brand-accent)] hover:underline";
 
   return (
-    <footer className="mt-16 border-t border-[var(--border)] bg-[var(--surface-0)]" aria-label="Información del restaurante">
+    <footer className="mt-16 border-t border-[var(--border)] bg-[var(--surface-0)]" aria-label={T.restaurantInfo}>
       <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-8 lg:grid-cols-4">
         {/* Marca y redes */}
         <div>
@@ -54,12 +58,12 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
               {tenantName}
             </p>
           )}
-          <p className="mt-3 max-w-xs text-[14px] text-[var(--text-secondary)]">Pide online y te lo preparamos al momento.</p>
+          <p className="mt-3 max-w-xs text-[14px] text-[var(--text-secondary)]">{T.footerTagline}</p>
           {socials.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
               {socials.map((f) => (
                 <a key={f.key} href={online![f.key]!} target="_blank" rel="noopener noreferrer" className="p-press rounded-full border border-[var(--border)] px-3.5 py-1.5 text-[13px] font-semibold text-[var(--text-primary)] no-underline hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]">
-                  {f.key === "reviewsUrl" ? "★ Reseñas" : f.label}
+                  {f.key === "reviewsUrl" ? T.reviews : f.label}
                 </a>
               ))}
             </div>
@@ -68,7 +72,7 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
 
         {/* Contacto */}
         <div>
-          <p className={colTitle}>Contacto</p>
+          <p className={colTitle}>{T.contact}</p>
           <ul className="space-y-2.5">
             {address && (
               <li className="flex gap-2">
@@ -111,7 +115,7 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
 
         {/* Horario */}
         <div>
-          <p className={colTitle}>Horario</p>
+          <p className={colTitle}>{T.hours}</p>
           {schedule ? (
             <ul className="space-y-1.5">
               {schedule.map((g) => (
@@ -122,13 +126,13 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
               ))}
             </ul>
           ) : (
-            <p className="text-[14px] text-[var(--text-secondary)]">Consulta en el local.</p>
+            <p className="text-[14px] text-[var(--text-secondary)]">{T.askInStore}</p>
           )}
         </div>
 
         {/* Información legal */}
         <div>
-          <p className={colTitle}>Información</p>
+          <p className={colTitle}>{T.info}</p>
           <ul className="space-y-2">
             {LEGAL_DOCS.map((d) => (
               <li key={d.slug}>
@@ -137,7 +141,7 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
                 </a>
               </li>
             ))}
-            <li className="text-[13px] text-[var(--text-secondary)]">Alérgenos: consulta cada producto o pregúntanos.</li>
+            <li className="text-[13px] text-[var(--text-secondary)]">{T.allergensFooter}</li>
           </ul>
         </div>
       </div>

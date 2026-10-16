@@ -67,21 +67,26 @@ export function bestPromotion<P extends PromotionRule>(promos: P[], ctx: PromoCo
 }
 
 // Texto para la carta y el panel: "20 % los martes de 20:00 a 23:00 · desde 15 €".
-export function promotionLabel(p: Pick<PromotionRule, "kind" | "value">): string {
-  if (p.kind === "FREE_DELIVERY") return "Envío gratis";
+export function promotionLabel(p: Pick<PromotionRule, "kind" | "value">, lang: "es" | "en" = "es"): string {
+  if (p.kind === "FREE_DELIVERY") return lang === "en" ? "Free delivery" : "Envío gratis";
+  if (lang === "en") return p.kind === "ORDER_PERCENT" ? `${p.value}% off` : `${eur(p.value)} off`;
   return p.kind === "ORDER_PERCENT" ? `${p.value} % de descuento` : `${eur(p.value)} de descuento`;
 }
 
-export function promotionConditions(p: PromotionRule): string {
+const WEEKDAY_NAME_EN = ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"];
+
+export function promotionConditions(p: PromotionRule, lang: "es" | "en" = "es"): string {
+  const en = lang === "en";
   const parts: string[] = [];
   if (p.weekdays.length && p.weekdays.length < 7) {
-    const days = [...p.weekdays].sort().map((d) => WEEKDAY_NAME[d - 1]);
-    parts.push(`los ${days.length > 1 ? `${days.slice(0, -1).join(", ")} y ${days[days.length - 1]}` : days[0]}`);
+    const days = [...p.weekdays].sort().map((d) => (en ? WEEKDAY_NAME_EN : WEEKDAY_NAME)[d - 1]);
+    const list = days.length > 1 ? `${days.slice(0, -1).join(", ")} ${en ? "and" : "y"} ${days[days.length - 1]}` : days[0];
+    parts.push(en ? `on ${list}` : `los ${list}`);
   }
-  if (p.startTime && p.endTime) parts.push(`de ${p.startTime} a ${p.endTime}`);
-  if (p.channel) parts.push(p.channel === "DELIVERY" ? "a domicilio" : "para recoger");
-  if (p.minOrderCents > 0) parts.push(`en pedidos desde ${eur(p.minOrderCents)}`);
-  if (p.firstOrderOnly) parts.push("en tu primer pedido");
+  if (p.startTime && p.endTime) parts.push(en ? `from ${p.startTime} to ${p.endTime}` : `de ${p.startTime} a ${p.endTime}`);
+  if (p.channel) parts.push(p.channel === "DELIVERY" ? (en ? "for delivery" : "a domicilio") : en ? "for pickup" : "para recoger");
+  if (p.minOrderCents > 0) parts.push(en ? `on orders from ${eur(p.minOrderCents)}` : `en pedidos desde ${eur(p.minOrderCents)}`);
+  if (p.firstOrderOnly) parts.push(en ? "on your first order" : "en tu primer pedido");
   return parts.join(" · ");
 }
 

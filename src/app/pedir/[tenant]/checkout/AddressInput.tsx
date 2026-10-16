@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { AddressSuggestion } from "@/app/lib/address";
+import { ui, type Lang } from "@/app/lib/i18n";
 
 // Dirección con sugerencias mientras se escribe (CartoCiudad). Al elegir un
 // portal se rellena también el código postal; si es solo la calle, se deja
@@ -13,9 +14,11 @@ type Props = {
   onChange: (v: string) => void;
   onPick: (s: AddressSuggestion) => void;
   inputStyle: React.CSSProperties;
+  lang?: Lang;
 };
 
-export default function AddressInput({ tenant, value, onChange, onPick, inputStyle }: Props) {
+export default function AddressInput({ tenant, value, onChange, onPick, inputStyle, lang = "es" }: Props) {
+  const T = ui(lang);
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -54,7 +57,7 @@ export default function AddressInput({ tenant, value, onChange, onPick, inputSty
       // Calle sin número: se deja escrita para que añada el portal.
       typed.current = true;
       onChange(`${s.street} `);
-      setHint("Añade el número del portal");
+      setHint(T.addressHint);
       input.current?.focus();
     }
   }
@@ -67,7 +70,7 @@ export default function AddressInput({ tenant, value, onChange, onPick, inputSty
         style={inputStyle}
         type="text"
         autoComplete="street-address"
-        placeholder="Empieza a escribir: calle y número"
+        placeholder={T.addressPlaceholder}
         value={value}
         role="combobox"
         aria-expanded={show}
@@ -116,7 +119,7 @@ export default function AddressInput({ tenant, value, onChange, onPick, inputSty
                   <span className="block truncate text-[12px] text-[var(--text-secondary)]">
                     {s.postalCode ? `${s.postalCode} ` : ""}
                     {s.city}
-                    {!s.complete && " · elige y añade el número"}
+                    {!s.complete && T.addressPickHint}
                   </span>
                 </span>
               </button>

@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { promotionConditions, type PromotionRule } from "@/app/lib/promotions";
 import type { ComboSlotDef } from "@/app/lib/combos";
+import { ui, type Lang } from "@/app/lib/i18n";
 
 // Tarjetas de la tienda pública: promoción, menú (combo) y producto. Cada una
 // con su propio aspecto para que no parezcan todas iguales. Usan las CSS vars
@@ -10,7 +11,7 @@ import type { ComboSlotDef } from "@/app/lib/combos";
 
 const euros = (cents: number) => (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-type Heading = { upperHeadings: boolean };
+type Heading = { upperHeadings: boolean; lang?: Lang };
 const headingStyle = (upper: boolean): CSSProperties => ({
   fontFamily: "var(--font-heading)",
   textTransform: upper ? "uppercase" : "none",
@@ -19,15 +20,16 @@ const headingStyle = (upper: boolean): CSSProperties => ({
 });
 
 // ── Promoción: el número grande manda ("−15 %", "Envío gratis") ──────────
-function bigValue(p: PromotionRule): { value: string; caption: string } {
-  if (p.kind === "FREE_DELIVERY") return { value: "Envío gratis", caption: "a domicilio" };
-  if (p.kind === "ORDER_PERCENT") return { value: `−${p.value} %`, caption: "en tu pedido" };
-  return { value: `−${euros(p.value).replace(",00", "")}`, caption: "en tu pedido" };
+function bigValue(p: PromotionRule, lang: Lang): { value: string; caption: string } {
+  const T = ui(lang);
+  if (p.kind === "FREE_DELIVERY") return { value: T.freeDelivery, caption: T.athome };
+  if (p.kind === "ORDER_PERCENT") return { value: `−${p.value} %`, caption: T.onYourOrder };
+  return { value: `−${euros(p.value).replace(",00", "")}`, caption: T.onYourOrder };
 }
 
-export function PromoTile({ promo, tone, upperHeadings }: { promo: PromotionRule; tone: "accent" | "secondary" } & Heading) {
-  const { value, caption } = bigValue(promo);
-  const cond = promotionConditions(promo);
+export function PromoTile({ promo, tone, upperHeadings, lang = "es" }: { promo: PromotionRule; tone: "accent" | "secondary" } & Heading) {
+  const { value, caption } = bigValue(promo, lang);
+  const cond = promotionConditions(promo, lang);
   const bg = tone === "accent" ? "var(--brand-accent)" : "var(--brand-secondary)";
   const fg = tone === "accent" ? "var(--on-accent)" : "var(--on-secondary)";
   return (
@@ -42,7 +44,7 @@ export function PromoTile({ promo, tone, upperHeadings }: { promo: PromotionRule
         </p>
         <p className="mt-1 text-[13px] font-semibold opacity-90">{caption}</p>
       </div>
-      <p className="relative text-[12px] opacity-85">{cond ? `${cond.charAt(0).toUpperCase()}${cond.slice(1)} · ` : ""}se aplica sola</p>
+      <p className="relative text-[12px] opacity-85">{cond ? `${cond.charAt(0).toUpperCase()}${cond.slice(1)} · ` : ""}{ui(lang).appliesAlone}</p>
     </article>
   );
 }
@@ -56,7 +58,9 @@ export function ComboCard({
   qty,
   onAdd,
   upperHeadings,
+  lang = "es",
 }: { name: string; description: string; priceCents: number; slots: ComboSlotDef[]; qty: number; onAdd: () => void } & Heading) {
+  const T = ui(lang);
   const steps = slots.map((s) => {
     const t = s.name.replace(/^elige (tu |un |una )?/i, "");
     return t.charAt(0).toUpperCase() + t.slice(1);
@@ -69,15 +73,15 @@ export function ComboCard({
       <span aria-hidden className="absolute -right-16 -top-16 h-56 w-56 rounded-full opacity-10" style={{ backgroundColor: "var(--bg-base)" }} />
       <div className="relative flex items-start justify-between gap-3">
         <span className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em]" style={{ backgroundColor: "var(--brand-secondary)", color: "var(--on-secondary)" }}>
-          Menú
+          {T.menuBadge}
         </span>
-        {qty > 0 && <span className="rounded-full bg-white/15 px-2.5 py-1 text-[12px] font-semibold">{qty} en tu pedido</span>}
+        {qty > 0 && <span className="rounded-full bg-white/15 px-2.5 py-1 text-[12px] font-semibold">{T.inYourOrder(qty)}</span>}
       </div>
       <h3 className="relative mt-4 text-[34px] sm:text-[40px]" style={headingStyle(upperHeadings)}>
         {name}
       </h3>
       {description && <p className="relative mt-2 max-w-md text-[14px] opacity-85">{description}</p>}
-      <ol className="relative mt-5 flex flex-wrap items-center gap-2" aria-label="Pasos del menú">
+      <ol className="relative mt-5 flex flex-wrap items-center gap-2" aria-label={T.menuSteps}>
         {steps.map((s, i) => (
           <li key={i} className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1 text-[13px] font-semibold" style={{ backgroundColor: "color-mix(in srgb, var(--bg-base) 18%, transparent)" }}>
@@ -92,13 +96,13 @@ export function ComboCard({
       </ol>
       <div className="relative mt-6 flex items-end justify-between gap-4">
         <div>
-          <p className="text-[12px] opacity-75">Todo por</p>
+          <p className="text-[12px] opacity-75">{T.allFor}</p>
           <p className="text-[38px]" style={headingStyle(upperHeadings)}>
             {euros(priceCents)}
           </p>
         </div>
         <button onClick={onAdd} className="p-press shrink-0 rounded-full px-5 py-3 text-[15px] font-bold shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5)]" style={{ backgroundColor: "var(--bg-base)", color: "var(--brand-accent)" }}>
-          Montar mi menú →
+          {T.buildMenu}
         </button>
       </div>
     </article>
@@ -117,6 +121,7 @@ export function ProductCard({
   onAdd,
   onInc,
   onDec,
+  lang = "es",
 }: {
   name: string;
   description: string;
@@ -128,7 +133,9 @@ export function ProductCard({
   onAdd: () => void;
   onInc: () => void;
   onDec: () => void;
+  lang?: Lang;
 }) {
+  const T = ui(lang);
   return (
     <article
       className="p-lift group relative flex h-full flex-col overflow-hidden rounded-[var(--border-radius)] bg-[var(--surface-1)]"
@@ -148,27 +155,27 @@ export function ProductCard({
       <div className="flex flex-1 flex-col px-5 pt-5">
         <h3 className="pr-8 text-[17px] font-bold leading-snug tracking-[-0.01em] text-[var(--text-primary)]">{name}</h3>
         {description && <p className="mt-1.5 line-clamp-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">{description}</p>}
-        {allergens && allergens.length > 0 && <p className="mt-2 text-[11px] text-[var(--text-secondary)]">Alérgenos: {allergens.join(", ")}</p>}
+        {allergens && allergens.length > 0 && <p className="mt-2 text-[11px] text-[var(--text-secondary)]">{T.allergens}: {allergens.join(", ")}</p>}
       </div>
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-5">
         <span className="text-[18px] font-bold tabular-nums text-[var(--brand-secondary)]">{euros(priceCents)}</span>
         {simple && qty > 0 ? (
           <div className="flex items-center gap-2">
-            <button onClick={onDec} aria-label={`Quitar un ${name}`} className="p-press flex h-10 w-10 items-center justify-center rounded-full border-2 border-[var(--brand-accent)] text-xl font-bold text-[var(--brand-accent)]">
+            <button onClick={onDec} aria-label={T.removeOne(name)} className="p-press flex h-10 w-10 items-center justify-center rounded-full border-2 border-[var(--brand-accent)] text-xl font-bold text-[var(--brand-accent)]">
               −
             </button>
             <span className="min-w-5 text-center text-[16px] font-bold tabular-nums">{qty}</span>
-            <button onClick={onInc} aria-label={`Añadir otro ${name}`} className="p-press flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-accent)] text-xl font-bold text-[var(--on-accent)]">
+            <button onClick={onInc} aria-label={T.addAnother(name)} className="p-press flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-accent)] text-xl font-bold text-[var(--on-accent)]">
               +
             </button>
           </div>
         ) : (
           <button
             onClick={onAdd}
-            aria-label={`Añadir ${name}`}
+            aria-label={T.addX(name)}
             className="p-press flex h-11 items-center gap-1.5 rounded-full bg-[var(--brand-accent)] pr-4 pl-3 text-[15px] font-bold text-[var(--on-accent)] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.5)] transition-transform group-hover:scale-105"
           >
-            <span className="text-xl leading-none">+</span> Añadir
+            <span className="text-xl leading-none">+</span> {T.add}
           </button>
         )}
       </div>

@@ -8,6 +8,7 @@ import {
   type MenuModifierGroup,
   type OrderLineModifier,
 } from "@/app/lib/menuOptions";
+import { optionError, ui, type Lang } from "@/app/lib/i18n";
 
 // Hoja inferior para elegir pan, guarnición y extras antes de añadir al carrito.
 // Usa las CSS vars del theme del tenant (definidas en el contenedor de MenuClient).
@@ -25,12 +26,14 @@ type Props = {
   product: SheetProduct;
   onClose: () => void;
   onAdd: (line: { optionIds: string[]; modifiers: OrderLineModifier[]; unitPriceCents: number }) => void;
+  lang?: Lang;
 };
 
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) {
+export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "es" }: Props) {
+  const T = ui(lang);
   const groups = product.modifierGroups;
   const [selection, setSelection] = useState<Record<string, string[]>>(() => initialSelection(groups));
   const [error, setError] = useState("");
@@ -70,7 +73,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
   function handleAdd() {
     const err = validateSelection(groups, selection);
     if (err) {
-      setError(err);
+      setError(optionError(err, lang));
       return;
     }
     onAdd({ optionIds: Object.values(selection).flat(), modifiers, unitPriceCents });
@@ -78,7 +81,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={product.name}>
-      <button aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+      <button aria-label={T.close} onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
 
       <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden p-rise rounded-t-[28px] bg-[var(--surface-0)] text-[var(--text-primary)] shadow-2xl sm:rounded-[28px]">
         <header className="flex items-start gap-3 border-b border-[var(--border)] p-5">
@@ -88,12 +91,12 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
               <p className="mt-1 text-[13px] leading-snug text-[var(--text-secondary)]">{product.description}</p>
             )}
             {product.allergens && product.allergens.length > 0 && (
-              <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Alérgenos: {product.allergens.join(", ")}</p>
+              <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{T.allergens}: {product.allergens.join(", ")}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={T.close}
             className="h-8 w-8 shrink-0 rounded-full text-xl leading-none text-[var(--text-secondary)] hover:bg-[var(--surface-1)]"
           >
             ×
@@ -114,12 +117,12 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
               const extraCents = chosenOptions.reduce((acc, o) => acc + o.priceDeltaCents, 0);
               const prices = [...new Set(group.options.map((o) => o.priceDeltaCents))];
               const uniformPrice = prices.length === 1 && prices[0] > 0 ? prices[0] : null;
-              const priceHint = uniformPrice != null && group.options.length > 1 ? ` · +${euros(uniformPrice)} cada una` : "";
+              const priceHint = uniformPrice != null && group.options.length > 1 ? T.each(euros(uniformPrice)) : "";
               // Con 1-2 opciones se nombran ("Doble burguer estilo smash · +3,95 €"); con más, se cuentan.
               const available =
                 group.options.length <= 2
                   ? group.options.map((o) => (o.priceDeltaCents > 0 ? `${o.name} · +${euros(o.priceDeltaCents)}` : o.name)).join(" / ")
-                  : `${group.options.length} opciones${priceHint}`;
+                  : `${T.nOptions(group.options.length)}${priceHint}`;
               return (
                 <section key={group.id} className="overflow-hidden rounded-2xl bg-[var(--surface-1)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
                   <button
@@ -200,7 +203,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
                 <div className="mb-2 flex items-baseline justify-between gap-2">
                   <h3 className="text-[15px] font-bold">{group.name}</h3>
                   <span className="text-xs text-[var(--text-secondary)]">
-                    {group.isRequired ? "Obligatorio" : multi ? "Opcional · elige las que quieras" : "Opcional"}
+                    {group.isRequired ? T.required : multi ? T.optionalMulti : T.optional}
                   </span>
                 </div>
                 <div className={multi ? "flex flex-wrap gap-2" : "space-y-2"}>
@@ -245,15 +248,15 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
                           {option.name}
                           {recommended && (
                             <span className="ml-2 rounded-md bg-[var(--brand-secondary)]/10 px-1.5 py-0.5 text-[11px] font-semibold text-[var(--brand-secondary)]">
-                              Recomendado
+                              {T.recommended}
                             </span>
                           )}
                           {option.allergens && option.allergens.length > 0 && (
-                            <span className="block text-[11px] text-[var(--text-secondary)]">Alérgenos: {option.allergens.join(", ")}</span>
+                            <span className="block text-[11px] text-[var(--text-secondary)]">{T.allergens}: {option.allergens.join(", ")}</span>
                           )}
                         </span>
                         <span className="text-[13px] text-[var(--text-secondary)]">
-                          {option.priceDeltaCents > 0 ? `+${euros(option.priceDeltaCents)}` : group.code === "SIDE" ? "Incluido" : ""}
+                          {option.priceDeltaCents > 0 ? `+${euros(option.priceDeltaCents)}` : group.code === "SIDE" ? T.included : ""}
                         </span>
                       </button>
                     );
@@ -270,7 +273,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd }: Props) 
             onClick={handleAdd}
             className="p-press w-full rounded-full bg-[var(--brand-accent)] py-3.5 text-[15px] font-semibold text-[var(--on-accent)]"
           >
-            Añadir al pedido · {euros(unitPriceCents)}
+            {T.addToOrder(euros(unitPriceCents))}
           </button>
         </footer>
       </div>
