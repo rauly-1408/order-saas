@@ -7,8 +7,14 @@ import { SEGMENT_LABEL, type Segment } from "@/app/lib/retention";
 const MODEL = "claude-opus-5-5";
 const MAX_MESSAGE_CHARS = 600;
 
+// La clave se limpia de espacios, saltos de línea y comillas por si se colaron
+// al pegarla en el panel de Vercel.
+function apiKey(): string {
+  return (process.env.ANTHROPIC_API_KEY ?? "").replace(/\s+/g, "").replace(/^"|"$/g, "");
+}
+
 export function aiConfigured(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY;
+  return apiKey().length > 0;
 }
 
 const SEGMENT_CONTEXT: Record<Segment, string> = {
@@ -74,7 +80,7 @@ export function variantProblem(text: string, hasCoupon: boolean): string | null 
 export class AiCopyError extends Error {}
 
 export async function draftCampaignMessages(input: CopyInput): Promise<string[]> {
-  const client = new Anthropic();
+  const client = new Anthropic({ apiKey: apiKey() });
   let response;
   try {
     response = await client.beta.messages.create({
@@ -88,6 +94,13 @@ export async function draftCampaignMessages(input: CopyInput): Promise<string[]>
       messages: [{ role: "user", content: userPrompt(input) }],
     });
   } catch (err) {
+    // Motivo real en los logs del servidor (el usuario ve un mensaje simple).
+    console.error("[aiCopy] error de la API de Claude", {
+      type: err instanceof Error ? err.constructor.name : typeof err,
+      status: err instanceof Anthropic.APIError ? err.status : undefined,
+      requestId: err instanceof Anthropic.APIError ? err.requestID : undefined,
+      message: err instanceof Error ? err.message.slice(0, 300) : String(err),
+    });
     if (err instanceof Anthropic.RateLimitError) throw new AiCopyError("La IA está muy solicitada ahora mismo. Prueba en un minuto.");
     if (err instanceof Anthropic.AuthenticationError) throw new AiCopyError("La clave de la IA no es válida. Revisa ANTHROPIC_API_KEY.");
     if (err instanceof Anthropic.APIError) throw new AiCopyError("La IA no está disponible ahora mismo. Inténtalo de nuevo.");
