@@ -258,8 +258,13 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                 key={cat.slug}
                 data-slug={cat.slug}
                 onClick={() => scrollToCategory(cat.slug)}
-                className="p-press shrink-0 rounded-full px-4 py-2 text-[14px] transition-colors duration-300"
-                style={{ border: isActive ? "1px solid transparent" : `1px solid ${cssVars["--border"]}`, backgroundColor: isActive ? cssVars["--brand-accent"] : "transparent", color: isActive ? "var(--on-accent)" : cssVars["--text-secondary"], fontWeight: isActive ? 700 : 500 }}
+                aria-current={isActive ? "true" : undefined}
+                // Al pasar el ratón se tiñe con el color de la marca (en móvil no hay hover).
+                className={`p-press shrink-0 rounded-full border px-4 py-2 text-[14px] transition-colors duration-300 ${
+                  isActive
+                    ? "border-transparent bg-[var(--brand-accent)] font-bold text-[var(--on-accent)]"
+                    : "border-[var(--border)] bg-transparent font-medium text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:bg-[color-mix(in_srgb,var(--brand-accent)_10%,transparent)] hover:text-[var(--brand-accent)]"
+                }`}
               >
                 {cat.name}
               </button>
