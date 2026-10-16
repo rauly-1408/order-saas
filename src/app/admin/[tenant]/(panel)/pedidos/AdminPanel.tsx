@@ -12,7 +12,7 @@ import {
   type Order,
 } from "./orderBoard";
 import StoreControls, { type StoreLive } from "./StoreControls";
-import { playOrderChime, setSoundEnabled, SOUND_EVENT, soundEnabled, unlockAudio } from "../sound";
+import { playOrderChime, repeatUntilAccepted, setRepeatUntilAccepted, setSoundEnabled, SOUND_EVENT, soundEnabled, unlockAudio } from "../sound";
 
 const POLL_MS = 10_000;
 const CLOCK_MS = 15_000;
@@ -36,6 +36,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
   const [now, setNow] = useState(() => Date.now());
   // El sonido lo gestiona el aviso global (OrderAlerts); aquí solo el interruptor.
   const [soundOn, setSoundOn] = useState(true);
+  const [repeatOn, setRepeatOn] = useState(true);
 
   const prevIds = useRef<Set<string>>(new Set());
   // Distingue la primera carga de un panel vacío: el primer pedido nuevo sí
@@ -91,7 +92,10 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
   }, [loadOrders]);
 
   useEffect(() => {
-    const sync = () => setSoundOn(soundEnabled());
+    const sync = () => {
+      setSoundOn(soundEnabled());
+      setRepeatOn(repeatUntilAccepted());
+    };
     sync();
     window.addEventListener(SOUND_EVENT, sync);
     return () => window.removeEventListener(SOUND_EVENT, sync);
@@ -157,6 +161,16 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
           >
             {soundOn ? "🔔 Sonido activado" : "🔕 Sonido silenciado"}
           </button>
+          {soundOn && (
+            <button
+              onClick={() => setRepeatUntilAccepted(!repeatOn)}
+              aria-pressed={repeatOn}
+              title={repeatOn ? "Suena sin parar hasta que aceptes el pedido" : "Suena una sola vez por pedido nuevo"}
+              className="p-press rounded-full border border-transparent bg-black/[0.05] px-3.5 py-1.5 text-xs font-semibold text-[var(--p-ink)] hover:bg-black/[0.08]"
+            >
+              {repeatOn ? "🔁 Repetir hasta aceptar" : "1️⃣ Sonar una vez"}
+            </button>
+          )}
         </div>
       </header>
 

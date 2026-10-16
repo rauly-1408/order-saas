@@ -53,6 +53,27 @@ export function setSoundEnabled(on: boolean): void {
   window.dispatchEvent(new Event(SOUND_EVENT));
 }
 
+// Repetir el aviso mientras haya pedidos sin aceptar (activado por defecto).
+// Si se apaga, suena una sola vez por pedido nuevo.
+const REPEAT_KEY = "panel-sound-repeat";
+
+export function repeatUntilAccepted(): boolean {
+  try {
+    return localStorage.getItem(REPEAT_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+export function setRepeatUntilAccepted(on: boolean): void {
+  try {
+    localStorage.setItem(REPEAT_KEY, on ? "on" : "off");
+  } catch {
+    /* modo privado */
+  }
+  window.dispatchEvent(new Event(SOUND_EVENT));
+}
+
 // ── "Cha-ching" de caja registradora ────────────────────────────────────
 // Golpe metálico corto (el cajón) + dos campanazos con armónicos de campana.
 function strike(c: AudioContext, at: number) {
