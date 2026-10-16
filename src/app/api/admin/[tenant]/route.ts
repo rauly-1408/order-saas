@@ -57,6 +57,24 @@ export async function PATCH(req: NextRequest) {
     const currentBranding = (tenant.branding as Record<string, unknown>) ?? {};
     const currentSettings = (tenant.settings as Record<string, unknown>) ?? {};
 
+    // Lo operativo vive en el local (Store): es lo que usan los pedidos.
+    if (settings !== undefined) {
+      const s = settings as Record<string, unknown>;
+      const int = (v: unknown) => (Number.isInteger(v) && (v as number) >= 0 ? (v as number) : undefined);
+      const bool = (v: unknown) => (typeof v === "boolean" ? v : undefined);
+      await prisma.store.updateMany({
+        where: { tenantId: tenant.id },
+        data: {
+          deliveryEnabled: bool(s.deliveryEnabled),
+          takeawayEnabled: bool(s.takeawayEnabled),
+          deliveryFeeCents: int(s.deliveryFeeCents),
+          minimumOrderCents: int(s.minimumOrderCents),
+          estimatedDeliveryMinutes: int(s.estimatedDeliveryMinutes),
+          estimatedPickupMinutes: int(s.estimatedPickupMinutes),
+        },
+      });
+    }
+
     const updated = await prisma.tenant.update({
       where: { slug },
       data: {

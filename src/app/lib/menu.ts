@@ -2,6 +2,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getTenantTheme, getTenantSettings } from "@/app/lib/tenantConfig";
 import type { MenuModifierGroup } from "@/app/lib/menuOptions";
 import { ALLERGENS } from "@/app/lib/costs";
+import { getStoreOps, publicStoreInfo } from "@/app/lib/storeOps";
 
 // Carga la carta pública de un tenant (tema, ajustes, categorías y productos
 // con sus opciones). La usan la API /api/menu/[tenant] y las páginas de
@@ -16,7 +17,20 @@ export async function loadMenu(tenantSlug: string) {
 
   // getTenantTheme combina los valores del tenant con los defaults del sistema
   const theme = getTenantTheme(tenant.branding as Record<string, unknown>);
-  const settings = getTenantSettings(tenant.settings as Record<string, unknown>);
+  const ops = await getStoreOps(tenant.id, tenant.settings);
+  // Lo operativo (canales, envío, mínimo, tiempos) sale del local: es lo que cobran los pedidos.
+  const settings = {
+    ...getTenantSettings(tenant.settings as Record<string, unknown>),
+    ...(ops && {
+      deliveryEnabled: ops.deliveryEnabled,
+      takeawayEnabled: ops.takeawayEnabled,
+      deliveryFeeCents: ops.deliveryFeeCents,
+      minimumOrderCents: ops.minimumOrderCents,
+      estimatedDeliveryMinutes: ops.estimatedDeliveryMinutes + ops.prepExtraMinutes,
+      estimatedPickupMinutes: ops.estimatedPickupMinutes + ops.prepExtraMinutes,
+    }),
+  };
+  const store = ops ? publicStoreInfo(ops) : null;
 
   const categories = await prisma.category.findMany({
     where: { tenantId: tenant.id, isActive: true },
@@ -87,6 +101,7 @@ export async function loadMenu(tenantSlug: string) {
     tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name },
     theme,
     settings,
+    store,
     categories: menuCategories,
   };
 }

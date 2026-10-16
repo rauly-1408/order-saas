@@ -179,6 +179,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-16 | Retención fase 1 con envío manual asistido por WhatsApp (`wa.me`) | Funciona hoy sin cuenta de Business API ni coste por mensaje; el envío automático llega en fase 2 sobre el mismo modelo de datos |
 | 2026-10-16 | Funciones de Vercel en Frankfurt (`fra1`, `vercel.json`) | La base de datos (Neon) está en eu-central-1 y las funciones corrían en Washington (iad1): cada consulta cruzaba el Atlántico |
 | 2026-10-16 | Panel instalable (PWA) y aviso de pedidos global | Los navegadores bloquean el sonido hasta tocar la página; instalada como app puede sonar siempre. El aviso ("cha-ching" sintetizado, suena una vez por pedido nuevo) funciona en cualquier pestaña del panel |
+| 2026-10-16 | Horario, cierres, pausa, tiempo extra y zonas de reparto por código postal (ver HORARIOS-Y-ZONAS.md) | Paridad con Last.app en lo imprescindible para abrir la tienda al público; el local (`Store`) es la única referencia operativa y el servidor valida todo |
 
 ---
 

@@ -32,6 +32,7 @@ export default async function PedirPage({
       categories={menu.categories}
       theme={menu.theme}
       settings={menu.settings}
+      store={menu.store}
     />
   );
 }

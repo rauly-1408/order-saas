@@ -11,6 +11,7 @@ import {
   type Estimates,
   type Order,
 } from "./orderBoard";
+import StoreControls, { type StoreLive } from "./StoreControls";
 import { playOrderChime, setSoundEnabled, SOUND_EVENT, soundEnabled, unlockAudio } from "../sound";
 
 const POLL_MS = 10_000;
@@ -18,7 +19,7 @@ const CLOCK_MS = 15_000;
 // Mientras haya pedidos sin aceptar, el aviso se repite (como las tablets de
 // Glovo / Uber Eats) para que ninguno se quede olvidado.
 
-type OrdersResponse = { orders: Order[]; history?: Order[]; estimates?: Estimates };
+type OrdersResponse = { orders: Order[]; history?: Order[]; estimates?: Estimates; store?: StoreLive | null };
 
 const DEFAULT_ESTIMATES: Estimates = { deliveryMinutes: 45, pickupMinutes: 20 };
 
@@ -27,6 +28,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [history, setHistory] = useState<Order[]>([]);
   const [estimates, setEstimates] = useState<Estimates>(DEFAULT_ESTIMATES);
+  const [storeLive, setStoreLive] = useState<StoreLive | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
@@ -61,6 +63,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       setOrders(incoming);
       setHistory(data.history ?? []);
       if (data.estimates) setEstimates(data.estimates);
+      setStoreLive(data.store ?? null);
       setError("");
     } catch {
       setError("Sin conexión. Reintentando…");
@@ -162,6 +165,8 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
           Los avisos sonoros están silenciados. No oirás los pedidos nuevos.
         </p>
       )}
+
+      {storeLive && <StoreControls tenant={tenant} live={storeLive} onChange={loadOrders} />}
 
       {error && <div className="mb-4 rounded-2xl bg-[var(--p-accent-soft)] px-4 py-2 text-sm text-[var(--p-accent)]">{error}</div>}
 

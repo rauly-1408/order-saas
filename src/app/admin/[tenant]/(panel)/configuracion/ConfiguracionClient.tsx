@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Operativa from "./Operativa";
 
 const S = {
   white: '#ffffff', pageBg: 'var(--p-bg)', border: 'var(--p-line)',
@@ -68,6 +69,7 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
     phone: '', whatsapp: '', instagram: '', address: '', currency: 'EUR',
   });
   const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
@@ -88,7 +90,9 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
           address:   (s.address as string) ?? '',
           currency:  (s.currency as string) ?? 'EUR',
         });
-      });
+        setLoaded(true);
+      })
+      .catch(() => setMsg('Error: no se pudo cargar la configuración'));
   }, [tenant]);
 
   async function save() {
@@ -124,6 +128,10 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
         </div>
       )}
 
+      {!loaded && !msg && (
+        <div style={{ padding: 32, textAlign: 'center', fontSize: 14, color: 'var(--p-muted)' }}>Cargando configuración…</div>
+      )}
+      <div style={{ display: loaded ? 'block' : 'none' }}>
       <Section title="Canales de venta">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Toggle checked={form.deliveryEnabled} onChange={v => setForm({ ...form, deliveryEnabled: v })} label="Delivery — Envío a domicilio" />
@@ -133,8 +141,8 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
 
       <Section title="Precios y tiempos">
         <div className="grid gap-4 sm:grid-cols-2">
-          <NumField label="Pedido mínimo (céntimos)" value={form.minimumOrderCents} onChange={v => setForm({ ...form, minimumOrderCents: v })} hint="cents" />
-          <NumField label="Gastos de envío (céntimos)" value={form.deliveryFeeCents} onChange={v => setForm({ ...form, deliveryFeeCents: v })} hint="cents" />
+          <NumField label="Pedido mínimo a domicilio (céntimos)" value={form.minimumOrderCents} onChange={v => setForm({ ...form, minimumOrderCents: v })} hint="cents" />
+          <NumField label="Envío general (céntimos)" value={form.deliveryFeeCents} onChange={v => setForm({ ...form, deliveryFeeCents: v })} hint="cents" />
           <div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>Tiempo delivery (min)</div>
             <input type="number" min={1} value={form.estimatedDeliveryMinutes} onChange={e => setForm({ ...form, estimatedDeliveryMinutes: Number(e.target.value) })}
@@ -167,6 +175,12 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
       }}>
         {saving ? 'Guardando...' : 'Guardar configuración'}
       </button>
+      </div>
+
+      {/* Horario, cierres y zonas: cada bloque se guarda por separado */}
+      <div style={{ marginTop: 28 }}>
+        <Operativa tenant={tenant} />
+      </div>
     </div>
   );
 }
