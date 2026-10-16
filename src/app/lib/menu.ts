@@ -4,6 +4,7 @@ import type { MenuModifierGroup } from "@/app/lib/menuOptions";
 import { ALLERGENS } from "@/app/lib/costs";
 import { getStoreOps, publicStoreInfo } from "@/app/lib/storeOps";
 import { loadPerks, publicPerks } from "@/app/lib/perks";
+import { parseOnline } from "@/app/lib/brand";
 
 // Carga la carta pública de un tenant (tema, ajustes, categorías y productos
 // con sus opciones). La usan la API /api/menu/[tenant] y las páginas de
@@ -106,6 +107,7 @@ export async function loadMenu(tenantSlug: string) {
     settings,
     store,
     perks,
+    online: parseOnline((tenant.branding as Record<string, unknown> | null)?.online),
     categories: menuCategories,
   };
 }

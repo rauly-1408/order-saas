@@ -7,6 +7,7 @@ import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import type { MenuModifierGroup } from "@/app/lib/menuOptions";
 import type { PublicPerks } from "@/app/lib/perks";
+import { SOCIAL_FIELDS, type OnlinePresence } from "@/app/lib/brand";
 import { promotionConditions, promotionLabel } from "@/app/lib/promotions";
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import ProductOptionsSheet from "./ProductOptionsSheet";
@@ -40,12 +41,13 @@ type MenuClientProps = {
   settings?: StoreSettings;
   store?: PublicStoreInfo | null;
   perks?: PublicPerks;
+  online?: OnlinePresence;
 };
 
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks }: MenuClientProps) {
+export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online }: MenuClientProps) {
   const { items, addItem, inc, dec, remove, clear } = useCart();
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   // Producto cuyo selector de opciones (pan, guarnición, extras) está abierto.
@@ -119,7 +121,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], fontFamily: cssVars["--font-body"], ...cssVars as any }}>
-      <header className="p-glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: `1px solid ${cssVars["--border"]}`, height: "64px", ["--p-surface" as any]: cssVars["--surface-0"], display: "flex", alignItems: "center", padding: "0 20px", gap: "14px" }}>
+      <header className="p-glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: `1px solid ${cssVars["--border"]}`, height: "64px", ["--p-surface" as any]: cssVars["--header-bg"], display: "flex", alignItems: "center", padding: "0 20px", gap: "14px" }}>
         {t.logoUrl ? (
           <img src={t.logoUrl} alt={tenantName} style={{ height: "36px", width: "auto", borderRadius: "8px", flexShrink: 0 }} />
         ) : (
@@ -128,8 +130,8 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           </div>
         )}
         <div>
-          <div style={{ fontWeight: 600, fontSize: "16px", color: cssVars["--text-primary"], lineHeight: 1.2 }}>{tenantName}</div>
-          <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>{deliveryLabel}</div>
+          <div style={{ fontWeight: 600, fontSize: "16px", color: cssVars["--on-header"], lineHeight: 1.2 }}>{tenantName}</div>
+          <div style={{ fontSize: "12px", color: cssVars["--on-header"], opacity: 0.7 }}>{deliveryLabel}</div>
         </div>
       </header>
       <nav ref={navRef} className="p-glass" style={{ position: "sticky", top: "64px", zIndex: 40, ["--p-surface" as any]: cssVars["--surface-0"], borderBottom: `1px solid ${cssVars["--border"]}`, display: "flex", gap: "8px", overflowX: "auto", padding: "10px 16px", scrollbarWidth: "none" }}>
@@ -153,9 +155,17 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           </div>
         )}
         {/* Portada: nombre del restaurante en la fuente de rótulo de la marca */}
-        <section className="p-rise mb-10 overflow-hidden rounded-[28px] px-6 py-10 sm:px-10 sm:py-14" style={{ backgroundColor: cssVars["--brand-accent"], color: cssVars["--on-accent"] }}>
+        <section
+          className="p-rise mb-10 overflow-hidden rounded-[28px] px-6 py-10 sm:px-10 sm:py-14"
+          style={{
+            backgroundColor: cssVars["--brand-accent"],
+            color: t.heroImageUrl ? "#ffffff" : cssVars["--on-accent"],
+            // Foto de portada (Personalización) con un velo oscuro para que el texto se lea.
+            ...(t.heroImageUrl && { backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url("${t.heroImageUrl}")`, backgroundSize: "cover", backgroundPosition: "center" }),
+          }}
+        >
           <p style={{ fontSize: "14px", fontWeight: 500, opacity: 0.75 }}>{deliveryLabel}</p>
-          <h1 className="mt-2 text-5xl sm:text-7xl" style={{ fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, lineHeight: 0.95, color: cssVars["--bg-base"] }}>{tenantName}</h1>
+          <h1 className="mt-2 text-5xl sm:text-7xl" style={{ fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, lineHeight: 0.95, color: t.heroImageUrl ? "#ffffff" : cssVars["--bg-base"] }}>{tenantName}</h1>
           <p className="mt-4 max-w-md" style={{ fontSize: "15px", opacity: 0.8 }}>Elige, personaliza y te lo preparamos al momento.</p>
         </section>
         {/* Promociones en vigor y tarjeta de fidelidad: se aplican solas en el checkout */}
@@ -182,7 +192,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         )}
         {categories.map((cat) => (
           <section key={cat.slug} ref={(el) => { sectionRefs.current[cat.slug] = el; }} style={{ marginBottom: "40px" }}>
-            <h2 style={{ fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontSize: "30px", lineHeight: 1, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, letterSpacing: "-0.01em", color: cssVars["--brand-accent"], marginBottom: "16px" }}>{cat.name}</h2>
+            <h2 style={{ fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontSize: "30px", lineHeight: 1, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, letterSpacing: "-0.01em", color: cssVars["--heading-color"], marginBottom: "16px" }}>{cat.name}</h2>
             {cat.description && <p style={{ fontSize: "14px", color: cssVars["--text-secondary"], marginTop: "-6px", marginBottom: "16px" }}>{cat.description}</p>}
             {/* Cuadrícula: 1 columna en móvil, 2 en tablet, 3 en escritorio */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -231,6 +241,16 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
             </div>
           </section>
         ))}
+        {/* Redes y reseñas (Personalización → Presencia online) */}
+        {online && SOCIAL_FIELDS.some((f) => online[f.key]) && (
+          <footer className="mt-4 flex flex-wrap items-center justify-center gap-2 pb-4" aria-label="Síguenos">
+            {SOCIAL_FIELDS.filter((f) => online[f.key]).map((f) => (
+              <a key={f.key} href={online[f.key]!} target="_blank" rel="noopener noreferrer" className="p-press rounded-full px-4 py-2 text-sm font-semibold" style={{ border: `1px solid ${cssVars["--border"]}`, color: cssVars["--text-primary"], textDecoration: "none" }}>
+                {f.key === "reviewsUrl" ? "★ Déjanos una reseña" : f.label}
+              </a>
+            ))}
+          </footer>
+        )}
       </main>
       {optionsFor && (
         <ProductOptionsSheet

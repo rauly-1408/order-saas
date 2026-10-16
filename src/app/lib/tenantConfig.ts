@@ -32,6 +32,10 @@ export type TenantTheme = {
   borderColor: string;
   textPrimary: string;
   textSecondary: string;
+  /** Títulos de sección de la carta (null = color de acento). */
+  headingColor: string | null;
+  /** Barra superior de la carta (null = color de tarjetas, translúcida). */
+  headerColor: string | null;
 
   // Tipografía
   bodyFont: string;
@@ -45,6 +49,8 @@ export type TenantTheme = {
 
   // Identidad
   logoUrl: string | null;
+  logoMonoUrl: string | null;
+  logoSquareUrl: string | null;
   faviconUrl: string | null;
   heroImageUrl: string | null;
 };
@@ -89,12 +95,16 @@ export const SYSTEM_DEFAULT_THEME: TenantTheme = {
   borderColor:     '#eaeaf4',
   textPrimary:     '#393659',
   textSecondary:   '#b8b6df',
+  headingColor:    null,
+  headerColor:     null,
   bodyFont:    'Inter, system-ui, sans-serif',
   headingFont: 'Inter, system-ui, sans-serif',
   headingCase: 'normal',
   borderRadius: '8px',
   cardStyle:    'rounded',
   logoUrl:      null,
+  logoMonoUrl:  null,
+  logoSquareUrl: null,
   faviconUrl:   null,
   heroImageUrl: null,
 };
@@ -172,6 +182,9 @@ export function themeToCssVars(theme: TenantTheme): Record<string, string> {
           '--on-accent': readableOn(theme.primaryColor),
           '--brand-secondary': theme.secondaryColor,
           '--on-secondary': readableOn(theme.secondaryColor),
+          '--heading-color': theme.headingColor ?? theme.primaryColor,
+          '--header-bg': theme.headerColor ?? theme.surfaceColor,
+          '--on-header': theme.headerColor ? readableOn(theme.headerColor) : theme.textPrimary,
           '--font-body': theme.bodyFont,
           '--font-heading': theme.headingFont,
           '--heading-case': theme.headingCase === 'uppercase' ? 'uppercase' : 'none',

@@ -185,6 +185,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-16 | Horario, cierres, pausa, tiempo extra y zonas de reparto por código postal (ver HORARIOS-Y-ZONAS.md) | Paridad con Last.app en lo imprescindible para abrir la tienda al público; el local (`Store`) es la única referencia operativa y el servidor valida todo |
 | 2026-10-16 | Informes de ventas en el producto base (sin módulo de pago) y solo para gerentes (ver INFORMES.md) | Es lo mínimo que espera cualquier restaurante (Last.app lo tiene); se calcula al vuelo desde `Order` en la hora del restaurante, sin tablas nuevas ni migración |
 | 2026-10-16 | Promociones automáticas sin código y tarjeta de fidelidad por teléfono (ver PROMOCIONES-Y-FIDELIZACION.md) | Paridad con Last.app en promociones; el premio por sellos es la palanca de recurrencia más simple. No se acumulan con cupones: gana el mayor ahorro |
+| 2026-10-16 | Personalización completa al nivel de Last.app: favicon, 3 logotipos, portada, paleta con vista previa, fuentes de Google y presencia online (ver PERSONALIZACION.md) | Imágenes guardadas en la propia base de datos (tabla `BrandAsset`), comprimidas en el navegador: sin proveedor externo ni claves nuevas mientras el volumen sea pequeño |
 
 ---
 

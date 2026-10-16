@@ -55,7 +55,8 @@ export default async function AdminLayout({
 
   const tenantName = tenantData.name;
   const branding = (tenantData.branding ?? {}) as Record<string, unknown>;
-  const logoUrl = (branding.logoUrl as string) ?? null;
+  // El cuadrado encaja mejor en el hueco del icono; si no hay, el principal.
+  const logoUrl = (branding.logoSquareUrl as string) || (branding.logoUrl as string) || null;
 
   return (
     <div className={`panel ${inter.variable} ${display.variable} flex min-h-screen`} style={panelCssVars(panelBrand(branding))}>
