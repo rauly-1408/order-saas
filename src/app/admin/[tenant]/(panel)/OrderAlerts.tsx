@@ -6,14 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { audioRunning, playOrderChime, SOUND_EVENT, soundEnabled, unlockAudio } from "./sound";
 
 // Aviso de pedidos nuevos en TODO el panel (no solo en Pedidos):
-// - suena un "cha-ching" al entrar un pedido y se repite cada 15 s hasta aceptarlo;
+// - suena un "cha-ching" una vez cuando entra un pedido nuevo;
 // - muestra un aviso flotante con enlace a Pedidos;
 // - el sonido se desbloquea solo con el primer toque/clic/tecla en el panel.
 
 type Pending = { id: string; orderNumber: number | null; customerName: string; totalCents: number; channel: string };
 
 const POLL_MS = 8_000;
-const REMIND_MS = 15_000;
 const euros = (c: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(c / 100);
 
 export default function OrderAlerts({ tenant }: { tenant: string }) {
@@ -56,7 +55,7 @@ export default function OrderAlerts({ tenant }: { tenant: string }) {
       if (!res.ok) return;
       const { pending: list } = (await res.json()) as { pending: Pending[] };
       const ids = new Set(list.map((p) => p.id));
-      // Primera carga: no suena por lo que ya había (lo cubre el recordatorio).
+      // Primera carga: no suena por lo que ya había; solo por lo que entre después.
       if (known.current) {
         const fresh = list.filter((p) => !known.current!.has(p.id));
         if (fresh.length) {
@@ -78,13 +77,6 @@ export default function OrderAlerts({ tenant }: { tenant: string }) {
     const id = setInterval(poll, POLL_MS);
     return () => clearInterval(id);
   }, [poll]);
-
-  // Recordatorio mientras haya pedidos sin aceptar.
-  useEffect(() => {
-    if (!enabled || pending.length === 0) return;
-    const id = setInterval(playOrderChime, REMIND_MS);
-    return () => clearInterval(id);
-  }, [enabled, pending.length]);
 
   // El título de la pestaña muestra los pendientes aunque esté en segundo plano.
   useEffect(() => {
