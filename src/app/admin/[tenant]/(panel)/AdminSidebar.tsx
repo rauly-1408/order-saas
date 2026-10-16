@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import InstallApp from "./InstallApp";
 
 // Barra lateral del panel: translúcida con desenfoque (estilo Apple), iconos de
 // línea y el elemento activo con el color de la marca del restaurante (--p-brand).
@@ -165,6 +166,7 @@ export default function AdminSidebar({
         </nav>
 
         <div className="space-y-0.5 border-t border-[var(--p-line)] px-3 py-3">
+          <InstallApp className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
           <Link href={`/pedir/${tenant}`} target="_blank" className="p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
             <Icon name="external" />
             Ver carta pública

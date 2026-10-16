@@ -11,13 +11,12 @@ import {
   type Estimates,
   type Order,
 } from "./orderBoard";
-import { playBeep, unlockAudio } from "./sound";
+import { playOrderChime, setSoundEnabled, SOUND_EVENT, soundEnabled, unlockAudio } from "../sound";
 
 const POLL_MS = 10_000;
 const CLOCK_MS = 15_000;
 // Mientras haya pedidos sin aceptar, el aviso se repite (como las tablets de
 // Glovo / Uber Eats) para que ninguno se quede olvidado.
-const REMIND_MS = 15_000;
 
 type OrdersResponse = { orders: Order[]; history?: Order[]; estimates?: Estimates };
 
@@ -33,14 +32,14 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
   const [updating, setUpdating] = useState<string | null>(null);
   const [tab, setTab] = useState<ColumnKey>("NEW");
   const [now, setNow] = useState(() => Date.now());
-  const [soundOn, setSoundOn] = useState(false);
+  // El sonido lo gestiona el aviso global (OrderAlerts); aquí solo el interruptor.
+  const [soundOn, setSoundOn] = useState(true);
 
   const prevIds = useRef<Set<string>>(new Set());
-  // Distingue la primera carga (no debe sonar) de un panel vacío (el primer
-  // pedido SÍ debe sonar).
+  // Distingue la primera carga de un panel vacío: el primer pedido nuevo sí
+  // cambia a la pestaña "Nuevos".
   const initialLoadDone = useRef(false);
 
-  const newCount = orders.filter((o) => o.status === "CREATED" || o.status === "ACCEPTED").length;
 
   const loadOrders = useCallback(async () => {
     try {
@@ -56,10 +55,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       const data = (await res.json()) as OrdersResponse;
       const incoming = data.orders ?? [];
       const hasNew = incoming.some((o) => !prevIds.current.has(o.id));
-      if (hasNew && initialLoadDone.current) {
-        playBeep();
-        setTab("NEW");
-      }
+      if (hasNew && initialLoadDone.current) setTab("NEW");
       prevIds.current = new Set(incoming.map((o) => o.id));
       initialLoadDone.current = true;
       setOrders(incoming);
@@ -84,22 +80,24 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
     };
   }, [loadOrders]);
 
-  // Recordatorio sonoro mientras queden pedidos sin aceptar.
+  // Pedido nuevo detectado por el aviso global: refrescar el tablero ya.
   useEffect(() => {
-    if (!soundOn || newCount === 0) return;
-    const remind = setInterval(playBeep, REMIND_MS);
-    return () => clearInterval(remind);
-  }, [soundOn, newCount]);
+    const onNew = () => loadOrders();
+    window.addEventListener("panel-new-order", onNew);
+    return () => window.removeEventListener("panel-new-order", onNew);
+  }, [loadOrders]);
 
-  // El título de la pestaña muestra los pendientes aunque esté en segundo plano.
   useEffect(() => {
-    document.title = newCount > 0 ? `(${newCount}) Nuevos pedidos · ${tenant}` : `Pedidos · ${tenant}`;
-  }, [newCount, tenant]);
+    const sync = () => setSoundOn(soundEnabled());
+    sync();
+    window.addEventListener(SOUND_EVENT, sync);
+    return () => window.removeEventListener(SOUND_EVENT, sync);
+  }, []);
 
-  async function enableSound() {
-    const ok = await unlockAudio();
-    setSoundOn(ok);
-    if (ok) playBeep();
+  async function toggleSound() {
+    const next = !soundOn;
+    setSoundEnabled(next);
+    if (next && (await unlockAudio())) playOrderChime();
   }
 
   async function handleStatus(orderId: string, newStatus: string) {
@@ -145,25 +143,24 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={enableSound}
+            onClick={toggleSound}
+            aria-pressed={soundOn}
+            title={soundOn ? "Silenciar los avisos" : "Activar los avisos sonoros"}
             className={`p-press rounded-full border px-3.5 py-1.5 text-xs font-semibold ${
               soundOn
                 ? "border-transparent bg-black/[0.05] text-[var(--p-ink)] hover:bg-black/[0.08]"
-                : "border-[var(--p-brand)] bg-[var(--p-brand)] text-white hover:bg-[var(--p-brand-strong)]"
+                : "border-[var(--p-accent)] bg-[var(--p-accent)] text-white"
             }`}
           >
-            {soundOn ? "Probar sonido" : "Activar sonido"}
+            {soundOn ? "🔔 Sonido activado" : "🔕 Sonido silenciado"}
           </button>
         </div>
       </header>
 
       {!soundOn && (
-        <button
-          onClick={enableSound}
-          className="p-press mb-4 block w-full rounded-2xl bg-[var(--p-warm)] px-4 py-3 text-left text-sm text-[var(--p-brand)] hover:brightness-[0.98]"
-        >
-          El navegador bloquea el sonido hasta que pulses algo. Toca aquí para recibir avisos de pedidos nuevos.
-        </button>
+        <p className="mb-4 rounded-2xl bg-[var(--p-accent-soft)] px-4 py-3 text-sm text-[var(--p-accent)]">
+          Los avisos sonoros están silenciados. No oirás los pedidos nuevos.
+        </p>
       )}
 
       {error && <div className="mb-4 rounded-2xl bg-[var(--p-accent-soft)] px-4 py-2 text-sm text-[var(--p-accent)]">{error}</div>}

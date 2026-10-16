@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { readPanelCache, writePanelCache } from "../panelCache";
 
 const S = {
   white: '#ffffff', pageBg: 'var(--p-bg)', border: 'var(--p-line)',
@@ -33,8 +34,9 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 }
 
 export default function CartaClient({ tenant }: { tenant: string }) {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `carta:${tenant}`;
+  const [categories, setCategories] = useState<Category[]>(() => readPanelCache<Category[]>(cacheKey) ?? []);
+  const [loading, setLoading] = useState(() => readPanelCache(cacheKey) === undefined);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -50,8 +52,9 @@ export default function CartaClient({ tenant }: { tenant: string }) {
       if (!res.ok) throw new Error(String(res.status));
       const data = await res.json();
       setCategories(data.categories ?? []);
+      writePanelCache(cacheKey, data.categories ?? []);
     } finally { setLoading(false); }
-  }, [tenant]);
+  }, [tenant, cacheKey]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
