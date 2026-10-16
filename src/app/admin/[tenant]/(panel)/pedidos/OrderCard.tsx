@@ -1,6 +1,8 @@
 "use client";
 
 import { discountLines } from "@/app/lib/promotions";
+import { scheduledLabel } from "@/app/lib/schedule";
+import { DEFAULT_TIMEZONE } from "@/app/lib/time";
 import {
   canCancel,
   elapsedLabel,
@@ -69,6 +71,13 @@ export default function OrderCard({ order, estimates, now, busy, onStatus }: Ord
           )}
         </div>
       </header>
+
+      {/* Programado por el cliente: la hora manda sobre el "hace X min" */}
+      {order.scheduledFor && (
+        <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+          ⏰ Programado: {scheduledLabel(order.scheduledFor, new Date(now), DEFAULT_TIMEZONE)}
+        </p>
+      )}
 
       <ul className="mb-3 space-y-1 text-sm">
         {order.items.map((item) => {

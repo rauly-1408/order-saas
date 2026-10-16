@@ -22,6 +22,7 @@ export type Order = {
   discountCents?: number;
   coupon?: { code: string } | null;
   promotion?: { name: string } | null;
+  scheduledFor?: string | null; // pedido programado por el cliente
   promotionDiscountCents?: number;
   loyaltyDiscountCents?: number;
   createdAt: string;
