@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const fmt = new Intl.DateTimeFormat("es-ES", { timeZone: range.timeZone, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const eur = (c: number) => Math.round(c) / 100;
   const rows: (string | number | null)[][] = [
-    ["Fecha", "Nº", "Cliente", "Teléfono", "Canal", "Estado", "Productos", "Subtotal (€)", "Descuento (€)", "Envío (€)", "Total (€)", "Cupón"],
+    ["Fecha", "Nº", "Cliente", "Teléfono", "Canal", "Estado", "Productos", "Subtotal (€)", "Descuento (€)", "Envío (€)", "Total (€)", "Cupón", "Promoción", "Premio fidelidad (€)"],
     ...orders.map((o) => [
       fmt.format(o.createdAt).replace(", ", " "),
       o.orderNumber,
@@ -33,6 +33,8 @@ export async function GET(req: NextRequest) {
       eur(o.feesCents),
       eur(o.totalCents),
       o.couponCode,
+      o.promotionName ?? null,
+      o.loyaltyDiscountCents ? eur(o.loyaltyDiscountCents) : null,
     ]),
   ];
   const slug = new URL(req.url).pathname.split("/")[3];

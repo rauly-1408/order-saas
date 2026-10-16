@@ -25,7 +25,8 @@ Panel admin: ✅ Login + sesión por tenant; barra lateral (Inicio, Pedidos, Inf
              Carta, Costes, Personalización, Configuración); kanban de pedidos con sonido; usable en móvil
 Informes: ✅ Ventas vs periodo anterior, lo más vendido, horas punta, canal, cupones y CSV para Excel
 Pagos: ❌ Pendiente Sprint 2 (Stripe Connect) — hoy solo pago en el local
-CRM / retención: ✅ Fase 1 (clientes, segmentos, cupones, campañas WhatsApp manuales, atribución) — IA y Business API en fase 2
+CRM / retención: ✅ Clientes, segmentos, cupones, campañas WhatsApp manuales con texto IA, atribución,
+             promociones automáticas y tarjeta de fidelidad — Business API pendiente
 Base de datos: ✅ Migraciones Prisma con baseline (0_init); nunca `db push` contra Neon
 ```
 
@@ -183,6 +184,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-16 | Panel instalable (PWA) y aviso de pedidos global | Los navegadores bloquean el sonido hasta tocar la página; instalada como app puede sonar siempre. El aviso ("cha-ching" sintetizado, suena una vez por pedido nuevo) funciona en cualquier pestaña del panel |
 | 2026-10-16 | Horario, cierres, pausa, tiempo extra y zonas de reparto por código postal (ver HORARIOS-Y-ZONAS.md) | Paridad con Last.app en lo imprescindible para abrir la tienda al público; el local (`Store`) es la única referencia operativa y el servidor valida todo |
 | 2026-10-16 | Informes de ventas en el producto base (sin módulo de pago) y solo para gerentes (ver INFORMES.md) | Es lo mínimo que espera cualquier restaurante (Last.app lo tiene); se calcula al vuelo desde `Order` en la hora del restaurante, sin tablas nuevas ni migración |
+| 2026-10-16 | Promociones automáticas sin código y tarjeta de fidelidad por teléfono (ver PROMOCIONES-Y-FIDELIZACION.md) | Paridad con Last.app en promociones; el premio por sellos es la palanca de recurrencia más simple. No se acumulan con cupones: gana el mayor ahorro |
 
 ---
 

@@ -458,24 +458,23 @@ function Channels({ report }: { report: Report }) {
 
 // ── Cupones ─────────────────────────────────────────────────────────────
 function Coupons({ report }: { report: Report }) {
-  const withCoupon = report.coupons.reduce((a, c) => a + c.uses, 0);
   return (
     <Card
-      title="Cupones"
+      title="Cupones y promociones"
       aside={
         report.totals.orders > 0 && (
-          <span className="text-xs text-[var(--p-muted)] tabular-nums">{Math.round((withCoupon / report.totals.orders) * 100)}% de los pedidos</span>
+          <span className="text-xs text-[var(--p-muted)] tabular-nums">{Math.round(((report.ordersWithDiscount ?? 0) / report.totals.orders) * 100)}% de los pedidos con descuento</span>
         )
       }
     >
       {report.coupons.length === 0 ? (
-        <p className="py-6 text-center text-sm text-[var(--p-muted)]">No se ha usado ningún cupón en este periodo</p>
+        <p className="py-6 text-center text-sm text-[var(--p-muted)]">No se ha usado ningún cupón ni promoción en este periodo</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[280px] text-sm">
             <thead>
               <tr className="text-left text-xs text-[var(--p-muted)]">
-                <th className="pb-2 font-normal">Código</th>
+                <th className="pb-2 font-normal">Descuento</th>
                 <th className="pb-2 text-right font-normal">Usos</th>
                 <th className="pb-2 text-right font-normal">Descontado</th>
               </tr>
@@ -483,7 +482,7 @@ function Coupons({ report }: { report: Report }) {
             <tbody>
               {report.coupons.map((c) => (
                 <tr key={c.code} className="border-t border-[var(--p-line)]">
-                  <td className="py-2 font-mono text-[13px]">{c.code}</td>
+                  <td className={`py-2 ${/^[A-Z0-9_-]+$/.test(c.code) ? "font-mono text-[13px]" : ""}`}>{c.code}</td>
                   <td className="py-2 text-right tabular-nums">{c.uses}</td>
                   <td className="py-2 text-right tabular-nums">{eur(c.discountCents)}</td>
                 </tr>

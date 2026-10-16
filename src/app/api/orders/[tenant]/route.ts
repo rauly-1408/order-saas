@@ -6,6 +6,8 @@ import { selectionToModifiers, validateSelection, type MenuModifierGroup } from 
 import { applyStockDeltas, orderConsumption, type ConsumptionItem } from "@/app/lib/inventory";
 import { getStoreOps } from "@/app/lib/storeOps";
 import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
+import { customerPerkState, loadPerks } from "@/app/lib/perks";
+import { bestPromotion, rewardDiscount, type CartLine } from "@/app/lib/promotions";
 import { computeSegment, couponDiscount, couponProblem, normalizeCode, normalizePhone, withinAttribution, ATTRIBUTION_DAYS } from "@/app/lib/retention";
 
 export const runtime = "nodejs";
@@ -114,6 +116,7 @@ export async function POST(req: NextRequest) {
         id: true,
         name: true,
         basePriceCents: true,
+        categoryId: true,
         modifierGroups: {
           orderBy: { sortOrder: "asc" },
           select: {
@@ -177,6 +180,7 @@ export async function POST(req: NextRequest) {
 
     // Precio de cada línea = precio base + suplementos de las opciones elegidas.
     const linesCreate: Prisma.OrderLineCreateWithoutOrderInput[] = [];
+    const cartLines: CartLine[] = [];
     const consumption: ConsumptionItem[] = [];
     for (const item of items) {
       const product = productById.get(item.productId)!;
@@ -202,6 +206,7 @@ export async function POST(req: NextRequest) {
 
       const modifiers = selectionToModifiers(groups, selection);
       const unitCents = product.basePriceCents + modifiers.reduce((acc, m) => acc + m.priceDeltaCents, 0);
+      cartLines.push({ key: String(cartLines.length), categoryId: product.categoryId, unitBaseCents: product.basePriceCents, quantity: item.quantity });
       consumption.push({ productId: product.id, quantity: item.quantity, optionIds: Object.values(selection).flat() });
       linesCreate.push({
         productId: product.id,
@@ -221,10 +226,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `El pedido mínimo a domicilio es de ${eur}` }, { status: 400 });
     }
 
-    // Cupón (motor de retención): solo si el restaurante lo tiene contratado.
+    // Descuentos (motor de retención): 1) premio de la tarjeta de fidelidad,
+    // 2) la mejor promoción automática O el cupón — no se acumulan, gana el que más ahorra.
+    const perks = await loadPerks(tenant.id, tenant.settings, tenant.addons);
+    const state = await customerPerkState(prisma, tenant.id, customerPhone, perks.loyalty);
+    let loyaltyDiscountCents = 0;
+    if (perks.loyalty && state.loyalty?.rewardAvailable) {
+      loyaltyDiscountCents = rewardDiscount(perks.loyalty, cartLines).discountCents;
+    }
+    const afterLoyalty = subtotalCents - loyaltyDiscountCents;
+    const promo = bestPromotion(perks.promotions, { subtotalCents: afterLoyalty, feesCents, channel, firstOrder: state.firstOrder });
+
     const code = couponCode ? normalizeCode(couponCode) : "";
     let coupon: { id: string; oncePerCustomer: boolean; maxRedemptions: number | null } | null = null;
-    let discountCents = 0;
+    let couponDiscountCents = 0;
     if (code) {
       const found = tenant.addons.includes("RETENTION")
         ? await prisma.coupon.findUnique({ where: { tenantId_code: { tenantId: tenant.id, code } } })
@@ -233,8 +248,16 @@ export async function POST(req: NextRequest) {
       const problem = couponProblem(found, subtotalCents);
       if (problem) return NextResponse.json({ error: problem }, { status: 400 });
       coupon = { id: found.id, oncePerCustomer: found.oncePerCustomer, maxRedemptions: found.maxRedemptions };
-      discountCents = couponDiscount(found, subtotalCents);
+      couponDiscountCents = couponDiscount(found, afterLoyalty);
     }
+    // Si la promoción ahorra más que el cupón, el cupón no se gasta.
+    const usePromo = promo && promo.discountCents > couponDiscountCents;
+    if (usePromo) {
+      coupon = null;
+      couponDiscountCents = 0;
+    }
+    const promotionDiscountCents = usePromo ? promo.discountCents : 0;
+    const discountCents = Math.min(loyaltyDiscountCents + promotionDiscountCents + couponDiscountCents, subtotalCents + feesCents);
     const totalCents = subtotalCents + feesCents - discountCents;
     const settings = tenant.settings as Record<string, unknown>;
     const currency = (settings?.currency as string) ?? "EUR";
@@ -260,6 +283,9 @@ export async function POST(req: NextRequest) {
           discountCents,
           totalCents,
           coupon,
+          promotionId: usePromo ? promo.promotion.id : null,
+          promotionDiscountCents,
+          loyaltyDiscountCents,
           retention: tenant.addons.includes("RETENTION"),
           lines: linesCreate,
           // Inventario (módulo Costes): solo si el restaurante lo tiene contratado
@@ -311,6 +337,9 @@ type CreateOrderInput = {
   discountCents: number;
   totalCents: number;
   coupon: { id: string; oncePerCustomer: boolean; maxRedemptions: number | null } | null;
+  promotionId: string | null;
+  promotionDiscountCents: number;
+  loyaltyDiscountCents: number;
   retention: boolean;
   lines: Prisma.OrderLineCreateWithoutOrderInput[];
   consumption: ConsumptionItem[];
@@ -411,6 +440,10 @@ async function createOrderWithNumber(input: CreateOrderInput) {
         discountCents: input.discountCents,
         totalCents: input.totalCents,
         couponId: input.coupon?.id ?? null,
+        promotionId: input.promotionId,
+        promotionDiscountCents: input.promotionDiscountCents,
+        loyaltyReward: input.loyaltyDiscountCents > 0,
+        loyaltyDiscountCents: input.loyaltyDiscountCents,
         items: { create: input.lines },
       },
       include: { items: true },
@@ -469,7 +502,7 @@ export async function GET(req: NextRequest) {
         tenantId: tenant.id,
         status: { in: ["CREATED", "ACCEPTED", "PREPARING", "READY", "DELIVERING"] },
       },
-      include: { items: true, coupon: { select: { code: true } } },
+      include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } } },
       orderBy: { createdAt: "asc" },
     });
 
@@ -481,7 +514,7 @@ export async function GET(req: NextRequest) {
         status: { in: ["DELIVERED", "CANCELLED"] },
         updatedAt: { gte: since },
       },
-      include: { items: true, coupon: { select: { code: true } } },
+      include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } } },
       orderBy: { updatedAt: "desc" },
       take: 50,
     });

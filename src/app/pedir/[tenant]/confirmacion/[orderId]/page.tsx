@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { prisma } from "@/app/lib/prisma";
+import { discountLines } from "@/app/lib/promotions";
 import { getTenantTheme, themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 
 const euros = (cents: number) =>
@@ -22,7 +23,7 @@ export default async function ConfirmacionPage({
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true, store: true, coupon: { select: { code: true } } },
+    include: { items: true, store: true, coupon: { select: { code: true } }, promotion: { select: { name: true } } },
   });
 
   if (!order) {
@@ -136,12 +137,12 @@ export default async function ConfirmacionPage({
               <span>Subtotal</span>
               <span>{euros(subtotalCents)}</span>
             </div>
-            {order.discountCents > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 600, color: cssVars["--brand-secondary"] }}>
-                <span>Cupón {order.coupon?.code ?? ""}</span>
-                <span>−{euros(order.discountCents)}</span>
+            {discountLines(order).map((d) => (
+              <div key={d.label} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 600, color: cssVars["--brand-secondary"] }}>
+                <span>{d.label}</span>
+                <span>−{euros(d.cents)}</span>
               </div>
-            )}
+            ))}
             {isDelivery && (
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: cssVars["--text-secondary"] }}>
                 <span>Envio</span>

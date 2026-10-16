@@ -16,5 +16,17 @@ export default async function CheckoutPage({
   // El campo de cupón solo aparece si el restaurante tiene el motor de retención.
   const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { addons: true } });
   const couponsEnabled = t?.addons.includes("RETENTION") ?? false;
-  return <CheckoutClient tenant={tenant} theme={menu.theme} settings={menu.settings} store={menu.store} couponsEnabled={couponsEnabled} />;
+  // Categoría y precio base de cada producto: para calcular el premio de la tarjeta.
+  const productInfo = Object.fromEntries(menu.categories.flatMap((c) => c.products.map((p) => [p.id, { categoryId: c.id, basePriceCents: p.basePriceCents }])));
+  return (
+    <CheckoutClient
+      tenant={tenant}
+      theme={menu.theme}
+      settings={menu.settings}
+      store={menu.store}
+      couponsEnabled={couponsEnabled}
+      perks={menu.perks}
+      productInfo={productInfo}
+    />
+  );
 }

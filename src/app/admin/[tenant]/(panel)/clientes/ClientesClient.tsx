@@ -6,11 +6,15 @@ import { readPanelCache, writePanelCache } from "../panelCache";
 import Clientes from "./Clientes";
 import Campanas from "./Campanas";
 import Cupones from "./Cupones";
+import Promociones from "./Promociones";
+import Fidelizacion from "./Fidelizacion";
 
 const TABS = [
   { key: "clientes", label: "Clientes" },
   { key: "campanas", label: "Campañas" },
   { key: "cupones", label: "Cupones" },
+  { key: "promociones", label: "Promociones" },
+  { key: "fidelizacion", label: "Fidelización" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -46,7 +50,11 @@ export default function ClientesClient({ tenant }: { tenant: string }) {
         {TABS.map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={(e) => {
+              setTab(t.key);
+              // En móvil la barra se desplaza: que la pestaña elegida quede a la vista.
+              e.currentTarget.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
+            }}
             className={`p-press shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-300 ${
               tab === t.key ? "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"
             }`}
@@ -63,8 +71,12 @@ export default function ClientesClient({ tenant }: { tenant: string }) {
         <Clientes data={data} api={api} onSaved={reload} onNewCampaign={() => setTab("campanas")} />
       ) : tab === "campanas" ? (
         <Campanas data={data} api={api} onSaved={reload} onGoToCoupons={() => setTab("cupones")} />
-      ) : (
+      ) : tab === "cupones" ? (
         <Cupones data={data} api={api} onSaved={reload} />
+      ) : tab === "promociones" ? (
+        <Promociones data={data} api={api} onSaved={reload} />
+      ) : (
+        <Fidelizacion data={data} api={api} onSaved={reload} />
       )}
     </div>
   );
