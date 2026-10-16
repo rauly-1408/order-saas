@@ -14,6 +14,7 @@ export type BusinessInfo = {
   email: string | null;
   whatsapp: string | null;
   registry: string | null; // datos del Registro Mercantil (si es sociedad)
+  mapsLink: string | null; // enlace a la ficha del local en Google Maps
 };
 
 export const BUSINESS_FIELDS: { key: keyof BusinessInfo; label: string; placeholder: string; required: boolean; full?: boolean; hint?: string }[] = [
@@ -27,9 +28,17 @@ export const BUSINESS_FIELDS: { key: keyof BusinessInfo; label: string; placehol
   { key: "email", label: "Email de contacto", placeholder: "hola@estafeten.com", required: true },
   { key: "whatsapp", label: "WhatsApp (opcional)", placeholder: "600 000 000", required: false },
   { key: "registry", label: "Registro Mercantil (si eres sociedad)", placeholder: "Registro Mercantil de Granada, Tomo X, Folio Y, Hoja GR-Z", required: false, full: true },
+  {
+    key: "mapsLink",
+    label: "Enlace de tu ficha en Google Maps (opcional)",
+    placeholder: "https://maps.app.goo.gl/…",
+    required: false,
+    full: true,
+    hint: "En Google Maps busca tu local → Compartir → Copiar enlace. Si lo dejas vacío, el pie busca tu nombre y dirección.",
+  },
 ];
 
-const EMPTY: BusinessInfo = { legalName: null, taxId: null, street: null, postalCode: null, city: null, province: null, phone: null, email: null, whatsapp: null, registry: null };
+const EMPTY: BusinessInfo = { legalName: null, taxId: null, street: null, postalCode: null, city: null, province: null, phone: null, email: null, whatsapp: null, registry: null, mapsLink: null };
 
 const text = (v: unknown, max = 160) => (typeof v === "string" && v.trim() ? v.trim().replace(/\s+/g, " ").slice(0, max) : null);
 
@@ -39,7 +48,8 @@ export function readBusiness(settings: unknown): BusinessInfo {
   const s = (settings ?? {}) as Record<string, unknown>;
   const b = (s.business ?? {}) as Record<string, unknown>;
   const out = { ...EMPTY };
-  for (const f of BUSINESS_FIELDS) out[f.key] = text(b[f.key], f.key === "registry" ? 240 : 160);
+  for (const f of BUSINESS_FIELDS) out[f.key] = text(b[f.key], f.key === "registry" || f.key === "mapsLink" ? 300 : 160);
+  out.mapsLink = safeMapsLink(out.mapsLink);
   if (!s.business) {
     out.phone = text(s.phone);
     out.whatsapp = text(s.whatsapp);
@@ -61,7 +71,12 @@ export function normalizeTaxId(v: string): string {
 export function parseBusiness(body: unknown): BusinessInfo | string {
   const b = (body ?? {}) as Record<string, unknown>;
   const out = { ...EMPTY };
-  for (const f of BUSINESS_FIELDS) out[f.key] = text(b[f.key], f.key === "registry" ? 240 : 160);
+  for (const f of BUSINESS_FIELDS) out[f.key] = text(b[f.key], f.key === "registry" || f.key === "mapsLink" ? 300 : 160);
+  if (out.mapsLink) {
+    const link = safeMapsLink(out.mapsLink);
+    if (!link) return "El enlace de Google Maps no es válido: cópialo desde Google Maps → Compartir";
+    out.mapsLink = link;
+  }
   if (out.taxId) {
     out.taxId = normalizeTaxId(out.taxId);
     if (!TAX_ID.test(out.taxId)) return "El NIF / CIF no tiene un formato válido (p. ej. B12345678 o 12345678Z)";
@@ -84,9 +99,30 @@ export function fullAddress(b: BusinessInfo): string | null {
   return parts.length ? parts.join(", ") : null;
 }
 
-export function mapsUrl(b: BusinessInfo): string | null {
+// Solo enlaces https de Google Maps (ficha del local o enlace corto de "Compartir").
+const MAPS_HOSTS = ["google.com", "google.es", "maps.google.com", "maps.app.goo.gl", "goo.gl", "g.page"];
+export function safeMapsLink(v: string | null): string | null {
+  if (!v) return null;
+  try {
+    const u = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
+    const host = u.hostname.replace(/^www\./, "");
+    const ok = MAPS_HOSTS.some((h) => host === h || host.endsWith(`.${h}`)) && (host !== "google.com" && host !== "google.es" ? true : u.pathname.startsWith("/maps"));
+    if (!ok || (host === "goo.gl" && !u.pathname.startsWith("/maps"))) return null;
+    u.protocol = "https:";
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+// Enlace del pie: la ficha del local si se ha pegado; si no, una búsqueda con el
+// nombre del negocio y la dirección (así Google Maps abre el local, no solo la calle).
+export function mapsUrl(b: BusinessInfo, brandName?: string): string | null {
+  if (b.mapsLink) return b.mapsLink;
   const a = fullAddress(b);
-  return a ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a)}` : null;
+  if (!a) return null;
+  const q = brandName ? `${brandName}, ${a}` : a;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
 export const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
