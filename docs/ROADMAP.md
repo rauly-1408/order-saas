@@ -21,8 +21,9 @@ Producción: ✅ https://order-saas-delta.vercel.app (Vercel) + Neon PostgreSQL
 Menú online: ✅ Carta real 2026 (50 productos) en cuadrícula, tema por tenant,
              selector de pan (recomendado preseleccionado), guarnición y extras
 Checkout: ✅ Teléfono validado, consentimiento de marketing, precios calculados en servidor
-Panel admin: ✅ Login + sesión por tenant; barra lateral (Inicio, Pedidos, Carta,
-             Personalización, Configuración); kanban de pedidos con sonido; usable en móvil
+Panel admin: ✅ Login + sesión por tenant; barra lateral (Inicio, Pedidos, Informes, Clientes,
+             Carta, Costes, Personalización, Configuración); kanban de pedidos con sonido; usable en móvil
+Informes: ✅ Ventas vs periodo anterior, lo más vendido, horas punta, canal, cupones y CSV para Excel
 Pagos: ❌ Pendiente Sprint 2 (Stripe Connect) — hoy solo pago en el local
 CRM / retención: ✅ Fase 1 (clientes, segmentos, cupones, campañas WhatsApp manuales, atribución) — IA y Business API en fase 2
 Base de datos: ✅ Migraciones Prisma con baseline (0_init); nunca `db push` contra Neon
@@ -104,6 +105,7 @@ Entregables:
 - [~] Editor de menú en una sola pantalla (toggle disponibilidad, editar precio) — pantalla Carta del panel hecha en mayo; falta validar E2E y edición de opciones (pan/guarnición)
 - [ ] Toggle "86" — marcar producto agotado en 1 tap
 - [ ] Rediseño completo del menú del cliente (fotos, layout mobile-first)
+- [x] Informes de ventas (2026-10-16): cifras vs periodo anterior, ventas por día, productos y categorías, horas punta, domicilio/recogida, cupones y exportación a Excel — ver [INFORMES.md](./INFORMES.md)
 - [ ] Dashboard con alertas inteligentes ("hoy vas 30% por debajo del martes pasado")
 - [ ] Onboarding guiado de 5 pasos (nuevo tenant en < 15 min)
 
@@ -180,6 +182,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-16 | Funciones de Vercel en Frankfurt (`fra1`, `vercel.json`) | La base de datos (Neon) está en eu-central-1 y las funciones corrían en Washington (iad1): cada consulta cruzaba el Atlántico |
 | 2026-10-16 | Panel instalable (PWA) y aviso de pedidos global | Los navegadores bloquean el sonido hasta tocar la página; instalada como app puede sonar siempre. El aviso ("cha-ching" sintetizado, suena una vez por pedido nuevo) funciona en cualquier pestaña del panel |
 | 2026-10-16 | Horario, cierres, pausa, tiempo extra y zonas de reparto por código postal (ver HORARIOS-Y-ZONAS.md) | Paridad con Last.app en lo imprescindible para abrir la tienda al público; el local (`Store`) es la única referencia operativa y el servidor valida todo |
+| 2026-10-16 | Informes de ventas en el producto base (sin módulo de pago) y solo para gerentes (ver INFORMES.md) | Es lo mínimo que espera cualquier restaurante (Last.app lo tiene); se calcula al vuelo desde `Order` en la hora del restaurante, sin tablas nuevas ni migración |
 
 ---
 

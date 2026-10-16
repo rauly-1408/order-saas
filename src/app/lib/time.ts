@@ -50,3 +50,35 @@ export function wallClockIn(timeZone: string, now: Date = new Date()): { isoWeek
   const isoWeekday = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(parts.weekday) + 1;
   return { isoWeekday, minutes: +parts.hour * 60 + +parts.minute };
 }
+
+// Inicio (UTC) del día local "AAAA-MM-DD" en `timeZone`.
+export function startOfDayIn(timeZone: string, ymd: string): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return startOfTodayIn(timeZone, new Date(Date.UTC(y, m - 1, d, 12)));
+}
+
+// Fecha local "AAAA-MM-DD", día ISO (1 = lunes) y hora (0-23) de un instante, en `timeZone`.
+export function localParts(date: Date, timeZone: string): { ymd: string; isoWeekday: number; hour: number } {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", weekday: "short", hour: "2-digit", hourCycle: "h23" })
+      .formatToParts(date)
+      .map((x) => [x.type, x.value])
+  );
+  return {
+    ymd: `${p.year}-${p.month}-${p.day}`,
+    isoWeekday: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(p.weekday) + 1,
+    hour: Number(p.hour) % 24,
+  };
+}
+
+// Suma `days` a una fecha "AAAA-MM-DD" (calendario puro, sin zona horaria).
+export function addDays(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+export function daysBetween(fromYmd: string, toYmd: string): number {
+  const a = Date.UTC(...(fromYmd.split("-").map(Number).map((v, i) => (i === 1 ? v - 1 : v)) as [number, number, number]));
+  const b = Date.UTC(...(toYmd.split("-").map(Number).map((v, i) => (i === 1 ? v - 1 : v)) as [number, number, number]));
+  return Math.round((b - a) / 86_400_000);
+}
