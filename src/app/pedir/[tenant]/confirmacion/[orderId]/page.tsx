@@ -2,6 +2,8 @@ import { headers } from "next/headers";
 import { prisma } from "@/app/lib/prisma";
 import { discountLines } from "@/app/lib/promotions";
 import { getTenantTheme, themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
+import { parseOnline } from "@/app/lib/brand";
+import OrderTracker from "./OrderTracker";
 
 const euros = (cents: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -15,7 +17,7 @@ export default async function ConfirmacionPage({
 
   const tenantData = await prisma.tenant.findUnique({
     where: { slug: tenant },
-    select: { name: true, branding: true, settings: true },
+    select: { id: true, name: true, branding: true, settings: true },
   });
 
   const theme = getTenantTheme((tenantData?.branding as Record<string, unknown>) ?? {});
@@ -23,10 +25,11 @@ export default async function ConfirmacionPage({
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true, store: true, coupon: { select: { code: true } }, promotion: { select: { name: true } } },
+    include: { items: true, store: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, review: { select: { rating: true, comment: true } } },
   });
 
-  if (!order) {
+  // El pedido tiene que ser de este restaurante.
+  if (!order || order.tenantId !== tenantData?.id) {
     return (
       <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px", padding: "24px", color: cssVars["--text-primary"] }}>
         <div style={{ fontSize: "48px" }}>?</div>
@@ -39,19 +42,6 @@ export default async function ConfirmacionPage({
   }
 
   const isDelivery = order.channel === "DELIVERY";
-  const statusMap: Record<string, string> = {
-    PENDING: "Pendiente",
-    CREATED: "Recibido",
-    PAID: "Pagado",
-    SENT_TO_POS: "Enviado",
-    ACCEPTED: "Confirmado",
-    PREPARING: "En cocina",
-    READY: "Listo",
-    DELIVERING: "En camino",
-    DELIVERED: "Entregado",
-    CANCELLED: "Cancelado",
-  };
-  const statusLabel = statusMap[order.status] ?? order.status;
   // Importes tal como se guardaron en el pedido (incluyen suplementos y cupón).
   const subtotalCents = order.subtotalCents;
   const deliveryFee = order.feesCents;
@@ -59,7 +49,7 @@ export default async function ConfirmacionPage({
   const tenantDisplayName = tenantData?.name ?? order.store?.name ?? tenant;
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], fontFamily: cssVars["--font-body"] }}>
+    <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], fontFamily: cssVars["--font-body"], ...(cssVars as React.CSSProperties) }}>
 
       <header style={{ backgroundColor: cssVars["--surface-0"], borderBottom: "1px solid " + cssVars["--border"], height: "56px", display: "flex", alignItems: "center", padding: "0 20px" }}>
         <span style={{ fontWeight: 600, fontSize: "16px" }}>{tenantDisplayName}</span>
@@ -82,10 +72,15 @@ export default async function ConfirmacionPage({
           </p>
         </div>
 
-        <div style={{ backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)", borderRadius: "18px", padding: "20px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: "14px", color: cssVars["--text-secondary"], fontWeight: 600 }}>Estado del pedido</span>
-          <span style={{ fontSize: "15px", fontWeight: 700, color: cssVars["--brand-accent"] }}>{statusLabel}</span>
-        </div>
+        {/* Seguimiento en vivo, aviso en el móvil y valoración al entregarlo */}
+        <OrderTracker
+          orderId={order.id}
+          channel={order.channel}
+          initialStatus={order.status}
+          estimatedReadyAt={order.estimatedReadyAt?.toISOString() ?? null}
+          initialReview={order.review}
+          googleReviewUrl={parseOnline((tenantData?.branding as Record<string, unknown> | null)?.online).reviewsUrl}
+        />
 
         <div style={{ backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)", borderRadius: "18px", padding: "20px", marginBottom: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
           <div style={{ fontSize: "13px", fontWeight: 500, color: cssVars["--text-secondary"], marginBottom: "4px" }}>
