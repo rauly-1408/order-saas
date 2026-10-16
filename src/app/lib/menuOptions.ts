@@ -32,6 +32,7 @@ export type OrderLineModifier = {
 export function formatModifier(m: Pick<OrderLineModifier, "groupCode" | "option">): string {
   if (m.groupCode === "BREAD") return `Pan ${m.option.charAt(0).toLowerCase()}${m.option.slice(1)}`;
   if (m.groupCode === "SIDE") return m.option;
+  if (m.groupCode === "COMBO") return m.option; // plato elegido dentro de un combo
   return `+ ${m.option}`;
 }
 

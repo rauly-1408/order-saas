@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { OrderLineModifier } from "@/app/lib/menuOptions";
+import { comboChoicesKey, type ComboChoice } from "@/app/lib/combos";
 
 export type CartItem = {
   id: string; // ✅ clave única por línea (producto + opciones)
@@ -10,6 +11,7 @@ export type CartItem = {
   quantity: number;
   optionIds: string[]; // lo que se envía a la API
   modifiers: OrderLineModifier[]; // solo para mostrar (pan, guarnición, extras)
+  comboChoices?: ComboChoice[]; // combos: lo elegido en cada paso (se envía a la API)
 };
 
 type AddItemInput = Omit<CartItem, "id" | "quantity">;
@@ -25,8 +27,8 @@ type CartState = {
 };
 
 // Key estable por producto + opciones: el mismo mollete con otro pan es otra línea.
-const makeLineId = (productId: string, optionIds: string[]) =>
-  `${productId}::${[...optionIds].sort().join(",")}`;
+const makeLineId = (productId: string, optionIds: string[], comboChoices?: ComboChoice[]) =>
+  `${productId}::${[...optionIds].sort().join(",")}${comboChoices?.length ? `::${comboChoicesKey(comboChoices)}` : ""}`;
 
 export const useCart = create<CartState>()(
   persist(
@@ -35,7 +37,7 @@ export const useCart = create<CartState>()(
 
       addItem: (item) =>
         set((state) => {
-          const id = makeLineId(item.productId, item.optionIds);
+          const id = makeLineId(item.productId, item.optionIds, item.comboChoices);
 
           const existingIndex = state.items.findIndex((i) => i.id === id);
 
@@ -58,6 +60,7 @@ export const useCart = create<CartState>()(
                 unitPriceCents: item.unitPriceCents,
                 optionIds: item.optionIds,
                 modifiers: item.modifiers,
+                ...(item.comboChoices && { comboChoices: item.comboChoices }),
                 quantity: 1,
               },
             ],
