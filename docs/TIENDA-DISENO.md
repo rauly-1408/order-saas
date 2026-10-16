@@ -12,7 +12,7 @@
    - foto con zoom lento y velo oscuro a la izquierda para que se lea;
    - titular grande en la fuente de rótulo;
    - botones «Ver la carta» y «A domicilio».
-4. **Categorías** fijas bajo la cabecera, alineadas con el contenido. La categoría activa se centra sola.
+4. **Categorías** fijas bajo la cabecera, alineadas con el contenido. La categoría activa se centra sola. En ordenador, al pasar el ratón por una categoría, esta se tiñe con el color de la marca.
 5. **A domicilio** (si hay plataformas): bloque «Escoge quién te lo lleva».
 6. **Promociones**: fila deslizante con la tarjeta de sellos y tarjetas de color, con el número grande («−15 %», «Envío gratis»), formas decorativas y un brillo al pasar el ratón. Alternan el color principal y el secundario.
 7. **Menús (combos)**: tarjeta ancha con degradado del color principal, los pasos numerados («① Mollete + ② Bebida + ③ Postre»), «Todo por 12,50 €» y «Montar mi menú →».
