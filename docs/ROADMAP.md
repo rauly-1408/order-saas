@@ -177,6 +177,8 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-14 | Producción = proyecto Vercel `order-saas` (order-saas-delta.vercel.app) | Los proyectos `order-saas-d4a4` y `order-saas-tu7k` son duplicados rotos a eliminar |
 | 2026-10-14 | Rediseño "Apple × marca del restaurante" en panel y carta pública | El panel era casi idéntico al de Last.app. Ahora: tipografía de sistema, movimiento suave, tarjetas que se elevan y la identidad de cada tenant (`branding.panel` en el panel; `headingFont`/`headingCase` y texto sobre acento calculado por contraste en la carta) |
 | 2026-10-16 | Retención fase 1 con envío manual asistido por WhatsApp (`wa.me`) | Funciona hoy sin cuenta de Business API ni coste por mensaje; el envío automático llega en fase 2 sobre el mismo modelo de datos |
+| 2026-10-16 | Funciones de Vercel en Frankfurt (`fra1`, `vercel.json`) | La base de datos (Neon) está en eu-central-1 y las funciones corrían en Washington (iad1): cada consulta cruzaba el Atlántico |
+| 2026-10-16 | Panel instalable (PWA) y aviso de pedidos global | Los navegadores bloquean el sonido hasta tocar la página; instalada como app puede sonar siempre. El aviso ("cha-ching" sintetizado, suena una vez por pedido nuevo) funciona en cualquier pestaña del panel |
 
 ---
 

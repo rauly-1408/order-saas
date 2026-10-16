@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Overview } from "./types";
+import { readPanelCache, writePanelCache } from "../panelCache";
 import Clientes from "./Clientes";
 import Campanas from "./Campanas";
 import Cupones from "./Cupones";
@@ -15,7 +16,7 @@ type TabKey = (typeof TABS)[number]["key"];
 
 export default function ClientesClient({ tenant }: { tenant: string }) {
   const [tab, setTab] = useState<TabKey>("clientes");
-  const [data, setData] = useState<Overview | null>(null);
+  const [data, setData] = useState<Overview | null>(() => readPanelCache<Overview>(`clientes:${tenant}`) ?? null);
   const [error, setError] = useState("");
   const api = `/api/admin/${tenant}/retention`;
 
@@ -25,11 +26,12 @@ export default function ClientesClient({ tenant }: { tenant: string }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "No se pudieron cargar los datos");
       setData(json as Overview);
+      writePanelCache(`clientes:${tenant}`, json as Overview);
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudieron cargar los datos");
     }
-  }, [api]);
+  }, [api, tenant]);
 
   useEffect(() => {
     reload();

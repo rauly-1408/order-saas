@@ -6,6 +6,7 @@ import { canManageTenant } from "@/app/lib/roles";
 import { Anton, Inter } from "next/font/google";
 import { panelBrand, panelCssVars } from "@/app/lib/panelTheme";
 import AdminSidebar from "./AdminSidebar";
+import OrderAlerts from "./OrderAlerts";
 
 // Texto: tipografía del sistema de Apple (SF) con Inter como respaldo fuera de
 // Apple. Titulares de marca: condensada en mayúsculas, como la carta impresa.
@@ -19,7 +20,14 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { tenant } = await params;
   const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { name: true } });
-  return { title: { absolute: `Panel · ${t?.name ?? tenant}` } };
+  const name = t?.name ?? tenant;
+  return {
+    title: { absolute: `Panel · ${name}` },
+    // Instalable como app: así puede sonar al entrar un pedido sin tocar antes la pantalla.
+    manifest: `/pwa/${tenant}/manifest.webmanifest`,
+    appleWebApp: { capable: true, title: name, statusBarStyle: "default" },
+    icons: { apple: `/pwa/${tenant}/icon/180` },
+  };
 }
 
 export default async function AdminLayout({
@@ -56,6 +64,7 @@ export default async function AdminLayout({
       <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-20 pb-12 lg:px-10 lg:pt-10">
         <div className="p-page mx-auto max-w-6xl">{children}</div>
       </main>
+      <OrderAlerts tenant={tenant} />
     </div>
   );
 }
