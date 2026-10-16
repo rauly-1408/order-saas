@@ -34,7 +34,7 @@ function groupedHours(hours: WeeklyHours): { days: string; ranges: string }[] {
 
 export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, hours, online, upperHeadings }: Props) {
   const address = fullAddress(b);
-  const maps = mapsUrl(b);
+  const maps = mapsUrl(b, tenantName);
   const socials = online ? SOCIAL_FIELDS.filter((f) => online[f.key]) : [];
   const schedule = hours && DAY_KEYS.some((d) => hours[d].length) ? groupedHours(hours) : null;
   const year = new Date().getFullYear();
