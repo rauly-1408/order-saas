@@ -17,11 +17,12 @@ export default function BrandPreview({ theme, name }: { theme: TenantTheme; name
       <div className="flex h-12 items-center gap-2.5 border-b border-[var(--border)] bg-[var(--header-bg)] px-3">
         {theme.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={theme.logoUrl} alt="" className="h-7 w-auto max-w-[96px] object-contain" />
+          <img src={theme.logoUrl} alt={name} className="h-7 w-auto max-w-[120px] object-contain" />
         ) : (
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--brand-accent)] text-[11px] font-bold text-[var(--on-accent)]">{name.slice(0, 2).toUpperCase()}</span>
         )}
-        <span className="min-w-0 truncate text-sm font-semibold text-[var(--on-header)]">{name || "Tu restaurante"}</span>
+        {!theme.logoUrl && <span className="min-w-0 truncate text-sm font-semibold text-[var(--on-header)]">{name || "Tu restaurante"}</span>}
+        <span className="ml-auto shrink-0 text-[10px] text-[var(--on-header)] opacity-70">Delivery y recogida</span>
       </div>
       <div className="p-3">
         <div

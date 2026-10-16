@@ -311,7 +311,7 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
         ))}
       </nav>
 
-      <div className="mx-auto max-w-4xl">
+      <div className="max-w-4xl">
         <div className="min-w-0 space-y-4">
           {tab === "identidad" ? (
             <>
@@ -327,8 +327,8 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
                   className={input}
                 />
                 <p className="mt-1 text-xs text-[var(--p-muted)]">
-                  Se muestra en tu tienda online, en la pestaña del navegador y
-                  en el panel.
+                  Se usa en la pestaña del navegador, en Google y en el panel. En
+                  la carta solo se escribe si no has subido logotipo.
                 </p>
               </section>
 
