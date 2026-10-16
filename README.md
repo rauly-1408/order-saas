@@ -87,6 +87,8 @@ order-saas/
    ```env
    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/order_saas"
    SESSION_SECRET="cualquier-cadena-larga-de-al-menos-16-caracteres"
+   # Opcional: redacción de campañas con IA (Claude). Sin ella, el botón aparece desactivado.
+   ANTHROPIC_API_KEY="sk-ant-..."
    ```
 3. Levantar PostgreSQL local:
    ```bash
@@ -118,7 +120,7 @@ order-saas/
   - Producción → `prisma migrate deploy` **antes** de fusionar el PR que la necesita (Vercel no ejecuta migraciones).
   - ⛔ Nunca `prisma db push` contra Neon.
   - ⛔ El seed reemplaza la carta: solo contra Neon con `SEED_ALLOW_REMOTE=1` y sabiendo que borra los escandallos.
-- **Secretos:** solo en `.env` local y en Vercel (`DATABASE_URL`, `SESSION_SECRET`; Stripe cuando llegue).
+- **Secretos:** solo en `.env` local y en Vercel (`DATABASE_URL`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`; Stripe cuando llegue).
 
 ---
 

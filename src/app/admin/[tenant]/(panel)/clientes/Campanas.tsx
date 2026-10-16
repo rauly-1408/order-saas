@@ -55,6 +55,11 @@ export default function Campanas({
   const [openId, setOpenId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  // Redacción con IA
+  const [idea, setIdea] = useState("");
+  const [variants, setVariants] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   const activeCoupons = data.coupons.filter((c) => c.active);
   const reachable = (s: Segment) => data.segments.find((x) => x.segment === s)?.reachable ?? 0;
@@ -74,6 +79,7 @@ export default function Campanas({
 
   function pickSegment(segment: Segment) {
     if (!form) return;
+    setVariants([]); // las versiones de IA eran para el grupo anterior
     const next = formFor(segment, data.coupons);
     setForm(form.coupon === "none" ? { ...next, coupon: "none", message: NO_COUPON_TEMPLATES[segment] } : next);
   }
@@ -98,6 +104,26 @@ export default function Campanas({
   })();
 
   const sampleName = data.customers.find((c) => form && c.segment === form.segment && c.marketingConsent)?.name ?? "Lucía";
+
+  async function draftWithAi() {
+    if (!form) return;
+    setAiLoading(true);
+    setAiError("");
+    try {
+      const res = await fetch(`${api}/ai-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ segment: form.segment, coupon: previewCoupon, idea }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "No se pudo redactar el mensaje");
+      setVariants(json.variants as string[]);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "No se pudo redactar el mensaje");
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   async function save() {
     if (!form) return;
@@ -208,6 +234,48 @@ export default function Campanas({
               </p>
             </div>
           )}
+
+          {/* Redactar con IA: 3 versiones a partir del grupo, el cupón y los platos más pedidos */}
+          <div className="mt-4 rounded-2xl bg-[var(--p-brand-soft)] p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                value={idea}
+                onChange={(e) => setIdea(e.target.value)}
+                maxLength={200}
+                placeholder="Idea opcional: «estrenamos tarta de queso con turrón»"
+                className={`${input} min-w-0 flex-1`}
+                disabled={!data.aiEnabled}
+              />
+              <button type="button" onClick={draftWithAi} disabled={!data.aiEnabled || aiLoading} className={`${primaryBtn} shrink-0`}>
+                {aiLoading ? "Redactando…" : variants.length ? "✨ Otras versiones" : "✨ Redactar con IA"}
+              </button>
+            </div>
+            {!data.aiEnabled && <p className="mt-2 text-xs text-[var(--p-muted)]">La redacción con IA se activará en cuanto esté configurada.</p>}
+            {aiError && <p className="mt-2 text-xs text-[var(--p-accent)]">{aiError}</p>}
+            {variants.length > 0 && (
+              <ul className="mt-3 space-y-2">
+                {variants.map((v, i) => {
+                  const chosen = form.message === v;
+                  return (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, message: v })}
+                        className={`p-press w-full rounded-xl px-3 py-2.5 text-left text-sm ${
+                          chosen ? "bg-[var(--p-brand)] text-white" : "bg-[var(--p-surface)] hover:shadow-sm"
+                        }`}
+                      >
+                        <span className={`mb-0.5 block text-[11px] font-semibold ${chosen ? "text-white/80" : "text-[var(--p-muted)]"}`}>
+                          {chosen ? "✓ Usando esta versión" : `Versión ${i + 1} · tócala para usarla`}
+                        </span>
+                        {v}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
 
           <div className="mt-4">
             <label className={label}>Mensaje</label>

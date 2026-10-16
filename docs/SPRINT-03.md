@@ -29,8 +29,8 @@
 
 Código: `src/app/lib/retention.ts` (lógica pura), `src/app/lib/retentionApi.ts` (guard y validación), `src/app/api/admin/[tenant]/retention/*`.
 
-## Fase 2 — pendiente
-- [ ] **IA que redacta el mensaje** según segmento, carta y temporada.
+## Fase 2 — en curso
+- [x] **IA que redacta el mensaje** (2026-10-16): botón "✨ Redactar con IA" en la campaña, con una idea opcional del dueño. Claude Opus 5.5 (esfuerzo `low`, salida JSON) devuelve 3 versiones según el grupo, el cupón y los 5 platos más pedidos de los últimos 60 días. Cada versión se valida en el servidor (lleva `{nombre}` y `{enlace}`, lleva `{cupon}` solo si hay cupón, sin texto de baja propio, ≤ 600 caracteres). Si el modelo declina, reintenta otro modelo (`fallbacks: "default"`). Límite: 30 redacciones al día por restaurante. Requiere `ANTHROPIC_API_KEY`; sin ella, el botón aparece desactivado. Código: `src/app/lib/aiCopy.ts`.
 - [ ] **Envío automático** por WhatsApp Business API (Meta Cloud API o Twilio), con plantillas aprobadas y estado de entrega. Requiere la cuenta.
 - [ ] Baja automática al recibir "BAJA" (webhook de WhatsApp).
 - [ ] Campañas automáticas: cumpleaños, segundo pedido tras X días, recuperación cada mes.
