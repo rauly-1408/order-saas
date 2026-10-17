@@ -23,7 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ord
   const c = await ctx(req, (await params).orderId);
   if ("error" in c) return c.error;
   const courier = await requestCourier(c.order.id);
-  if (!courier) return NextResponse.json({ error: "Este pedido no admite repartidor externo (revisa Configuración → Repartidor externo)" }, { status: 400 });
+  if (!courier) return NextResponse.json({ error: "Este pedido no admite repartidor externo (revisa Configuración → Envío y entrega)" }, { status: 400 });
   return NextResponse.json({ courier: toPublicCourier(courier) });
 }
 

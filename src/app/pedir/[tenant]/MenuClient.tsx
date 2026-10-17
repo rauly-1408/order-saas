@@ -394,7 +394,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
 
       </main>
 
-      {/* Pie con los datos del negocio (Personalización → Datos del negocio) */}
+      {/* Pie con los datos del negocio (Configuración → Información del negocio) */}
       <div className={totalItems > 0 ? "pb-24" : ""}>
         <StoreFooter tenant={tenant} tenantName={tenantName} logoUrl={t.logoUrl} business={business} hours={hours} online={online} upperHeadings={upper} lang={lang} />
       </div>

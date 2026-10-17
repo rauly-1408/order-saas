@@ -6,16 +6,21 @@ import OrderTracker from "./OrderTracker";
 import { customerCourier } from "@/app/lib/couriers";
 import { ui } from "@/app/lib/i18n";
 import { storeLang } from "@/app/lib/storeLang";
+import { redirect } from "next/navigation";
+import ClearCart from "./ClearCart";
 
 const euros = (cents: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
 
 export default async function ConfirmacionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenant: string; orderId: string }>;
+  searchParams: Promise<{ pagado?: string }>;
 }) {
   const { tenant, orderId } = await params;
+  const { pagado } = await searchParams;
 
   const tenantData = await prisma.tenant.findUnique({
     where: { slug: tenant },
@@ -44,6 +49,10 @@ export default async function ConfirmacionPage({
       </div>
     );
   }
+
+  // Pago online todavía sin confirmar: a la página que lo comprueba.
+  if (order.status === "AWAITING_PAYMENT") redirect(`/pedir/${tenant}/pago/${orderId}/vuelta`);
+  const paidOnline = order.paymentStatus === "PAID" && order.paymentMethod !== "IN_STORE";
 
   const isDelivery = order.channel === "DELIVERY";
   // Importes tal como se guardaron en el pedido (incluyen suplementos y cupón).
@@ -75,6 +84,8 @@ export default async function ConfirmacionPage({
             </span>
           </p>
         </div>
+
+        {pagado === "1" && paidOnline && <ClearCart />}
 
         {/* Seguimiento en vivo, aviso en el móvil y valoración al entregarlo */}
         <OrderTracker
@@ -154,6 +165,11 @@ export default async function ConfirmacionPage({
               <span>{T.total}</span>
               <span style={{ color: cssVars["--brand-accent"] }}>{euros(total)}</span>
             </div>
+            {paidOnline && (
+              <div style={{ fontSize: "13px", fontWeight: 600, color: cssVars["--text-secondary"], textAlign: "right" }}>
+                ✓ {order.paymentMethod === "BIZUM" ? T.paidByBizum : T.paidByCard}
+              </div>
+            )}
           </div>
         </div>
 

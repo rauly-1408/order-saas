@@ -1,5 +1,7 @@
 # 🏃 SPRINT 02 — Vendible: permisos + cobro online
 
+> **2026-10-18:** el cobro online se hizo al estilo Shopify (cada restaurante conecta su pasarela: Redsys/Bizum o Stripe) en lugar de Stripe Connect. Ver [PAGOS.md](./PAGOS.md). Las tareas 203-206 de abajo quedan sustituidas.
+
 > **Objetivo**: que un restaurante pueda cobrar pedidos online con tarjeta, con el dinero entrando
 > en SU cuenta (restaurante = *merchant of record*), y que cada usuario del panel vea solo lo que le toca.
 > **Fecha plan**: 2026-10-14 | **Duración**: 2 semanas | **Estado**: 🔄 EN CURSO

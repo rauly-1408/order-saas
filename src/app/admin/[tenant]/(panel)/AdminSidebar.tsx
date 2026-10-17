@@ -79,7 +79,6 @@ function buildNav(tenant: string): NavItem[] {
     { label: "Carta", href: `${base}/carta`, icon: "menu", managerOnly: true },
     { label: "Costes", href: `${base}/costes`, icon: "costs", managerOnly: true },
     { label: "Personalización", href: `${base}/personalizacion`, icon: "brush", managerOnly: true },
-    { label: "Configuración", href: `${base}/configuracion`, icon: "gear", managerOnly: true },
   ];
 }
 
@@ -168,6 +167,21 @@ export default function AdminSidebar({
         </nav>
 
         <div className="space-y-0.5 border-t border-[var(--p-line)] px-3 py-3">
+          {/* Configuración abajo, separada del trabajo diario (como Shopify) */}
+          {canManage && (
+            <Link
+              href={`/admin/${tenant}/configuracion`}
+              onClick={() => setOpen(false)}
+              className={`p-press flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] ${
+                pathname.startsWith(`/admin/${tenant}/configuracion`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
+              }`}
+            >
+              <span className={pathname.startsWith(`/admin/${tenant}/configuracion`) ? "text-white" : "text-[var(--p-muted)]"}>
+                <Icon name="gear" />
+              </span>
+              Configuración
+            </Link>
+          )}
           <InstallApp className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
           <Link href={`/pedir/${tenant}`} target="_blank" className="p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
             <Icon name="external" />

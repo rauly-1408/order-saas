@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 // Textos legales de la tienda (aviso legal, privacidad, cookies y condiciones),
-// generados con Personalización → Datos del negocio.
+// generados con Configuración → Información del negocio.
 export default async function LegalPage({ params }: Params) {
   const { tenant, doc } = await params;
   const meta = LEGAL_DOCS.find((x) => x.slug === doc);

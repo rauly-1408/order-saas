@@ -10,7 +10,7 @@ Operativa de la tienda online, para que no entren pedidos cuando el restaurante 
 | **Cierres programados** (vacaciones, festivos) | Configuración → Cierres programados | Entre las dos fechas no se aceptan pedidos |
 | **Pausar pedidos** 15 min / 30 min / 1 h / hasta reabrir | Pedidos → cabecera (también el encargado) | Pausa inmediata; "Reanudar pedidos" la quita |
 | **Tiempo extra** +10 / +20 / +30 min | Pedidos → cabecera | Se suma al tiempo estimado que ve el cliente |
-| **Zonas de reparto** por código postal, con envío y pedido mínimo propios | Configuración → Zonas de reparto | Con zonas activas, a domicilio se pide el código postal y solo se reparte a esas zonas. Sin zonas, se usa el envío general |
+| **Zonas de reparto** por código postal, con envío y pedido mínimo propios | Configuración → Horario y zonas de reparto | Con zonas activas, a domicilio se pide el código postal y solo se reparte a esas zonas. Sin zonas, se usa el envío general |
 
 El pedido mínimo (general o de la zona) se aplica **solo a domicilio**.
 

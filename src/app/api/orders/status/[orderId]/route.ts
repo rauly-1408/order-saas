@@ -4,6 +4,7 @@ import { prisma } from "@/app/lib/prisma";
 import { returnOrderStock } from "@/app/lib/inventory";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { cancelCourier, courierAccount, requestCourier, toPublicCourier } from "@/app/lib/couriers";
+import { refundOrder } from "@/app/lib/gateways";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,7 +72,10 @@ export async function PATCH(req: NextRequest) {
           courier = await cancelCourier(order.id);
         }
 
-        return NextResponse.json({ orderId: updated.id, status: updated.status, courier: toPublicCourier(courier) });
+        // Pedido pagado online y cancelado: se devuelve el dinero por la pasarela.
+        const refundError = newStatus === "CANCELLED" ? await refundOrder(order.id) : null;
+
+        return NextResponse.json({ orderId: updated.id, status: updated.status, courier: toPublicCourier(courier), refundError });
       } catch (err) {
               console.error("[PATCH /api/orders/status]", err);
               return NextResponse.json({ error: "Error interno" }, { status: 500 });

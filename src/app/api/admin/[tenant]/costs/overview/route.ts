@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
       },
     }),
     prisma.order.findMany({
-      where: { tenantId, status: { not: "CANCELLED" } },
+      where: { tenantId, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } },
       orderBy: { createdAt: "desc" },
       take: RECENT_ORDERS,
       select: {

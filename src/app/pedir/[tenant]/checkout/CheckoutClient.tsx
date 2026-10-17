@@ -44,9 +44,28 @@ type CheckoutClientProps = {
   productInfo?: Record<string, { categoryId: string; basePriceCents: number }>;
   deliveryPartners?: PartnerLink[];
   lang?: Lang;
+  payment?: { card: boolean; bizum: boolean; inStore: boolean; test: boolean };
 };
 
-export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false, perks, productInfo = {}, deliveryPartners = [], lang = "es" }: CheckoutClientProps) {
+type PayMethod = "CARD" | "BIZUM" | "IN_STORE";
+
+// Pago con Redsys: se envía un formulario firmado a la página del banco.
+function submitPaymentForm(action: string, fields: Record<string, string>) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = action;
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
+}
+
+export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false, perks, productInfo = {}, deliveryPartners = [], lang = "es", payment = { card: false, bizum: false, inStore: true, test: false } }: CheckoutClientProps) {
   const T = ui(lang);
   const router = useRouter();
   const { items, subtotalCents, clear, inc, dec } = useCart();
@@ -57,6 +76,8 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   const [postalCode, setPostalCode] = useState("");
   const [notes, setNotes] = useState("");
   const [marketingConsent, setMarketingConsent] = useState(false);
+  // Por defecto, la tarjeta si el restaurante la tiene (como las grandes cadenas).
+  const [payMethod, setPayMethod] = useState<PayMethod>(payment.card ? "CARD" : "IN_STORE");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [couponInput, setCouponInput] = useState("");
@@ -203,6 +224,8 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           marketingConsent,
           couponCode: coupon && !couponBelowMin ? coupon.code : undefined,
           scheduledFor: chosenSlot?.at,
+          paymentMethod: payMethod,
+          lang,
           // Solo qué se pide: el servidor pone nombres y precios desde la carta.
           items: items.map((item) => ({
             productId: item.productId,
@@ -218,6 +241,15 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
         return;
       }
       const data = await res.json();
+      // Pago online: a la pasarela del restaurante. El carrito se vacía al confirmarse el pago.
+      if (data.payment?.kind === "redirect") {
+        window.location.assign(data.payment.url);
+        return;
+      }
+      if (data.payment?.kind === "form") {
+        submitPaymentForm(data.payment.action, data.payment.fields);
+        return;
+      }
       clear();
       router.push(`/pedir/${tenant}/confirmacion/${data.orderId}`);
     } catch {
@@ -534,6 +566,33 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
             </div>
           </div>
 
+          {/* CÓMO PAGAS: solo si hay más de una opción */}
+          {[payment.card, payment.bizum, payment.inStore].filter(Boolean).length > 1 && (
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: 500, color: cssVars["--text-secondary"], marginBottom: "10px" }}>{T.howToPay}</div>
+              <div role="radiogroup" aria-label={T.howToPay} className="grid gap-2 sm:grid-cols-3">
+                {([
+                  payment.card && { key: "CARD" as const, title: `💳 ${T.payCard}`, hint: T.payCardHint },
+                  payment.bizum && { key: "BIZUM" as const, title: `📱 ${T.payBizum}`, hint: "" },
+                  payment.inStore && { key: "IN_STORE" as const, title: `💶 ${channel === "DELIVERY" ? T.payOnDelivery : T.payAtPickup}`, hint: T.payInPerson },
+                ].filter(Boolean) as { key: PayMethod; title: string; hint: string }[]).map((m) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={payMethod === m.key}
+                    onClick={() => setPayMethod(m.key)}
+                    className="p-press rounded-2xl px-4 py-3 text-left"
+                    style={{ border: `2px solid ${payMethod === m.key ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: cssVars["--surface-1"] }}
+                  >
+                    <span className="block text-[15px] font-semibold">{m.title}</span>
+                    {m.hint && <span className="mt-0.5 block text-xs" style={{ color: cssVars["--text-secondary"] }}>{m.hint}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* CONSENTIMIENTO DE MARKETING — opt-in explícito, desmarcado por defecto (RGPD + LSSI) */}
           <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "13px", lineHeight: 1.45, color: cssVars["--text-secondary"], cursor: "pointer" }}>
             <input
@@ -573,7 +632,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
             disabled={loading || blocked || belowMinimum || outOfZone}
             style={{ width: "100%", padding: "16px", borderRadius: "999px", border: "none", backgroundColor: loading || blocked || belowMinimum || outOfZone ? cssVars["--border"] : cssVars["--brand-accent"], color: loading || blocked || belowMinimum || outOfZone ? cssVars["--text-secondary"] : "var(--on-accent)", fontWeight: 600, fontSize: "16px", cursor: loading || blocked || belowMinimum || outOfZone ? "not-allowed" : "pointer", letterSpacing: "0.3px" }}
           >
-            {loading ? T.sending : blocked ? T.notAccepting : chosenSlot ? T.scheduleOrder(euros(total)) : T.confirmOrderTotal(euros(total))}
+            {loading ? (payMethod === "IN_STORE" ? T.sending : T.goingToPay) : blocked ? T.notAccepting : payMethod !== "IN_STORE" ? T.payNow(euros(total)) : chosenSlot ? T.scheduleOrder(euros(total)) : T.confirmOrderTotal(euros(total))}
           </button>
 
         </form>

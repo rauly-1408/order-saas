@@ -54,7 +54,7 @@ export async function requestCourier(orderId: string): Promise<CourierDelivery |
   try {
     const business = readBusiness(order.tenant.settings);
     const pickup = business.street ? await geocodeAddress(business.street, business.city) : null;
-    if (!pickup) throw new CourierError("No encuentro la dirección del local. Revísala en Personalización → Datos del negocio (calle y número).");
+    if (!pickup) throw new CourierError("No encuentro la dirección del local. Revísala en Configuración → Información del negocio (calle y número).");
     const dropoff = order.customerAddress ? await geocodeAddress(order.customerAddress, business.city) : null;
     if (!dropoff) throw new CourierError("No encuentro la dirección del cliente en el mapa. Llámale para confirmarla o pide el repartidor a mano.");
 

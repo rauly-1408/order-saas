@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   const since = new Date(Date.now() - TOP_DISHES_DAYS * 86_400_000);
   const top = await prisma.orderLine.groupBy({
     by: ["productName"],
-    where: { order: { tenantId: ctx.tenant.id, createdAt: { gte: since }, status: { not: "CANCELLED" } } },
+    where: { order: { tenantId: ctx.tenant.id, createdAt: { gte: since }, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } } },
     _sum: { quantity: true },
     orderBy: { _sum: { quantity: "desc" } },
     take: 5,

@@ -60,6 +60,7 @@ enum PriceChangeSource {
 enum PaymentMethod {
   IN_STORE
   CARD
+  BIZUM
 }
 
 // Estado del cobro online. Los pedidos IN_STORE quedan en UNPAID (se cobran en el local).
@@ -72,6 +73,7 @@ enum PaymentStatus {
 }
 
 enum OrderStatus {
+  AWAITING_PAYMENT // pago online sin confirmar: no llega a la cocina ni cuenta en informes
   CREATED
   PAID
   SENT_TO_POS
@@ -148,6 +150,7 @@ model Tenant {
   modifierGroups ModifierGroup[]
   orders         Order[]
   courierAccount CourierAccount?
+  paymentAccount PaymentAccount?
   customers      Customer[]
   coupons        Coupon[]
   campaigns      Campaign[]
@@ -421,6 +424,9 @@ model Order {
   paymentMethod         PaymentMethod @default(IN_STORE)
   paymentStatus         PaymentStatus @default(UNPAID)
   stripePaymentIntentId String?       @unique
+  paymentProvider       String? // TEST | STRIPE | REDSYS (pasarela del restaurante)
+  paymentRef            String? // referencia en la pasarela (sesión de Stripe, Ds_Order de Redsys)
+  paidAt                DateTime?
   applicationFeeCents   Int           @default(0) // comisión de la plataforma cobrada en este pedido
 
   posProvider   String?
@@ -997,4 +1003,24 @@ model CourierDelivery {
 
   @@index([provider, externalId])
   @@index([tenantId])
+}
+
+// ─── Pasarela de pago del restaurante (como Shopify: cada uno conecta la suya)
+// Ver docs/PAGOS.md
+model PaymentAccount {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  provider   String  @default("NONE") // NONE | TEST | STRIPE | REDSYS
+  payInStore Boolean @default(true) // «Pagar al recoger / al recibir»
+  bizum      Boolean @default(false) // solo Redsys
+
+  // Datos no secretos (Redsys: código de comercio, terminal, entorno)
+  config  Json    @default("{}")
+  // Claves cifradas (clave secreta de Stripe o de Redsys, secreto del webhook)
+  secrets String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

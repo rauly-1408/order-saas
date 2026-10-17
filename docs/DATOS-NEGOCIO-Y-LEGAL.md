@@ -2,7 +2,7 @@
 
 ## Datos del negocio
 
-Panel → **Personalización → Datos del negocio**. Son los datos que la LSSI (art. 10) obliga a mostrar en una tienda online, más los de contacto.
+Panel → **Configuración → Información del negocio** (antes en Personalización; Configuración está abajo en la barra lateral, por apartados). Son los datos que la LSSI (art. 10) obliga a mostrar en una tienda online, más los de contacto.
 
 | Campo | ¿Obligatorio? |
 |---|---|
