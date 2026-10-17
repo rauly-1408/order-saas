@@ -102,7 +102,9 @@ const SYSTEM = `Eres traductor de cartas de restaurante de español a inglés pa
 Reglas:
 - Traduce de forma natural y apetecible, como en la carta de un buen restaurante en inglés.
 - Los nombres propios de platos (nombres de barrios, lugares o personas, p. ej. "Genil", "Alhambra", "Sacromonte") NO se traducen.
-- Palabras típicas sin equivalente exacto (mollete, pionono, salmorejo…) se mantienen; si es la primera vez que aparecen en una descripción puedes aclararlas brevemente (p. ej. "mollete (soft Andalusian bread roll)").
+- Palabras típicas sin equivalente exacto (mollete, pionono, salmorejo…) se mantienen tal cual, sin aclaraciones entre paréntesis.
+- "Mollete" nunca se traduce como "sandwich", "roll" ni "bun". Si la carta es de molletes, "bocadillo" también se traduce como "mollete".
+- Usa siempre la misma traducción para el mismo plato, aparezca como producto o como opción (p. ej. "Ración de patatas Tafetén" → "Tafetén fries" en los dos sitios).
 - Mantén cantidades, unidades, marcas y siglas tal cual (12 uds. → 12 pcs.).
 - Respeta mayúsculas y estilo del original (títulos cortos siguen cortos).
 - Devuelve exactamente un elemento por cada id recibido.`;
