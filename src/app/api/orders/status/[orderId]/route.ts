@@ -3,6 +3,7 @@ import type { OrderStatus } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { returnOrderStock } from "@/app/lib/inventory";
 import { getSessionFromRequest } from "@/app/lib/auth";
+import { cancelCourier, courierAccount, requestCourier, toPublicCourier } from "@/app/lib/couriers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,7 +61,17 @@ export async function PATCH(req: NextRequest) {
           return u;
         });
 
-        return NextResponse.json({ orderId: updated.id, status: updated.status });
+        // Repartidor externo: se pide al aceptar un pedido a domicilio (si está
+        // activado) y se cancela si se cancela el pedido.
+        let courier = null;
+        if (order.channel === "DELIVERY" && (newStatus === "PREPARING" || newStatus === "ACCEPTED")) {
+          const account = await courierAccount(order.tenantId);
+          if (account?.impl && account.row.autoRequest) courier = await requestCourier(order.id);
+        } else if (newStatus === "CANCELLED") {
+          courier = await cancelCourier(order.id);
+        }
+
+        return NextResponse.json({ orderId: updated.id, status: updated.status, courier: toPublicCourier(courier) });
       } catch (err) {
               console.error("[PATCH /api/orders/status]", err);
               return NextResponse.json({ error: "Error interno" }, { status: 500 });

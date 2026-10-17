@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Operativa from "./Operativa";
+import RepartoExterno from "./RepartoExterno";
 import { PARTNERS, type PartnerKey } from "@/app/lib/deliveryPartners";
 
 const S = {
@@ -193,6 +194,11 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
       {/* Horario, cierres y zonas: cada bloque se guarda por separado */}
       <div style={{ marginTop: 28 }}>
         <Operativa tenant={tenant} />
+      </div>
+
+      {/* Repartidor externo (Glovo On-Demand): se guarda por separado */}
+      <div style={{ marginTop: 28 }}>
+        <RepartoExterno tenant={tenant} />
       </div>
     </div>
   );

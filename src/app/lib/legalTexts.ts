@@ -66,6 +66,7 @@ export function legalText(doc: LegalSlug, b: BusinessInfo, brand: string, siteUr
         paragraphs: [
           "No se venden ni se ceden a terceros. Los tratan, por cuenta del restaurante y con las garantías del RGPD, los proveedores tecnológicos que alojan la tienda y la base de datos.",
           "Si pides a domicilio a través de una plataforma de reparto (Glovo, Uber Eats, Just Eat…), el pedido se rige por la política de privacidad de esa plataforma.",
+          "Si pides a domicilio en esta tienda y el restaurante usa un servicio de reparto externo (por ejemplo, Glovo On-Demand), se le comunican tu nombre, tu teléfono y tu dirección de entrega solo para llevarte el pedido.",
         ],
       },
       {

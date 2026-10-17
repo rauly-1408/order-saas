@@ -3,6 +3,7 @@
 import { discountLines } from "@/app/lib/promotions";
 import { scheduledLabel } from "@/app/lib/schedule";
 import { DEFAULT_TIMEZONE } from "@/app/lib/time";
+import { PROVIDER_NAME, courierCanCancel, courierCanRetry, courierPanelLabel } from "@/app/lib/couriers/labels";
 import {
   canCancel,
   elapsedLabel,
@@ -29,9 +30,18 @@ type OrderCardProps = {
   now: number;
   busy: boolean;
   onStatus: (id: string, status: string) => void;
+  courierEnabled?: boolean;
+  onCourier?: (id: string, action: "request" | "cancel") => void;
 };
 
-export default function OrderCard({ order, estimates, now, busy, onStatus }: OrderCardProps) {
+const COURIER_TONE: Record<string, string> = {
+  FAILED: "bg-red-50 text-red-700",
+  CANCELLED: "bg-black/[0.04] text-[var(--p-muted)]",
+  DELIVERED: "bg-emerald-50 text-emerald-700",
+};
+const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : null);
+
+export default function OrderCard({ order, estimates, now, busy, onStatus, courierEnabled = false, onCourier }: OrderCardProps) {
   const action = nextAction(order);
   const isNew = order.status === "CREATED" || order.status === "ACCEPTED";
   const tone = timerTone(order, estimates, now);
@@ -98,6 +108,51 @@ export default function OrderCard({ order, estimates, now, busy, onStatus }: Ord
 
       {order.channel === "DELIVERY" && order.customerAddress && (
         <p className="mb-2 rounded-xl bg-black/[0.04] px-3 py-2 text-xs text-[var(--p-muted)]">{order.customerAddress}</p>
+      )}
+      {/* Repartidor externo: estado, hora y acciones */}
+      {order.channel === "DELIVERY" && order.courier && (
+        <div className={`mb-2 rounded-xl px-3 py-2 text-xs ${COURIER_TONE[order.courier.status] ?? "bg-sky-50 text-sky-800"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <span className="font-semibold">
+              🛵 {PROVIDER_NAME[order.courier.provider]} · {courierPanelLabel(order.courier.status)}
+            </span>
+            {order.courier.feeCents != null && <span className="tabular-nums">{toEuros(order.courier.feeCents)}</span>}
+          </div>
+          {(order.courier.courierName || order.courier.pickupEta) && order.courier.status !== "DELIVERED" && order.courier.status !== "FAILED" && (
+            <div className="mt-0.5">
+              {[order.courier.courierName, order.courier.pickupEta && ["REQUESTED", "ASSIGNED"].includes(order.courier.status) && `recoge hacia las ${hhmm(order.courier.pickupEta)}`]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          )}
+          {order.courier.error && <div className="mt-0.5">{order.courier.error}</div>}
+          <div className="mt-1 flex flex-wrap gap-3">
+            {order.courier.trackingUrl && (
+              <a href={order.courier.trackingUrl} target="_blank" rel="noopener noreferrer" className="font-semibold underline">
+                Ver en el mapa
+              </a>
+            )}
+            {onCourier && courierCanRetry(order.courier.status) && ["ACCEPTED", "PREPARING", "READY"].includes(order.status) && (
+              <button onClick={() => onCourier(order.id, "request")} disabled={busy} className="font-semibold underline disabled:opacity-50">
+                Pedir de nuevo
+              </button>
+            )}
+            {onCourier && courierCanCancel(order.courier.status) && (
+              <button
+                onClick={() => window.confirm("¿Cancelar el repartidor? El pedido sigue activo.") && onCourier(order.id, "cancel")}
+                disabled={busy}
+                className="underline disabled:opacity-50"
+              >
+                Cancelar repartidor
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {order.channel === "DELIVERY" && !order.courier && courierEnabled && onCourier && ["PREPARING", "READY", "ACCEPTED"].includes(order.status) && (
+        <button onClick={() => onCourier(order.id, "request")} disabled={busy} className="p-press mb-2 w-full rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800 disabled:opacity-50">
+          🛵 Pedir repartidor
+        </button>
       )}
       {!!order.discountCents &&
         discountLines({ ...order, discountCents: order.discountCents }).map((d) => (

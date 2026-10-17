@@ -13,7 +13,7 @@ Para restaurantes **sin repartidores propios**, como Estafetén. Es el mismo mod
 - Si el restaurante sí reparte, los botones salen como «También a domicilio con…».
 - Limitación: el pedido y el pago se hacen en la app de la plataforma. El carrito no se pasa, y ese cliente y la comisión (25-35 %) se quedan allí.
 
-## Fase 2 — Pedido propio + repartidor externo (pendiente)
+## Fase 2 — Pedido propio + repartidor externo (hecha: ver REPARTO-EXTERNO.md)
 
 El cliente pide y paga en nuestra tienda (nos quedamos el cliente, sin comisión sobre el pedido) y solo se contrata el **repartidor** por viaje: Uber Direct, Glovo On-Demand o Stuart. Al aceptar el pedido se pide el repartidor, y el seguimiento muestra la llegada. Necesita una cuenta de empresa del restaurante con uno de esos servicios.
 

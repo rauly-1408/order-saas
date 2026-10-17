@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
+import { syncCourier, toPublicCourier } from "@/app/lib/couriers";
+import { ACTIVE_STATUSES } from "@/app/lib/couriers/types";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { selectionToModifiers, validateSelection, type MenuModifierGroup } from "@/app/lib/menuOptions";
 import { applyStockDeltas, orderConsumption, type ConsumptionItem } from "@/app/lib/inventory";
@@ -555,12 +557,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Prohibido" }, { status: 403 });
     }
 
+    // Repartidores externos en curso: se ponen al día antes de leer los pedidos
+    // (pueden pasarlos a «En reparto» o «Entregado»).
+    const live = await prisma.courierDelivery.findMany({
+      where: { tenantId: tenant.id, status: { in: ACTIVE_STATUSES } },
+      include: { order: { select: { status: true, updatedAt: true } } },
+    });
+    await Promise.all(live.map((d) => syncCourier(d, d.order)));
+
     const orders = await prisma.order.findMany({
       where: {
         tenantId: tenant.id,
         status: { in: ["CREATED", "ACCEPTED", "PREPARING", "READY", "DELIVERING"] },
       },
-      include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } } },
+      include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, courier: true },
       orderBy: { createdAt: "asc" },
     });
 
@@ -572,7 +582,7 @@ export async function GET(req: NextRequest) {
         status: { in: ["DELIVERED", "CANCELLED"] },
         updatedAt: { gte: since },
       },
-      include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } } },
+      include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, courier: true },
       orderBy: { updatedAt: "desc" },
       take: 50,
     });
@@ -580,9 +590,12 @@ export async function GET(req: NextRequest) {
     // Tiempos estimados (con el tiempo extra) y estado de la tienda para la cabecera.
     const ops = await getStoreOps(tenant.id, tenant.settings);
 
+    const account = await prisma.courierAccount.findUnique({ where: { tenantId: tenant.id }, select: { provider: true } });
+    const withCourier = <T extends { courier: Parameters<typeof toPublicCourier>[0] }>(o: T) => ({ ...o, courier: toPublicCourier(o.courier) });
     return NextResponse.json({
-      orders,
-      history,
+      orders: orders.map(withCourier),
+      history: history.map(withCourier),
+      courierEnabled: !!account && account.provider !== "NONE",
       estimates: {
         deliveryMinutes: (ops?.estimatedDeliveryMinutes ?? 45) + (ops?.prepExtraMinutes ?? 0),
         pickupMinutes: (ops?.estimatedPickupMinutes ?? 20) + (ops?.prepExtraMinutes ?? 0),

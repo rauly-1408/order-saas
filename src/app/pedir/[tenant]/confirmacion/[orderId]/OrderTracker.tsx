@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { courierCustomerLabel } from "@/app/lib/couriers/labels";
 import { ui, type Lang } from "@/app/lib/i18n";
 import { FINAL_STATUSES, GOOGLE_REVIEW_MIN, statusNotice, trackingSteps, type TrackChannel } from "@/app/lib/tracking";
 
@@ -8,12 +9,14 @@ import { FINAL_STATUSES, GOOGLE_REVIEW_MIN, statusNotice, trackingSteps, type Tr
 // cambia de estado y valoración al entregarlo. Usa las CSS vars del theme.
 
 type Review = { rating: number; comment: string | null } | null;
-type Props = { lang?: Lang; orderId: string; channel: TrackChannel; initialStatus: string; estimatedReadyAt: string | null; initialReview: Review; googleReviewUrl: string | null };
+type Courier = { status: string; dropoffEta: string | null; trackingUrl: string | null } | null;
+type Props = { lang?: Lang; orderId: string; channel: TrackChannel; initialStatus: string; estimatedReadyAt: string | null; initialReview: Review; googleReviewUrl: string | null; initialCourier?: Courier };
 
 const POLL_MS = 10_000;
 
-export default function OrderTracker({ lang = "es", orderId, channel, initialStatus, estimatedReadyAt, initialReview, googleReviewUrl: initialGoogle }: Props) {
+export default function OrderTracker({ lang = "es", orderId, channel, initialStatus, estimatedReadyAt, initialReview, googleReviewUrl: initialGoogle, initialCourier = null }: Props) {
   const [status, setStatus] = useState(initialStatus);
+  const [courier, setCourier] = useState<Courier>(initialCourier);
   const [review, setReview] = useState<Review>(initialReview);
   const [googleUrl, setGoogleUrl] = useState(initialGoogle);
   const T = ui(lang);
@@ -48,6 +51,7 @@ export default function OrderTracker({ lang = "es", orderId, channel, initialSta
         if (!res.ok) return;
         const d = await res.json();
         setGoogleUrl(d.googleReviewUrl ?? null);
+        setCourier(d.courier ?? null);
         if (d.review) setReview(d.review);
         if (d.status !== last.current) {
           last.current = d.status;
@@ -86,11 +90,14 @@ export default function OrderTracker({ lang = "es", orderId, channel, initialSta
   }
 
   const steps = trackingSteps(channel, status, lang);
-  const eta = estimatedReadyAt ? new Date(estimatedReadyAt).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : null;
+  // Con repartidor externo manda su hora de llegada.
+  const etaIso = (channel === "DELIVERY" && courier?.dropoffEta) || estimatedReadyAt;
+  const eta = etaIso ? new Date(etaIso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : null;
+  const courierText = courier ? courierCustomerLabel(courier.status, lang) : null;
   // Pedido programado para otro día: se dice cuál («mañana», «sábado 18»).
   const etaDay = (() => {
-    if (!estimatedReadyAt) return "";
-    const at = new Date(estimatedReadyAt);
+    if (!etaIso) return "";
+    const at = new Date(etaIso);
     const days = Math.round((new Date(at).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86_400_000);
     if (days <= 0) return "";
     if (days === 1) return lang === "en" ? "tomorrow" : "mañana";
@@ -122,6 +129,16 @@ export default function OrderTracker({ lang = "es", orderId, channel, initialSta
             </li>
           ))}
         </ol>
+        {!delivered && courierText && (
+          <p className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--surface-0)] px-3 py-2 text-[13px] font-semibold text-[var(--text-primary)]">
+            <span>🛵 {courierText}</span>
+            {courier?.trackingUrl && (
+              <a href={courier.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-[var(--brand-accent)] underline">
+                {lang === "en" ? "Track on map" : "Seguir en el mapa"}
+              </a>
+            )}
+          </p>
+        )}
         {!delivered && (
           <div className="mt-4 border-t border-[var(--border)] pt-3 text-[13px]">
             {notify === "on" ? (

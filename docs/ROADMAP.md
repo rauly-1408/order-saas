@@ -195,6 +195,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-17 | Carta en inglés con botón ES / EN y traducción con IA en un clic, revisable a mano en Carta → Idiomas (ver CARTA-IDIOMAS.md) | Granada recibe muchos turistas. La traducción se guarda en cada fila (`translations`), así no se llama a la IA en cada visita; la cocina sigue en español |
 | 2026-10-17 | Hora programada con rueda tipo iPhone, cada 5 min | El desplegable cada 15 min era incómodo en el móvil y poco preciso |
 | 2026-10-17 | Sección «Entrantes y complementos» de Estafetén y grupo «Añade complementos» en molletes y burgers (también dentro de los menús) | Estaba en la carta real y faltaba en la tienda; sube el ticket medio. Script aditivo `prisma/add-complementos.ts` |
+| 2026-10-17 | Repartidor externo: Glovo On-Demand y modo prueba; se pide al aceptar el pedido, y el panel y el cliente siguen el viaje (ver REPARTO-EXTERNO.md) | Estafetén no tendrá motos propias. Pedir en nuestra tienda y contratar solo el viaje evita la comisión del 25-35 % y conserva el cliente. Cada restaurante firma con Glovo y el cliente paga el envío fijo de su zona |
 | 2026-10-16 | Seguimiento en vivo del pedido, aviso en el navegador y reseñas propias con salto a Google para 4-5★ (ver SEGUIMIENTO-Y-RESENAS.md) | Sin cuentas externas: mejora la experiencia y la nota en Google ya. El aviso por WhatsApp llegará con la Business API |
 
 ---
