@@ -11,7 +11,7 @@
 ## Qué hace el dueño
 
 1. Panel → Carta → **Idiomas**.
-2. **✨ Traducir la carta con IA**: traduce todo en un clic (unos 30 s). Los nombres propios de los platos (Genil, Alhambra…) y palabras como «mollete» se mantienen.
+2. **✨ Traducir la carta con IA**: traduce todo en un clic (unos 30 s). Los nombres propios de los platos (Genil, Alhambra…) y palabras como «mollete» se mantienen: «mollete» nunca pasa a «sandwich» (tampoco «bocadillo» en una carta de molletes) y un mismo plato se traduce igual como producto y como opción.
 3. Revisar y corregir a mano lo que haga falta → **Guardar correcciones**.
 4. **Mostrar en inglés** activa o desactiva el botón ES / EN en la tienda.
 5. Si después se añaden productos, **Traducir lo que falta** traduce solo lo nuevo. **Rehacer todo** vuelve a traducirlo todo y borra las correcciones.
