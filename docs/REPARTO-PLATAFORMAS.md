@@ -4,7 +4,7 @@ Para restaurantes **sin repartidores propios**, como Estafetén. Es el mismo mod
 
 ## Fase 1 — «Escoge quién te lo lleva» (hecha)
 
-- Panel → **Configuración → Canales de venta → Reparto con plataformas**: el enlace de la tienda del restaurante en Glovo, Uber Eats y Just Eat. Solo se aceptan enlaces de la web de cada plataforma.
+- Panel → **Configuración → Envío y entrega → Reparto con plataformas**: el enlace de la tienda del restaurante en Glovo, Uber Eats y Just Eat. Solo se aceptan enlaces de la web de cada plataforma.
 - Si además se desactiva **Delivery** (reparto propio):
   - la cabecera de la carta dice «Recogida · a domicilio con plataformas»;
   - la carta muestra «¿Lo quieres en casa? Escoge quién te lo lleva» con un botón por plataforma;

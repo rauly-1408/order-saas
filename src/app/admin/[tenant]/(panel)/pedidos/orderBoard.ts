@@ -30,6 +30,8 @@ export type Order = {
   updatedAt: string;
   items: OrderItem[];
   courier?: CourierView | null; // repartidor externo (Glovo, modo prueba…)
+  paymentMethod?: "IN_STORE" | "CARD" | "BIZUM";
+  paymentStatus?: "UNPAID" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 };
 
 export type Estimates = { deliveryMinutes: number; pickupMinutes: number };

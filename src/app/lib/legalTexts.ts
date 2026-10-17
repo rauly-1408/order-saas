@@ -66,6 +66,7 @@ export function legalText(doc: LegalSlug, b: BusinessInfo, brand: string, siteUr
         paragraphs: [
           "No se venden ni se ceden a terceros. Los tratan, por cuenta del restaurante y con las garantías del RGPD, los proveedores tecnológicos que alojan la tienda y la base de datos.",
           "Si pides a domicilio a través de una plataforma de reparto (Glovo, Uber Eats, Just Eat…), el pedido se rige por la política de privacidad de esa plataforma.",
+          "Si pagas online, los datos de tu tarjeta los trata directamente la pasarela de pago del restaurante (su banco o Stripe), no esta tienda.",
           "Si pides a domicilio en esta tienda y el restaurante usa un servicio de reparto externo (por ejemplo, Glovo On-Demand), se le comunican tu nombre, tu teléfono y tu dirección de entrega solo para llevarte el pedido.",
         ],
       },
@@ -110,7 +111,11 @@ export function legalText(doc: LegalSlug, b: BusinessInfo, brand: string, siteUr
     },
     {
       heading: "Pago",
-      paragraphs: ["El pago se realiza en el local o al recibir el pedido, salvo que la tienda indique otro método al confirmar."],
+      paragraphs: [
+        "Según lo que ofrezca la tienda al confirmar el pedido, puedes pagar online con tarjeta (o Bizum) o en el local / al recibir el pedido.",
+        "Los pagos online los procesa la pasarela de pago del vendedor (por ejemplo, su banco a través de Redsys, o Stripe). Esta tienda no ve ni guarda los datos de tu tarjeta. El pedido solo se envía a cocina cuando la pasarela confirma el pago; si no se completa, no se te cobra nada.",
+        "Si el vendedor cancela un pedido ya pagado, te devuelve el importe por el mismo medio de pago.",
+      ],
     },
     {
       heading: "Cancelaciones y desistimiento",

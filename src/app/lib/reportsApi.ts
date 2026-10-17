@@ -38,7 +38,7 @@ export async function reportContext(
 // Pedidos de [desde, hasta) con lo que necesita el informe.
 export async function loadReportOrders(tenantId: string, from: Date, to: Date): Promise<(ReportOrder & { orderNumber: number | null; customerName: string; customerPhone: string; subtotalCents: number })[]> {
   const orders = await prisma.order.findMany({
-    where: { tenantId, createdAt: { gte: from, lt: to } },
+    where: { tenantId, createdAt: { gte: from, lt: to }, status: { not: "AWAITING_PAYMENT" } },
     orderBy: { createdAt: "asc" },
     select: {
       createdAt: true, status: true, channel: true, orderNumber: true, customerName: true, customerPhone: true,

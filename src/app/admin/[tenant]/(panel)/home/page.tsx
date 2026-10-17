@@ -32,13 +32,13 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
   const tenantId = tenantData.id;
 
   const [ordersToday, activeOrders, products, categories, revenue, recentOrders] = await Promise.all([
-    prisma.order.count({ where: { tenantId, createdAt: { gte: today }, status: { not: "CANCELLED" } } }),
-    prisma.order.count({ where: { tenantId, status: { notIn: ["DELIVERED", "CANCELLED"] } } }),
+    prisma.order.count({ where: { tenantId, createdAt: { gte: today }, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } } }),
+    prisma.order.count({ where: { tenantId, status: { notIn: ["DELIVERED", "CANCELLED", "AWAITING_PAYMENT"] } } }),
     prisma.product.count({ where: { tenantId, isActive: true } }),
     prisma.category.count({ where: { tenantId, isActive: true } }),
-    prisma.order.aggregate({ where: { tenantId, createdAt: { gte: today }, status: { not: "CANCELLED" } }, _sum: { totalCents: true } }),
+    prisma.order.aggregate({ where: { tenantId, createdAt: { gte: today }, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } }, _sum: { totalCents: true } }),
     prisma.order.findMany({
-      where: { tenantId },
+      where: { tenantId, status: { not: "AWAITING_PAYMENT" } },
       orderBy: { createdAt: "desc" },
       take: 6,
       select: { id: true, orderNumber: true, customerName: true, status: true, totalCents: true, channel: true, createdAt: true },

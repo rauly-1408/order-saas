@@ -20,8 +20,6 @@ import { getTenantTheme, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import { readPanelCache, writePanelCache } from "../panelCache";
 import BrandPreview from "./BrandPreview";
 import ImageField from "./ImageField";
-import DatosNegocio from "./DatosNegocio";
-import { missingRequired, readBusiness, type BusinessInfo } from "@/app/lib/business";
 
 // Personalización: identidad visual de la carta (imágenes, paleta, fuentes) y
 // presencia online (Google y redes). Las imágenes se guardan al subirlas; el
@@ -152,9 +150,7 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
   const [assets, setAssets] = useState<Assets | null>(
     () => loaded?.assets ?? null,
   );
-  const [tab, setTab] = useState<"identidad" | "online" | "negocio">("identidad");
-  // Datos del negocio (pie de la tienda y textos legales): se guardan aparte.
-  const [business, setBusiness] = useState<BusinessInfo | null>(() => readPanelCache<BusinessInfo>(`${cacheKey}:negocio`) ?? null);
+  const [tab, setTab] = useState<"identidad" | "online">("identidad");
   const [colorTab, setColorTab] = useState<ColorKey | "more">("primaryColor");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
@@ -173,9 +169,6 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
           (data.tenant?.branding ?? {}) as Record<string, unknown>,
         );
         writePanelCache(cacheKey, l);
-        const biz = readBusiness(data.tenant?.settings);
-        writePanelCache(`${cacheKey}:negocio`, biz);
-        setBusiness(biz);
         setLoaded(l);
         setForm((f) => f ?? l.form);
         setAssets((a) => a ?? l.assets);
@@ -306,7 +299,6 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
           [
             ["identidad", "Identidad"],
             ["online", "Presencia online"],
-            ["negocio", business && missingRequired(business).length ? "Datos del negocio ⚠️" : "Datos del negocio"],
           ] as const
         ).map(([k, l]) => (
           <button
@@ -577,15 +569,6 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
                 </div>
               </section>
             </>
-          ) : business ? (
-            <DatosNegocio
-              tenant={tenant}
-              initial={business}
-              onSaved={(b) => {
-                setBusiness(b);
-                writePanelCache(`${cacheKey}:negocio`, b);
-              }}
-            />
           ) : null}
         </div>
       </div>
@@ -593,7 +576,6 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
       {/* Barra de guardado fija abajo, fuera de la página (su animación de entrada
           rompería el position: fixed). */}
       {typeof document !== "undefined" &&
-        tab !== "negocio" &&
         createPortal(
           <div className="p-glass fixed inset-x-0 bottom-0 z-30 border-t border-[var(--p-line)] px-4 py-3 text-[var(--p-ink)] lg:left-64 lg:px-10">
             <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-end gap-3">

@@ -118,11 +118,12 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(data.error ?? "No se pudo actualizar el pedido");
-      }
+      const data = (await res.json().catch(() => ({}))) as { error?: string; refundError?: string | null };
       await loadOrders();
+      // Después de refrescar (que borra los avisos): el error o, si se canceló un
+      // pedido pagado online y la pasarela no devolvió el dinero, ese aviso.
+      if (!res.ok) setError(data.error ?? "No se pudo actualizar el pedido");
+      else if (data.refundError) setError(data.refundError);
     } catch {
       setError("Sin conexión. No se pudo actualizar el pedido.");
     } finally {
@@ -137,11 +138,9 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
     setError("");
     try {
       const res = await fetch(`/api/admin/${tenant}/courier/${orderId}`, { method: action === "request" ? "POST" : "DELETE" });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(data.error ?? "No se pudo gestionar el repartidor");
-      }
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
       await loadOrders();
+      if (!res.ok) setError(data.error ?? "No se pudo gestionar el repartidor");
     } catch {
       setError("Sin conexión. Inténtalo de nuevo.");
     } finally {

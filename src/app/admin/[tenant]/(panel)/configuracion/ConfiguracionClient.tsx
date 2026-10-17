@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Operativa from "./Operativa";
-import RepartoExterno from "./RepartoExterno";
 import { PARTNERS, type PartnerKey } from "@/app/lib/deliveryPartners";
 
 const S = {
@@ -121,11 +119,7 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
   }
 
   return (
-    <div style={{ maxWidth: 720 }}>
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 34, fontWeight: 600, letterSpacing: '-0.025em', color: S.textDark, margin: 0 }}>Configuración</h1>
-        <div style={{ fontSize: 13, color: S.textMid, marginTop: 4 }}>Gestiona los canales, horarios y datos de contacto</div>
-      </div>
+    <div>
 
       {msg && (
         <div style={{ background: msg.startsWith('Error') ? 'var(--p-accent-soft)' : '#f0fff4', border: `1px solid ${msg.startsWith('Error') ? S.red : S.green}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: msg.startsWith('Error') ? S.red : '#166534', marginBottom: 20 }}>
@@ -173,15 +167,6 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
         </div>
       </Section>
 
-      {/* El teléfono, la dirección y el resto de datos del negocio se editan en
-          Personalización → Datos del negocio (salen en el pie de la tienda). */}
-      <Section title="Datos de contacto">
-        <p className="text-sm text-[var(--p-muted)]">
-          El teléfono, la dirección, el email y los datos legales están ahora en{' '}
-          <a href={`/admin/${tenant}/personalizacion`} className="font-semibold text-[var(--p-brand)]">Personalización → Datos del negocio</a>. Salen en el pie de tu tienda.
-        </p>
-      </Section>
-
       <button onClick={save} disabled={saving} style={{
         width: '100%', background: 'var(--p-brand)', color: '#fff', border: 'none',
         borderRadius: 9999, padding: '12px', fontSize: 15, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
@@ -191,15 +176,6 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
       </button>
       </div>
 
-      {/* Horario, cierres y zonas: cada bloque se guarda por separado */}
-      <div style={{ marginTop: 28 }}>
-        <Operativa tenant={tenant} />
-      </div>
-
-      {/* Repartidor externo (Glovo On-Demand): se guarda por separado */}
-      <div style={{ marginTop: 28 }}>
-        <RepartoExterno tenant={tenant} />
-      </div>
     </div>
   );
 }

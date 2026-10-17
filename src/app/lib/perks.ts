@@ -56,10 +56,10 @@ export async function customerPerkState(db: Db, tenantId: string, phoneRaw: stri
     where: { tenantId_phone: { tenantId, phone: normalizePhone(phoneRaw) } },
     select: { id: true },
   });
-  const validOrders = customer ? await db.order.count({ where: { customerId: customer.id, status: { not: "CANCELLED" } } }) : 0;
+  const validOrders = customer ? await db.order.count({ where: { customerId: customer.id, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } } }) : 0;
   let progress = null;
   if (loyalty) {
-    const since = { customerId: customer?.id ?? "-", status: { not: "CANCELLED" as const }, createdAt: { gte: loyalty.startsAt } };
+    const since = { customerId: customer?.id ?? "-", status: { notIn: ["CANCELLED" as const, "AWAITING_PAYMENT" as const] }, createdAt: { gte: loyalty.startsAt } };
     const [paid, rewards] = customer
       ? await Promise.all([db.order.count({ where: { ...since, loyaltyReward: false } }), db.order.count({ where: { ...since, loyaltyReward: true } })])
       : [0, 0];

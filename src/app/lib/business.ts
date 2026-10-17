@@ -1,4 +1,4 @@
-// Datos del negocio (Personalización → Datos del negocio): los que la ley exige
+// Datos del negocio (Configuración → Información del negocio): los que la ley exige
 // mostrar en una tienda online en España (LSSI art. 10 y RGPD) y los de contacto.
 // Salen en el pie de la tienda y rellenan los textos legales.
 // Ver docs/DATOS-NEGOCIO-Y-LEGAL.md

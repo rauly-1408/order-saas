@@ -3,6 +3,7 @@ import CheckoutClient from "./CheckoutClient";
 import { loadMenu } from "@/app/lib/menu";
 import { prisma } from "@/app/lib/prisma";
 import { storeLang } from "@/app/lib/storeLang";
+import { paymentOptions } from "@/app/lib/gateways";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,9 @@ export default async function CheckoutPage({
   const menu = await loadMenu(tenant, await storeLang(settings));
   if (!menu) notFound();
   // El campo de cupón solo aparece si el restaurante tiene el motor de retención.
-  const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { addons: true } });
+  const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { id: true, addons: true } });
+  // Formas de pago que el restaurante tiene activadas (su pasarela, Bizum, en el local).
+  const payment = t ? await paymentOptions(t.id) : { card: false, bizum: false, inStore: true, test: false };
   const couponsEnabled = t?.addons.includes("RETENTION") ?? false;
   // Categoría y precio base de cada producto: para calcular el premio de la tarjeta.
   const productInfo = Object.fromEntries(menu.categories.flatMap((c) => c.products.map((p) => [p.id, { categoryId: c.id, basePriceCents: p.basePriceCents }])));
@@ -31,6 +34,7 @@ export default async function CheckoutPage({
       productInfo={productInfo}
       deliveryPartners={menu.deliveryPartners}
       lang={menu.lang}
+      payment={payment}
     />
   );
 }

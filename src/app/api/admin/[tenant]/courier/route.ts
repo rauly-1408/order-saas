@@ -9,7 +9,7 @@ import { CourierError } from "@/app/lib/couriers/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Configuración del repartidor externo (Configuración → Repartidor externo).
+// Configuración del repartidor externo (Configuración → Envío y entrega).
 // Los secretos nunca salen del servidor: solo se dice si existen.
 
 async function ctx(req: NextRequest) {

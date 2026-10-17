@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { syncCourier, toPublicCourier } from "@/app/lib/couriers";
 import { ACTIVE_STATUSES } from "@/app/lib/couriers/types";
+import { expireStalePayments, paymentAccount, paymentOptions, startPayment } from "@/app/lib/gateways";
+import { GatewayError, type OnlineMethod } from "@/app/lib/gateways/types";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { selectionToModifiers, validateSelection, type MenuModifierGroup } from "@/app/lib/menuOptions";
 import { applyStockDeltas, orderConsumption, type ConsumptionItem } from "@/app/lib/inventory";
@@ -36,6 +38,8 @@ type OrderBody = {
   marketingConsent?: boolean;
   couponCode?: string;
   scheduledFor?: string; // ISO: pedido programado (también con la tienda cerrada)
+  paymentMethod?: "IN_STORE" | "CARD" | "BIZUM"; // CARD/BIZUM = pago online con la pasarela del restaurante
+  lang?: "es" | "en";
   items: OrderLineInput[];
 };
 
@@ -71,6 +75,7 @@ export async function POST(req: NextRequest) {
       marketingConsent,
       couponCode,
       scheduledFor,
+      paymentMethod = "IN_STORE",
       items,
     } = body;
 
@@ -92,6 +97,10 @@ export async function POST(req: NextRequest) {
 
     if (channel !== "DELIVERY" && channel !== "TAKEAWAY") {
       return NextResponse.json({ error: "Canal inválido" }, { status: 400 });
+    }
+
+    if (paymentMethod !== "IN_STORE" && paymentMethod !== "CARD" && paymentMethod !== "BIZUM") {
+      return NextResponse.json({ error: "Forma de pago inválida" }, { status: 400 });
     }
 
     for (const item of items) {
@@ -123,6 +132,15 @@ export async function POST(req: NextRequest) {
     if (!tenant || !tenant.stores[0]) {
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
     }
+
+    // Forma de pago: solo las que el restaurante tiene activadas.
+    const payOpts = await paymentOptions(tenant.id);
+    const online = paymentMethod !== "IN_STORE";
+    if ((paymentMethod === "IN_STORE" && !payOpts.inStore) || (paymentMethod === "CARD" && !payOpts.card) || (paymentMethod === "BIZUM" && !payOpts.bizum)) {
+      return NextResponse.json({ error: "Esa forma de pago no está disponible" }, { status: 400 });
+    }
+    const payment = { method: paymentMethod, provider: online ? (await paymentAccount(tenant.id)).provider : null };
+
 
     const productIds = [...new Set(items.map((i) => i.productId))];
     const groupsSelect = {
@@ -342,6 +360,7 @@ export async function POST(req: NextRequest) {
           loyaltyDiscountCents,
           estimatedReadyAt: scheduledAt ?? new Date(Date.now() + 60_000 * leadMinutes(ops, channel)),
           scheduledFor: scheduledAt,
+          payment,
           retention: tenant.addons.includes("RETENTION"),
           lines: linesCreate,
           // Inventario (módulo Costes): solo si el restaurante lo tiene contratado
@@ -360,6 +379,17 @@ export async function POST(req: NextRequest) {
     }
 
     if (!order) throw lastError ?? new Error("No se pudo crear el pedido");
+
+    // Pago online: se abre la pasarela del restaurante. Si falla, el pedido se deshace.
+    if (online) {
+      try {
+        const start = await startPayment(order.id, paymentMethod as OnlineMethod, url.origin, body.lang === "en" ? "en" : "es");
+        return NextResponse.json({ orderId: order.id, orderNumber: order.orderNumber, totalCents: order.totalCents, payment: start });
+      } catch (err) {
+        const msg = err instanceof GatewayError ? err.message : "No se ha podido abrir el pago";
+        return NextResponse.json({ error: msg }, { status: 502 });
+      }
+    }
 
     return NextResponse.json({
       orderId: order.id,
@@ -398,6 +428,7 @@ type CreateOrderInput = {
   loyaltyDiscountCents: number;
   estimatedReadyAt: Date;
   scheduledFor: Date | null;
+  payment: { method: "IN_STORE" | "CARD" | "BIZUM"; provider: string | null };
   retention: boolean;
   lines: Prisma.OrderLineCreateWithoutOrderInput[];
   consumption: ConsumptionItem[];
@@ -466,7 +497,7 @@ async function createOrderWithNumber(input: CreateOrderInput) {
     // Cupón: un uso por teléfono (si así se creó) y tope de usos atómico.
     if (input.coupon) {
       if (input.coupon.oncePerCustomer && existing) {
-        const used = await tx.order.count({ where: { couponId: input.coupon.id, customerId: customer.id, status: { not: "CANCELLED" } } });
+        const used = await tx.order.count({ where: { couponId: input.coupon.id, customerId: customer.id, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } } });
         if (used > 0) throw new CouponError("Ya has usado este cupón");
       }
       const claimed = await tx.coupon.updateMany({
@@ -486,7 +517,11 @@ async function createOrderWithNumber(input: CreateOrderInput) {
         customerId: customer.id,
         orderNumber,
         channel: input.channel,
-        status: "CREATED",
+        // Pago online: espera a que la pasarela lo confirme (no llega a la cocina).
+        status: input.payment.method === "IN_STORE" ? "CREATED" : "AWAITING_PAYMENT",
+        paymentMethod: input.payment.method,
+        paymentStatus: input.payment.method === "IN_STORE" ? "UNPAID" : "PENDING",
+        paymentProvider: input.payment.provider,
         customerName: input.customerName,
         customerPhone: input.customerPhone,
         customerAddress: input.customerAddress,
@@ -556,6 +591,9 @@ export async function GET(req: NextRequest) {
     if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) {
       return NextResponse.json({ error: "Prohibido" }, { status: 403 });
     }
+
+    // Pagos online abandonados: se cancelan y se deshacen.
+    await expireStalePayments(tenant.id);
 
     // Repartidores externos en curso: se ponen al día antes de leer los pedidos
     // (pueden pasarlos a «En reparto» o «Entregado»).

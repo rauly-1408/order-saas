@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
     prisma.promotion.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } }),
     prisma.loyaltyProgram.findUnique({ where: { tenantId } }),
     prisma.category.findMany({ where: { tenantId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
-    prisma.order.groupBy({ by: ["promotionId"], where: { tenantId, promotionId: { not: null }, status: { not: "CANCELLED" } }, _count: true, _sum: { promotionDiscountCents: true } }),
-    prisma.order.aggregate({ where: { tenantId, loyaltyReward: true, status: { not: "CANCELLED" } }, _count: true, _sum: { loyaltyDiscountCents: true } }),
+    prisma.order.groupBy({ by: ["promotionId"], where: { tenantId, promotionId: { not: null }, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } }, _count: true, _sum: { promotionDiscountCents: true } }),
+    prisma.order.aggregate({ where: { tenantId, loyaltyReward: true, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } }, _count: true, _sum: { loyaltyDiscountCents: true } }),
   ]);
   const usesByPromo = new Map(promoUses.map((u) => [u.promotionId, { uses: u._count, discountCents: u._sum.promotionDiscountCents ?? 0 }]));
 
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
   // Ingresos atribuidos: suma de los pedidos que convirtieron cada campaña.
   const convertedIds = campaigns.flatMap((c) => c.sends.map((s) => s.convertedOrderId).filter((id): id is string => !!id));
   const convertedOrders = convertedIds.length
-    ? await prisma.order.findMany({ where: { id: { in: convertedIds }, status: { not: "CANCELLED" } }, select: { id: true, totalCents: true } })
+    ? await prisma.order.findMany({ where: { id: { in: convertedIds }, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } }, select: { id: true, totalCents: true } })
     : [];
   const orderTotal = new Map(convertedOrders.map((o) => [o.id, o.totalCents]));
 

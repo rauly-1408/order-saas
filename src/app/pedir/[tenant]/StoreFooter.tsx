@@ -6,7 +6,7 @@ import { DAY_KEYS, DAY_LABEL, rangesLabel, type WeeklyHours } from "@/app/lib/st
 import { dayName, ui, type Lang } from "@/app/lib/i18n";
 
 // Pie de la tienda: logo, contacto, horario, redes y enlaces legales, con los
-// datos de Personalización → Datos del negocio (obligatorios por la LSSI).
+// datos de Configuración → Información del negocio (obligatorios por la LSSI).
 
 type Props = {
   tenant: string;

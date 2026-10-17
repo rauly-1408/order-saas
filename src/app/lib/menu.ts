@@ -129,7 +129,7 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es") {
     store,
     perks,
     online: parseOnline((tenant.branding as Record<string, unknown> | null)?.online),
-    // Plataformas de reparto configuradas (Configuración → Canales de venta).
+    // Plataformas de reparto configuradas (Configuración → Envío y entrega).
     // Datos del negocio para el pie (obligatorios en una tienda online) y horario.
     business: readBusiness(tenant.settings),
     hours: ops?.hours ?? null,

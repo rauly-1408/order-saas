@@ -5,7 +5,7 @@ Fase 2 del reparto con plataformas (ver REPARTO-PLATAFORMAS.md). El cliente pide
 ## Decisiones
 
 - **Cada restaurante firma su contrato** con el proveedor y pega sus credenciales en el panel. El proveedor le cobra a él. La plataforma no toca dinero ni contratos.
-- **El cliente paga el envío fijo de su zona** (Configuración → Zonas de reparto). Si el viaje cuesta más o menos, la diferencia la asume el restaurante. El panel muestra el coste de cada viaje.
+- **El cliente paga el envío fijo de su zona** (Configuración → Horario y zonas de reparto). Si el viaje cuesta más o menos, la diferencia la asume el restaurante. El panel muestra el coste de cada viaje.
 - Hace falta tener **Delivery** activado y zonas de reparto.
 
 ## Proveedores
@@ -19,7 +19,7 @@ Fase 2 del reparto con plataformas (ver REPARTO-PLATAFORMAS.md). El cliente pide
 
 ## Cómo se usa
 
-1. Panel → **Configuración → Repartidor externo**: elegir «Modo prueba» o «Glovo On-Demand».
+1. Panel → **Configuración → Envío y entrega → Repartidor externo**: elegir «Modo prueba» o «Glovo On-Demand».
 2. «Pedir el repartidor automáticamente al aceptar un pedido a domicilio» (activado por defecto). Si se desactiva, cada tarjeta muestra **🛵 Pedir repartidor**.
 3. En **Pedidos**, la tarjeta muestra:
    - el estado («Buscando repartidor…», «Repartidor asignado», «Repartidor en el local», «Recogido · en camino», «Llegando al cliente», «Entregado»);

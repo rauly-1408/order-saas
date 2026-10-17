@@ -165,7 +165,17 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
       )}
 
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="font-bold text-[var(--p-ink)]">{toEuros(order.totalCents)}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-bold text-[var(--p-ink)]">{toEuros(order.totalCents)}</span>
+          {/* Cobro: pagado online o pendiente de cobrar en persona */}
+          {order.paymentStatus === "PAID" ? (
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">{order.paymentMethod === "BIZUM" ? "Pagado con Bizum" : "💳 Pagado"}</span>
+          ) : order.paymentStatus === "REFUNDED" ? (
+            <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[11px] font-semibold text-[var(--p-muted)]">Devuelto</span>
+          ) : (
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">{order.channel === "DELIVERY" ? "Cobrar al entregar" : "Cobrar al recoger"}</span>
+          )}
+        </span>
         {canCancel(order) && (
           <button
             onClick={handleCancel}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-// Configuración → Repartidor externo: el pedido se hace en nuestra tienda y
+// Configuración → Envío y entrega: el pedido se hace en nuestra tienda y
 // solo se contrata el repartidor (Glovo On-Demand). Modo prueba para probarlo
 // sin contrato. Ver docs/REPARTO-EXTERNO.md
 
