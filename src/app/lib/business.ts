@@ -40,6 +40,10 @@ export const BUSINESS_FIELDS: { key: keyof BusinessInfo; label: string; placehol
 
 const EMPTY: BusinessInfo = { legalName: null, taxId: null, street: null, postalCode: null, city: null, province: null, phone: null, email: null, whatsapp: null, registry: null, mapsLink: null };
 
+// Los enlaces de la ficha de Google Maps pueden pasar de 1.000 caracteres: si se
+// cortan, Google pierde el local y abre un mapa vacío.
+const MAPS_MAX = 2000;
+const maxLen = (key: keyof BusinessInfo) => (key === "mapsLink" ? MAPS_MAX : key === "registry" ? 300 : 160);
 const text = (v: unknown, max = 160) => (typeof v === "string" && v.trim() ? v.trim().replace(/\s+/g, " ").slice(0, max) : null);
 
 // Lee los datos guardados; si aún no hay, aprovecha el teléfono, el WhatsApp y
@@ -48,7 +52,7 @@ export function readBusiness(settings: unknown): BusinessInfo {
   const s = (settings ?? {}) as Record<string, unknown>;
   const b = (s.business ?? {}) as Record<string, unknown>;
   const out = { ...EMPTY };
-  for (const f of BUSINESS_FIELDS) out[f.key] = text(b[f.key], f.key === "registry" || f.key === "mapsLink" ? 300 : 160);
+  for (const f of BUSINESS_FIELDS) out[f.key] = text(b[f.key], maxLen(f.key));
   out.mapsLink = safeMapsLink(out.mapsLink);
   if (!s.business) {
     out.phone = text(s.phone);
@@ -71,7 +75,8 @@ export function normalizeTaxId(v: string): string {
 export function parseBusiness(body: unknown): BusinessInfo | string {
   const b = (body ?? {}) as Record<string, unknown>;
   const out = { ...EMPTY };
-  for (const f of BUSINESS_FIELDS) out[f.key] = text(b[f.key], f.key === "registry" || f.key === "mapsLink" ? 300 : 160);
+  for (const f of BUSINESS_FIELDS) out[f.key] = text(b[f.key], maxLen(f.key));
+  if (typeof b.mapsLink === "string" && b.mapsLink.trim().length > MAPS_MAX) return "El enlace de Google Maps es demasiado largo: usa el enlace corto de Google Maps → Compartir";
   if (out.mapsLink) {
     const link = safeMapsLink(out.mapsLink);
     if (!link) return "El enlace de Google Maps no es válido: cópialo desde Google Maps → Compartir";

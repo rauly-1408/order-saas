@@ -25,7 +25,7 @@ Panel → **Personalización → Datos del negocio**. Son los datos que la LSSI 
 Cuatro columnas en escritorio y una en móvil:
 
 1. **Marca:** logo y redes.
-2. **Contacto:** dirección, teléfono (llama con un toque), WhatsApp y email. La dirección abre la **ficha del local** en Google Maps: el enlace pegado en Datos del negocio o, si no hay, una búsqueda con el nombre del negocio y la dirección. Solo se aceptan enlaces de Google Maps.
+2. **Contacto:** dirección, teléfono (llama con un toque), WhatsApp y email. La dirección abre la **ficha del local** en Google Maps: el enlace pegado en Datos del negocio o, si no hay, una búsqueda con el nombre del negocio y la dirección. Solo se aceptan enlaces de Google Maps y se guardan enteros (hasta 2.000 caracteres; si se cortaran, Google abriría un mapa sin el local). Lo más cómodo es el enlace corto de Google Maps → Compartir.
 3. **Horario:** los días con el mismo horario se agrupan («Lunes a jueves · 13:00–16:00 · 20:00–23:30»).
 4. **Información:** Aviso legal, Privacidad, Cookies, Condiciones de venta y aviso de alérgenos.
 
