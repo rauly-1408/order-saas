@@ -57,3 +57,35 @@ export async function suggestAddresses(q: string, postalCodes: string[]): Promis
   const data = (await res.json()) as Candidate[];
   return Array.isArray(data) ? toSuggestions(data.filter((c) => inProvinces(c, prefixes))) : [];
 }
+
+// ─── Coordenadas de una dirección (para el repartidor externo) ─────────────
+const CARTOCIUDAD_FIND = "https://www.cartociudad.es/geocoder/api/geocoder/find";
+
+// "Calle Arabial 92, 3ºB" → { street: "Calle Arabial", number: 92, extra: "3ºB" }
+export function splitAddress(raw: string): { street: string; number: number; extra: string } | null {
+  const m = raw.trim().match(/^(.+?)[\s,]+(?:n[ºo.]?\s*)?(\d{1,4})\b[\s,]*(.*)$/i);
+  if (!m) return null;
+  return { street: m[1].replace(/,\s*$/, "").trim(), number: Number(m[2]), extra: m[3].trim() };
+}
+
+export type Geocoded = { lat: number; lng: number; address: string; extra: string };
+
+// Busca el portal exacto. Devuelve null si no lo encuentra o el número no
+// coincide: mejor avisar que mandar al repartidor a otra puerta.
+export async function geocodeAddress(raw: string, city: string | null): Promise<Geocoded | null> {
+  const parts = splitAddress(raw);
+  if (!parts) return null;
+  const query = [parts.street, String(parts.number), city].filter(Boolean).join(", ");
+  const url = new URL(CARTOCIUDAD_FIND);
+  url.searchParams.set("q", query);
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const c = (await res.json()) as { lat?: number; lng?: number; portalNumber?: number | null; postalCode?: string; poblacion?: string };
+    if (typeof c.lat !== "number" || typeof c.lng !== "number" || c.portalNumber !== parts.number) return null;
+    const address = `${titleCase(parts.street)} ${parts.number}, ${c.postalCode ?? ""} ${c.poblacion ?? city ?? ""}`.replace(/\s+/g, " ").trim();
+    return { lat: c.lat, lng: c.lng, address, extra: parts.extra };
+  } catch {
+    return null;
+  }
+}

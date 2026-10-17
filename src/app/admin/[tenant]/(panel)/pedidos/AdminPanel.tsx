@@ -19,7 +19,7 @@ const CLOCK_MS = 15_000;
 // Mientras haya pedidos sin aceptar, el aviso se repite (como las tablets de
 // Glovo / Uber Eats) para que ninguno se quede olvidado.
 
-type OrdersResponse = { orders: Order[]; history?: Order[]; estimates?: Estimates; store?: StoreLive | null };
+type OrdersResponse = { orders: Order[]; history?: Order[]; estimates?: Estimates; store?: StoreLive | null; courierEnabled?: boolean };
 
 const DEFAULT_ESTIMATES: Estimates = { deliveryMinutes: 45, pickupMinutes: 20 };
 
@@ -29,6 +29,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
   const [history, setHistory] = useState<Order[]>([]);
   const [estimates, setEstimates] = useState<Estimates>(DEFAULT_ESTIMATES);
   const [storeLive, setStoreLive] = useState<StoreLive | null>(null);
+  const [courierEnabled, setCourierEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
@@ -65,6 +66,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       setHistory(data.history ?? []);
       if (data.estimates) setEstimates(data.estimates);
       setStoreLive(data.store ?? null);
+      setCourierEnabled(!!data.courierEnabled);
       setError("");
     } catch {
       setError("Sin conexión. Reintentando…");
@@ -128,6 +130,24 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
     }
   }
 
+
+  // Repartidor externo: pedir/reintentar (POST) o cancelar (DELETE).
+  async function handleCourier(orderId: string, action: "request" | "cancel") {
+    setUpdating(orderId);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/${tenant}/courier/${orderId}`, { method: action === "request" ? "POST" : "DELETE" });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(data.error ?? "No se pudo gestionar el repartidor");
+      }
+      await loadOrders();
+    } catch {
+      setError("Sin conexión. Inténtalo de nuevo.");
+    } finally {
+      setUpdating(null);
+    }
+  }
 
   const byColumn = (key: ColumnKey) => {
     const col = COLUMNS.find((c) => c.key === key);
@@ -241,6 +261,8 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                           now={now}
                           busy={updating === o.id}
                           onStatus={handleStatus}
+                          courierEnabled={courierEnabled}
+                          onCourier={handleCourier}
                         />
                       ))
                     )}

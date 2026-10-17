@@ -147,6 +147,7 @@ model Tenant {
   products       Product[]
   modifierGroups ModifierGroup[]
   orders         Order[]
+  courierAccount CourierAccount?
   customers      Customer[]
   coupons        Coupon[]
   campaigns      Campaign[]
@@ -436,6 +437,7 @@ model Order {
   updatedAt DateTime @updatedAt
 
   items OrderLine[]
+  courier CourierDelivery?
 
   @@unique([tenantId, orderNumber])
 }
@@ -947,4 +949,52 @@ model Review {
   createdAt DateTime @default(now())
 
   @@index([tenantId, createdAt])
+}
+
+// ─── Repartidor externo (Glovo On-Demand, modo prueba…) ─────────────────────
+// Cada restaurante firma con el proveedor y pega aquí sus credenciales. Ver
+// docs/REPARTO-EXTERNO.md
+model CourierAccount {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  provider    String  @default("NONE") // NONE | SIMULATED | GLOVO
+  autoRequest Boolean @default(true) // pedir repartidor al aceptar el pedido
+
+  // Datos no secretos del proveedor (Glovo: clientId, keyId, scope, entorno…)
+  config       Json    @default("{}")
+  // Secretos cifrados con AES-256-GCM (clave privada, secreto del webhook)
+  secrets      String?
+  publicKeyPem String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Un viaje de repartidor por pedido.
+model CourierDelivery {
+  id       String @id @default(cuid())
+  tenantId String
+  orderId  String @unique
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  provider   String
+  externalId String?
+  // REQUESTED | ASSIGNED | AT_PICKUP | PICKED_UP | NEAR_CUSTOMER | DELIVERED | CANCELLED | FAILED
+  status     String  @default("REQUESTED")
+  rawStatus  String?
+  feeCents   Int?
+  trackingUrl  String?
+  courierName  String?
+  courierPhone String?
+  pickupEta    DateTime?
+  dropoffEta   DateTime?
+  error        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([provider, externalId])
+  @@index([tenantId])
 }

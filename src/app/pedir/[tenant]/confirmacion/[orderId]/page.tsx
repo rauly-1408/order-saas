@@ -3,6 +3,7 @@ import { discountLines } from "@/app/lib/promotions";
 import { getTenantTheme, themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import { parseOnline } from "@/app/lib/brand";
 import OrderTracker from "./OrderTracker";
+import { customerCourier } from "@/app/lib/couriers";
 import { ui } from "@/app/lib/i18n";
 import { storeLang } from "@/app/lib/storeLang";
 
@@ -28,7 +29,7 @@ export default async function ConfirmacionPage({
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true, store: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, review: { select: { rating: true, comment: true } } },
+    include: { items: true, store: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, review: { select: { rating: true, comment: true } }, courier: true },
   });
 
   // El pedido tiene que ser de este restaurante.
@@ -82,6 +83,7 @@ export default async function ConfirmacionPage({
           channel={order.channel}
           initialStatus={order.status}
           estimatedReadyAt={order.estimatedReadyAt?.toISOString() ?? null}
+          initialCourier={customerCourier(order.courier)}
           initialReview={order.review}
           googleReviewUrl={parseOnline((tenantData?.branding as Record<string, unknown> | null)?.online).reviewsUrl}
         />

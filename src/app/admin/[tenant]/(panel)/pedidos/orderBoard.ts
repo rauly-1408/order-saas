@@ -1,5 +1,6 @@
 // Configuración del tablero de pedidos: tipos, columnas, siguiente acción y
 // semáforo del temporizador. Sin React — solo datos y funciones puras.
+import type { CourierView } from "@/app/lib/couriers/labels";
 
 export type OrderItem = {
   id: string;
@@ -28,6 +29,7 @@ export type Order = {
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
+  courier?: CourierView | null; // repartidor externo (Glovo, modo prueba…)
 };
 
 export type Estimates = { deliveryMinutes: number; pickupMinutes: number };
