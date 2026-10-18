@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import MediaLibrary from "./MediaLibrary";
 
 // Foto de un producto: «Subir imagen» o «Elegir de mis archivos» (biblioteca),
@@ -38,7 +39,11 @@ export default function ImagePicker({ tenant, value, onChange }: { tenant: strin
         </div>
       </div>
 
-      {open && (
+      {/* Se pinta en .panel (colores y fuentes del panel), fuera de .p-page: la
+          animación de entrada de la página atrapa los «fixed» y la ventana
+          quedaba dentro del contenido, fuera de la pantalla. */}
+      {open &&
+        createPortal(
         <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label="Elegir imagen">
           <button aria-label="Cerrar" onClick={() => setOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
           <div className="relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[24px] bg-[var(--p-bg)] shadow-2xl sm:rounded-[24px]">
@@ -60,8 +65,9 @@ export default function ImagePicker({ tenant, value, onChange }: { tenant: strin
               />
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.querySelector(".panel") ?? document.body
+        )}
     </div>
   );
 }
