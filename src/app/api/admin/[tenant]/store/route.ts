@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const ctx = await storeTenant(req, { staff: true });
   if ("error" in ctx) return ctx.error;
-  const ops = await getStoreOps(ctx.tenant.id, ctx.tenant.settings);
+  const ops = await getStoreOps(ctx.tenant.id, ctx.tenant.settings, new Date(), ctx.storeId);
   return NextResponse.json({ ops });
 }
 
@@ -45,6 +45,6 @@ export async function PATCH(req: NextRequest) {
   if (!Object.keys(data).length) return NextResponse.json({ error: "Nada que cambiar" }, { status: 400 });
 
   await prisma.store.update({ where: { id: ctx.storeId }, data });
-  const ops = await getStoreOps(ctx.tenant.id, ctx.tenant.settings);
+  const ops = await getStoreOps(ctx.tenant.id, ctx.tenant.settings, new Date(), ctx.storeId);
   return NextResponse.json({ ops });
 }

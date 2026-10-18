@@ -3,6 +3,7 @@ import { getTenantTheme, getTenantSettings } from "@/app/lib/tenantConfig";
 import type { MenuModifierGroup } from "@/app/lib/menuOptions";
 import { ALLERGENS } from "@/app/lib/costs";
 import { getStoreOps, publicStoreInfo } from "@/app/lib/storeOps";
+import { listStores } from "@/app/lib/stores";
 import { loadPerks, publicPerks } from "@/app/lib/perks";
 import { parseOnline } from "@/app/lib/brand";
 import { activePartners, parsePartners } from "@/app/lib/deliveryPartners";
@@ -13,7 +14,8 @@ import { allergenName, enabledLangs, tr, type Lang } from "@/app/lib/i18n";
 // con sus opciones). La usan la API /api/menu/[tenant] y las páginas de
 // /pedir directamente — las páginas NO deben llamarse a sí mismas por HTTP
 // (en Vercel esa auto-llamada fallaba en producción).
-export async function loadMenu(tenantSlug: string, lang: Lang = "es") {
+// storeId: el local elegido por el cliente (sucursales); si no vale, el primero abierto al público.
+export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: string | null) {
   const tenant = await prisma.tenant.findUnique({
     where: { slug: tenantSlug },
     select: { id: true, slug: true, name: true, branding: true, settings: true, addons: true },
@@ -22,7 +24,9 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es") {
 
   // getTenantTheme combina los valores del tenant con los defaults del sistema
   const theme = getTenantTheme(tenant.branding as Record<string, unknown>);
-  const ops = await getStoreOps(tenant.id, tenant.settings);
+  const stores = await listStores(tenant.id, { activeOnly: true });
+  const currentStoreId = stores.find((st) => st.id === storeId)?.id ?? stores[0]?.id ?? null;
+  const ops = await getStoreOps(tenant.id, tenant.settings, new Date(), currentStoreId);
   // Lo operativo (canales, envío, mínimo, tiempos) sale del local: es lo que cobran los pedidos.
   const settings = {
     ...getTenantSettings(tenant.settings as Record<string, unknown>),
@@ -133,6 +137,9 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es") {
     // Datos del negocio para el pie (obligatorios en una tienda online) y horario.
     business: readBusiness(tenant.settings),
     hours: ops?.hours ?? null,
+    // Sucursales: el cliente elige local si hay más de uno.
+    stores: stores.map((st) => ({ id: st.id, name: st.name, address: st.address })),
+    storeId: currentStoreId,
     deliveryPartners: activePartners(parsePartners((tenant.settings as Record<string, unknown> | null)?.deliveryPartners)),
     categories: menuCategories,
   };

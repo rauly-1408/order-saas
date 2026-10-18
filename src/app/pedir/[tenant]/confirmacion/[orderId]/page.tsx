@@ -8,6 +8,7 @@ import { ui } from "@/app/lib/i18n";
 import { storeLang } from "@/app/lib/storeLang";
 import { redirect } from "next/navigation";
 import ClearCart from "./ClearCart";
+import { includedTax, readTax } from "@/app/lib/storePolicies";
 
 const euros = (cents: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -53,6 +54,7 @@ export default async function ConfirmacionPage({
   // Pago online todavía sin confirmar: a la página que lo comprueba.
   if (order.status === "AWAITING_PAYMENT") redirect(`/pedir/${tenant}/pago/${orderId}/vuelta`);
   const paidOnline = order.paymentStatus === "PAID" && order.paymentMethod !== "IN_STORE";
+  const tax = readTax(tenantData?.settings);
 
   const isDelivery = order.channel === "DELIVERY";
   // Importes tal como se guardaron en el pedido (incluyen suplementos y cupón).
@@ -161,10 +163,28 @@ export default async function ConfirmacionPage({
                 <span>{deliveryFee === 0 ? T.free : euros(deliveryFee)}</span>
               </div>
             )}
+            {order.tipCents > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: cssVars["--text-secondary"] }}>
+                <span>{T.tip}</span>
+                <span>{euros(order.tipCents)}</span>
+              </div>
+            )}
+            {order.giftCardCents > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: cssVars["--brand-secondary"], fontWeight: 600 }}>
+                <span>🎁 {T.giftCard}</span>
+                <span>−{euros(order.giftCardCents)}</span>
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "16px", fontWeight: 700 }}>
               <span>{T.total}</span>
               <span style={{ color: cssVars["--brand-accent"] }}>{euros(total)}</span>
             </div>
+            {/* IVA incluido (Configuración → Impuestos) */}
+            {tax.showOnReceipt && order.totalCents + order.giftCardCents > 0 && (
+              <div style={{ fontSize: "12px", color: cssVars["--text-secondary"], textAlign: "right" }}>
+                {T.taxIncluded(tax.rate, euros(includedTax(order.totalCents + order.giftCardCents - order.tipCents, tax.rate)))}
+              </div>
+            )}
             {paidOnline && (
               <div style={{ fontSize: "13px", fontWeight: 600, color: cssVars["--text-secondary"], textAlign: "right" }}>
                 ✓ {order.paymentMethod === "BIZUM" ? T.paidByBizum : T.paidByCard}

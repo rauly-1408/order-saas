@@ -14,6 +14,7 @@ import type { PublicPerks } from "@/app/lib/perks";
 import DeliveryPartners, { type PartnerLink } from "../DeliveryPartners";
 import AddressInput from "./AddressInput";
 import TimeWheel from "./TimeWheel";
+import { DEFAULT_CHECKOUT, type CheckoutSettings } from "@/app/lib/storePolicies";
 import { slotDay, storeMessage, ui, whenText, type Lang } from "@/app/lib/i18n";
 import StampCard from "../StampCard";
 import { bestPromotion, joinLabels, rewardDiscount } from "@/app/lib/promotions";
@@ -45,6 +46,10 @@ type CheckoutClientProps = {
   deliveryPartners?: PartnerLink[];
   lang?: Lang;
   payment?: { card: boolean; bizum: boolean; inStore: boolean; test: boolean };
+  storeId?: string | null; // sucursales: local elegido en la carta
+  storeName?: string | null; // solo si hay más de un local
+  checkout?: CheckoutSettings; // Configuración → Pantalla de pago
+  giftCardsEnabled?: boolean; // el restaurante tiene tarjetas regalo
 };
 
 type PayMethod = "CARD" | "BIZUM" | "IN_STORE";
@@ -65,7 +70,7 @@ function submitPaymentForm(action: string, fields: Record<string, string>) {
   form.submit();
 }
 
-export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false, perks, productInfo = {}, deliveryPartners = [], lang = "es", payment = { card: false, bizum: false, inStore: true, test: false } }: CheckoutClientProps) {
+export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false, perks, productInfo = {}, deliveryPartners = [], lang = "es", payment = { card: false, bizum: false, inStore: true, test: false }, storeId = null, storeName = null, checkout = DEFAULT_CHECKOUT, giftCardsEnabled = false }: CheckoutClientProps) {
   const T = ui(lang);
   const router = useRouter();
   const { items, subtotalCents, clear, inc, dec } = useCart();
@@ -80,6 +85,10 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   const [payMethod, setPayMethod] = useState<PayMethod>(payment.card ? "CARD" : "IN_STORE");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [tipPct, setTipPct] = useState(0);
+  const [giftInput, setGiftInput] = useState("");
+  const [gift, setGift] = useState<{ code: string; balanceCents: number } | null>(null);
+  const [giftError, setGiftError] = useState("");
   const [couponInput, setCouponInput] = useState("");
   const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   const [couponError, setCouponError] = useState("");
@@ -128,7 +137,8 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   const belowMinimum = channel === "DELIVERY" && minimum > 0 && subtotal < minimum;
   const closed = store ? !store.status.open : false;
   // ¿Cuándo? Lo antes posible o programado (obligatorio si ahora está cerrado).
-  const slots = (store?.slots?.[channel] ?? []) as { at: string; day: string; time: string }[];
+  // Sin «programar» (Pantalla de pago), no se ofrecen horas.
+  const slots = (checkout.scheduling ? store?.slots?.[channel] ?? [] : []) as { at: string; day: string; time: string }[];
   const [wantSchedule, setWantSchedule] = useState(false);
   const [slotAt, setSlotAt] = useState("");
   const scheduling = closed || wantSchedule;
@@ -153,7 +163,30 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   const promoWins = !!promo && promo.discountCents > couponAmount;
   const discount = promoWins ? 0 : couponAmount;
   const promoDiscount = promoWins ? promo.discountCents : 0;
-  const total = Math.max(subtotal + fee - loyaltyDiscount - promoDiscount - discount, 0);
+  // Propina sobre la comida (sin envío) y tarjeta regalo al final.
+  const tip = tipPct ? Math.round((Math.max(subtotal - loyaltyDiscount - promoDiscount - discount, 0) * tipPct) / 100) : 0;
+  const beforeGift = Math.max(subtotal + fee - loyaltyDiscount - promoDiscount - discount, 0) + tip;
+  const giftUsed = gift ? Math.min(gift.balanceCents, beforeGift) : 0;
+  const total = beforeGift - giftUsed;
+
+  async function applyGift() {
+    const code = giftInput.trim();
+    if (!code) return;
+    setGiftError("");
+    try {
+      const res = await fetch(`/api/giftcards/${tenant}?code=${encodeURIComponent(code)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setGift(null);
+        setGiftError(data.error ?? T.giftCardError);
+        return;
+      }
+      setGift(data);
+      setGiftInput("");
+    } catch {
+      setGiftError(T.networkError);
+    }
+  }
 
   async function applyCoupon() {
     const code = couponInput.trim();
@@ -226,6 +259,9 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           scheduledFor: chosenSlot?.at,
           paymentMethod: payMethod,
           lang,
+          storeId: storeId ?? undefined,
+          tipPercent: tipPct || undefined,
+          giftCardCode: gift?.code,
           // Solo qué se pide: el servidor pone nombres y precios desde la carta.
           items: items.map((item) => ({
             productId: item.productId,
@@ -278,6 +314,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
       <header className="p-glass" style={{ position: "sticky", top: 0, zIndex: 50, ["--p-surface" as any]: cssVars["--surface-0"], borderBottom: `1px solid ${cssVars["--border"]}`, height: "56px", display: "flex", alignItems: "center", padding: "0 20px", gap: "14px" }}>
         <a href={`/pedir/${tenant}`} style={{ color: cssVars["--brand-accent"], fontSize: "22px", textDecoration: "none", lineHeight: "1" }}>←</a>
         <span style={{ fontWeight: 600, fontSize: "16px" }}>{T.confirmOrder}</span>
+        {storeName && <span className="ml-auto truncate text-[13px]" style={{ color: cssVars["--text-secondary"] }}>📍 {storeName}</span>}
       </header>
 
       <main style={{ maxWidth: "560px", margin: "0 auto", padding: "24px 16px 120px" }}>
@@ -341,6 +378,18 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                   <span>{zones.length && !zone ? T.byPostalCode : fee === 0 ? T.free : euros(fee)}</span>
                 </div>
               )}
+              {tip > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: cssVars["--text-secondary"] }}>
+                  <span>{T.tip} ({tipPct} %)</span>
+                  <span>{euros(tip)}</span>
+                </div>
+              )}
+              {giftUsed > 0 && gift && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: cssVars["--brand-secondary"], fontWeight: 600 }}>
+                  <span>🎁 {T.giftCard} {gift.code}</span>
+                  <span>−{euros(giftUsed)}</span>
+                </div>
+              )}
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "16px", fontWeight: 700, color: cssVars["--text-primary"] }}>
                 <span>{T.total}</span>
                 <span style={{ color: cssVars["--brand-accent"] }}>{euros(total)}</span>
@@ -389,6 +438,68 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 </div>
               )}
               {couponError && <div style={{ fontSize: "13px", color: cssVars["--brand-secondary"], marginTop: "6px" }}>{couponError}</div>}
+            </div>
+          )}
+
+          {/* TARJETA REGALO */}
+          {giftCardsEnabled && (
+            <div>
+              <div style={labelStyle}>🎁 {T.giftCard}</div>
+              {gift ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 16px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: "15px" }}>{gift.code}</div>
+                    <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>{T.giftBalance(euros(gift.balanceCents))}</div>
+                  </div>
+                  <button type="button" onClick={() => setGift(null)} style={{ background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer", flexShrink: 0 }}>
+                    {T.remove}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input
+                    value={giftInput}
+                    onChange={(e) => setGiftInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyGift(); } }}
+                    placeholder="XXXX-XXXX-XXXX"
+                    autoCapitalize="characters"
+                    aria-label={T.giftCard}
+                    style={{ ...inputStyle, flex: 1, minWidth: 0, textTransform: "uppercase" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={applyGift}
+                    disabled={!giftInput.trim()}
+                    className="p-press"
+                    style={{ padding: "0 18px", borderRadius: "999px", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", cursor: "pointer", flexShrink: 0, opacity: giftInput.trim() ? 1 : 0.5 }}
+                  >
+                    {T.apply}
+                  </button>
+                </div>
+              )}
+              {giftError && <div style={{ fontSize: "13px", color: cssVars["--brand-secondary"], marginTop: "6px" }}>{giftError}</div>}
+            </div>
+          )}
+
+          {/* PROPINA (si el restaurante la activa) */}
+          {checkout.tips.enabled && (
+            <div>
+              <div style={labelStyle}>{T.tipTitle}</div>
+              <div role="radiogroup" aria-label={T.tipTitle} style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {[0, ...checkout.tips.percents].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    role="radio"
+                    aria-checked={tipPct === pct}
+                    onClick={() => setTipPct(pct)}
+                    className="p-press"
+                    style={{ flex: "1 1 0", minWidth: "64px", padding: "10px", borderRadius: "12px", border: `2px solid ${tipPct === pct ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: tipPct === pct ? `${cssVars["--brand-accent"]}15` : "transparent", color: tipPct === pct ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: tipPct === pct ? 700 : 500, fontSize: "14px", cursor: "pointer" }}
+                  >
+                    {pct === 0 ? T.noTip : `${pct} %`}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -555,15 +666,17 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 )}
               </div>
             )}
-            <div>
-              <label style={labelStyle}>{T.notes}</label>
-              <textarea
-                style={{ ...inputStyle, minHeight: "80px", resize: "vertical" } as React.CSSProperties}
-                placeholder={T.notesPlaceholder}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
+            {checkout.notes && (
+              <div>
+                <label style={labelStyle}>{T.notes}</label>
+                <textarea
+                  style={{ ...inputStyle, minHeight: "80px", resize: "vertical" } as React.CSSProperties}
+                  placeholder={T.notesPlaceholder}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           {/* CÓMO PAGAS: solo si hay más de una opción */}
@@ -593,6 +706,8 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
             </div>
           )}
 
+          {checkout.marketingConsent && (
+            <>
           {/* CONSENTIMIENTO DE MARKETING — opt-in explícito, desmarcado por defecto (RGPD + LSSI) */}
           <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "13px", lineHeight: 1.45, color: cssVars["--text-secondary"], cursor: "pointer" }}>
             <input
@@ -605,6 +720,8 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
               {T.consent}
             </span>
           </label>
+            </>
+          )}
 
           {/* CERRADO / MÍNIMO */}
           {store && !store.status.open && (

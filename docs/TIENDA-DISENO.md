@@ -1,6 +1,6 @@
 # Diseño de la tienda pública (carta)
 
-`/pedir/[tenant]`. Toma como referencia la web de McDonald's: todo alineado a un mismo margen, portada a todo lo ancho y cada tipo de tarjeta con su propio aspecto. Los colores, las fuentes y las imágenes salen de **Personalización**.
+`/pedir/[tenant]`. Toma como referencia la web de McDonald's: todo alineado a un mismo margen, portada a todo lo ancho y cada tipo de tarjeta con su propio aspecto. Los colores, las fuentes y las imágenes salen de **Configuración → Marca**.
 
 ## Estructura
 

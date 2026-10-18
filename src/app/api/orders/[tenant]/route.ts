@@ -3,6 +3,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { syncCourier, toPublicCourier } from "@/app/lib/couriers";
 import { ACTIVE_STATUSES } from "@/app/lib/couriers/types";
+import { listStores, resolveStoreId } from "@/app/lib/stores";
+import { readCheckout, tipCents } from "@/app/lib/storePolicies";
+import { usableGiftCard } from "@/app/lib/giftCards";
 import { expireStalePayments, paymentAccount, paymentOptions, startPayment } from "@/app/lib/gateways";
 import { GatewayError, type OnlineMethod } from "@/app/lib/gateways/types";
 import { getSessionFromRequest } from "@/app/lib/auth";
@@ -40,6 +43,9 @@ type OrderBody = {
   scheduledFor?: string; // ISO: pedido programado (también con la tienda cerrada)
   paymentMethod?: "IN_STORE" | "CARD" | "BIZUM"; // CARD/BIZUM = pago online con la pasarela del restaurante
   lang?: "es" | "en";
+  storeId?: string; // sucursales: local elegido por el cliente
+  tipPercent?: number; // propina (Configuración → Pantalla de pago)
+  giftCardCode?: string; // tarjeta regalo
   items: OrderLineInput[];
 };
 
@@ -124,12 +130,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const tenant = await prisma.tenant.findUnique({
-      where: { slug: tenantSlug },
-      include: { stores: { take: 1 } },
-    });
-
-    if (!tenant || !tenant.stores[0]) {
+    const tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
+    // Sucursales: el local elegido por el cliente (abierto al público) o el primero.
+    const storeId = tenant ? await resolveStoreId(tenant.id, body.storeId, { activeOnly: true }) : null;
+    if (!tenant || !storeId) {
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
     }
 
@@ -195,15 +199,19 @@ export async function POST(req: NextRequest) {
     }
     const productById = new Map(products.map((p) => [p.id, p]));
 
-    const store = tenant.stores[0];
     // Operativa del local (horario, cierres, pausa, zonas): la referencia es Store.
-    const ops = await getStoreOps(tenant.id, tenant.settings);
+    const ops = await getStoreOps(tenant.id, tenant.settings, new Date(), storeId);
     if (!ops) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
 
     // Programado: la hora tiene que caer en horario y dar tiempo a prepararlo.
     // Sin programar, la tienda tiene que estar abierta ahora.
     if (scheduledFor !== undefined && typeof scheduledFor !== "string") {
       return NextResponse.json({ error: "Hora programada no válida" }, { status: 400 });
+    }
+    // Pantalla de pago: lo que el restaurante permite (notas, programar, propina).
+    const checkout = readCheckout(tenant.settings);
+    if (scheduledFor && !checkout.scheduling) {
+      return NextResponse.json({ error: "Este restaurante no acepta pedidos programados" }, { status: 400 });
     }
     const scheduledAt = scheduledFor ? new Date(scheduledFor) : null;
     if (scheduledAt) {
@@ -330,7 +338,20 @@ export async function POST(req: NextRequest) {
     }
     const promotionDiscountCents = usePromo ? promo.discountCents : 0;
     const discountCents = Math.min(loyaltyDiscountCents + promotionDiscountCents + couponDiscountCents, subtotalCents + feesCents);
-    const totalCents = subtotalCents + feesCents - discountCents;
+    // Propina: un porcentaje de los que ofrece el restaurante, sobre la comida.
+    const tipPct = Number(body.tipPercent ?? 0);
+    if (tipPct && (!checkout.tips.enabled || !checkout.tips.percents.includes(tipPct))) {
+      return NextResponse.json({ error: "Propina no válida" }, { status: 400 });
+    }
+    const tip = tipCents(subtotalCents - discountCents, tipPct);
+    // Tarjeta regalo: cubre lo que pueda del total (el saldo se descuenta al crear el pedido).
+    let giftCard: { id: string; cents: number } | null = null;
+    if (typeof body.giftCardCode === "string" && body.giftCardCode.trim()) {
+      const found = await usableGiftCard(tenant.id, body.giftCardCode);
+      if ("error" in found) return NextResponse.json({ error: found.error }, { status: 400 });
+      giftCard = { id: found.card.id, cents: Math.min(found.card.balanceCents, subtotalCents + feesCents - discountCents + tip) };
+    }
+    const totalCents = subtotalCents + feesCents - discountCents + tip - (giftCard?.cents ?? 0);
     const settings = tenant.settings as Record<string, unknown>;
     const currency = (settings?.currency as string) ?? "EUR";
 
@@ -341,14 +362,14 @@ export async function POST(req: NextRequest) {
       try {
         order = await createOrderWithNumber({
           tenantId: tenant.id,
-          storeId: store.id,
+          storeId,
           channel,
           customerName,
           customerPhone,
           customerAddress: customerAddress ?? null,
           customerPostalCode: postalCode || null,
-          notes: notes ?? null,
-          marketingConsent: marketingConsent === true,
+          notes: checkout.notes ? (notes ?? null) : null,
+          marketingConsent: checkout.marketingConsent && marketingConsent === true,
           currency,
           subtotalCents,
           feesCents,
@@ -360,7 +381,10 @@ export async function POST(req: NextRequest) {
           loyaltyDiscountCents,
           estimatedReadyAt: scheduledAt ?? new Date(Date.now() + 60_000 * leadMinutes(ops, channel)),
           scheduledFor: scheduledAt,
-          payment,
+          // Pagado entero con tarjeta regalo: no hace falta pasarela.
+          payment: totalCents === 0 && giftCard ? { method: "IN_STORE", provider: null, paid: true } : payment,
+          tipCents: tip,
+          giftCard,
           retention: tenant.addons.includes("RETENTION"),
           lines: linesCreate,
           // Inventario (módulo Costes): solo si el restaurante lo tiene contratado
@@ -381,7 +405,7 @@ export async function POST(req: NextRequest) {
     if (!order) throw lastError ?? new Error("No se pudo crear el pedido");
 
     // Pago online: se abre la pasarela del restaurante. Si falla, el pedido se deshace.
-    if (online) {
+    if (online && order.status === "AWAITING_PAYMENT") {
       try {
         const start = await startPayment(order.id, paymentMethod as OnlineMethod, url.origin, body.lang === "en" ? "en" : "es");
         return NextResponse.json({ orderId: order.id, orderNumber: order.orderNumber, totalCents: order.totalCents, payment: start });
@@ -428,7 +452,9 @@ type CreateOrderInput = {
   loyaltyDiscountCents: number;
   estimatedReadyAt: Date;
   scheduledFor: Date | null;
-  payment: { method: "IN_STORE" | "CARD" | "BIZUM"; provider: string | null };
+  payment: { method: "IN_STORE" | "CARD" | "BIZUM"; provider: string | null; paid?: boolean };
+  tipCents: number;
+  giftCard: { id: string; cents: number } | null;
   retention: boolean;
   lines: Prisma.OrderLineCreateWithoutOrderInput[];
   consumption: ConsumptionItem[];
@@ -510,6 +536,15 @@ async function createOrderWithNumber(input: CreateOrderInput) {
       if (claimed.count === 0) throw new CouponError("Este cupón ya se ha agotado");
     }
 
+    // Tarjeta regalo: se descuenta el saldo de forma atómica (dos pedidos a la vez no la gastan dos veces).
+    if (input.giftCard) {
+      const claimed = await tx.giftCard.updateMany({
+        where: { id: input.giftCard.id, active: true, balanceCents: { gte: input.giftCard.cents } },
+        data: { balanceCents: { decrement: input.giftCard.cents } },
+      });
+      if (claimed.count === 0) throw new CouponError("La tarjeta regalo ya no tiene ese saldo. Vuelve a aplicarla.");
+    }
+
     const order = await tx.order.create({
       data: {
         tenantId: input.tenantId,
@@ -520,8 +555,11 @@ async function createOrderWithNumber(input: CreateOrderInput) {
         // Pago online: espera a que la pasarela lo confirme (no llega a la cocina).
         status: input.payment.method === "IN_STORE" ? "CREATED" : "AWAITING_PAYMENT",
         paymentMethod: input.payment.method,
-        paymentStatus: input.payment.method === "IN_STORE" ? "UNPAID" : "PENDING",
+        paymentStatus: input.payment.paid ? "PAID" : input.payment.method === "IN_STORE" ? "UNPAID" : "PENDING",
         paymentProvider: input.payment.provider,
+        tipCents: input.tipCents,
+        giftCardId: input.giftCard?.id ?? null,
+        giftCardCents: input.giftCard?.cents ?? 0,
         customerName: input.customerName,
         customerPhone: input.customerPhone,
         customerAddress: input.customerAddress,
@@ -603,9 +641,17 @@ export async function GET(req: NextRequest) {
     });
     await Promise.all(live.map((d) => syncCourier(d, d.order)));
 
+    // Sucursales: el empleado limitado a un local ve solo ese; el gerente puede
+    // filtrar con ?store= (sin él, todos los locales).
+    const stores = await listStores(tenant.id);
+    const wanted = session.storeId ?? url.searchParams.get("store");
+    const storeFilter = stores.find((st) => st.id === wanted)?.id ?? null;
+    const byStore = storeFilter ? { storeId: storeFilter } : {};
+
     const orders = await prisma.order.findMany({
       where: {
         tenantId: tenant.id,
+        ...byStore,
         status: { in: ["CREATED", "ACCEPTED", "PREPARING", "READY", "DELIVERING"] },
       },
       include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, courier: true },
@@ -617,6 +663,7 @@ export async function GET(req: NextRequest) {
     const history = await prisma.order.findMany({
       where: {
         tenantId: tenant.id,
+        ...byStore,
         status: { in: ["DELIVERED", "CANCELLED"] },
         updatedAt: { gte: since },
       },
@@ -625,8 +672,8 @@ export async function GET(req: NextRequest) {
       take: 50,
     });
 
-    // Tiempos estimados (con el tiempo extra) y estado de la tienda para la cabecera.
-    const ops = await getStoreOps(tenant.id, tenant.settings);
+    // Tiempos estimados (con el tiempo extra) y estado del local para la cabecera.
+    const ops = await getStoreOps(tenant.id, tenant.settings, new Date(), storeFilter);
 
     const account = await prisma.courierAccount.findUnique({ where: { tenantId: tenant.id }, select: { provider: true } });
     const withCourier = <T extends { courier: Parameters<typeof toPublicCourier>[0] }>(o: T) => ({ ...o, courier: toPublicCourier(o.courier) });
@@ -634,6 +681,9 @@ export async function GET(req: NextRequest) {
       orders: orders.map(withCourier),
       history: history.map(withCourier),
       courierEnabled: !!account && account.provider !== "NONE",
+      // Sucursales: lista para el filtro (solo si hay más de un local) y el filtro aplicado.
+      stores: stores.length > 1 && !session.storeId ? stores.map((st) => ({ id: st.id, name: st.name })) : [],
+      storeFilter,
       estimates: {
         deliveryMinutes: (ops?.estimatedDeliveryMinutes ?? 45) + (ops?.prepExtraMinutes ?? 0),
         pickupMinutes: (ops?.estimatedPickupMinutes ?? 20) + (ops?.prepExtraMinutes ?? 0),

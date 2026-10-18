@@ -18,7 +18,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Prohibido" }, { status: 403 });
   }
   const pending = await prisma.order.findMany({
-    where: { tenantId: tenant.id, status: "CREATED" },
+    // El empleado limitado a un local solo oye los pedidos de ese local.
+    where: { tenantId: tenant.id, status: "CREATED", ...(session.storeId && { storeId: session.storeId }) },
     orderBy: { createdAt: "asc" },
     select: { id: true, orderNumber: true, customerName: true, totalCents: true, channel: true },
   });

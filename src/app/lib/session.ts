@@ -12,6 +12,7 @@ export type SessionPayload = {
   email: string;
   role: string;
   tenantId: string | null;
+  storeId?: string | null; // rol «Pedidos» limitado a un local (se lee de la base de datos)
 };
 
 function getSecret(): Uint8Array {

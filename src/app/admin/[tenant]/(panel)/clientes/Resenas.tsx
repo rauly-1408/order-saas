@@ -49,7 +49,7 @@ export default function Resenas({ tenant }: { tenant: string }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-[var(--p-muted)]">
-        Al recibir su pedido, el cliente lo valora desde la página de seguimiento. Con 4 o 5 estrellas le invitamos a dejarlo también en Google (enlace en Personalización → Presencia online); las notas bajas solo te llegan a ti.
+        Al recibir su pedido, el cliente lo valora desde la página de seguimiento. Con 4 o 5 estrellas le invitamos a dejarlo también en Google (enlace en Configuración → Marca → Presencia online); las notas bajas solo te llegan a ti.
       </p>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className={`${card} p-4`}>

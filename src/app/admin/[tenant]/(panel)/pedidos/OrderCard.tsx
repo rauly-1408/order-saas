@@ -160,6 +160,12 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
             {d.label}: −{toEuros(d.cents)}
           </p>
         ))}
+      {(!!order.tipCents || !!order.giftCardCents) && (
+        <p className="mb-2 flex flex-wrap gap-x-3 rounded-xl bg-black/[0.04] px-3 py-2 text-xs text-[var(--p-muted)]">
+          {!!order.tipCents && <span>Propina: {toEuros(order.tipCents)}</span>}
+          {!!order.giftCardCents && <span>🎁 Tarjeta regalo: −{toEuros(order.giftCardCents)}</span>}
+        </p>
+      )}
       {order.notes && (
         <p className="mb-2 rounded-xl bg-[var(--p-warm)] px-3 py-2 text-xs text-[var(--p-brand)]">Nota: {order.notes}</p>
       )}

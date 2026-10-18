@@ -141,7 +141,8 @@ function toLoaded(name: string, branding: Record<string, unknown>): Loaded {
   };
 }
 
-export default function PersonalizacionClient({ tenant }: { tenant: string }) {
+// embedded: dentro de Configuración → Marca (sin título propio y sin barra lateral).
+export default function PersonalizacionClient({ tenant, embedded = false }: { tenant: string; embedded?: boolean }) {
   const cacheKey = `personalizacion:${tenant}`;
   const [loaded, setLoaded] = useState<Loaded | null>(
     () => readPanelCache<Loaded>(cacheKey) ?? null,
@@ -286,13 +287,12 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
 
   return (
     <div className="pb-20 text-[var(--p-ink)]">
-      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-        Personalización
-      </h1>
-      <p className="mt-1 text-sm text-[var(--p-muted)]">
-        La identidad visual de tu tienda online y cómo apareces en Google y en
-        redes
-      </p>
+      {!embedded && (
+        <>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Personalización</h1>
+          <p className="mt-1 text-sm text-[var(--p-muted)]">La identidad visual de tu tienda online y cómo apareces en Google y en redes</p>
+        </>
+      )}
 
       <nav className="mt-6 mb-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1">
         {(
@@ -577,7 +577,7 @@ export default function PersonalizacionClient({ tenant }: { tenant: string }) {
           rompería el position: fixed). */}
       {typeof document !== "undefined" &&
         createPortal(
-          <div className="p-glass fixed inset-x-0 bottom-0 z-30 border-t border-[var(--p-line)] px-4 py-3 text-[var(--p-ink)] lg:left-64 lg:px-10">
+          <div className={`p-glass fixed inset-x-0 bottom-0 z-30 border-t border-[var(--p-line)] px-4 py-3 text-[var(--p-ink)] lg:px-10 ${embedded ? "" : "lg:left-64"}`}>
             <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-end gap-3">
               {error && (
                 <span className="mr-auto text-sm text-[var(--p-accent)]">

@@ -89,10 +89,15 @@ enum OrderStatus {
 //  USER
 // ─────────────────────────────────────────────
 model User {
-  id       String @id @default(cuid())
-  email    String @unique
+  id       String  @id @default(cuid())
+  email    String  @unique
   password String
-  role     Role   @default(TENANT_ADMIN)
+  role     Role    @default(TENANT_ADMIN)
+  name     String?
+  active   Boolean @default(true) // desactivado = no puede entrar (Configuración → Usuarios)
+  // Solo para el rol «Pedidos»: limita a un local (null = todos los locales)
+  storeId     String?
+  lastLoginAt DateTime?
 
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
@@ -151,6 +156,7 @@ model Tenant {
   orders         Order[]
   courierAccount CourierAccount?
   paymentAccount PaymentAccount?
+  giftCards      GiftCard[]
   customers      Customer[]
   coupons        Coupon[]
   campaigns      Campaign[]
@@ -178,11 +184,12 @@ model Store {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  name    String
-  address String?
-  phone   String?
-  email   String?
-  active  Boolean @default(true)
+  name      String
+  address   String?
+  phone     String?
+  email     String?
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
 
   // Configuración de canales por local
   deliveryEnabled Boolean @default(true)
@@ -427,6 +434,13 @@ model Order {
   paymentProvider       String? // TEST | STRIPE | REDSYS (pasarela del restaurante)
   paymentRef            String? // referencia en la pasarela (sesión de Stripe, Ds_Order de Redsys)
   paidAt                DateTime?
+
+  // Propina (Configuración → Pantalla de pago) y tarjeta regalo canjeada.
+  // totalCents ya incluye la propina y ya descuenta la tarjeta regalo.
+  tipCents      Int       @default(0)
+  giftCardId    String?
+  giftCard      GiftCard? @relation(fields: [giftCardId], references: [id], onDelete: SetNull)
+  giftCardCents Int       @default(0)
   applicationFeeCents   Int           @default(0) // comisión de la plataforma cobrada en este pedido
 
   posProvider   String?
@@ -1023,4 +1037,27 @@ model PaymentAccount {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── Tarjetas regalo (Configuración → Tarjetas regalo) ──────────────────────
+// El restaurante las emite (las vende en el local) y el cliente las canjea al
+// pedir. Ver docs/CONFIGURACION.md
+model GiftCard {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  code         String
+  initialCents Int
+  balanceCents Int
+  active       Boolean   @default(true)
+  expiresAt    DateTime?
+  note         String? // para quién es, cómo se pagó…
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, code])
 }

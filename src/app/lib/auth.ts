@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { redirect } from "next/navigation";
 import { canManageTenant } from "@/app/lib/roles";
+import { prisma } from "@/app/lib/prisma";
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE,
@@ -30,12 +31,22 @@ export async function clearSessionCookie(): Promise<void> {
   jar.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
 }
 
+// La firma del token no basta: se comprueba en la base de datos que el usuario
+// sigue activo y se toman su rol y su local actuales. Así, desactivar a un
+// empleado o cambiarle el permiso (Configuración → Usuarios) vale al momento.
+async function fresh(payload: SessionPayload | null): Promise<SessionPayload | null> {
+  if (!payload) return null;
+  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { active: true, role: true, tenantId: true, storeId: true, email: true } });
+  if (!user || !user.active) return null;
+  return { ...payload, email: user.email, role: user.role, tenantId: user.tenantId, storeId: user.storeId };
+}
+
 // Para Server Components / Server Actions.
 export async function getSession(): Promise<SessionPayload | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  return verifySessionToken(token);
+  return fresh(await verifySessionToken(token));
 }
 
 // Para Route Handlers (tienen acceso a req.cookies).
@@ -44,7 +55,7 @@ export async function getSessionFromRequest(
 ): Promise<SessionPayload | null> {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  return verifySessionToken(token);
+  return fresh(await verifySessionToken(token));
 }
 
 export type { SessionPayload };

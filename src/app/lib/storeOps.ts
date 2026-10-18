@@ -22,10 +22,11 @@ export type StoreOps = {
   zones: { id: string; name: string; postalCodes: string[]; feeCents: number; minOrderCents: number; active: boolean; sortOrder: number }[];
 };
 
-export async function getStoreOps(tenantId: string, settings: unknown, now = new Date()): Promise<StoreOps | null> {
+// storeId: el local concreto (sucursales); sin él, el primero.
+export async function getStoreOps(tenantId: string, settings: unknown, now = new Date(), storeId?: string | null): Promise<StoreOps | null> {
   const store = await prisma.store.findFirst({
-    where: { tenantId },
-    orderBy: { createdAt: "asc" },
+    where: { tenantId, ...(storeId && { id: storeId }) },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     include: {
       closures: { where: { endsAt: { gt: now } }, orderBy: { startsAt: "asc" } },
       deliveryZones: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { readPanelCache, writePanelCache } from "../panelCache";
+import { readPanelCache, writePanelCache } from "../../panelCache";
 
 // Carta en inglés: traducción con IA en un clic, revisión a mano y el botón
 // ES / EN de la tienda. La cocina sigue viendo los pedidos en español.

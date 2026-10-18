@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
 
     const ok = await verifyPassword(password, user.password);
     if (!ok) return invalid;
+    if (!user.active) return NextResponse.json({ error: "Tu usuario está desactivado. Habla con el responsable del restaurante." }, { status: 403 });
 
     // Scoping de tenant: un TENANT_ADMIN solo entra en su propio tenant.
     if (user.role !== "SUPERADMIN" && tenantSlug) {
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     await setSessionCookie({
       userId: user.id,
       email: user.email,

@@ -16,7 +16,7 @@ const PAUSES: { label: string; value: number | "indefinite" }[] = [
 ];
 const EXTRAS = [0, 10, 20, 30];
 
-export default function StoreControls({ tenant, live, onChange }: { tenant: string; live: StoreLive; onChange: () => Promise<void> }) {
+export default function StoreControls({ tenant, live, onChange, store = null }: { tenant: string; live: StoreLive; onChange: () => Promise<void>; store?: string | null }) {
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -27,7 +27,7 @@ export default function StoreControls({ tenant, live, onChange }: { tenant: stri
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/${tenant}/store`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await fetch(`/api/admin/${tenant}/store${store ? `?store=${encodeURIComponent(store)}` : ""}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "No se pudo cambiar");
       await onChange();
