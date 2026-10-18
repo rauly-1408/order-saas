@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import ImagePicker from "../archivos/ImagePicker";
 import { readPanelCache, writePanelCache } from "../panelCache";
 
 const S = {
@@ -150,9 +151,9 @@ export default function CartaClient({ tenant, embedded = false }: { tenant: stri
                 style={{ width: '100%', padding: '8px 12px', fontSize: 14, border: `1px solid ${S.border}`, borderRadius: 4, outline: 'none', fontFamily: 'inherit', color: S.textDark, boxSizing: 'border-box', resize: 'vertical' }} />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>URL imagen</div>
-              <input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://..."
-                style={{ width: '100%', padding: '8px 12px', fontSize: 14, border: `1px solid ${S.border}`, borderRadius: 4, outline: 'none', fontFamily: 'inherit', color: S.textDark, boxSizing: 'border-box' }} />
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>Imagen</div>
+              {/* Subir del ordenador o elegir de la biblioteca (panel → Archivos) */}
+              <ImagePicker tenant={tenant} value={form.imageUrl} onChange={(url) => setForm({ ...form, imageUrl: url })} />
             </div>
             <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
               {[
