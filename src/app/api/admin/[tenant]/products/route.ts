@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
+import { productImageUrl } from "@/app/lib/media";
 import { autoTranslateMenu } from "@/app/lib/menuTranslate";
 import { prisma } from "@/app/lib/prisma";
 import { denyUnlessTenantAdmin } from "@/app/lib/auth";
@@ -33,6 +34,8 @@ export async function POST(req: NextRequest) {
     // Verificar que la categoría pertenece al tenant
     const category = await prisma.category.findFirst({ where: { id: categoryId, tenantId: tenant.id } });
     if (!category) return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
+    const img = productImageUrl(imageUrl, slug);
+    if ("error" in img) return NextResponse.json({ error: img.error }, { status: 400 });
 
     // Slug único por tenant (misma convención que categorías): nombre sin tildes + timestamp.
     const baseSlug = name
@@ -51,7 +54,7 @@ export async function POST(req: NextRequest) {
         slug: `${baseSlug}-${Date.now()}`,
         description: description?.trim() ?? null,
         basePriceCents,
-        imageUrl: imageUrl?.trim() ?? null,
+        imageUrl: img.value,
         isActive: isActive ?? true,
         isAvailable: isAvailable ?? true,
         isFeatured: isFeatured ?? false,

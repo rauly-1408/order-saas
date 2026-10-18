@@ -157,6 +157,7 @@ model Tenant {
   courierAccount CourierAccount?
   paymentAccount PaymentAccount?
   giftCards      GiftCard[]
+  mediaFiles     MediaFile[]
   customers      Customer[]
   coupons        Coupon[]
   campaigns      Campaign[]
@@ -1060,4 +1061,27 @@ model GiftCard {
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, code])
+}
+
+// ─── Archivos del restaurante (panel → Archivos) ───────────────────────────
+// Imágenes: comprimidas en el navegador y guardadas aquí (data), servidas en
+// /api/media/[tenant]/[id]. Vídeos: en Vercel Blob (url), demasiado grandes
+// para la base de datos. Ver docs/ARCHIVOS.md
+model MediaFile {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  kind     String // IMAGE | VIDEO
+  name     String
+  mimeType String
+  size     Int
+  width    Int     @default(0)
+  height   Int     @default(0)
+  data     Bytes? // imágenes
+  url      String? // vídeos (Vercel Blob)
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, kind, createdAt])
 }

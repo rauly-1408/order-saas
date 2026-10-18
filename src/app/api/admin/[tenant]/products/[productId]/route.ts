@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
+import { productImageUrl } from "@/app/lib/media";
 import { autoTranslateMenu } from "@/app/lib/menuTranslate";
 import { prisma } from "@/app/lib/prisma";
 import { denyUnlessTenantAdmin } from "@/app/lib/auth";
@@ -28,6 +29,8 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
     const { name, description, basePriceCents, categoryId, imageUrl, isActive, isAvailable, isFeatured, sortOrder } = body;
+    const img = imageUrl === undefined ? { value: null } : productImageUrl(imageUrl, tenantSlug);
+    if ("error" in img) return NextResponse.json({ error: img.error }, { status: 400 });
 
     const updated = await prisma.product.update({
       where: { id: productId },
@@ -36,7 +39,7 @@ export async function PATCH(req: NextRequest) {
         ...(description !== undefined && { description: description?.trim() ?? null }),
         ...(basePriceCents !== undefined && { basePriceCents }),
         ...(categoryId !== undefined && { categoryId }),
-        ...(imageUrl !== undefined && { imageUrl: imageUrl?.trim() ?? null }),
+        ...(imageUrl !== undefined && { imageUrl: img.value }),
         ...(isActive !== undefined && { isActive }),
         ...(isAvailable !== undefined && { isAvailable }),
         ...(isFeatured !== undefined && { isFeatured }),
