@@ -11,11 +11,12 @@ export const dynamic = "force-dynamic";
 async function ctx(req: NextRequest, orderId: string) {
   const parts = new URL(req.url).pathname.split("/");
   const slug = parts[parts.indexOf("admin") + 1];
-  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, tenantId: true, tenant: { select: { slug: true } } } });
+  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, tenantId: true, storeId: true, tenant: { select: { slug: true } } } });
   if (!order || order.tenant.slug !== slug) return { error: NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 }) };
   const session = await getSessionFromRequest(req);
   if (!session) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }) };
   if (session.role !== "SUPERADMIN" && session.tenantId !== order.tenantId) return { error: NextResponse.json({ error: "Prohibido" }, { status: 403 }) };
+  if (session.storeId && session.storeId !== order.storeId) return { error: NextResponse.json({ error: "Este pedido es de otro local" }, { status: 403 }) };
   return { order };
 }
 

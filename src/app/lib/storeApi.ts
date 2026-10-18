@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { denyUnlessTenantAdmin, getSessionFromRequest } from "@/app/lib/auth";
+import { PANEL_STORE_COOKIE, resolveStoreId } from "@/app/lib/stores";
 import { DAY_KEYS, normalizePostalCode, parseHours, type WeeklyHours } from "@/app/lib/storeStatus";
 
 // Guard de /api/admin/[tenant]/store/*. Horario, cierres y zonas: dueño o
@@ -13,17 +14,20 @@ export async function storeTenant(
   const slug = parts[parts.indexOf("admin") + 1];
   const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true, settings: true } });
   if (!tenant) return { error: NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 }) };
+  const session = await getSessionFromRequest(req);
   if (opts.staff) {
-    const session = await getSessionFromRequest(req);
     if (!session) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }) };
     if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return { error: NextResponse.json({ error: "Prohibido" }, { status: 403 }) };
   } else {
     const denied = await denyUnlessTenantAdmin(req, tenant.id);
     if (denied) return { error: denied };
   }
-  const store = await prisma.store.findFirst({ where: { tenantId: tenant.id }, orderBy: { createdAt: "asc" }, select: { id: true } });
-  if (!store) return { error: NextResponse.json({ error: "El restaurante no tiene local" }, { status: 404 }) };
-  return { tenant, storeId: store.id };
+  // Sucursales: el empleado limitado a un local solo toca el suyo; si no, el
+  // local elegido en el panel (?store= o la cookie), o el primero.
+  const wanted = session?.storeId ?? new URL(req.url).searchParams.get("store") ?? req.cookies.get(PANEL_STORE_COOKIE)?.value;
+  const storeId = await resolveStoreId(tenant.id, wanted);
+  if (!storeId) return { error: NextResponse.json({ error: "El restaurante no tiene local" }, { status: 404 }) };
+  return { tenant, storeId };
 }
 
 // Horario semanal enviado por el panel → validado (máx. 3 franjas por día).

@@ -8,6 +8,7 @@ import { prisma } from "@/app/lib/prisma";
 import { unseal } from "@/app/lib/secretBox";
 import { returnOrderStock } from "@/app/lib/inventory";
 import { platformFeeCents } from "@/app/lib/payments";
+import { restoreGiftCard } from "@/app/lib/giftCards";
 import { testGateway } from "./test";
 import { stripeGateway } from "./stripe";
 import { redsysGateway } from "./redsys";
@@ -83,6 +84,7 @@ async function undoUnpaidOrder(tx: Prisma.TransactionClient, order: Order) {
   }
   if (order.couponId) await tx.coupon.updateMany({ where: { id: order.couponId, redeemedCount: { gt: 0 } }, data: { redeemedCount: { decrement: 1 } } });
   await tx.campaignSend.updateMany({ where: { convertedOrderId: order.id }, data: { status: "SENT", convertedAt: null, convertedOrderId: null } });
+  await restoreGiftCard(tx, order);
 }
 
 // Aplica el resultado del pago. Idempotente: solo actúa si el pedido sigue

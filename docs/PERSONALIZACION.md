@@ -1,6 +1,6 @@
 # Personalización (identidad de marca)
 
-Panel → **Personalización**. Solo gerentes. Dos pestañas, como en Last.app: **Identidad** y **Presencia online**.
+Panel → **Configuración → Marca** (antes «Personalización»). Solo gerentes. Dos pestañas, como en Last.app: **Identidad** y **Presencia online**.
 
 ## Identidad
 

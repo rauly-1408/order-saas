@@ -1,4 +1,4 @@
-// Identidad de marca (Panel → Personalización): imágenes, fuentes, paleta y
+// Identidad de marca (Panel → Configuración → Marca): imágenes, fuentes, paleta y
 // presencia online. Funciones puras: las usan la API, la carta y el panel.
 // Ver docs/PERSONALIZACION.md
 

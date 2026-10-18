@@ -23,7 +23,6 @@ type Form = { provider: Provider; payInStore: boolean; bizum: boolean; redsys: R
 
 const card = "rounded-[18px] bg-[var(--p-surface)] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-6";
 const input = "mt-1 w-full rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm outline-none focus:border-[var(--p-brand)]";
-const euros = (c: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(c / 100);
 
 const OPTIONS: { value: Provider; label: string; hint: string }[] = [
   { value: "NONE", label: "Sin pago online", hint: "El cliente paga al recoger o al recibir el pedido." },
@@ -200,26 +199,13 @@ export default function Pagos({ tenant }: { tenant: string }) {
         </div>
       </section>
 
-      <section className={card}>
-        <p className="text-[15px] font-semibold">Comisión de la plataforma</p>
-        <p className="mt-1 text-sm text-[var(--p-muted)]">
-          {view.feePercent} % de cada pedido pagado online, aparte de lo que cobre tu pasarela. Pagar al recoger o al recibir no tiene comisión. Se factura a final de mes.
-        </p>
-        <dl className="mt-4 grid grid-cols-3 gap-3 text-center">
-          <div className="rounded-xl bg-black/[0.03] px-2 py-3">
-            <dt className="text-[11px] text-[var(--p-muted)]">Pedidos online este mes</dt>
-            <dd className="mt-1 text-lg font-semibold tabular-nums">{view.month.orders}</dd>
-          </div>
-          <div className="rounded-xl bg-black/[0.03] px-2 py-3">
-            <dt className="text-[11px] text-[var(--p-muted)]">Cobrado online</dt>
-            <dd className="mt-1 text-lg font-semibold tabular-nums">{euros(view.month.totalCents)}</dd>
-          </div>
-          <div className="rounded-xl bg-black/[0.03] px-2 py-3">
-            <dt className="text-[11px] text-[var(--p-muted)]">Comisión</dt>
-            <dd className="mt-1 text-lg font-semibold tabular-nums">{euros(view.month.feeCents)}</dd>
-          </div>
-        </dl>
-      </section>
+      <p className="text-xs text-[var(--p-muted)]">
+        La comisión de la plataforma ({view.feePercent} % de los pedidos pagados online) y su resumen por mes están en{" "}
+        <a href={`/admin/${tenant}/configuracion/plan`} className="font-semibold text-[var(--p-brand)]">
+          Plan y facturación
+        </a>
+        .
+      </p>
     </div>
   );
 }

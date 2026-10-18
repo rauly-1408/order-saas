@@ -44,7 +44,7 @@ async function saveFailure(order: Pick<Order, "id" | "tenantId">, provider: Prov
 export async function requestCourier(orderId: string): Promise<CourierDelivery | null> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: { select: { quantity: true, productName: true } }, courier: true, tenant: { select: { name: true, settings: true } }, store: { select: { name: true, phone: true } } },
+    include: { items: { select: { quantity: true, productName: true } }, courier: true, tenant: { select: { name: true, settings: true } }, store: { select: { name: true, phone: true, address: true } } },
   });
   if (!order || order.channel !== "DELIVERY" || order.status === "CANCELLED" || order.status === "DELIVERED") return null;
   if (order.courier && (isActive(order.courier.status) || order.courier.status === "DELIVERED")) return order.courier;
@@ -53,8 +53,11 @@ export async function requestCourier(orderId: string): Promise<CourierDelivery |
   if (!account?.impl) return null;
   try {
     const business = readBusiness(order.tenant.settings);
-    const pickup = business.street ? await geocodeAddress(business.street, business.city) : null;
-    if (!pickup) throw new CourierError("No encuentro la dirección del local. Revísala en Configuración → Información del negocio (calle y número).");
+    // Sucursales: si el local tiene su dirección, se recoge allí; si no, la del negocio.
+    const storeStreet = order.store.address?.trim();
+    const pickup =
+      (storeStreet ? await geocodeAddress(storeStreet, business.city) : null) ?? (business.street ? await geocodeAddress(business.street, business.city) : null);
+    if (!pickup) throw new CourierError("No encuentro la dirección del local. Revísala en Configuración → Sucursales o en Información del negocio (calle y número).");
     const dropoff = order.customerAddress ? await geocodeAddress(order.customerAddress, business.city) : null;
     if (!dropoff) throw new CourierError("No encuentro la dirección del cliente en el mapa. Llámale para confirmarla o pide el repartidor a mano.");
 

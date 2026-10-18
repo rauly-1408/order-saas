@@ -5,6 +5,7 @@ import { returnOrderStock } from "@/app/lib/inventory";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { cancelCourier, courierAccount, requestCourier, toPublicCourier } from "@/app/lib/couriers";
 import { refundOrder } from "@/app/lib/gateways";
+import { restoreGiftCard } from "@/app/lib/giftCards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,10 @@ export async function PATCH(req: NextRequest) {
         if (session.role !== "SUPERADMIN" && session.tenantId !== order.tenantId) {
           return NextResponse.json({ error: "Prohibido" }, { status: 403 });
         }
+        // Empleado limitado a un local: solo los pedidos de ese local.
+        if (session.storeId && session.storeId !== order.storeId) {
+          return NextResponse.json({ error: "Este pedido es de otro local" }, { status: 403 });
+        }
 
         const allowed = VALID_TRANSITIONS[order.status] ?? [];
               const deliveringOnPickup = newStatus === "DELIVERING" && order.channel !== "DELIVERY";
@@ -58,7 +63,10 @@ export async function PATCH(req: NextRequest) {
             where: { id: orderId },
             data: { status: newStatus as OrderStatus }, // validado contra VALID_TRANSITIONS
           });
-          if (newStatus === "CANCELLED") await returnOrderStock(tx, order.tenantId, orderId);
+          if (newStatus === "CANCELLED") {
+            await returnOrderStock(tx, order.tenantId, orderId);
+            await restoreGiftCard(tx, order); // el saldo vuelve a la tarjeta regalo
+          }
           return u;
         });
 

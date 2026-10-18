@@ -78,7 +78,6 @@ function buildNav(tenant: string): NavItem[] {
     { label: "Clientes", href: `${base}/clientes`, icon: "users", managerOnly: true },
     { label: "Carta", href: `${base}/carta`, icon: "menu", managerOnly: true },
     { label: "Costes", href: `${base}/costes`, icon: "costs", managerOnly: true },
-    { label: "Personalización", href: `${base}/personalizacion`, icon: "brush", managerOnly: true },
   ];
 }
 
@@ -103,6 +102,9 @@ export default function AdminSidebar({
     router.replace(`/admin/${tenant}/login`);
   }
 
+  // Configuración va a pantalla completa (como Shopify): sin barra lateral.
+  const inSettings = pathname.startsWith(`/admin/${tenant}/configuracion`);
+
   const isActive = (item: NavItem) => (item.exact ? pathname === item.href : pathname.startsWith(item.href));
 
   const brandMark = logoUrl ? (
@@ -113,6 +115,8 @@ export default function AdminSidebar({
       {tenantName.charAt(0).toUpperCase()}
     </div>
   );
+
+  if (inSettings) return null;
 
   return (
     <>

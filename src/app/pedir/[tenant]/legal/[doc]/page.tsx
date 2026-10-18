@@ -5,6 +5,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getTenantTheme, themeToCssVars } from "@/app/lib/tenantConfig";
 import { LEGAL_DOCS, readBusiness, type LegalSlug } from "@/app/lib/business";
 import { legalText } from "@/app/lib/legalTexts";
+import { customPolicySections, readPolicies } from "@/app/lib/storePolicies";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,9 @@ export default async function LegalPage({ params }: Params) {
   const vars = themeToCssVars(theme) as React.CSSProperties;
   const h = await headers();
   const site = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host") ?? ""}/pedir/${tenant}`;
-  const sections = legalText(doc as LegalSlug, readBusiness(t.settings), t.name, site);
+  // Configuración → Políticas: si el restaurante escribió su texto, manda ese.
+  const custom = readPolicies(t.settings)[doc];
+  const sections = custom ? customPolicySections(custom) : legalText(doc as LegalSlug, readBusiness(t.settings), t.name, site);
   const upper = theme.headingCase === "uppercase";
 
   return (
@@ -51,8 +54,8 @@ export default async function LegalPage({ params }: Params) {
         </h1>
         <div className="mt-8 space-y-7">
           {sections.map((s) => (
-            <section key={s.heading}>
-              <h2 className="text-[17px] font-bold">{s.heading}</h2>
+            <section key={s.heading || "intro"}>
+              {s.heading && <h2 className="text-[17px] font-bold">{s.heading}</h2>}
               {s.paragraphs.map((p, i) => (
                 <p key={i} className="mt-2 text-[15px] leading-relaxed text-[var(--text-secondary)]">
                   {p}

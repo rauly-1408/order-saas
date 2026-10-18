@@ -1,8 +1,7 @@
-import { requireManagerPage } from "@/app/lib/auth";
-import PersonalizacionClient from "./PersonalizacionClient";
+import { redirect } from "next/navigation";
 
+// Personalización pasó a Configuración → Marca (como Shopify).
 export default async function PersonalizacionPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
-  await requireManagerPage(tenant);
-  return <PersonalizacionClient tenant={tenant} />;
+  redirect(`/admin/${tenant}/configuracion/marca`);
 }

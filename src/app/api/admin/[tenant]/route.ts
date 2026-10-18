@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readCheckout, readPolicies, readTax } from "@/app/lib/storePolicies";
+import { LEGAL_DOCS } from "@/app/lib/business";
 import { parsePartners, partnersProblem } from "@/app/lib/deliveryPartners";
 import { prisma } from "@/app/lib/prisma";
 import { denyUnlessTenantAdmin } from "@/app/lib/auth";
@@ -64,6 +66,17 @@ export async function PATCH(req: NextRequest) {
       const problem = partnersProblem(raw);
       if (problem) return NextResponse.json({ error: problem }, { status: 400 });
       (settings as Record<string, unknown>).deliveryPartners = parsePartners(raw);
+    }
+
+    // Pantalla de pago, impuestos y políticas: se guardan ya normalizados.
+    if (settings !== undefined) {
+      const s = settings as Record<string, unknown>;
+      if (s.checkout !== undefined) s.checkout = readCheckout({ checkout: s.checkout });
+      if (s.tax !== undefined) s.tax = readTax({ tax: s.tax });
+      if (s.policies !== undefined) {
+        const slugs = LEGAL_DOCS.map((d) => d.slug as string);
+        s.policies = Object.fromEntries(Object.entries(readPolicies({ policies: s.policies })).filter(([k]) => slugs.includes(k)));
+      }
     }
 
     // Lo operativo vive en el local (Store): es lo que usan los pedidos.

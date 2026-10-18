@@ -19,7 +19,8 @@ const CLOCK_MS = 15_000;
 // Mientras haya pedidos sin aceptar, el aviso se repite (como las tablets de
 // Glovo / Uber Eats) para que ninguno se quede olvidado.
 
-type OrdersResponse = { orders: Order[]; history?: Order[]; estimates?: Estimates; store?: StoreLive | null; courierEnabled?: boolean };
+type OrdersResponse = { orders: Order[]; history?: Order[]; estimates?: Estimates; store?: StoreLive | null; courierEnabled?: boolean; stores?: { id: string; name: string }[]; storeFilter?: string | null };
+const STORE_FILTER_KEY = "panel-store-filter";
 
 const DEFAULT_ESTIMATES: Estimates = { deliveryMinutes: 45, pickupMinutes: 20 };
 
@@ -30,6 +31,15 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
   const [estimates, setEstimates] = useState<Estimates>(DEFAULT_ESTIMATES);
   const [storeLive, setStoreLive] = useState<StoreLive | null>(null);
   const [courierEnabled, setCourierEnabled] = useState(false);
+  // Sucursales: filtro por local (se recuerda en este dispositivo).
+  const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
+  const [storeFilter, setStoreFilter] = useState<string>(() => {
+    try {
+      return typeof window === "undefined" ? "" : localStorage.getItem(STORE_FILTER_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
@@ -47,7 +57,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
 
   const loadOrders = useCallback(async () => {
     try {
-      const res = await fetch(`/api/orders/${tenant}`, { cache: "no-store" });
+      const res = await fetch(`/api/orders/${tenant}${storeFilter ? `?store=${encodeURIComponent(storeFilter)}` : ""}`, { cache: "no-store" });
       if (res.status === 401) {
         router.replace(`/admin/${tenant}/login`);
         return;
@@ -67,6 +77,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       if (data.estimates) setEstimates(data.estimates);
       setStoreLive(data.store ?? null);
       setCourierEnabled(!!data.courierEnabled);
+      setStores(data.stores ?? []);
       setError("");
     } catch {
       setError("Sin conexión. Reintentando…");
@@ -74,7 +85,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       setLoading(false);
       setNow(Date.now());
     }
-  }, [tenant, router]);
+  }, [tenant, router, storeFilter]);
 
   useEffect(() => {
     loadOrders();
@@ -199,7 +210,29 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
         </p>
       )}
 
-      {storeLive && <StoreControls tenant={tenant} live={storeLive} onChange={loadOrders} />}
+      {stores.length > 1 && (
+        <label className="mb-4 flex items-center gap-2 text-sm">
+          <span className="font-medium text-[var(--p-muted)]">📍 Local</span>
+          <select
+            value={storeFilter}
+            onChange={(e) => {
+              setStoreFilter(e.target.value);
+              try {
+                localStorage.setItem(STORE_FILTER_KEY, e.target.value);
+              } catch {}
+            }}
+            className="rounded-full border border-[var(--p-line)] bg-[var(--p-surface)] px-3 py-1.5 text-sm font-medium"
+          >
+            <option value="">Todos los locales</option>
+            {stores.map((st) => (
+              <option key={st.id} value={st.id}>
+                {st.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {storeLive && (stores.length <= 1 || storeFilter) && <StoreControls tenant={tenant} live={storeLive} onChange={loadOrders} store={storeFilter || null} />}
 
       {error && <div className="mb-4 rounded-2xl bg-[var(--p-accent-soft)] px-4 py-2 text-sm text-[var(--p-accent)]">{error}</div>}
 

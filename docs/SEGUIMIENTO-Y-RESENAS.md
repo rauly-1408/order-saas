@@ -17,7 +17,7 @@ La página de confirmación (`/pedir/[tenant]/confirmacion/[orderId]`) es ahora 
 ## Reseñas
 
 - Al entregar el pedido, la página pregunta «¿Qué tal tu pedido?»: de 1 a 5 estrellas y un comentario opcional. Hay una sola valoración por pedido.
-- **Con 4 o 5 estrellas** se invita a dejar la reseña también en **Google**, con el enlace de Personalización → Presencia online → Reseñas de Google. Sin ese enlace no se muestra el botón.
+- **Con 4 o 5 estrellas** se invita a dejar la reseña también en **Google**, con el enlace de Configuración → Marca → Presencia online → Reseñas de Google. Sin ese enlace no se muestra el botón.
 - **Con 1 a 3 estrellas** se agradece y el comentario solo llega al restaurante.
 - Panel → **Clientes → Reseñas**:
   - nota media, número de reseñas y % de pedidos entregados con reseña;

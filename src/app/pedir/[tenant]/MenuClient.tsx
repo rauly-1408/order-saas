@@ -18,6 +18,7 @@ import type { BusinessInfo } from "@/app/lib/business";
 import type { WeeklyHours } from "@/app/lib/storeStatus";
 import { useRouter } from "next/navigation";
 import { rememberLang, storeMessage, ui, whenText, type Lang } from "@/app/lib/i18n";
+import { rememberStore } from "@/app/lib/shopStore";
 import DeliveryPartners, { type PartnerLink } from "./DeliveryPartners";
 import type { ChoiceProduct, ComboSlotDef } from "@/app/lib/combos";
 
@@ -58,17 +59,24 @@ type MenuClientProps = {
   hours: WeeklyHours | null;
   lang?: Lang;
   languages?: Lang[];
+  stores?: { id: string; name: string; address: string | null }[];
+  storeId?: string | null;
 };
 
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online, deliveryPartners = [], business, hours, lang = "es", languages = ["es"] }: MenuClientProps) {
+export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online, deliveryPartners = [], business, hours, lang = "es", languages = ["es"], stores = [], storeId = null }: MenuClientProps) {
   const T = ui(lang);
   const router = useRouter();
   // Cambiar de idioma: se guarda la elección y se vuelve a pedir la página.
   function setLang(next: Lang) {
     rememberLang(next);
+    router.refresh();
+  }
+  // Sucursales: cambiar de local recarga horario, zonas y estado de ese local.
+  function setStore(id: string) {
+    rememberStore(id);
     router.refresh();
   }
   const { items, addItem, inc, dec, remove, clear } = useCart();
@@ -186,6 +194,29 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         <div className="px-4 py-2 text-center text-[13px] font-semibold" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
           🕐 {storeMessage(store.status.kind, store.status.message, lang)}{!store.status.open && store.status.reopens ? ` · ${T.closedOpens(whenText(store.status.reopens, lang)!)}` : ""}
           {canSchedule ? ` · ${T.canSchedule}` : ""}
+        </div>
+      )}
+
+      {/* Sucursales: el cliente elige su local (solo si hay más de uno) */}
+      {stores.length > 1 && (
+        <div className="border-b border-[var(--border)] px-4 py-2 text-[13px]" style={{ backgroundColor: cssVars["--surface-1"] }}>
+          <label className="mx-auto flex max-w-7xl items-center gap-2 sm:px-4">
+            <span aria-hidden>📍</span>
+            <span className="shrink-0 font-semibold">{T.yourStore}:</span>
+            <select
+              value={storeId ?? ""}
+              onChange={(e) => setStore(e.target.value)}
+              className="min-w-0 flex-1 truncate rounded-full bg-transparent px-2 py-1 font-semibold sm:flex-none"
+              style={{ border: `1px solid ${cssVars["--border"]}`, color: cssVars["--text-primary"] }}
+            >
+              {stores.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.name}
+                  {st.address ? ` · ${st.address}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       )}
 

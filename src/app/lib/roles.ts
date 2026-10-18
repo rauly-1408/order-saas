@@ -6,3 +6,10 @@
 export function canManageTenant(role: string): boolean {
   return role === "SUPERADMIN" || role === "TENANT_ADMIN";
 }
+
+// Nombres que ve el restaurante (Configuración → Usuarios y permisos).
+export const ROLE_LABEL: Record<string, string> = {
+  SUPERADMIN: "Soporte de la plataforma",
+  TENANT_ADMIN: "Gerente (todo)",
+  STORE_MANAGER: "Pedidos (solo pedidos)",
+};

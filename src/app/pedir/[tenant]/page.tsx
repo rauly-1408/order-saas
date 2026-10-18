@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import MenuClient from "./MenuClient";
 import { loadMenu } from "@/app/lib/menu";
 import { prisma } from "@/app/lib/prisma";
-import { storeLang } from "@/app/lib/storeLang";
+import { shopStoreId, storeLang } from "@/app/lib/storeLang";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ export default async function PedirPage({
 }) {
   const { tenant } = await params;
   const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { settings: true } });
-  const menu = await loadMenu(tenant, await storeLang(t?.settings));
+  const menu = await loadMenu(tenant, await storeLang(t?.settings), await shopStoreId());
   if (!menu) notFound();
 
   return (
@@ -31,6 +31,8 @@ export default async function PedirPage({
       hours={menu.hours}
       lang={menu.lang}
       languages={menu.languages}
+      stores={menu.stores}
+      storeId={menu.storeId}
     />
   );
 }
