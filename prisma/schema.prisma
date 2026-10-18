@@ -928,6 +928,8 @@ model ComboSlot {
 
   name      String
   sortOrder Int    @default(0)
+  // false = paso opcional (p. ej. «Complementos»): el cliente puede no elegir nada
+  required  Boolean @default(true)
 
   items ComboSlotItem[]
 

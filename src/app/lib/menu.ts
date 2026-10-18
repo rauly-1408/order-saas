@@ -63,7 +63,7 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
           isCombo: true,
           comboSlots: {
             orderBy: { sortOrder: "asc" },
-            select: { id: true, name: true, translations: true, items: { orderBy: { sortOrder: "asc" }, select: { productId: true, extraCents: true } } },
+            select: { id: true, name: true, required: true, translations: true, items: { orderBy: { sortOrder: "asc" }, select: { productId: true, extraCents: true } } },
           },
           // Alérgenos derivados del escandallo (módulo Costes); vacío si no hay receta.
           recipeLines: { select: { ingredient: { select: { allergens: true } } } },

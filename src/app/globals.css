@@ -167,6 +167,49 @@ nav { scrollbar-width: none; }
   .p-press:active { transition: none; transform: none; }
 }
 
+/* Botones del panel: todos reaccionan al pasar el ratón (se oscurecen un poco,
+   suben 1 px y ganan sombra) y se hunden al pulsar. Así el dueño sabe siempre
+   dónde puede hacer clic. Solo con ratón (no en pantallas táctiles). */
+.panel button:not(:disabled),
+.panel a.p-press,
+.panel a[class*="rounded-full"],
+.panel summary {
+  cursor: pointer;
+  transition: transform 0.18s ease, filter 0.2s ease, box-shadow 0.2s ease, background-color 0.25s ease, color 0.25s ease, opacity 0.25s ease;
+}
+.panel button:disabled {
+  cursor: not-allowed;
+}
+@media (hover: hover) {
+  .panel button:not(:disabled):hover,
+  .panel a.p-press:hover,
+  .panel a[class*="rounded-full"]:hover {
+    filter: brightness(0.95);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+  }
+  /* Filas plegables y opciones de lista: solo cambio de tono, sin saltar. */
+  .panel button[aria-expanded]:not(:disabled):hover,
+  .panel [role="radiogroup"] button:not(:disabled):hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+.panel button:not(:disabled):active,
+.panel a.p-press:active,
+.panel a[class*="rounded-full"]:active {
+  transform: scale(0.97);
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel button:not(:disabled):hover,
+  .panel button:not(:disabled):active,
+  .panel a.p-press:hover,
+  .panel a[class*="rounded-full"]:hover {
+    transform: none;
+  }
+}
+
 /* Campos de formulario del panel al estilo iOS: fondo gris suave, sin borde y
    anillo del color de la marca al enfocar. !important porque algunas pantallas
    heredadas usan estilos en línea. */

@@ -49,13 +49,24 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd, lang = "es"
     .filter((s) => picked[s.id])
     .map((s) => ({ slotId: s.id, productId: picked[s.id], optionIds: Object.values(options[s.id] ?? {}).flat() }));
   const priced = priceCombo({ name: combo.name, basePriceCents: combo.basePriceCents, slots }, choices, catalog);
-  const complete = choices.length === slots.length;
+  // Los pasos opcionales (p. ej. «Complementos») no hace falta elegirlos.
+  const requiredMissing = slots.filter((s) => s.required !== false && !picked[s.id]).length;
+  const complete = requiredMissing === 0;
   const unitPriceCents = typeof priced === "string" ? combo.basePriceCents + choices.reduce((a, c) => a + (slots.find((s) => s.id === c.slotId)?.items.find((i) => i.productId === c.productId)?.extraCents ?? 0), 0) : priced.unitCents;
 
   function pick(slotId: string, productId: string) {
     setError("");
     setPicked((p) => ({ ...p, [slotId]: productId }));
     setOptions((o) => ({ ...o, [slotId]: initialSelection(catalog.get(productId)?.modifierGroups ?? []) }));
+    setEditing(null);
+  }
+
+  // Paso opcional: «No, gracias» quita lo elegido.
+  function unpick(slotId: string) {
+    setError("");
+    const without = <T,>(o: Record<string, T>) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== slotId));
+    setPicked((p) => without(p));
+    setOptions((o) => without(o));
     setEditing(null);
   }
 
@@ -72,7 +83,7 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd, lang = "es"
   }
 
   function handleAdd() {
-    const missing = slots.find((s) => !picked[s.id]);
+    const missing = slots.find((s) => s.required !== false && !picked[s.id]);
     if (missing) return setError(T.chooseOption(missing.name));
     if (typeof priced === "string") return setError(optionError(priced, lang));
     onAdd({ comboChoices: choices, modifiers: priced.modifiers, unitPriceCents: priced.unitCents });
@@ -109,13 +120,25 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd, lang = "es"
                       {T.change}
                     </button>
                   ) : (
-                    <span className="text-xs text-[var(--text-secondary)]">{T.chooseOne}</span>
+                    <span className="text-xs text-[var(--text-secondary)]">{slot.required === false ? T.optionalStep : T.chooseOne}</span>
                   )}
                 </div>
                 {slot.items.length === 0 ? (
                   <p className="text-[13px] text-[var(--text-secondary)]">{T.noOptionsNow}</p>
                 ) : (
                   <div className="space-y-2">
+                    {slot.required === false && (!chosen || editing === slot.id) && (
+                      <button
+                        onClick={() => unpick(slot.id)}
+                        aria-pressed={!chosenId}
+                        className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left ${!chosenId ? "border-[var(--brand-accent)] bg-[var(--surface-1)]" : "border-[var(--border)]"}`}
+                      >
+                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${!chosenId ? "border-[var(--brand-accent)]" : "border-[var(--text-secondary)]"}`}>
+                          {!chosenId && <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand-accent)]" />}
+                        </span>
+                        <span className="min-w-0 flex-1 text-[14px]">{T.noThanks}</span>
+                      </button>
+                    )}
                     {slot.items.filter((item) => !chosen || editing === slot.id || item.productId === chosenId).map((item) => {
                       const p = catalog.get(item.productId)!;
                       const selected = chosenId === item.productId;
@@ -176,7 +199,7 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd, lang = "es"
             onClick={handleAdd}
             className={`p-press w-full rounded-full bg-[var(--brand-accent)] py-3.5 text-[15px] font-semibold text-[var(--on-accent)] ${complete ? "" : "opacity-60"}`}
           >
-            {complete ? T.addMenu(euros(unitPriceCents)) : T.chooseMore(slots.length - choices.length, euros(unitPriceCents))}
+            {complete ? T.addMenu(euros(unitPriceCents)) : T.chooseMore(requiredMissing, euros(unitPriceCents))}
           </button>
         </footer>
       </div>
