@@ -15,6 +15,8 @@ Panel → **Inicio** (`/admin/[tenant]/home`). Solo gerentes, porque muestra ing
 - Salen 6 tarjetas; el resto se abre con «Ver N ideas más».
 - Cada tarjeta se puede **ocultar con ✕**. Se recuerda en ese navegador (`localStorage`, clave `inicio-ocultas:{tenant}`). «Mostrar las ocultas» las recupera.
 - El botón de cada tarjeta lleva al sitio exacto donde se activa.
+- **Al pasar el ratón**, la tarjeta sube un poco con sombra y su dibujo se acerca, como en Shopify. Si el sistema pide «reducir movimiento», no se mueve.
+  - La animación de entrada (`p-rise`) va en un envoltorio: fija el `transform` y, si estuviera en la propia tarjeta, anularía el efecto.
 
 | Tarjeta | Cuándo desaparece | Lleva a |
 |---|---|---|
