@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, Msg, euros, ghostBtn, input, primaryBtn } from "../ui";
+import { Card, Msg, euros, ghostBtn, input, primaryBtn, toast } from "../ui";
 
 type GiftCard = { id: string; code: string; initialCents: number; balanceCents: number; active: boolean; expiresAt: string | null; note: string | null; createdAt: string; _count: { orders: number } };
 
@@ -30,9 +30,12 @@ export default function TarjetasRegalo({ tenant }: { tenant: string }) {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Algo ha fallado");
       setCards(json.cards);
-      if (json.created) setCreated(json.created);
+      if (json.created) {
+        setCreated(json.created);
+        toast("Tarjeta regalo creada");
+      }
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "Algo ha fallado" });
+      toast(e instanceof Error ? e.message : "Algo ha fallado", false);
     } finally {
       setBusy(false);
     }

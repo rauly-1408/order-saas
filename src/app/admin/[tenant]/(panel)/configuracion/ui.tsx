@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 // Piezas comunes de los apartados de Configuración (estilo Shopify: tarjetas
 // blancas con título, explicación y botón de guardar).
@@ -58,4 +58,122 @@ export function useTenantSettings(tenant: string) {
     [tenant, settings]
   );
   return { settings, error, save };
+}
+
+// ─── Barra «Cambios sin guardar» y avisos, como en Shopify ─────────────────
+// Cada formulario se apunta con useSaveBar(); una sola barra arriba guarda o
+// descarta todo lo pendiente de la página. Al guardar sale un aviso flotante.
+
+type SaveReg = { dirty: boolean; save: () => Promise<boolean>; discard: () => void };
+const regs = new Map<string, { current: SaveReg }>();
+const listeners = new Set<() => void>();
+let version = 0;
+const emit = () => {
+  version++;
+  listeners.forEach((l) => l());
+};
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
+
+// save() devuelve true si se guardó; si falla, avisa con toast() y devuelve false.
+export function useSaveBar(id: string, reg: SaveReg) {
+  const ref = useRef(reg);
+  useEffect(() => {
+    ref.current = reg;
+    emit();
+  });
+  useEffect(() => {
+    regs.set(id, ref);
+    emit();
+    return () => {
+      regs.delete(id);
+      emit();
+    };
+  }, [id]);
+}
+
+const dirtyRegs = () => [...regs.values()].map((r) => r.current).filter((r) => r.dirty);
+
+export function toast(text: string, ok = true) {
+  window.dispatchEvent(new CustomEvent("cfg-toast", { detail: { text, ok } }));
+}
+
+// Va una vez en el layout de Configuración.
+export function SaveBarHost() {
+  useSyncExternalStore(subscribe, () => version, () => 0);
+  const pending = dirtyRegs();
+  const dirty = pending.length > 0;
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ text: string; ok: boolean; id: number } | null>(null);
+
+  // Avisos flotantes (se van solos).
+  useEffect(() => {
+    const on = (e: Event) => setNote({ ...(e as CustomEvent<{ text: string; ok: boolean }>).detail, id: Date.now() });
+    window.addEventListener("cfg-toast", on);
+    return () => window.removeEventListener("cfg-toast", on);
+  }, []);
+  useEffect(() => {
+    if (!note) return;
+    const t = setTimeout(() => setNote(null), note.ok ? 2600 : 5000);
+    return () => clearTimeout(t);
+  }, [note]);
+
+  // Con cambios sin guardar: aviso al cerrar la pestaña o al irse a otro apartado.
+  useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement).closest("a[href]");
+      if (!a || a.getAttribute("target") === "_blank") return;
+      if (!confirm("Tienes cambios sin guardar. ¿Salir sin guardarlos?")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, [dirty]);
+
+  async function saveAll() {
+    setBusy(true);
+    let ok = true;
+    for (const r of dirtyRegs()) {
+      if (!(await r.save())) {
+        ok = false;
+        break;
+      }
+    }
+    setBusy(false);
+    if (ok) toast("Cambios guardados");
+  }
+
+  return (
+    <>
+      {dirty && (
+        <div role="region" aria-label="Cambios sin guardar" className="fixed inset-x-0 top-0 z-50 flex items-center gap-3 bg-[#1a1a1a] px-4 py-2.5 text-white shadow-lg sm:px-8">
+          <span className="flex-1 text-sm font-medium">⚠️ Cambios sin guardar</span>
+          <button type="button" disabled={busy} onClick={() => dirtyRegs().forEach((r) => r.discard())} className="p-press rounded-lg px-3 py-1.5 text-sm font-medium text-white/80 hover:bg-white/10 disabled:opacity-50">
+            Descartar
+          </button>
+          <button type="button" disabled={busy} onClick={saveAll} className="p-press rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-[#1a1a1a] disabled:opacity-60">
+            {busy ? "Guardando…" : "Guardar"}
+          </button>
+        </div>
+      )}
+      {note && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+          <div key={note.id} role="status" className={`p-rise flex max-w-full items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-lg ${note.ok ? "bg-[#1a1a1a]" : "bg-[#b42318]"}`}>
+            <span aria-hidden>{note.ok ? "✓" : "!"}</span>
+            {note.text}
+          </div>
+        </div>
+      )}
+    </>
+  );
 }

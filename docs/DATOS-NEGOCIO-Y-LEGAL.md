@@ -49,3 +49,20 @@ Se publican en `/pedir/[tenant]/legal/{aviso-legal|privacidad|cookies|condicione
   - alérgenos y reclamaciones.
 
 Son una **plantilla orientativa**: el panel recomienda revisarlos con un asesor antes de abrir al público. Si en el futuro se añade analítica (Meta Pixel, Google Analytics), habrá que actualizar la política de cookies y poner un banner de consentimiento.
+
+## Modelo de redacción (Configuración → Políticas)
+
+Los textos legales son un **modelo pensado para hostelería**. Las condiciones de venta incluyen:
+- pedidos y precios, y fotografías orientativas;
+- recogida y entrega a domicilio;
+- bebidas alcohólicas y menores;
+- seguridad alimentaria;
+- pago;
+- cancelaciones, desistimiento (excepción de la comida perecedera) y devoluciones;
+- propinas y tarjetas regalo;
+- alérgenos;
+- reclamaciones y arbitraje de consumo.
+
+La privacidad incluye un apartado de seguridad.
+
+El dueño lo usa tal cual (se actualiza solo con sus datos del negocio) o lo adapta en Configuración → Políticas. `legalTemplate()` convierte el modelo en texto editable («## Título» y párrafos); `GET /api/admin/[tenant]/policies` lo sirve al panel.

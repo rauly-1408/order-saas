@@ -1,6 +1,7 @@
 // Informes de ventas (panel → Informes). Agregación pura: recibe los pedidos de
 // un periodo y devuelve cifras, series y rankings en la hora del restaurante.
 import { addDays, daysBetween, localParts } from "@/app/lib/time";
+import { includedTax } from "@/app/lib/storePolicies";
 
 export type ReportOrder = {
   createdAt: Date;
@@ -13,6 +14,8 @@ export type ReportOrder = {
   promotionName?: string | null;
   promotionDiscountCents?: number;
   loyaltyDiscountCents?: number;
+  tipCents?: number;
+  giftCardCents?: number;
   customerId: string | null;
   customerFirstOrderAt: Date | null;
   lines: { productId: string; productName: string; categoryName: string | null; quantity: number; totalCents: number }[];
@@ -26,6 +29,10 @@ export type Totals = {
   deliveryFeesCents: number;
   newCustomers: number;
   cancelled: number;
+  // IVA incluido en las ventas de comida (sin propinas; con lo pagado con tarjeta regalo)
+  taxCents: number;
+  taxRate: number;
+  tipsCents: number;
 };
 
 export type Report = {
@@ -44,7 +51,7 @@ export type Report = {
 
 export const MAX_RANGE_DAYS = 366;
 
-function totalsOf(orders: ReportOrder[], from: Date, to: Date): Totals {
+function totalsOf(orders: ReportOrder[], from: Date, to: Date, taxRate: number): Totals {
   const valid = orders.filter((o) => o.status !== "CANCELLED");
   const revenueCents = valid.reduce((a, o) => a + o.totalCents, 0);
   const newCustomers = new Set(
@@ -58,6 +65,9 @@ function totalsOf(orders: ReportOrder[], from: Date, to: Date): Totals {
     deliveryFeesCents: valid.reduce((a, o) => a + (o.channel === "DELIVERY" ? o.feesCents : 0), 0),
     newCustomers,
     cancelled: orders.length - valid.length,
+    taxCents: includedTax(valid.reduce((a, o) => a + o.totalCents + (o.giftCardCents ?? 0) - (o.tipCents ?? 0), 0), taxRate),
+    taxRate,
+    tipsCents: valid.reduce((a, o) => a + (o.tipCents ?? 0), 0),
   };
 }
 
@@ -74,7 +84,8 @@ export function buildReport(
   current: ReportOrder[],
   previous: ReportOrder[],
   range: { from: string; to: string; start: Date; end: Date; prevStart: Date },
-  timeZone: string
+  timeZone: string,
+  taxRate = 10
 ): Report {
   const valid = current.filter((o) => o.status !== "CANCELLED");
 
@@ -122,8 +133,8 @@ export function buildReport(
   return {
     from: range.from,
     to: range.to,
-    totals: totalsOf(current, range.start, range.end),
-    previous: totalsOf(previous, range.prevStart, range.start),
+    totals: totalsOf(current, range.start, range.end, taxRate),
+    previous: totalsOf(previous, range.prevStart, range.start, taxRate),
     byDay: [...byDayMap.entries()].map(([date, v]) => ({ date, ...v })),
     byChannel: (["DELIVERY", "TAKEAWAY"] as const).map((channel) => ({ channel, ...(channels.get(channel) ?? { orders: 0, revenueCents: 0 }) })),
     topProducts: rank(products, 10),

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildReport } from "@/app/lib/reports";
+import { readTax } from "@/app/lib/storePolicies";
 import { loadReportOrders, reportContext } from "@/app/lib/reportsApi";
 
 export const runtime = "nodejs";
@@ -13,5 +14,5 @@ export async function GET(req: NextRequest) {
   const all = await loadReportOrders(ctx.tenant.id, range.prevStart, range.end);
   const current = all.filter((o) => o.createdAt >= range.start);
   const previous = all.filter((o) => o.createdAt < range.start);
-  return NextResponse.json({ report: buildReport(current, previous, range, range.timeZone) });
+  return NextResponse.json({ report: buildReport(current, previous, range, range.timeZone, readTax(ctx.tenant.settings).rate) });
 }

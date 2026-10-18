@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { toast, useSaveBar } from "./ui";
 import { DAY_KEYS, DAY_LABEL, type DayKey, type TimeRange, type WeeklyHours } from "@/app/lib/storeStatus";
 
 // Configuración operativa de la tienda online: horario semanal, cierres
@@ -52,20 +53,23 @@ export default function Operativa({ tenant }: { tenant: string }) {
 
 function Horario({ api, initial, onSaved }: { api: string; initial: WeeklyHours; onSaved: () => Promise<void> }) {
   const [hours, setHours] = useState<WeeklyHours>(initial);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState("");
   const setDay = (d: DayKey, ranges: TimeRange[]) => setHours({ ...hours, [d]: ranges });
 
-  async function save() {
-    setSaving(true);
-    setMsg("");
-    const res = await fetch(api, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hours }) });
-    const json = await res.json().catch(() => ({}));
-    setSaving(false);
-    if (!res.ok) return setMsg(json.error ?? "No se pudo guardar");
-    setMsg("Horario guardado");
-    await onSaved();
-  }
+  // Barra «Cambios sin guardar» (como Shopify).
+  useSaveBar("horario", {
+    dirty: JSON.stringify(hours) !== JSON.stringify(initial),
+    discard: () => setHours(initial),
+    save: async () => {
+      const res = await fetch(api, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hours }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast(json.error ?? "No se pudo guardar el horario", false);
+        return false;
+      }
+      await onSaved();
+      return true;
+    },
+  });
 
   return (
     <section className={card}>
@@ -106,10 +110,6 @@ function Horario({ api, initial, onSaved }: { api: string; initial: WeeklyHours;
         })}
       </ul>
       <p className="mt-2 text-xs text-[var(--p-muted)]">Para cerrar después de medianoche pon, por ejemplo, 20:00 – 02:00.</p>
-      <div className="mt-4 flex items-center gap-3">
-        <button onClick={save} disabled={saving} className={btn}>{saving ? "Guardando…" : "Guardar horario"}</button>
-        {msg && <span className="text-sm text-[var(--p-muted)]">{msg}</span>}
-      </div>
     </section>
   );
 }

@@ -8,6 +8,13 @@
 - **No se traduce**: la cocina y el panel (los pedidos llegan en español) y los textos legales.
 - La elección se guarda en la cookie técnica `pedir_lang` (un año). Está explicada en la página de cookies.
 
+## Traducción automática
+
+- Al activar «Mostrar mi tienda también en inglés», la IA traduce toda la carta.
+- Después, **cada vez que se añade o cambia** un producto, una categoría, un menú, una promoción o la tarjeta de sellos, lo nuevo se traduce solo, en segundo plano (`after()` en esas rutas → `autoTranslateMenu`).
+- Al abrir Configuración → Idiomas, si queda algo pendiente, también se traduce.
+- Cada traducción recuerda de qué texto en español salió (`translations.en._src`). Si el español cambia, la traducción queda pendiente y se rehace sola. Las correcciones a mano se guardan igual: si luego se cambia el español, se vuelve a traducir.
+
 ## Qué hace el dueño
 
 1. Panel → Configuración → **Idiomas** (antes en Carta; desde Carta hay un enlace).

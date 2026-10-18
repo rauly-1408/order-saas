@@ -4,7 +4,7 @@
 // campo `translations.en` de cada fila. El dueño puede corregirlos a mano.
 // Ver docs/CARTA-IDIOMAS.md
 import { prisma } from "@/app/lib/prisma";
-import { AiError, claudeClient, toAiError } from "@/app/lib/anthropic";
+import { AiError, aiConfigured, claudeClient, toAiError } from "@/app/lib/anthropic";
 import { parseSlots } from "@/app/lib/promotions";
 
 const MODEL = "claude-opus-5-5";
@@ -22,9 +22,16 @@ export const KIND_LABEL: Record<TextKind, string> = {
   loyalty: "Tarjeta de sellos",
 };
 
-const enOf = (t: unknown, field: string): string | null => {
-  const v = (t as { en?: Record<string, string> } | null)?.en?.[field];
-  return typeof v === "string" && v.trim() ? v : null;
+// Traducción vigente de un campo. Cada traducción recuerda de qué texto en
+// español salió (en._src); si el español ha cambiado, queda pendiente y se
+// vuelve a traducir sola.
+const enOf = (t: unknown, field: string, es?: string | null): string | null => {
+  const en = (t as { en?: Record<string, unknown> } | null)?.en;
+  const v = en?.[field];
+  if (typeof v !== "string" || !v.trim()) return null;
+  const src = (en?._src as Record<string, string> | undefined)?.[field];
+  if (es != null && src !== undefined && src !== es.trim()) return null;
+  return v;
 };
 
 // Todos los textos traducibles del restaurante, con su traducción actual.
@@ -40,7 +47,7 @@ export async function collectMenuTexts(tenantId: string): Promise<MenuText[]> {
   ]);
   const out: MenuText[] = [];
   const push = (kind: TextKind, id: string, field: string, es: string | null, t: unknown, context?: string) => {
-    if (es && es.trim()) out.push({ ref: `${kind}:${id}`, kind, field, es: es.trim(), en: enOf(t, field), context });
+    if (es && es.trim()) out.push({ ref: `${kind}:${id}`, kind, field, es: es.trim(), en: enOf(t, field, es), context });
   };
   for (const c of cats) {
     push("category", c.id, "name", c.name, c.translations);
@@ -61,9 +68,10 @@ export async function collectMenuTexts(tenantId: string): Promise<MenuText[]> {
   return out;
 }
 
-// Guarda traducciones { ref, field, en } (en vacío = se borra y se usa el español).
-export async function saveTranslations(tenantId: string, items: { ref: string; field: string; en: string | null }[]): Promise<number> {
-  const byRef = new Map<string, { field: string; en: string | null }[]>();
+// Guarda traducciones { ref, field, en, es } (en vacío = se borra y se usa el
+// español). «es» es el texto original del que sale: se guarda en en._src.
+export async function saveTranslations(tenantId: string, items: { ref: string; field: string; en: string | null; es?: string }[]): Promise<number> {
+  const byRef = new Map<string, { field: string; en: string | null; es?: string }[]>();
   for (const it of items) byRef.set(it.ref, [...(byRef.get(it.ref) ?? []), it]);
   let saved = 0;
   for (const [ref, fields] of byRef) {
@@ -85,13 +93,20 @@ export async function saveTranslations(tenantId: string, items: { ref: string; f
     const where = kind === "option" ? { id, group: { tenantId } } : { id, tenantId };
     const row = await delegate.findFirst({ where, select: { translations: true } });
     if (!row) continue;
-    const current = (row.translations ?? {}) as Record<string, Record<string, string>>;
-    const en = { ...(current.en ?? {}) };
+    const current = (row.translations ?? {}) as Record<string, Record<string, unknown>>;
+    const en: Record<string, unknown> = { ...(current.en ?? {}) };
+    const src: Record<string, string> = { ...((en._src as Record<string, string> | undefined) ?? {}) };
     for (const f of fields) {
       const v = f.en?.trim().slice(0, 600);
-      if (v) en[f.field] = v;
-      else delete en[f.field];
+      if (v) {
+        en[f.field] = v;
+        if (f.es) src[f.field] = f.es.trim();
+      } else {
+        delete en[f.field];
+        delete src[f.field];
+      }
     }
+    en._src = src;
     await delegate.update({ where: { id }, data: { translations: { ...current, en } } });
     saved += fields.length;
   }
@@ -158,4 +173,26 @@ export async function translateWithAi(texts: MenuText[]): Promise<Map<string, st
     }
   }
   return out;
+}
+
+// Traducción automática: si el restaurante tiene el inglés activado y la IA
+// configurada, traduce lo que falte o haya cambiado. Se llama en segundo plano
+// (after()) al guardar la carta, promociones o la tarjeta de sellos, y al abrir
+// Configuración → Idiomas. Nunca lanza.
+export async function autoTranslateMenu(tenantId: string): Promise<number> {
+  try {
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } });
+    const langs = ((tenant?.settings ?? {}) as Record<string, unknown>).languages;
+    if (!Array.isArray(langs) || !langs.includes("en") || !aiConfigured()) return 0;
+    const todo = (await collectMenuTexts(tenantId)).filter((t) => !t.en);
+    if (!todo.length) return 0;
+    const result = await translateWithAi(todo);
+    return await saveTranslations(
+      tenantId,
+      todo.filter((t) => result.has(`${t.ref}|${t.field}`)).map((t) => ({ ref: t.ref, field: t.field, es: t.es, en: result.get(`${t.ref}|${t.field}`)! }))
+    );
+  } catch (err) {
+    console.error("[autoTranslateMenu]", err);
+    return 0;
+  }
 }

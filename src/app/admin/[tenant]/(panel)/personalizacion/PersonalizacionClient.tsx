@@ -1,7 +1,7 @@
 "use client";
+import { toast, useSaveBar } from "../configuracion/ui";
 
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   BRAND_FONTS,
   COLOR_KEYS,
@@ -154,8 +154,6 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
   const [tab, setTab] = useState<"identidad" | "online">("identidad");
   const [colorTab, setColorTab] = useState<ColorKey | "more">("primaryColor");
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState("");
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetch(`/api/admin/${tenant}`, { cache: "no-store" })
@@ -212,11 +210,11 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
   const dirty =
     !!form && !!loaded && JSON.stringify(form) !== JSON.stringify(loaded.form);
 
-  async function save() {
-    if (!form || !loaded) return;
-    setSaving(true);
-    setError("");
-    setSaved("");
+  // Barra «Cambios sin guardar» de Configuración (como Shopify).
+  useSaveBar("marca", { dirty, discard: () => loaded && setForm(loaded.form), save });
+
+  async function save(): Promise<boolean> {
+    if (!form || !loaded) return false;
     try {
       const res = await fetch(`/api/admin/${tenant}/brand`, {
         method: "PUT",
@@ -237,11 +235,10 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
       writePanelCache(cacheKey, { ...l, assets: assets ?? l.assets });
       setLoaded(l);
       setForm(l.form);
-      setSaved("Guardado. Tu carta ya muestra los cambios.");
+      return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo guardar");
-    } finally {
-      setSaving(false);
+      toast(e instanceof Error ? e.message : "No se pudo guardar", false);
+      return false;
     }
   }
 
@@ -572,40 +569,6 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
           ) : null}
         </div>
       </div>
-
-      {/* Barra de guardado fija abajo, fuera de la página (su animación de entrada
-          rompería el position: fixed). */}
-      {typeof document !== "undefined" &&
-        createPortal(
-          <div className={`p-glass fixed inset-x-0 bottom-0 z-30 border-t border-[var(--p-line)] px-4 py-3 text-[var(--p-ink)] lg:px-10 ${embedded ? "" : "lg:left-64"}`}>
-            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-end gap-3">
-              {error && (
-                <span className="mr-auto text-sm text-[var(--p-accent)]">
-                  {error}
-                </span>
-              )}
-              {!error && saved && !dirty && (
-                <span className="mr-auto text-sm text-emerald-700">
-                  {saved}
-                </span>
-              )}
-              {!error && dirty && (
-                <span className="mr-auto text-sm text-[var(--p-muted)]">
-                  Tienes cambios sin guardar
-                </span>
-              )}
-              <button
-                onClick={save}
-                disabled={saving || !dirty}
-                className="p-press rounded-full bg-[var(--p-brand)] px-5 py-2 text-sm font-semibold text-white disabled:opacity-40"
-              >
-                {saving ? "Guardando…" : "Guardar cambios"}
-              </button>
-            </div>
-          </div>,
-          // Dentro del contenedor del panel (no animado) para heredar los colores --p-*.
-          document.querySelector("div.panel") ?? document.body,
-        )}
     </div>
   );
 }

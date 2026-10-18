@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast, useSaveBar } from "../ui";
 import { BUSINESS_FIELDS, LEGAL_DOCS, missingRequired, type BusinessInfo } from "@/app/lib/business";
 
 // Datos del negocio: obligatorios en una tienda online (LSSI) y de contacto.
@@ -11,29 +12,24 @@ const input = "w-full rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm
 
 export default function DatosNegocio({ tenant, initial, onSaved }: { tenant: string; initial: BusinessInfo; onSaved: (b: BusinessInfo) => void }) {
   const [form, setForm] = useState<BusinessInfo>(initial);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
   const missing = missingRequired(form);
-  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
 
-  async function save() {
-    setSaving(true);
-    setError("");
-    setSaved(false);
-    try {
+  // Barra «Cambios sin guardar» (como Shopify).
+  useSaveBar("negocio", {
+    dirty: JSON.stringify(form) !== JSON.stringify(initial),
+    discard: () => setForm(initial),
+    save: async () => {
       const res = await fetch(`/api/admin/${tenant}/business`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error ?? "No se pudo guardar");
+      if (!res.ok) {
+        toast(json.error ?? "No se pudo guardar", false);
+        return false;
+      }
       setForm(json.business);
       onSaved(json.business);
-      setSaved(true);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo guardar");
-    } finally {
-      setSaving(false);
-    }
-  }
+      return true;
+    },
+  });
 
   return (
     <div className="space-y-4">
@@ -59,10 +55,7 @@ export default function DatosNegocio({ tenant, initial, onSaved }: { tenant: str
               <input
                 id={`biz-${f.key}`}
                 value={form[f.key] ?? ""}
-                onChange={(e) => {
-                  setSaved(false);
-                  setForm({ ...form, [f.key]: e.target.value || null });
-                }}
+                onChange={(e) => setForm({ ...form, [f.key]: e.target.value || null })}
                 placeholder={f.placeholder}
                 inputMode={f.key === "postalCode" ? "numeric" : f.key === "phone" || f.key === "whatsapp" ? "tel" : f.key === "email" ? "email" : undefined}
                 className={input}
@@ -70,13 +63,6 @@ export default function DatosNegocio({ tenant, initial, onSaved }: { tenant: str
               {f.hint && <p className="mt-1 text-[11px] text-[var(--p-muted)]">{f.hint}</p>}
             </div>
           ))}
-        </div>
-        {error && <p className="mt-3 text-sm text-[var(--p-accent)]">{error}</p>}
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button onClick={save} disabled={saving || !dirty} className="p-press rounded-full bg-[var(--p-brand)] px-5 py-2 text-sm font-semibold text-white disabled:opacity-40">
-            {saving ? "Guardando…" : "Guardar datos del negocio"}
-          </button>
-          {saved && !dirty && <span className="text-sm text-emerald-700">Guardado</span>}
         </div>
       </section>
 

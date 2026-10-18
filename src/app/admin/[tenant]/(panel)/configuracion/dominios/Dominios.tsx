@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, Msg, ghostBtn, input, primaryBtn } from "../ui";
+import { Card, Msg, ghostBtn, input, primaryBtn, toast } from "../ui";
 
 type View = { platformUrl: string; domains: { host: string; dns: "ok" | "pending" | null }[]; cname: string; aRecord: string };
 
@@ -31,7 +31,7 @@ export default function Dominios({ tenant }: { tenant: string }) {
       setView(json);
       return true;
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "Algo ha fallado" });
+      toast(e instanceof Error ? e.message : "Algo ha fallado", false);
       return false;
     } finally {
       setBusy("");

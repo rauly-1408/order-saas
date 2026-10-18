@@ -2,31 +2,34 @@
 
 import { useState } from "react";
 import { readCheckout, type CheckoutSettings } from "@/app/lib/storePolicies";
-import { Card, Msg, Toggle, primaryBtn, useTenantSettings } from "../ui";
+import { Card, Toggle, toast, useSaveBar, useTenantSettings } from "../ui";
 
 export default function PantallaPago({ tenant }: { tenant: string }) {
   const { settings, error, save } = useTenantSettings(tenant);
   const [form, setForm] = useState<CheckoutSettings | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const f = form ?? (settings ? readCheckout(settings) : null);
   if (!f) return <p className="text-sm text-[var(--p-muted)]">{error || "Cargando…"}</p>;
+  const dirty = !!form && JSON.stringify(form) !== JSON.stringify(readCheckout(settings));
+  return <PantallaPagoForm f={f} dirty={dirty} setForm={setForm} save={save} />;
+}
+
+function PantallaPagoForm({ f, dirty, setForm, save }: { f: CheckoutSettings; dirty: boolean; setForm: (v: CheckoutSettings | null) => void; save: (p: Record<string, unknown>) => Promise<void> }) {
+  useSaveBar("pantalla-de-pago", {
+    dirty,
+    discard: () => setForm(null),
+    save: async () => {
+      try {
+        await save({ checkout: f });
+        setForm(null);
+        return true;
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "No se pudo guardar", false);
+        return false;
+      }
+    },
+  });
   const set = (patch: Partial<CheckoutSettings>) => setForm({ ...f, ...patch });
   const togglePct = (p: number) => set({ tips: { ...f.tips, percents: f.tips.percents.includes(p) ? f.tips.percents.filter((x) => x !== p) : [...f.tips.percents, p].sort((a, b) => a - b) } });
-
-  async function onSave() {
-    setBusy(true);
-    setMsg(null);
-    try {
-      await save({ checkout: f });
-      setForm(null);
-      setMsg({ ok: true, text: "Guardado." });
-    } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "No se pudo guardar" });
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <div className="space-y-5">
@@ -59,13 +62,6 @@ export default function PantallaPago({ tenant }: { tenant: string }) {
           </div>
         )}
       </Card>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <button onClick={onSave} disabled={busy || !form} className={primaryBtn}>
-          {busy ? "Guardando…" : "Guardar"}
-        </button>
-        <Msg msg={msg} />
-      </div>
     </div>
   );
 }

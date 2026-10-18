@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { toCsv } from "@/app/lib/reports";
 import { loadReportOrders, reportContext } from "@/app/lib/reportsApi";
+import { includedTax, readTax } from "@/app/lib/storePolicies";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,8 +19,9 @@ export async function GET(req: NextRequest) {
   const orders = await loadReportOrders(ctx.tenant.id, range.start, range.end);
   const fmt = new Intl.DateTimeFormat("es-ES", { timeZone: range.timeZone, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const eur = (c: number) => Math.round(c) / 100;
+  const rate = readTax(ctx.tenant.settings).rate;
   const rows: (string | number | null)[][] = [
-    ["Fecha", "Nº", "Cliente", "Teléfono", "Canal", "Estado", "Productos", "Subtotal (€)", "Descuento (€)", "Envío (€)", "Total (€)", "Cupón", "Promoción", "Premio fidelidad (€)"],
+    ["Fecha", "Nº", "Cliente", "Teléfono", "Canal", "Estado", "Productos", "Subtotal (€)", "Descuento (€)", "Envío (€)", "Propina (€)", "Tarjeta regalo (€)", "Total (€)", `IVA incluido ${rate} % (€)`, "Cupón", "Promoción", "Premio fidelidad (€)"],
     ...orders.map((o) => [
       fmt.format(o.createdAt).replace(", ", " "),
       o.orderNumber,
@@ -31,7 +33,10 @@ export async function GET(req: NextRequest) {
       eur(o.subtotalCents),
       eur(o.discountCents),
       eur(o.feesCents),
+      o.tipCents ? eur(o.tipCents) : null,
+      o.giftCardCents ? eur(o.giftCardCents) : null,
       eur(o.totalCents),
+      o.status === "CANCELLED" ? null : eur(includedTax(o.totalCents + (o.giftCardCents ?? 0) - (o.tipCents ?? 0), rate)),
       o.couponCode,
       o.promotionName ?? null,
       o.loyaltyDiscountCents ? eur(o.loyaltyDiscountCents) : null,

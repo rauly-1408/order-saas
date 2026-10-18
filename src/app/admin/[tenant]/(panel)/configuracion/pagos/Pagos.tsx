@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { toast, useSaveBar } from "../ui";
 
 // Configuración → Pagos: como Shopify, cada restaurante conecta SU pasarela
 // (Redsys de su banco, Stripe…) y el dinero le entra directamente.
@@ -31,6 +32,9 @@ const OPTIONS: { value: Provider; label: string; hint: string }[] = [
   { value: "TEST", label: "Modo prueba", hint: "Para probar el pago sin cobrar nada." },
 ];
 
+// Lo que hay guardado, como formulario (las claves secretas nunca vuelven: vacías).
+const initial = (v: View): Form => ({ provider: v.provider, payInStore: v.payInStore, bizum: v.bizum, redsys: v.redsys, redsysKey: "", stripeKey: "", stripeWebhook: "" });
+
 export default function Pagos({ tenant }: { tenant: string }) {
   const api = `/api/admin/${tenant}/payments`;
   const [view, setView] = useState<View | null>(null);
@@ -38,32 +42,34 @@ export default function Pagos({ tenant }: { tenant: string }) {
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  function load(v: View) {
+  const load = useCallback((v: View) => {
     setView(v);
-    setForm({ provider: v.provider, payInStore: v.payInStore, bizum: v.bizum, redsys: v.redsys, redsysKey: "", stripeKey: "", stripeWebhook: "" });
-  }
+    setForm(initial(v));
+  }, []);
 
   useEffect(() => {
     fetch(api, { cache: "no-store" })
       .then(async (r) => (r.ok ? load(await r.json()) : setMsg({ ok: false, text: "No se pudo cargar la configuración de pagos" })))
       .catch(() => setMsg({ ok: false, text: "No se pudo cargar la configuración de pagos" }));
-  }, [api]);
+  }, [api, load]);
 
-  async function save() {
-    setBusy("save");
-    setMsg(null);
-    try {
-      const res = await fetch(api, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error ?? "No se pudo guardar");
-      load(json);
-      setMsg({ ok: true, text: "Guardado." });
-    } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "No se pudo guardar" });
-    } finally {
-      setBusy("");
-    }
-  }
+  // Barra «Cambios sin guardar» (como Shopify).
+  useSaveBar("pagos", {
+    dirty: !!form && !!view && JSON.stringify(form) !== JSON.stringify(initial(view)),
+    discard: () => view && setForm(initial(view)),
+    save: async () => {
+      try {
+        const res = await fetch(api, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error ?? "No se pudo guardar");
+        load(json);
+        return true;
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "No se pudo guardar", false);
+        return false;
+      }
+    },
+  });
 
   async function test() {
     setBusy("test");
@@ -71,7 +77,7 @@ export default function Pagos({ tenant }: { tenant: string }) {
     const json = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "test" }) })
       .then((r) => r.json())
       .catch(() => ({ ok: false, message: "Sin conexión" }));
-    setMsg({ ok: json.ok === true, text: json.message ?? "" });
+    toast(json.message ?? "", json.ok === true);
     setBusy("");
   }
 
@@ -186,11 +192,7 @@ export default function Pagos({ tenant }: { tenant: string }) {
           </label>
         )}
 
-        {msg && <p className={`mt-4 text-sm ${msg.ok ? "text-emerald-700" : "text-[var(--p-accent)]"}`}>{msg.text}</p>}
         <div className="mt-5 flex flex-wrap gap-2">
-          <button onClick={save} disabled={!!busy} className="p-press rounded-full bg-[var(--p-brand)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
-            {busy === "save" ? "Guardando…" : "Guardar pagos"}
-          </button>
           {view.provider === "STRIPE" && form.provider === "STRIPE" && (
             <button onClick={test} disabled={!!busy} className="p-press rounded-full border border-[var(--p-line)] px-5 py-2.5 text-sm font-medium disabled:opacity-50">
               {busy === "test" ? "Probando…" : "Probar conexión"}

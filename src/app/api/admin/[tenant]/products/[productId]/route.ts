@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { autoTranslateMenu } from "@/app/lib/menuTranslate";
 import { prisma } from "@/app/lib/prisma";
 import { denyUnlessTenantAdmin } from "@/app/lib/auth";
 
@@ -19,6 +20,8 @@ export async function PATCH(req: NextRequest) {
     if (!tenant) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
     const denied = await denyUnlessTenantAdmin(req, tenant.id);
     if (denied) return denied;
+    // Carta en inglés: lo nuevo o cambiado se traduce solo, después de responder.
+    after(() => autoTranslateMenu(tenant.id));
 
     const product = await prisma.product.findFirst({ where: { id: productId, tenantId: tenant.id } });
     if (!product) return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
@@ -55,6 +58,8 @@ export async function DELETE(req: NextRequest) {
     if (!tenant) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
     const denied = await denyUnlessTenantAdmin(req, tenant.id);
     if (denied) return denied;
+    // Carta en inglés: lo nuevo o cambiado se traduce solo, después de responder.
+    after(() => autoTranslateMenu(tenant.id));
 
     const product = await prisma.product.findFirst({ where: { id: productId, tenantId: tenant.id } });
     if (!product) return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });

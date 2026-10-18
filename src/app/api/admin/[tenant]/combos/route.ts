@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { autoTranslateMenu } from "@/app/lib/menuTranslate";
 import { prisma } from "@/app/lib/prisma";
 import { comboTenant, menusCategoryId, parseCombo, slotsCreate } from "@/app/lib/combosApi";
 
@@ -32,6 +33,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const ctx = await comboTenant(req);
   if ("error" in ctx) return ctx.error;
+  // Carta en inglés: lo nuevo o cambiado se traduce solo, después de responder.
+  after(() => autoTranslateMenu(ctx.tenant.id));
   const tenantId = ctx.tenant.id;
   const valid = await prisma.product.findMany({ where: { tenantId, isCombo: false }, select: { id: true } });
   const input = parseCombo(await req.json().catch(() => null), new Set(valid.map((p) => p.id)));

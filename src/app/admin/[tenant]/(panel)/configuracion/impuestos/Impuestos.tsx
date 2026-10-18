@@ -2,29 +2,31 @@
 
 import { useState } from "react";
 import { includedTax, readTax, TAX_RATES, type TaxSettings } from "@/app/lib/storePolicies";
-import { Card, Msg, Toggle, euros, input, primaryBtn, useTenantSettings } from "../ui";
+import { Card, Toggle, euros, input, toast, useSaveBar, useTenantSettings } from "../ui";
 
 export default function Impuestos({ tenant }: { tenant: string }) {
   const { settings, error, save } = useTenantSettings(tenant);
   const [form, setForm] = useState<TaxSettings | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const f = form ?? (settings ? readTax(settings) : null);
   if (!f) return <p className="text-sm text-[var(--p-muted)]">{error || "Cargando…"}</p>;
+  return <ImpuestosForm f={f} dirty={!!form && JSON.stringify(form) !== JSON.stringify(readTax(settings))} setForm={setForm} save={save} />;
+}
 
-  async function onSave() {
-    setBusy(true);
-    setMsg(null);
-    try {
-      await save({ tax: f });
-      setForm(null);
-      setMsg({ ok: true, text: "Guardado." });
-    } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "No se pudo guardar" });
-    } finally {
-      setBusy(false);
-    }
-  }
+function ImpuestosForm({ f, dirty, setForm, save }: { f: TaxSettings; dirty: boolean; setForm: (v: TaxSettings | null) => void; save: (p: Record<string, unknown>) => Promise<void> }) {
+  useSaveBar("impuestos", {
+    dirty,
+    discard: () => setForm(null),
+    save: async () => {
+      try {
+        await save({ tax: f });
+        setForm(null);
+        return true;
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "No se pudo guardar", false);
+        return false;
+      }
+    },
+  });
 
   return (
     <div className="space-y-5">
@@ -47,12 +49,6 @@ export default function Impuestos({ tenant }: { tenant: string }) {
         </div>
       </Card>
       <p className="text-xs text-[var(--p-muted)]">El desglose del IVA también aparece en Informes. La factura legal (si el cliente la pide) la emite tu programa de facturación.</p>
-      <div className="flex flex-wrap items-center gap-3">
-        <button onClick={onSave} disabled={busy || !form} className={primaryBtn}>
-          {busy ? "Guardando…" : "Guardar"}
-        </button>
-        <Msg msg={msg} />
-      </div>
     </div>
   );
 }
