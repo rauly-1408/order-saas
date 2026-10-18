@@ -72,7 +72,9 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {insight && <InsightCard tenant={tenant} insight={insight} />}
         {shown.map((c, i) => (
-          <article key={c.id} className="p-rise relative flex flex-col overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]" style={{ "--i": i } as React.CSSProperties}>
+          // p-rise va en el envoltorio: su animación fija el transform y anularía el hover.
+          <div key={c.id} className="p-rise" style={{ "--i": i } as React.CSSProperties}>
+            <article className="group p-lift relative flex h-full flex-col overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
             <button
               type="button"
               onClick={() => hide(c.id)}
@@ -82,8 +84,10 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
             >
               ✕
             </button>
-            <div className="flex h-32 items-center justify-center bg-[var(--p-warm)]" aria-hidden>
-              <Art kind={c.art} />
+            <div className="flex h-32 items-center justify-center overflow-hidden bg-[var(--p-warm)]" aria-hidden>
+              <div className="transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:transform-none">
+                <Art kind={c.art} />
+              </div>
             </div>
             <div className="flex flex-1 flex-col p-5">
               <h3 className="font-semibold leading-snug">{c.title}</h3>
@@ -92,7 +96,8 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
                 {c.cta}
               </Link>
             </div>
-          </article>
+            </article>
+          </div>
         ))}
       </div>
 
@@ -122,7 +127,8 @@ function InsightCard({ tenant, insight }: { tenant: string; insight: Insight }) 
   const up = insight.growthPct !== null && insight.growthPct > 0;
 
   return (
-    <article className="p-rise flex flex-col overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:col-span-2 lg:col-span-1">
+    <div className="p-rise sm:col-span-2 lg:col-span-1">
+    <article className="p-lift flex h-full flex-col overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
       <div className="p-5 pb-0">
         <p className="text-xs font-medium uppercase tracking-wide text-[var(--p-faint)]">Tu producto estrella · 7 días</p>
         <h3 className="mt-1 font-semibold leading-snug">
@@ -168,6 +174,7 @@ function InsightCard({ tenant, insight }: { tenant: string; insight: Insight }) 
         </Link>
       </div>
     </article>
+    </div>
   );
 }
 
