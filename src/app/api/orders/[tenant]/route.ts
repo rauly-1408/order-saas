@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
         basePriceCents: true,
         categoryId: true,
         isCombo: true,
-        comboSlots: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, items: { select: { productId: true, extraCents: true } } } },
+        comboSlots: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, required: true, items: { select: { productId: true, extraCents: true } } } },
         modifierGroups: groupsSelect,
       },
     });

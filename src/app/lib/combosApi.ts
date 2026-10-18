@@ -18,7 +18,7 @@ export type ComboInput = {
   description: string | null;
   priceCents: number;
   isAvailable: boolean;
-  slots: { name: string; items: { productId: string; extraCents: number }[] }[];
+  slots: { name: string; required: boolean; items: { productId: string; extraCents: number }[] }[];
 };
 
 // Valida el combo; los productos de cada paso tienen que ser del restaurante y no combos.
@@ -43,8 +43,9 @@ export function parseCombo(body: unknown, validProductIds: Set<string>): ComboIn
     if (items.some((i) => !validProductIds.has(i.productId))) return `«${slotName}»: algún producto no es válido`;
     if (items.some((i) => !Number.isInteger(i.extraCents) || i.extraCents < 0 || i.extraCents > 10_000)) return `«${slotName}»: suplemento no válido`;
     if (new Set(items.map((i) => i.productId)).size !== items.length) return `«${slotName}»: hay productos repetidos`;
-    slots.push({ name: slotName, items });
+    slots.push({ name: slotName, required: r.required !== false, items });
   }
+  if (!slots.some((s) => s.required)) return "Al menos un paso tiene que ser obligatorio";
   return { name, description, priceCents, isAvailable: b.isAvailable !== false, slots };
 }
 
@@ -64,6 +65,7 @@ export const slotsCreate = (tenantId: string, input: ComboInput) =>
   input.slots.map((s, i) => ({
     tenantId,
     name: s.name,
+    required: s.required,
     sortOrder: i,
     items: { create: s.items.map((it, j) => ({ productId: it.productId, extraCents: it.extraCents, sortOrder: j })) },
   }));

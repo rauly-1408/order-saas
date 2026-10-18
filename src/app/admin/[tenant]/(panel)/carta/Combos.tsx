@@ -7,11 +7,11 @@ import { readPanelCache, writePanelCache } from "../panelCache";
 // "Elige tu bebida"…), qué productos entran en cada uno y si alguno lleva suplemento.
 
 type Item = { productId: string; extraCents: number };
-type Slot = { name: string; items: Item[] };
+type Slot = { name: string; required?: boolean; items: Item[] };
 type Combo = { id: string; name: string; description: string | null; basePriceCents: number; isAvailable: boolean; comboSlots: (Slot & { id: string })[] };
 type Catalog = { id: string; name: string; products: { id: string; name: string; basePriceCents: number; isActive: boolean }[] }[];
 type Data = { combos: Combo[]; categories: Catalog };
-type Form = { id: string | null; name: string; description: string; price: string; isAvailable: boolean; slots: { name: string; items: { productId: string; extra: string }[] }[] };
+type Form = { id: string | null; name: string; description: string; price: string; isAvailable: boolean; slots: { name: string; required: boolean; items: { productId: string; extra: string }[] }[] };
 
 const card = "rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
 const input = "w-full rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm outline-none focus:border-[var(--p-brand)]";
@@ -30,9 +30,9 @@ function suggested(categories: Catalog): Form {
     price: "12,50",
     isAvailable: true,
     slots: [
-      { name: "Elige tu mollete", items: pick(/mollete|bocadillo|burger|burguer/i) },
-      { name: "Elige tu bebida", items: pick(/bebida|refresco/i) },
-      { name: "Elige tu postre", items: pick(/postre|dulce/i) },
+      { name: "Elige tu mollete", required: true, items: pick(/mollete|bocadillo|burger|burguer/i) },
+      { name: "Elige tu bebida", required: true, items: pick(/bebida|refresco/i) },
+      { name: "Elige tu postre", required: true, items: pick(/postre|dulce/i) },
     ].filter((s) => s.items.length),
   };
 }
@@ -74,7 +74,7 @@ export default function Combos({ tenant }: { tenant: string }) {
           description: form.description,
           priceCents: toCents(form.price),
           isAvailable: form.isAvailable,
-          slots: form.slots.map((s) => ({ name: s.name, items: s.items.map((i) => ({ productId: i.productId, extraCents: toCents(i.extra) })) })),
+          slots: form.slots.map((s) => ({ name: s.name, required: s.required, items: s.items.map((i) => ({ productId: i.productId, extraCents: toCents(i.extra) })) })),
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -109,7 +109,7 @@ export default function Combos({ tenant }: { tenant: string }) {
         Menús a precio cerrado: el cliente elige un producto en cada paso. Salen en la carta dentro de «Menús» y el stock se descuenta de lo que elige.
       </p>
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => { setError(""); setForm({ id: null, name: "", description: "", price: "", isAvailable: true, slots: [{ name: "", items: [] }] }); }} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
+        <button onClick={() => { setError(""); setForm({ id: null, name: "", description: "", price: "", isAvailable: true, slots: [{ name: "", required: true, items: [] }] }); }} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
           + Nuevo menú
         </button>
         {data.combos.length === 0 && (
@@ -133,7 +133,7 @@ export default function Combos({ tenant }: { tenant: string }) {
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${c.isAvailable ? "bg-emerald-50 text-emerald-700" : "bg-black/[0.04] text-[var(--p-faint)]"}`}>{c.isAvailable ? "En la carta" : "Agotado"}</span>
                 <button
-                  onClick={() => { setError(""); setForm({ id: c.id, name: c.name, description: c.description ?? "", price: toText(c.basePriceCents), isAvailable: c.isAvailable, slots: c.comboSlots.map((s) => ({ name: s.name, items: s.items.map((i) => ({ productId: i.productId, extra: toText(i.extraCents) })) })) }); }}
+                  onClick={() => { setError(""); setForm({ id: c.id, name: c.name, description: c.description ?? "", price: toText(c.basePriceCents), isAvailable: c.isAvailable, slots: c.comboSlots.map((s) => ({ name: s.name, required: s.required !== false, items: s.items.map((i) => ({ productId: i.productId, extra: toText(i.extraCents) })) })) }); }}
                   className="p-press rounded-full px-3 py-1 text-xs font-medium text-[var(--p-muted)] hover:bg-black/[0.04]"
                 >
                   Editar
@@ -185,6 +185,10 @@ function ComboForm({ form, onChange, categories, error, saving, onSave, onCancel
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-[var(--p-muted)]">{i + 1}.</span>
               <input value={slot.name} onChange={(e) => setSlot(i, { ...slot, name: e.target.value })} placeholder="Elige tu bebida" maxLength={60} className={`${input} min-w-0`} aria-label={`Nombre del paso ${i + 1}`} />
+              <label className="flex shrink-0 items-center gap-1.5 text-xs text-[var(--p-muted)]" title="El cliente puede no elegir nada en este paso (p. ej. «Complementos»)">
+                <input type="checkbox" checked={!slot.required} onChange={(e) => setSlot(i, { ...slot, required: !e.target.checked })} className="h-4 w-4 accent-[var(--p-brand)]" />
+                Opcional
+              </label>
               {form.slots.length > 1 && (
                 <button type="button" onClick={() => onChange({ ...form, slots: form.slots.filter((_, j) => j !== i) })} className="p-press shrink-0 rounded-full px-3 py-1.5 text-xs text-[var(--p-muted)] hover:bg-black/[0.04]">
                   Quitar
@@ -277,7 +281,7 @@ function ComboForm({ form, onChange, categories, error, saving, onSave, onCancel
           </div>
         ))}
         {form.slots.length < 6 && (
-          <button type="button" onClick={() => onChange({ ...form, slots: [...form.slots, { name: "", items: [] }] })} className="p-press rounded-full px-3 py-1.5 text-sm font-medium text-[var(--p-brand)] hover:bg-black/[0.04]">
+          <button type="button" onClick={() => onChange({ ...form, slots: [...form.slots, { name: "", required: true, items: [] }] })} className="p-press rounded-full px-3 py-1.5 text-sm font-medium text-[var(--p-brand)] hover:bg-black/[0.04]">
             + Añadir paso
           </button>
         )}

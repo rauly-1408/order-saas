@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: {
         id: true, name: true, description: true, basePriceCents: true, isActive: true, isAvailable: true,
-        comboSlots: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, items: { orderBy: { sortOrder: "asc" }, select: { productId: true, extraCents: true } } } },
+        comboSlots: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, required: true, items: { orderBy: { sortOrder: "asc" }, select: { productId: true, extraCents: true } } } },
       },
     }),
     prisma.category.findMany({

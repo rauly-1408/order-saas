@@ -63,7 +63,8 @@ export function ComboCard({
   const T = ui(lang);
   const steps = slots.map((s) => {
     const t = s.name.replace(/^elige (tu |un |una )?/i, "");
-    return t.charAt(0).toUpperCase() + t.slice(1);
+    // Pasos opcionales (p. ej. «Complementos») marcados como tales.
+    return t.charAt(0).toUpperCase() + t.slice(1) + (s.required === false ? ` (${T.optionalStep.toLowerCase()})` : "");
   });
   return (
     <article

@@ -3,7 +3,8 @@
 // Ver docs/COMBOS.md
 import { modifierLabels, selectionToModifiers, validateSelection, type MenuModifierGroup, type OrderLineModifier } from "@/app/lib/menuOptions";
 
-export type ComboSlotDef = { id: string; name: string; items: { productId: string; extraCents: number }[] };
+// required false = paso opcional (p. ej. «Complementos»): se puede dejar sin elegir.
+export type ComboSlotDef = { id: string; name: string; required?: boolean; items: { productId: string; extraCents: number }[] };
 export type ComboChoice = { slotId: string; productId: string; optionIds: string[] };
 export type ChoiceProduct = { id: string; name: string; modifierGroups: MenuModifierGroup[] };
 
@@ -38,11 +39,12 @@ export function priceCombo(
   choices: ComboChoice[],
   productById: Map<string, ChoiceProduct>
 ): PricedCombo | string {
-  if (choices.length !== combo.slots.length) return `${combo.name}: elige una opción en cada paso`;
+  if (choices.some((c) => !combo.slots.some((s) => s.id === c.slotId))) return `${combo.name}: elige una opción en cada paso`;
   let unitCents = combo.basePriceCents;
   const modifiers: OrderLineModifier[] = [];
   for (const slot of combo.slots) {
     const picks = choices.filter((c) => c.slotId === slot.id);
+    if (picks.length === 0 && slot.required === false) continue; // paso opcional sin elegir
     if (picks.length !== 1) return `${combo.name} — ${slot.name}: elige una opción`;
     const pick = picks[0];
     const item = slot.items.find((i) => i.productId === pick.productId);
