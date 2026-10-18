@@ -3,6 +3,8 @@ import { prisma } from "@/app/lib/prisma";
 import { requireManagerPage } from "@/app/lib/auth";
 import { formatTimeIn, startOfTodayIn, tenantTimeZone } from "@/app/lib/time";
 import CountUp from "../CountUp";
+import GrowthCards from "./GrowthCards";
+import { homeCards } from "./cards";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   CREATED: { label: "Nuevo", cls: "bg-[var(--p-accent-soft)] text-[var(--p-accent)]" },
@@ -31,7 +33,7 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
   const today = startOfTodayIn(timeZone);
   const tenantId = tenantData.id;
 
-  const [ordersToday, activeOrders, products, categories, revenue, recentOrders] = await Promise.all([
+  const [ordersToday, activeOrders, products, categories, revenue, recentOrders, growth] = await Promise.all([
     prisma.order.count({ where: { tenantId, createdAt: { gte: today }, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } } }),
     prisma.order.count({ where: { tenantId, status: { notIn: ["DELIVERED", "CANCELLED", "AWAITING_PAYMENT"] } } }),
     prisma.product.count({ where: { tenantId, isActive: true } }),
@@ -43,6 +45,7 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
       take: 6,
       select: { id: true, orderNumber: true, customerName: true, status: true, totalCents: true, channel: true, createdAt: true },
     }),
+    homeCards(tenantId, tenant, timeZone),
   ]);
 
   const revenueCents = revenue._sum.totalCents ?? 0;
@@ -91,6 +94,9 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
         <Stat label="Ticket medio hoy" value={<CountUp value={avgTicket} format="euros" />} />
         <Stat label="Carta" value={<CountUp value={products} />} sub={`productos en ${categories} categorías`} />
       </section>
+
+      {/* Ideas para personalizar la tienda (estilo Shopify) */}
+      <GrowthCards tenant={tenant} cards={growth.cards} total={growth.total} insight={growth.insight} />
 
       {/* Últimos pedidos: lista agrupada al estilo iOS */}
       <section className="mt-8">
