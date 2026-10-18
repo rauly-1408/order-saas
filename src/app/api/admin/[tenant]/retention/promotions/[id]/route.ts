@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { autoTranslateMenu } from "@/app/lib/menuTranslate";
 import { prisma } from "@/app/lib/prisma";
 import { parsePromotion, retentionTenant } from "@/app/lib/retentionApi";
 
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await retentionTenant(req);
   if ("error" in ctx) return ctx.error;
+  // Carta en inglés: lo nuevo o cambiado se traduce solo, después de responder.
+  after(() => autoTranslateMenu(ctx.tenant.id));
   const { id } = await params;
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   const existing = await prisma.promotion.findFirst({ where: { id, tenantId: ctx.tenant.id }, select: { id: true } });

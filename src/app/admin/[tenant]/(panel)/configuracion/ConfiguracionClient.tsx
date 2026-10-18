@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast, useSaveBar } from "./ui";
 import { PARTNERS, type PartnerKey } from "@/app/lib/deliveryPartners";
 
 const S = {
@@ -70,7 +71,7 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
     phone: '', whatsapp: '', instagram: '', address: '', currency: 'EUR',
     deliveryPartners: { glovo: '', ubereats: '', justeat: '' },
   });
-  const [saving, setSaving] = useState(false);
+  const [initialForm, setInitialForm] = useState<SettingsForm | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -79,7 +80,7 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
       .then(r => r.json())
       .then(data => {
         const s = (data.tenant?.settings ?? {}) as Record<string, unknown>;
-        setForm({
+        const f: SettingsForm = {
           deliveryEnabled:           (s.deliveryEnabled as boolean)  ?? true,
           takeawayEnabled:           (s.takeawayEnabled as boolean)  ?? true,
           minimumOrderCents:         (s.minimumOrderCents as number) ?? 0,
@@ -92,14 +93,22 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
           address:   (s.address as string) ?? '',
           currency:  (s.currency as string) ?? 'EUR',
           deliveryPartners: Object.fromEntries(PARTNERS.map(p => [p.key, ((s.deliveryPartners as Record<string, string | null> | undefined)?.[p.key]) ?? ''])) as Record<PartnerKey, string>,
-        });
+        };
+        setForm(f);
+        setInitialForm(f);
         setLoaded(true);
       })
       .catch(() => setMsg('Error: no se pudo cargar la configuración'));
   }, [tenant]);
 
-  async function save() {
-    setSaving(true); setMsg('');
+  // Barra «Cambios sin guardar» (como Shopify).
+  useSaveBar('entrega', {
+    dirty: !!initialForm && JSON.stringify(form) !== JSON.stringify(initialForm),
+    discard: () => initialForm && setForm(initialForm),
+    save,
+  });
+
+  async function save(): Promise<boolean> {
     try {
       const res = await fetch(`/api/admin/${tenant}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -112,10 +121,12 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
         }}),
       });
       if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'no se pudo guardar');
-      setMsg('Configuración guardada');
+      setInitialForm(form);
+      return true;
     } catch (e: unknown) {
-      setMsg('Error: ' + (e instanceof Error ? e.message : 'desconocido'));
-    } finally { setSaving(false); }
+      toast(e instanceof Error ? e.message : 'No se pudo guardar', false);
+      return false;
+    }
   }
 
   return (
@@ -166,14 +177,6 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
           </div>
         </div>
       </Section>
-
-      <button onClick={save} disabled={saving} style={{
-        width: '100%', background: 'var(--p-brand)', color: '#fff', border: 'none',
-        borderRadius: 9999, padding: '12px', fontSize: 15, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
-        opacity: saving ? 0.6 : 1, fontFamily: 'inherit',
-      }}>
-        {saving ? 'Guardando...' : 'Guardar configuración'}
-      </button>
       </div>
 
     </div>

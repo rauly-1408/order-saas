@@ -450,6 +450,12 @@ function Channels({ report }: { report: Report }) {
           {report.totals.deliveryFeesCents > 0 && (
             <li className="text-xs text-[var(--p-muted)]">Gastos de envío cobrados: {eur(report.totals.deliveryFeesCents)}</li>
           )}
+          {report.totals.taxCents > 0 && (
+            <li className="text-xs text-[var(--p-muted)]">
+              IVA incluido en las ventas ({report.totals.taxRate} %): {eur(report.totals.taxCents)}
+            </li>
+          )}
+          {report.totals.tipsCents > 0 && <li className="text-xs text-[var(--p-muted)]">Propinas: {eur(report.totals.tipsCents)}</li>}
         </ul>
       )}
     </Card>

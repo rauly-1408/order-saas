@@ -71,6 +71,10 @@ export function legalText(doc: LegalSlug, b: BusinessInfo, brand: string, siteUr
         ],
       },
       {
+        heading: "Seguridad",
+        paragraphs: ["Aplicamos medidas técnicas y organizativas para proteger tus datos: conexión cifrada (https), acceso al panel solo con usuario y contraseña, y permisos distintos para el personal (por ejemplo, la cocina solo ve los pedidos)."],
+      },
+      {
         heading: "Tus derechos",
         paragraphs: [
           `Puedes pedir acceso, rectificación, supresión, oposición, limitación y portabilidad de tus datos escribiendo a ${email}. Si crees que no se han atendido bien, puedes reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).`,
@@ -107,6 +111,28 @@ export function legalText(doc: LegalSlug, b: BusinessInfo, brand: string, siteUr
         "Los precios de la carta incluyen el IVA. Los gastos de envío, si los hay, se muestran antes de confirmar el pedido.",
         "El pedido queda hecho al confirmarlo y el restaurante lo acepta desde su panel. Si no se pudiera preparar (por ejemplo, por falta de un producto), te avisaremos para cambiarlo o cancelarlo.",
         "Los pedidos programados se preparan para la hora elegida, dentro del horario del local.",
+        "Las fotografías de la carta son orientativas: la presentación puede variar ligeramente. Las cantidades y los ingredientes son los que indica cada producto.",
+      ],
+    },
+    {
+      heading: "Recogida y entrega a domicilio",
+      paragraphs: [
+        "Las horas de recogida y de entrega son estimadas y pueden variar en momentos de mucha demanda; te avisamos del estado del pedido en la página de seguimiento.",
+        "Solo repartimos en las zonas y códigos postales que se indican al hacer el pedido. Indica bien la dirección (piso, puerta, indicaciones) y un teléfono en el que te podamos localizar.",
+        "Si al entregar el pedido no hay nadie en la dirección indicada ni podemos contactar contigo, el pedido se considera entregado y no se reembolsa, salvo que se acuerde otra cosa con el restaurante.",
+        "Revisa tu pedido al recibirlo. Si falta algo o hay algún error, avísanos en ese momento o lo antes posible para solucionarlo.",
+      ],
+    },
+    {
+      heading: "Bebidas alcohólicas",
+      paragraphs: [
+        "No se venden bebidas alcohólicas a menores de 18 años. Al recoger o al entregar el pedido se puede pedir un documento que acredite la edad; si no se muestra, esas bebidas no se entregan y se devuelve su importe.",
+      ],
+    },
+    {
+      heading: "Seguridad alimentaria",
+      paragraphs: [
+        "Nuestros productos se elaboran para consumirse en el momento. Si no los vas a tomar enseguida, guárdalos en el frigorífico y consúmelos en las siguientes 24 horas. El restaurante no responde del estado de los alimentos mal conservados después de la entrega.",
       ],
     },
     {
@@ -118,10 +144,18 @@ export function legalText(doc: LegalSlug, b: BusinessInfo, brand: string, siteUr
       ],
     },
     {
-      heading: "Cancelaciones y desistimiento",
+      heading: "Cancelaciones, desistimiento y devoluciones",
       paragraphs: [
-        "Puedes cancelar tu pedido llamando al restaurante mientras no se haya empezado a preparar.",
+        "Puedes cancelar tu pedido llamando al restaurante mientras no se haya empezado a preparar. Si ya lo habías pagado online, te devolvemos el importe por el mismo medio de pago.",
         "Al tratarse de comida preparada y perecedera, no se aplica el derecho de desistimiento de 14 días (art. 103 d) del Real Decreto Legislativo 1/2007).",
+        "Si el pedido llega incompleto, equivocado o en mal estado, te devolvemos el importe de lo afectado o te lo reponemos, a tu elección, siempre que nos avises en el momento de la entrega o lo antes posible.",
+      ],
+    },
+    {
+      heading: "Propinas y tarjetas regalo",
+      paragraphs: [
+        "La propina es voluntaria y va íntegra al equipo del restaurante.",
+        "Las tarjetas regalo se canjean al pagar un pedido en esta tienda hasta agotar su saldo. No se pueden cambiar por dinero, y si tienen fecha de caducidad, se indica al emitirlas.",
       ],
     },
     {
@@ -132,7 +166,19 @@ export function legalText(doc: LegalSlug, b: BusinessInfo, brand: string, siteUr
     },
     {
       heading: "Reclamaciones",
-      paragraphs: [`Para cualquier incidencia escribe a ${email} o llama al ${phone}. Tienes a tu disposición hojas de reclamaciones en el local.`],
+      paragraphs: [
+        `Para cualquier incidencia escribe a ${email} o llama al ${phone}. Te responderemos lo antes posible.`,
+        "Tienes a tu disposición hojas de quejas y reclamaciones en el local.",
+        "Si no llegamos a un acuerdo, puedes acudir a los servicios de consumo de tu ayuntamiento o comunidad autónoma, o al sistema arbitral de consumo.",
+      ],
     },
   ];
+}
+
+// Texto editable (Configuración → Políticas): «## Título» y párrafos separados
+// por una línea en blanco. Es el modelo que el dueño adapta a su negocio.
+export function legalTemplate(doc: LegalSlug, b: BusinessInfo, brand: string, siteUrl: string): string {
+  return legalText(doc, b, brand, siteUrl)
+    .map((sec) => [`## ${sec.heading}`, ...sec.paragraphs].join("\n\n"))
+    .join("\n\n");
 }

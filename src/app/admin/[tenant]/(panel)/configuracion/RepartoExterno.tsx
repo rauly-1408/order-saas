@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { toast, useSaveBar } from "./ui";
 
 // Configuración → Envío y entrega: el pedido se hace en nuestra tienda y
 // solo se contrata el repartidor (Glovo On-Demand). Modo prueba para probarlo
@@ -26,6 +27,9 @@ const OPTIONS: { value: Provider; label: string; hint: string }[] = [
   { value: "GLOVO", label: "Glovo On-Demand", hint: "Glovo envía un repartidor a recoger tu pedido." },
 ];
 
+// Lo que hay guardado, como formulario (las claves secretas nunca vuelven: vacías).
+const initial = (v: View) => ({ provider: v.provider, autoRequest: v.autoRequest, glovo: v.glovo, webhookSecret: "" });
+
 export default function RepartoExterno({ tenant }: { tenant: string }) {
   const api = `/api/admin/${tenant}/courier`;
   const [view, setView] = useState<View | null>(null);
@@ -33,16 +37,16 @@ export default function RepartoExterno({ tenant }: { tenant: string }) {
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  function load(v: View) {
+  const load = useCallback((v: View) => {
     setView(v);
-    setForm({ provider: v.provider, autoRequest: v.autoRequest, glovo: v.glovo, webhookSecret: "" });
-  }
+    setForm(initial(v));
+  }, []);
 
   useEffect(() => {
     fetch(api, { cache: "no-store" })
       .then(async (r) => (r.ok ? load(await r.json()) : setMsg({ ok: false, text: "No se pudo cargar el repartidor externo" })))
       .catch(() => setMsg({ ok: false, text: "No se pudo cargar el repartidor externo" }));
-  }, [api]);
+  }, [api, load]);
 
   async function send(kind: string, init: RequestInit, done: (json: Record<string, unknown>) => string | null) {
     setBusy(kind);
@@ -52,19 +56,29 @@ export default function RepartoExterno({ tenant }: { tenant: string }) {
       const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) throw new Error(typeof json.error === "string" ? json.error : "Algo ha fallado");
       const text = done(json);
-      if (text) setMsg({ ok: true, text });
+      if (text) toast(text);
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "Algo ha fallado" });
+      toast(e instanceof Error ? e.message : "Algo ha fallado", false);
     } finally {
       setBusy("");
     }
   }
 
-  const save = () =>
-    send("save", { method: "PUT", body: JSON.stringify(form) }, (json) => {
+  // Barra «Cambios sin guardar» (como Shopify).
+  useSaveBar("repartidor", {
+    dirty: !!form && !!view && JSON.stringify(form) !== JSON.stringify(initial(view)),
+    discard: () => view && setForm(initial(view)),
+    save: async () => {
+      const res = await fetch(api, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) {
+        toast(typeof json.error === "string" ? json.error : "No se pudo guardar el repartidor", false);
+        return false;
+      }
       load(json as unknown as View);
-      return "Guardado.";
-    });
+      return true;
+    },
+  });
   const generate = () => {
     if (view?.publicKeyPem && !confirm("¿Generar claves nuevas? Tendrás que enviar la nueva clave pública a Glovo.")) return;
     send("keys", { method: "POST", body: JSON.stringify({ action: "generateKeys" }) }, (json) => {
@@ -74,7 +88,7 @@ export default function RepartoExterno({ tenant }: { tenant: string }) {
   };
   const test = () =>
     send("test", { method: "POST", body: JSON.stringify({ action: "test" }) }, (json) => {
-      setMsg({ ok: json.ok === true, text: String(json.message ?? "") });
+      toast(String(json.message ?? ""), json.ok === true);
       return null;
     });
 
@@ -185,12 +199,8 @@ export default function RepartoExterno({ tenant }: { tenant: string }) {
       {form.provider === "GLOVO" && view.missing.length > 0 && view.provider === "GLOVO" && (
         <p className="mt-4 rounded-xl bg-[var(--p-accent-soft)] px-3 py-2 text-xs text-[var(--p-accent)]">Falta: {view.missing.join(", ")}. Hasta entonces no se pedirá ningún repartidor.</p>
       )}
-      {msg && <p className={`mt-4 text-sm ${msg.ok ? "text-emerald-700" : "text-[var(--p-accent)]"}`}>{msg.text}</p>}
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <button onClick={save} disabled={!!busy} className="p-press rounded-full bg-[var(--p-brand)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
-          {busy === "save" ? "Guardando…" : "Guardar repartidor"}
-        </button>
         {view.provider === "GLOVO" && form.provider === "GLOVO" && (
           <button onClick={test} disabled={!!busy} className="p-press rounded-full border border-[var(--p-line)] px-5 py-2.5 text-sm font-medium disabled:opacity-50">
             {busy === "test" ? "Probando…" : "Probar conexión"}

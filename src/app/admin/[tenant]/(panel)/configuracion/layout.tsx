@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { requireManagerPage } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import ConfigNav from "./ConfigNav";
+import { SaveBarHost } from "./ui";
 
 // Configuración a pantalla completa, como Shopify: sin la barra lateral del
 // panel (se oculta en esta ruta), con su cabecera y «✕» para salir, y el menú
@@ -31,6 +32,7 @@ export default async function ConfiguracionLayout({ children, params }: { childr
         <ConfigNav tenant={tenant} name={t?.name ?? tenant} logoUrl={logoUrl} storeUrl={storeUrl} />
         <div className="min-w-0 max-w-3xl">{children}</div>
       </div>
+      <SaveBarHost />
     </div>
   );
 }

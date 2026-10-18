@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     const result = await translateWithAi(todo);
     const saved = await saveTranslations(
       c.tenant.id,
-      todo.filter((t) => result.has(`${t.ref}|${t.field}`)).map((t) => ({ ref: t.ref, field: t.field, en: result.get(`${t.ref}|${t.field}`)! }))
+      todo.filter((t) => result.has(`${t.ref}|${t.field}`)).map((t) => ({ ref: t.ref, field: t.field, es: t.es, en: result.get(`${t.ref}|${t.field}`)! }))
     );
     const settings = { ...((c.tenant.settings as Record<string, unknown>) ?? {}), languages: ["es", "en"] };
     await prisma.tenant.update({ where: { id: c.tenant.id }, data: { settings } });
@@ -64,7 +64,9 @@ export async function PUT(req: NextRequest) {
         .slice(0, 2000)
         .map((i) => ({ ref: i.ref as string, field: i.field as string, en: typeof i.en === "string" ? i.en : null }))
     : [];
-  const saved = items.length ? await saveTranslations(c.tenant.id, items) : 0;
+  // Correcciones a mano: se guardan con el texto en español del que salen.
+  const esOf = items.length ? new Map((await collectMenuTexts(c.tenant.id)).map((t) => [`${t.ref}|${t.field}`, t.es])) : new Map<string, string>();
+  const saved = items.length ? await saveTranslations(c.tenant.id, items.map((i) => ({ ...i, es: esOf.get(`${i.ref}|${i.field}`) }))) : 0;
   if (typeof body?.english === "boolean") {
     const settings = { ...((c.tenant.settings as Record<string, unknown>) ?? {}), languages: body.english ? ["es", "en"] : ["es"] };
     await prisma.tenant.update({ where: { id: c.tenant.id }, data: { settings } });

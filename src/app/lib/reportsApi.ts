@@ -11,7 +11,7 @@ export type ReportRange = { from: string; to: string; start: Date; end: Date; pr
 // Guard + periodo pedido (?from=AAAA-MM-DD&to=AAAA-MM-DD, por defecto los últimos 7 días).
 export async function reportContext(
   req: NextRequest
-): Promise<{ tenant: { id: string; name: string }; range: ReportRange } | { error: NextResponse }> {
+): Promise<{ tenant: { id: string; name: string; settings: unknown }; range: ReportRange } | { error: NextResponse }> {
   const url = new URL(req.url);
   const parts = url.pathname.split("/");
   const slug = parts[parts.indexOf("admin") + 1];
@@ -32,7 +32,7 @@ export async function reportContext(
   const start = startOfDayIn(timeZone, from);
   const end = startOfDayIn(timeZone, addDays(to, 1));
   const prevStart = startOfDayIn(timeZone, addDays(from, -days));
-  return { tenant: { id: tenant.id, name: tenant.name }, range: { from, to, start, end, prevStart, timeZone } };
+  return { tenant: { id: tenant.id, name: tenant.name, settings: tenant.settings }, range: { from, to, start, end, prevStart, timeZone } };
 }
 
 // Pedidos de [desde, hasta) con lo que necesita el informe.
@@ -47,6 +47,8 @@ export async function loadReportOrders(tenantId: string, from: Date, to: Date): 
       promotion: { select: { name: true } },
       promotionDiscountCents: true,
       loyaltyDiscountCents: true,
+      tipCents: true,
+      giftCardCents: true,
       customer: { select: { firstOrderAt: true } },
       items: { select: { productId: true, productName: true, quantity: true, totalCents: true } },
     },
@@ -77,6 +79,8 @@ export async function loadReportOrders(tenantId: string, from: Date, to: Date): 
     promotionName: o.promotion?.name ?? null,
     promotionDiscountCents: o.promotionDiscountCents,
     loyaltyDiscountCents: o.loyaltyDiscountCents,
+    tipCents: o.tipCents,
+    giftCardCents: o.giftCardCents,
     customerId: o.customerId,
     customerFirstOrderAt: o.customer?.firstOrderAt ?? null,
     lines: o.items.map((i) => ({ productId: i.productId, productName: i.productName, categoryName: categoryOf.get(i.productId) ?? categoryByName.get(i.productName) ?? null, quantity: i.quantity, totalCents: i.totalCents })),

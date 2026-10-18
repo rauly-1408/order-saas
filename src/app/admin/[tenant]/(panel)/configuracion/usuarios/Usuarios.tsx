@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ROLE_LABEL } from "@/app/lib/roles";
-import { Card, Msg, ghostBtn, input, primaryBtn } from "../ui";
+import { Card, Msg, ghostBtn, input, primaryBtn, toast } from "../ui";
 
 type User = { id: string; email: string; name: string | null; role: string; active: boolean; storeId: string | null; lastLoginAt: string | null; me: boolean };
 type Store = { id: string; name: string };
@@ -17,7 +17,6 @@ export default function Usuarios({ tenant }: { tenant: string }) {
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pw, setPw] = useState({ current: "", next: "" });
-  const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     fetch(api, { cache: "no-store" })
@@ -40,7 +39,7 @@ export default function Usuarios({ tenant }: { tenant: string }) {
       if (json.password && email) setSecret({ email, password: json.password });
       return true;
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "Algo ha fallado" });
+      toast(e instanceof Error ? e.message : "Algo ha fallado", false);
       return false;
     } finally {
       setBusy("");
@@ -48,13 +47,12 @@ export default function Usuarios({ tenant }: { tenant: string }) {
   }
 
   async function changePassword() {
-    setPwMsg(null);
     const res = await fetch(`${api}/me`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pw) });
     const json = await res.json().catch(() => ({}));
     if (res.ok) {
       setPw({ current: "", next: "" });
-      setPwMsg({ ok: true, text: "Contraseña cambiada." });
-    } else setPwMsg({ ok: false, text: json.error ?? "No se pudo cambiar" });
+      toast("Contraseña cambiada");
+    } else toast(json.error ?? "No se pudo cambiar", false);
   }
 
   const storeName = (id: string | null) => (id ? stores.find((s) => s.id === id)?.name ?? "—" : "Todos los locales");
@@ -189,7 +187,6 @@ export default function Usuarios({ tenant }: { tenant: string }) {
           <button type="button" disabled={!pw.current || pw.next.length < 10} onClick={changePassword} className={primaryBtn}>
             Cambiar contraseña
           </button>
-          <Msg msg={pwMsg} />
         </div>
       </Card>
     </div>

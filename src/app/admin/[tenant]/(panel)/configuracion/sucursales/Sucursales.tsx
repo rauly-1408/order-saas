@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Card, Msg, ghostBtn, input, primaryBtn } from "../ui";
+import { Card, Msg, ghostBtn, input, primaryBtn, toast } from "../ui";
 
 type Store = { id: string; name: string; address: string | null; phone: string | null; active: boolean; zones: number; orders30d: number };
 
@@ -31,9 +31,9 @@ export default function Sucursales({ tenant }: { tenant: string }) {
       if (!res.ok) throw new Error(json.error ?? "Algo ha fallado");
       setStores(json.stores);
       setEdit(null);
-      setMsg({ ok: true, text: "Guardado." });
+      toast("Local guardado");
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "Algo ha fallado" });
+      toast(e instanceof Error ? e.message : "Algo ha fallado", false);
     } finally {
       setBusy(false);
     }

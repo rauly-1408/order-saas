@@ -8,6 +8,9 @@ Panel → **Configuración**, abajo en la barra lateral. Solo gerentes.
 - **Menú de apartados** a la izquierda, con una **tarjeta de la tienda** arriba (logo, nombre y dirección web; abre la tienda).
 - **Móvil**: la portada de Configuración es la lista de apartados. Al entrar en uno aparece «← Configuración» para volver. En el ordenador, la portada abre «Información del negocio».
 - Cada apartado lleva título y explicación, y su contenido va en tarjetas.
+- **Guardar como Shopify**: no hay botones «Guardar» sueltos. Al cambiar algo aparece arriba la barra oscura **«Cambios sin guardar» · Descartar · Guardar**, que guarda todo lo pendiente de la página. Si vuelves al valor original, desaparece. Al guardar sale un aviso flotante abajo («✓ Cambios guardados»). Los errores salen en rojo.
+- Si intentas salir con cambios sin guardar, te avisa: al cerrar la pestaña o al pulsar otro apartado.
+- Código: `useSaveBar(id, { dirty, save, discard })` y `toast()` en `configuracion/ui.tsx`. `SaveBarHost` va una vez en el layout.
 
 ## Apartados
 
@@ -19,15 +22,15 @@ Panel → **Configuración**, abajo en la barra lateral. Solo gerentes.
 | **Pagos** | Pasarela del restaurante (ver PAGOS.md) | `PaymentAccount` |
 | **Pantalla de pago** | Notas del pedido, programar pedidos, casilla de ofertas y **propinas** (5/10/15/20 %) | `Tenant.settings.checkout` |
 | **Envío y entrega** | Canales, precios y tiempos (comunes a todos los locales), reparto con plataformas y repartidor externo | `Store`, `Tenant.settings`, `CourierAccount` |
-| **Impuestos** | Tipo de IVA (4/10/21 %, 10 % por defecto) y «IVA incluido» en la confirmación | `Tenant.settings.tax` |
+| **Impuestos** | Tipo de IVA (4/10/21 %, 10 % por defecto); «IVA incluido» en la confirmación; IVA y propinas en Informes y en la exportación a Excel | `Tenant.settings.tax` |
 | **Sucursales** | Locales: crear, editar, cerrar o abrir al público | `Store` |
 | **Horario y zonas** | Horario, cierres y zonas **de cada local** (con varios, se elige arriba) | `Store`, `StoreClosure`, `DeliveryZone` |
 | **Tarjetas regalo** | Crear, ver el saldo, desactivar | `GiftCard` |
 | **Dominios** | Dirección de la tienda y **dominio propio** | `Tenant.domains` |
 | **Marca** | Antes «Personalización»: logos, colores, fuentes, presencia online (ver PERSONALIZACION.md) | `Tenant.branding` |
 | **Notificaciones** | Sonido de pedidos en este dispositivo (activar, repetir, probar) y qué avisos recibe el cliente | `localStorage` del dispositivo |
-| **Idiomas** | Antes en Carta: carta en inglés (ver CARTA-IDIOMAS.md) | `translations` |
-| **Políticas** | Ver y sustituir los textos legales por uno propio | `Tenant.settings.policies` |
+| **Idiomas** | Antes en Carta: carta en inglés con **traducción automática**; revisión opcional en grupos plegables con buscador (ver CARTA-IDIOMAS.md) | `translations` |
+| **Políticas** | **Modelo de redacción para hostelería** con los datos del negocio ya puestos: se usa tal cual o se adapta («Adaptar el modelo», «Volver al modelo», «Usar el texto automático») | `Tenant.settings.policies` |
 
 `/admin/[tenant]/personalizacion` redirige a Configuración → Marca. En Carta hay un enlace a Configuración → Idiomas.
 
