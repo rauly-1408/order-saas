@@ -58,8 +58,9 @@ export function ComboCard({
   qty,
   onAdd,
   upperHeadings,
+  imageUrl,
   lang = "es",
-}: { name: string; description: string; priceCents: number; slots: ComboSlotDef[]; qty: number; onAdd: () => void } & Heading) {
+}: { name: string; description: string; priceCents: number; slots: ComboSlotDef[]; qty: number; onAdd: () => void; imageUrl?: string | null } & Heading) {
   const T = ui(lang);
   const steps = slots.map((s) => {
     const t = s.name.replace(/^elige (tu |un |una )?/i, "");
@@ -68,9 +69,16 @@ export function ComboCard({
   });
   return (
     <article
-      className="p-lift relative flex flex-col overflow-hidden rounded-[26px] p-6 sm:p-7"
+      className="p-lift group relative flex flex-col overflow-hidden rounded-[26px] p-6 sm:p-7"
       style={{ background: "linear-gradient(135deg, var(--brand-accent) 0%, color-mix(in srgb, var(--brand-accent) 78%, black) 100%)", color: "var(--on-accent)" }}
     >
+      {/* Foto del menú (Carta → editar el menú → Imagen), arriba como en los productos. */}
+      {imageUrl && (
+        <div className="relative -mx-6 -mt-6 mb-5 overflow-hidden sm:-mx-7 sm:-mt-7">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt={name} className="aspect-[16/9] w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+        </div>
+      )}
       <span aria-hidden className="absolute -right-16 -top-16 h-56 w-56 rounded-full opacity-10" style={{ backgroundColor: "var(--bg-base)" }} />
       <div className="relative flex items-start justify-between gap-3">
         <span className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em]" style={{ backgroundColor: "var(--brand-secondary)", color: "var(--on-secondary)" }}>

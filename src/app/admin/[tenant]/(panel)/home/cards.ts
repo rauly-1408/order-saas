@@ -166,7 +166,7 @@ export async function homeCards(tenantId: string, slug: string, timeZone: string
       done: users > 1,
       title: "Añade a tu equipo",
       text: "Tu cocina ve y gestiona los pedidos con su propio acceso, sin ver tus ingresos.",
-      cta: "Invitar a alguien",
+      cta: "Añadir a alguien",
       href: cfg("usuarios"),
     },
     {

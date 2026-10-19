@@ -396,6 +396,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                           description={product.description}
                           priceCents={product.basePriceCents}
                           slots={product.comboSlots ?? []}
+                          imageUrl={product.imageUrl}
                           qty={qty}
                           onAdd={() => handleAdd(product)}
                           upperHeadings={upper}

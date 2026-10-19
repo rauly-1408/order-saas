@@ -12,6 +12,8 @@ Panel → **Carta → Combos y menús**. Solo gerentes. Incluido en el producto 
 - Solo se ofrecen los productos disponibles en ese momento: un producto agotado desaparece del paso sin tocar el combo.
 - «Agotar» quita el combo de la carta sin borrarlo.
 
+- **Foto del menú**: en Carta → editar el menú → «Imagen». En la tienda se ve arriba de la tarjeta del menú, igual que en los productos.
+
 ## Precio, cocina y stock
 
 - Precio = precio del menú + suplementos + extras de pago. Lo recalcula el servidor; nunca se fía del navegador.
