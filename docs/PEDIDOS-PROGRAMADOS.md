@@ -4,7 +4,9 @@
 
 - En el checkout, «¿Cuándo lo quieres?»: **⚡ Lo antes posible** (unos X min) o **🕐 Programar** (día y hora).
 - Con la tienda **cerrada**, solo se puede programar. La carta lo avisa: «Puedes hacer tu pedido ya y programarlo para cuando abramos».
-- El día y la hora se eligen con una **rueda como la del iPhone** (Día · Hora · Minutos): se desliza con el dedo y vale la fila del centro. Al cambiar el día se intenta mantener la misma hora. Componente `checkout/TimeWheel.tsx`.
+- El **día** se elige con tres botones (Hoy · Mañana · siguiente) y la **hora** con el selector del propio sistema (`<input type="time">`): en el iPhone abre la rueda nativa de iOS; en Android y en ordenador, el suyo. Al cambiar el día se intenta mantener la misma hora. Componente `checkout/TimePicker.tsx`.
+  - Debajo se indica el tramo disponible («Puedes elegir entre las 20:20 y las 23:55»). Si el cliente escribe una hora en la que no se puede (cerrado o sin tiempo de preparación), se le pone la más cercana y se le avisa.
+  - Qué horas hay depende de **Configuración → Horario y zonas** y del tiempo de preparación o entrega: la tienda solo ofrece horas en las que está abierta y la cocina puede empezar a tiempo.
 - Horas cada **5 min** (`SLOT_STEP_MIN` en `schedule.ts`), para **hoy y los dos días siguientes**. Una hora vale si el local está abierto **a esa hora y cuando la cocina tiene que empezar** (hora − tiempo de preparación o entrega).
   - Ejemplo con apertura a las 20:00: recoger desde las 20:30 (20 min) y a domicilio desde las 20:45 (35 min).
   - Se tienen en cuenta los cierres programados y la pausa.

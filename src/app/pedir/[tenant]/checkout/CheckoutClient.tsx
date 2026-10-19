@@ -13,7 +13,7 @@ import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
 import type { PublicPerks } from "@/app/lib/perks";
 import DeliveryPartners, { type PartnerLink } from "../DeliveryPartners";
 import AddressInput from "./AddressInput";
-import TimeWheel from "./TimeWheel";
+import TimePicker from "./TimePicker";
 import { DEFAULT_CHECKOUT, type CheckoutSettings } from "@/app/lib/storePolicies";
 import { slotDay, storeMessage, ui, whenText, type Lang } from "@/app/lib/i18n";
 import StampCard from "../StampCard";
@@ -571,9 +571,9 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
               </div>
               {scheduling && slots.length > 0 && (
                 <div style={{ marginTop: "12px", padding: "14px", borderRadius: "14px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
-                  {/* Ruedas al estilo del iPhone: día · hora · minutos */}
+                  {/* Día con botones y hora con el selector del sistema (en iPhone, la rueda de iOS) */}
                   <div style={{ ...labelStyle, marginBottom: "8px" }}>{channel === "DELIVERY" ? T.deliveryTime : T.pickupTime}</div>
-                  <TimeWheel slots={slots} value={chosenSlot?.at ?? null} onChange={setSlotAt} lang={lang} />
+                  <TimePicker slots={slots} value={chosenSlot?.at ?? null} onChange={setSlotAt} lang={lang} inputStyle={inputStyle} />
                 </div>
               )}
               {closed && slots.length === 0 && (
