@@ -14,6 +14,7 @@ import ComboSheet from "./ComboSheet";
 import StampCard from "./StampCard";
 import { ComboCard, ProductCard, PromoTile } from "./StoreCards";
 import StoreFooter from "./StoreFooter";
+import MenuCarousel from "./MenuCarousel";
 import type { BusinessInfo } from "@/app/lib/business";
 import type { WeeklyHours } from "@/app/lib/storeStatus";
 import { useRouter } from "next/navigation";
@@ -382,8 +383,8 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                 <h2 className="text-[34px] sm:text-[44px]" style={{ ...heading, color: cssVars["--heading-color"] }}>{cat.name}</h2>
                 {cat.description && <p className="mt-2 text-[14px]" style={{ color: cssVars["--text-secondary"] }}>{cat.description}</p>}
               </div>
-              {/* Menús: tarjetas anchas (1 o 2 por fila; 2 solo desde 1280 px para que los pasos quepan en una línea). Productos: 1 / 2 / 3 / 4 columnas. */}
-              <div className={combos ? "grid gap-5 xl:grid-cols-2" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}>
+              {/* Menús: carrusel (2 en el móvil; en ordenador los que elija el dueño en Marca). Productos: 1 / 2 / 3 / 4 columnas. */}
+              <Wrap carousel={combos} perView={t.menusPerRow} lang={lang}>
                 {cat.products.map((product, i) => {
                   const qty = getQty(product.id);
                   const lineId = getLineId(product.id);
@@ -419,7 +420,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                     </div>
                   );
                 })}
-              </div>
+              </Wrap>
             </section>
           );
         })}
@@ -472,4 +473,10 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
       )}
     </div>
   );
+}
+
+// Los menús van en carrusel; el resto de categorías, en cuadrícula.
+function Wrap({ carousel, perView, lang, children }: { carousel: boolean; perView: number; lang: Lang; children: React.ReactNode }) {
+  if (carousel) return <MenuCarousel perView={Math.min(Math.max(Number(perView) || 2, 2), 5)} lang={lang}>{children}</MenuCarousel>;
+  return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{children}</div>;
 }

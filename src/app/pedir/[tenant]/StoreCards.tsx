@@ -69,12 +69,13 @@ export function ComboCard({
   });
   return (
     <article
-      className="p-lift group relative flex h-full flex-col overflow-hidden rounded-[26px] p-6 sm:p-7"
+      // @max-[420px]: versión compacta cuando la tarjeta es estrecha (dos por pantalla en el móvil, 4-5 por fila en ordenador).
+      className="p-lift group relative flex h-full flex-col overflow-hidden rounded-[26px] p-6 sm:p-7 @max-[420px]:p-4"
       style={{ background: "linear-gradient(135deg, var(--brand-accent) 0%, color-mix(in srgb, var(--brand-accent) 78%, black) 100%)", color: "var(--on-accent)" }}
     >
       {/* Foto del menú (Carta → editar el menú → Imagen), arriba como en los productos. */}
       {imageUrl && (
-        <div className="relative -mx-6 -mt-6 mb-5 overflow-hidden sm:-mx-7 sm:-mt-7">
+        <div className="relative -mx-6 -mt-6 mb-5 overflow-hidden sm:-mx-7 sm:-mt-7 @max-[420px]:-mx-4 @max-[420px]:-mt-4 @max-[420px]:mb-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageUrl} alt={name} className="aspect-[16/9] w-full object-cover transition-transform duration-700 group-hover:scale-105" />
         </div>
@@ -86,15 +87,15 @@ export function ComboCard({
         </span>
         {qty > 0 && <span className="rounded-full bg-white/15 px-2.5 py-1 text-[12px] font-semibold">{T.inYourOrder(qty)}</span>}
       </div>
-      <h3 className="relative mt-4 text-[34px] sm:text-[40px]" style={headingStyle(upperHeadings)}>
+      <h3 className="relative mt-4 text-[34px] sm:text-[40px] @max-[420px]:mt-2 @max-[420px]:text-[22px] @max-[420px]:leading-tight" style={headingStyle(upperHeadings)}>
         {name}
       </h3>
-      {description && <p className="relative mt-2 max-w-md text-[14px] opacity-85">{description}</p>}
+      {description && <p className="relative mt-2 max-w-md text-[14px] opacity-85 @max-[420px]:text-[12px]">{description}</p>}
       {/* Pasos: chips compactos para que quepan en una línea en ordenador y en dos en el móvil. */}
-      <ol className="relative mt-5 flex flex-wrap items-center gap-1.5" aria-label={T.menuSteps}>
+      <ol className="relative mt-5 flex flex-wrap items-center gap-1.5 @max-[420px]:mt-3 @max-[420px]:gap-1" aria-label={T.menuSteps}>
         {steps.map((s, i) => (
           <li key={i} className="flex items-center gap-1.5">
-            <span className="flex items-center gap-1 whitespace-nowrap rounded-full py-0.5 pr-2.5 pl-0.5 text-[12px] font-semibold" style={{ backgroundColor: "color-mix(in srgb, var(--bg-base) 18%, transparent)" }}>
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-full py-0.5 pr-2.5 pl-0.5 text-[12px] font-semibold @max-[420px]:pr-2 @max-[420px]:text-[11px]" style={{ backgroundColor: "color-mix(in srgb, var(--bg-base) 18%, transparent)" }}>
               <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ backgroundColor: "var(--bg-base)", color: "var(--brand-accent)" }}>
                 {i + 1}
               </span>
@@ -105,14 +106,14 @@ export function ComboCard({
         ))}
       </ol>
       {/* Precio y botón siempre abajo: así dos menús en la misma fila miden lo mismo. */}
-      <div className="relative mt-auto flex items-end justify-between gap-4 pt-6">
+      <div className="relative mt-auto flex items-end justify-between gap-4 pt-6 @max-[420px]:flex-col @max-[420px]:items-stretch @max-[420px]:gap-2 @max-[420px]:pt-4">
         <div>
-          <p className="text-[12px] opacity-75">{T.allFor}</p>
-          <p className="text-[38px]" style={headingStyle(upperHeadings)}>
+          <p className="text-[12px] opacity-75 @max-[420px]:text-[11px]">{T.allFor}</p>
+          <p className="text-[38px] @max-[420px]:text-[26px]" style={headingStyle(upperHeadings)}>
             {euros(priceCents)}
           </p>
         </div>
-        <button onClick={onAdd} className="p-press shrink-0 rounded-full px-5 py-3 text-[15px] font-bold shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5)]" style={{ backgroundColor: "var(--bg-base)", color: "var(--brand-accent)" }}>
+        <button onClick={onAdd} className="p-press shrink-0 rounded-full px-5 py-3 text-[15px] font-bold shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5)] @max-[420px]:w-full @max-[420px]:px-3 @max-[420px]:py-2.5 @max-[420px]:text-[13px]" style={{ backgroundColor: "var(--bg-base)", color: "var(--brand-accent)" }}>
           {T.buildMenu}
         </button>
       </div>

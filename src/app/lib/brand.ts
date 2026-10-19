@@ -137,6 +137,7 @@ export type BrandInput = {
   bodyFontName: string;
   headingCase: "normal" | "uppercase";
   borderRadius: string;
+  menusPerRow: number;
   online: OnlinePresence;
 };
 
@@ -158,6 +159,8 @@ export function parseBrand(body: unknown): BrandInput | string {
   if (!heading || !body_) return "Fuente no válida";
   const radius = Number(b.borderRadius);
   if (!Number.isInteger(radius) || radius < 0 || radius > 28) return "Redondeo no válido";
+  const perRow = Number(b.menusPerRow ?? 2);
+  if (!Number.isInteger(perRow) || perRow < 2 || perRow > 5) return "Menús por fila no válido (2 a 5)";
   return {
     name,
     colors,
@@ -165,6 +168,7 @@ export function parseBrand(body: unknown): BrandInput | string {
     bodyFontName: body_.name,
     headingCase: b.headingCase === "uppercase" ? "uppercase" : "normal",
     borderRadius: `${radius}px`,
+    menusPerRow: perRow,
     online: parseOnline(b.online),
   };
 }

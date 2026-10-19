@@ -32,6 +32,7 @@ type Form = {
   headingFontName: string;
   bodyFontName: string;
   headingCase: "normal" | "uppercase";
+  menusPerRow: number;
   radius: number;
   online: OnlinePresence;
 };
@@ -129,6 +130,7 @@ function toLoaded(name: string, branding: Record<string, unknown>): Loaded {
         fontNameFromCss(theme.bodyFont, "Inter"),
       headingCase: theme.headingCase === "uppercase" ? "uppercase" : "normal",
       radius: Math.min(Math.max(parseInt(theme.borderRadius, 10) || 0, 0), 28),
+      menusPerRow: Math.min(Math.max(Number(theme.menusPerRow) || 2, 2), 5),
       online: parseOnline(branding.online),
     },
     assets: {
@@ -204,6 +206,7 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
       bodyFont: fontByName(form.bodyFontName)?.css,
       headingCase: form.headingCase,
       borderRadius: `${form.radius}px`,
+      menusPerRow: form.menusPerRow,
     });
   }, [form, loaded, assets]);
 
@@ -226,6 +229,7 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
           bodyFontName: form.bodyFontName,
           headingCase: form.headingCase,
           borderRadius: form.radius,
+          menusPerRow: form.menusPerRow,
           online: form.online,
         }),
       });
@@ -467,6 +471,30 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
                   <span className="w-12 shrink-0 text-right text-sm tabular-nums">
                     {form.radius}px
                   </span>
+                </div>
+              </section>
+
+              <section className={card}>
+                <h3 className="text-[15px] font-semibold">Menús por fila en ordenador</h3>
+                <p className="mt-0.5 text-xs text-[var(--p-muted)]">
+                  Cuántos menús (combos) se ven a la vez. Si tienes más, se pasan con flechas. En el móvil siempre se ven dos y se deslizan con el dedo.
+                </p>
+                <div className="mt-3 flex gap-2" role="radiogroup" aria-label="Menús por fila">
+                  {[2, 3, 4, 5].map((n) => {
+                    const on = form.menusPerRow === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => setForm({ ...form, menusPerRow: n })}
+                        className={`p-press h-11 flex-1 rounded-xl border text-sm font-semibold ${on ? "border-[var(--p-brand)] bg-[var(--p-brand)] text-white" : "border-[var(--p-line)] text-[var(--p-muted)]"}`}
+                      >
+                        {n}
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
             </>

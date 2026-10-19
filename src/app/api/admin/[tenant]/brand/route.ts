@@ -31,6 +31,7 @@ export async function PUT(req: NextRequest) {
   branding.bodyFont = fontByName(input.bodyFontName)!.css;
   branding.headingCase = input.headingCase;
   branding.borderRadius = input.borderRadius;
+  branding.menusPerRow = input.menusPerRow;
   branding.online = input.online;
 
   await prisma.tenant.update({ where: { id: tenant.id }, data: { name: input.name, branding: branding as object } });
