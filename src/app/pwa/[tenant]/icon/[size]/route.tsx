@@ -11,13 +11,12 @@ export async function GET(req: NextRequest) {
   const t = await prisma.tenant.findUnique({ where: { slug }, select: { id: true, name: true, branding: true } });
   // Con logotipo cuadrado (Personalización), el icono es ese logo.
   const square = t ? await prisma.brandAsset.findUnique({ where: { tenantId_kind: { tenantId: t.id, kind: "LOGO_SQUARE" } }, select: { data: true, mimeType: true } }) : null;
+  // Se sirve tal cual (ya viene cuadrado y como mucho de 512 px, ver brand.ts):
+  // ImageResponse no pinta bien todos los PNG y devolvía un icono en blanco.
   if (square && square.mimeType !== "image/webp") {
-    const src = `data:${square.mimeType};base64,${Buffer.from(square.data).toString("base64")}`;
-    return new ImageResponse(
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} width={size} height={size} alt="" style={{ objectFit: "cover" }} />,
-      { width: size, height: size, headers: { "Cache-Control": "public, max-age=3600" } }
-    );
+    return new Response(new Uint8Array(square.data), {
+      headers: { "Content-Type": square.mimeType, "Cache-Control": "public, max-age=3600" },
+    });
   }
   const brand = panelBrand(t?.branding);
   const letter = (t?.name ?? slug).charAt(0).toUpperCase();
