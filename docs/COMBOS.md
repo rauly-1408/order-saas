@@ -12,6 +12,8 @@ Panel → **Carta → Combos y menús**. Solo gerentes. Incluido en el producto 
 - Solo se ofrecen los productos disponibles en ese momento: un producto agotado desaparece del paso sin tocar el combo.
 - «Agotar» quita el combo de la carta sin borrarlo.
 
+- **Categorías**: en Carta → Productos, debajo de la lista, cada categoría tiene un lápiz ✎ para cambiarle el nombre (`PATCH /api/admin/[tenant]/categories/[id]`). Así «Entrantes y complementos» puede llamarse «Complementos».
+
 ## Precio, cocina y stock
 
 - Precio = precio del menú + suplementos + extras de pago. Lo recalcula el servidor; nunca se fía del navegador.

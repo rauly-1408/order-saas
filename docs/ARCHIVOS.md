@@ -10,6 +10,7 @@ Panel → **Archivos** (barra lateral). Solo gerentes. Dos pestañas: **Imágene
 - **Fotos de productos** (Carta → editar producto → «Imagen»):
   - «Añadir imagen» abre la biblioteca: se elige una o se sube una nueva, que queda guardada en Archivos;
   - «Quitar» deja el producto sin foto;
+  - también se puede **arrastrar una foto** desde el ordenador hasta el campo «Imagen»: se sube a Archivos y queda elegida;
   - ya no se pega una dirección (URL).
   - la ventana se pinta con un portal en `.panel`, fuera de `.p-page`. La animación de entrada de la página encierra los elementos `fixed`, y la ventana quedaba dentro del contenido, gris y fuera de la pantalla.
 
