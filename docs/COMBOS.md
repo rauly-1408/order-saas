@@ -13,6 +13,7 @@ Panel → **Carta → Combos y menús**. Solo gerentes. Incluido en el producto 
 - «Agotar» quita el combo de la carta sin borrarlo.
 
 - **Foto del menú**: en Carta → editar el menú → «Imagen». En la tienda se ve arriba de la tarjeta del menú, igual que en los productos.
+- **Categorías**: en Carta → Productos, debajo de la lista, cada categoría tiene un lápiz ✎ para cambiarle el nombre (`PATCH /api/admin/[tenant]/categories/[id]`). Así «Entrantes y complementos» puede llamarse «Complementos».
 
 ## Precio, cocina y stock
 

@@ -46,6 +46,8 @@ export default function CartaClient({ tenant, embedded = false }: { tenant: stri
   const [newProductCatId, setNewProductCatId] = useState('');
   const [form, setForm] = useState<FormData>(emptyForm);
   const [search, setSearch] = useState('');
+  // Renombrar una categoría en sitio (lápiz junto a cada chip).
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -96,6 +98,18 @@ export default function CartaClient({ tenant, embedded = false }: { tenant: stri
 
   async function toggleActive(product: Product, catId: string) {
     await fetch(`/api/admin/${tenant}/products/${product.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isActive: !product.isActive }) });
+    fetchData();
+  }
+
+  async function renameCategory() {
+    if (!renaming) return;
+    const name = renaming.name.trim();
+    const current = categories.find(c => c.id === renaming.id)?.name;
+    setRenaming(null);
+    if (!name || name === current) return;
+    const res = await fetch(`/api/admin/${tenant}/categories/${renaming.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    if (!res.ok) { setMsg('Error: no se pudo renombrar la categoría'); return; }
+    setMsg(`Categoría renombrada a «${name}»`);
     fetchData();
   }
 
@@ -236,12 +250,29 @@ export default function CartaClient({ tenant, embedded = false }: { tenant: stri
       </div>
 
       <div style={{ marginTop: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 12 }}>Añadir producto por categoría</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 12 }}>Categorías · pulsa «+» para añadir un producto o el lápiz para cambiar el nombre</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {categories.map(cat => (
-            <button key={cat.id} onClick={() => openNew(cat.id)} style={{ background: S.purpleLight, color: S.purpleDark, border: `1px solid ${S.purpleMid}`, borderRadius: 4, padding: '6px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
-              + {cat.name}
-            </button>
+          {categories.map(cat => renaming?.id === cat.id ? (
+            <input
+              key={cat.id}
+              autoFocus
+              value={renaming.name}
+              onChange={e => setRenaming({ id: cat.id, name: e.target.value })}
+              onBlur={renameCategory}
+              onKeyDown={e => { if (e.key === 'Enter') renameCategory(); if (e.key === 'Escape') setRenaming(null); }}
+              aria-label="Nuevo nombre de la categoría"
+              className="rounded-lg border border-[var(--p-brand)] px-3 py-1.5 text-[13px]"
+              style={{ minWidth: 180 }}
+            />
+          ) : (
+            <span key={cat.id} className="inline-flex overflow-hidden rounded-lg border border-[var(--p-brand)] text-[13px] font-medium" style={{ background: S.purpleLight, color: S.purpleDark }}>
+              <button onClick={() => openNew(cat.id)} className="px-3.5 py-1.5" style={{ fontFamily: 'inherit' }} title={`Añadir producto en ${cat.name}`}>
+                + {cat.name}
+              </button>
+              <button onClick={() => setRenaming({ id: cat.id, name: cat.name })} className="border-l border-[var(--p-brand)]/30 px-2.5" aria-label={`Renombrar ${cat.name}`} title="Cambiar el nombre">
+                ✎
+              </button>
+            </span>
           ))}
         </div>
       </div>

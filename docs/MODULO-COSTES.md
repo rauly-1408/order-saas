@@ -39,6 +39,7 @@
 - Interruptor de módulos por restaurante (`Tenant.addons`): sin el módulo, el panel muestra la pantalla de "Contratar".
 - **Proveedores**: nombre, contacto, teléfono, email.
 - **Ingredientes**: unidad base (kg, g, l, ml, unidad), precio de compra por formato (p. ej. 12,50 € la caja de 5 kg), proveedor, **% de merma**, alérgenos.
+  - Cada alérgeno tiene un **icono redondo** (`costes/AllergenIcon.tsx`) con los colores del panel: verde de marca, rojo de acento y tono cálido. Se ve en los chips del formulario y en la lista de ingredientes (con el nombre al pasar el ratón).
 - **Escandallo** de cada producto y de cada opción de modificador: ingredientes y cantidades.
 - **Rentabilidad**: coste, precio de venta, margen € y %, food cost %; semáforo por umbral configurable; ranking de platos.
 - **Margen real de pedidos** (mejora 2 y 3) con las ventas existentes.

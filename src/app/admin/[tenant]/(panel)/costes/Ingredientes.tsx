@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { unitCostCents } from "@/app/lib/costs";
 import { ALLERGENS, UNIT_LABEL, euros, type BaseUnit, type Ingredient, type Overview } from "./types";
+import AllergenIcon from "./AllergenIcon";
 
 type Form = {
   id: string | null;
@@ -140,8 +141,10 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
                       key={a}
                       type="button"
                       onClick={() => setForm({ ...form, allergens: on ? form.allergens.filter((x) => x !== a) : [...form.allergens, a] })}
-                      className={`rounded-full border px-3 py-1 text-xs ${on ? "border-[var(--p-brand)] bg-[var(--p-brand)] text-white" : "border-[var(--p-line)] text-[var(--p-muted)]"}`}
+                      aria-pressed={on}
+                      className={`inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1 text-xs transition-colors ${on ? "border-[var(--p-brand)] bg-[var(--p-brand)] font-semibold text-white" : "border-[var(--p-line)] text-[var(--p-muted)] hover:border-[var(--p-brand)]"}`}
                     >
+                      <AllergenIcon name={a} size={20} className={on ? "ring-2 ring-white/70" : ""} />
                       {a}
                     </button>
                   );
@@ -174,7 +177,15 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
                   {i.wastePct > 0 && ` · merma ${i.wastePct} %`}
                   {i.supplierId && ` · ${supplierName.get(i.supplierId) ?? ""}`}
                 </div>
-                {i.allergens.length > 0 && <div className="mt-0.5 text-[11px] text-amber-700">Alérgenos: {i.allergens.join(", ")}</div>}
+                {i.allergens.length > 0 && (
+                  <div className="mt-1 flex flex-wrap items-center gap-1" aria-label={`Alérgenos: ${i.allergens.join(", ")}`}>
+                    {i.allergens.map((a) => (
+                      <span key={a} title={a}>
+                        <AllergenIcon name={a} size={20} />
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-semibold">{costPerUnit(i)}</span>
