@@ -90,16 +90,17 @@ export function ComboCard({
         {name}
       </h3>
       {description && <p className="relative mt-2 max-w-md text-[14px] opacity-85">{description}</p>}
-      <ol className="relative mt-5 flex flex-wrap items-center gap-2" aria-label={T.menuSteps}>
+      {/* Pasos: chips compactos para que quepan en una línea en ordenador y en dos en el móvil. */}
+      <ol className="relative mt-5 flex flex-wrap items-center gap-1.5" aria-label={T.menuSteps}>
         {steps.map((s, i) => (
-          <li key={i} className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1 text-[13px] font-semibold" style={{ backgroundColor: "color-mix(in srgb, var(--bg-base) 18%, transparent)" }}>
-              <span className="flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-bold" style={{ backgroundColor: "var(--bg-base)", color: "var(--brand-accent)" }}>
+          <li key={i} className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-full py-0.5 pr-2.5 pl-0.5 text-[12px] font-semibold" style={{ backgroundColor: "color-mix(in srgb, var(--bg-base) 18%, transparent)" }}>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ backgroundColor: "var(--bg-base)", color: "var(--brand-accent)" }}>
                 {i + 1}
               </span>
               {s}
             </span>
-            {i < steps.length - 1 && <span aria-hidden className="opacity-60">+</span>}
+            {i < steps.length - 1 && <span aria-hidden className="text-[12px] opacity-60">+</span>}
           </li>
         ))}
       </ol>
