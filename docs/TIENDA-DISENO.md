@@ -15,7 +15,7 @@
 4. **Categorías** fijas bajo la cabecera, alineadas con el contenido. La categoría activa se centra sola. En ordenador, al pasar el ratón por una categoría, esta se tiñe con el color de la marca.
 5. **A domicilio** (si hay plataformas): bloque «Escoge quién te lo lleva».
 6. **Promociones**: fila deslizante con la tarjeta de sellos y tarjetas de color, con el número grande («−15 %», «Envío gratis»), formas decorativas y un brillo al pasar el ratón. Alternan el color principal y el secundario.
-7. **Menús (combos)**: tarjeta ancha con degradado del color principal, los pasos numerados («① Mollete + ② Bebida + ③ Postre»), «Todo por 12,50 €» y «Montar mi menú →».
+7. **Menús (combos)**: tarjeta ancha con degradado del color principal, los pasos numerados («① Mollete + ② Bebida + ③ Postre»), «Todo por 12,50 €» y «Montar mi menú →». Los pasos son chips compactos (12 px) para caber en una línea en ordenador y en dos en el móvil; dos menús por fila solo desde 1280 px, y todas las tarjetas de la fila miden lo mismo (precio y botón pegados abajo).
 8. **Productos**: tarjetas claras de 1, 2, 3 o 4 columnas según el ancho, botón «+ Añadir» y contador cuando ya está en el pedido. Los productos sin opciones se suman y restan desde la tarjeta.
 9. **Pie** con el nombre y las redes.
 10. **Barra flotante del pedido** con el total y «Ver pedido →».

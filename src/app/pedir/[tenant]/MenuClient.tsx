@@ -382,8 +382,8 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                 <h2 className="text-[34px] sm:text-[44px]" style={{ ...heading, color: cssVars["--heading-color"] }}>{cat.name}</h2>
                 {cat.description && <p className="mt-2 text-[14px]" style={{ color: cssVars["--text-secondary"] }}>{cat.description}</p>}
               </div>
-              {/* Menús: tarjetas anchas (1 o 2 por fila). Productos: 1 / 2 / 3 / 4 columnas. */}
-              <div className={combos ? "grid gap-5 lg:grid-cols-2" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}>
+              {/* Menús: tarjetas anchas (1 o 2 por fila; 2 solo desde 1280 px para que los pasos quepan en una línea). Productos: 1 / 2 / 3 / 4 columnas. */}
+              <div className={combos ? "grid gap-5 xl:grid-cols-2" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}>
                 {cat.products.map((product, i) => {
                   const qty = getQty(product.id);
                   const lineId = getLineId(product.id);
