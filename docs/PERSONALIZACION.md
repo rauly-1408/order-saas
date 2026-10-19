@@ -15,6 +15,7 @@ Panel → **Configuración → Marca** (antes «Personalización»). Solo gerent
 | Paleta | Acento (botones), Títulos, Barra superior, Fondo y «Más colores» (avisos, tarjetas, texto, texto secundario, bordes) |
 | Fuentes | 13 fuentes de Google para títulos y texto, títulos en mayúsculas opcional |
 | Redondeo | Esquinas de las tarjetas (0–28 px) |
+| Menús por fila | Cuántos menús (combos) se ven a la vez en ordenador (2–5). Con más, carrusel con flechas. En el móvil siempre dos, deslizando |
 
 - La paleta lleva una **vista previa en vivo** de la carta. Avisa si los títulos o el texto se leen mal (contraste WCAG).
 - «Títulos» y «Barra superior» pueden quedar en **automático** (igual que el acento y que las tarjetas). El texto de la barra se elige solo, claro u oscuro, según su color.

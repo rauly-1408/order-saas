@@ -46,6 +46,8 @@ export type TenantTheme = {
   // Visual
   borderRadius: string;
   cardStyle: 'rounded' | 'sharp' | 'pill';
+  /** Menús (combos) visibles a la vez en ordenador (2–5); con más, carrusel. En el móvil siempre 2. */
+  menusPerRow: number;
 
   // Identidad
   logoUrl: string | null;
@@ -102,6 +104,7 @@ export const SYSTEM_DEFAULT_THEME: TenantTheme = {
   headingCase: 'normal',
   borderRadius: '8px',
   cardStyle:    'rounded',
+  menusPerRow:  2,
   logoUrl:      null,
   logoMonoUrl:  null,
   logoSquareUrl: null,
