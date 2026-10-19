@@ -69,7 +69,7 @@ export function ComboCard({
   });
   return (
     <article
-      className="p-lift group relative flex flex-col overflow-hidden rounded-[26px] p-6 sm:p-7"
+      className="p-lift group relative flex h-full flex-col overflow-hidden rounded-[26px] p-6 sm:p-7"
       style={{ background: "linear-gradient(135deg, var(--brand-accent) 0%, color-mix(in srgb, var(--brand-accent) 78%, black) 100%)", color: "var(--on-accent)" }}
     >
       {/* Foto del menú (Carta → editar el menú → Imagen), arriba como en los productos. */}
@@ -103,7 +103,8 @@ export function ComboCard({
           </li>
         ))}
       </ol>
-      <div className="relative mt-6 flex items-end justify-between gap-4">
+      {/* Precio y botón siempre abajo: así dos menús en la misma fila miden lo mismo. */}
+      <div className="relative mt-auto flex items-end justify-between gap-4 pt-6">
         <div>
           <p className="text-[12px] opacity-75">{T.allFor}</p>
           <p className="text-[38px]" style={headingStyle(upperHeadings)}>

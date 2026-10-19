@@ -388,7 +388,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                   const qty = getQty(product.id);
                   const lineId = getLineId(product.id);
                   return (
-                    <div key={product.id} data-reveal style={{ ["--i" as any]: Math.min(i, 6) }}>
+                    <div key={product.id} data-reveal className="h-full" style={{ ["--i" as any]: Math.min(i, 6) }}>
                       {product.isCombo ? (
                         <ComboCard
                           lang={lang}
