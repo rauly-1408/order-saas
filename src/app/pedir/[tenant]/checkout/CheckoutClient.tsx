@@ -571,9 +571,9 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
               </div>
               {scheduling && slots.length > 0 && (
                 <div style={{ marginTop: "12px", padding: "14px", borderRadius: "14px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
-                  {/* Día con botones y rueda hora · minutos como la alarma del iPhone */}
+                  {/* Campo con la hora; al tocarlo se abre la hoja con la rueda hora · minutos (como «Editar alarma» del iPhone) */}
                   <div style={{ ...labelStyle, marginBottom: "8px" }}>{channel === "DELIVERY" ? T.deliveryTime : T.pickupTime}</div>
-                  <TimePicker slots={slots} value={chosenSlot?.at ?? null} onChange={setSlotAt} lang={lang} />
+                  <TimePicker slots={slots} value={chosenSlot?.at ?? null} onChange={setSlotAt} lang={lang} title={channel === "DELIVERY" ? T.deliveryTime : T.pickupTime} />
                 </div>
               )}
               {closed && slots.length === 0 && (
