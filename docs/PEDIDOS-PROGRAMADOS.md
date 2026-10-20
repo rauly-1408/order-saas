@@ -4,8 +4,8 @@
 
 - En el checkout, «¿Cuándo lo quieres?»: **⚡ Lo antes posible** (unos X min) o **🕐 Programar** (día y hora).
 - Con la tienda **cerrada**, solo se puede programar. La carta lo avisa: «Puedes hacer tu pedido ya y programarlo para cuando abramos».
-- El **día** se elige con tres botones (Hoy · Mañana · siguiente) y la **hora** con una lista (`<select>`) que solo tiene las horas válidas, en 24 h y cada 5 min: en el iPhone se abre como la rueda nativa de iOS; en Android y en ordenador, como el desplegable del sistema. Al cambiar el día se intenta mantener la misma hora. Componente `checkout/TimePicker.tsx`.
-  - No se usa `<input type="time">`: en Chrome de escritorio sale en a.m./p.m. y con todos los minutos.
+- Al elegir «Programar» se ve un **campo con lo elegido** («Hoy, 20:30 · Cambiar»). Al tocarlo se abre una **hoja como la pantalla «Editar alarma» del iPhone** (✕ · título · ✓): los tres botones de día (Hoy · Mañana · siguiente) y una **rueda hora · minutos** con 7 filas visibles; la del centro es la elegida y se desliza con el dedo, con la rueda del ratón o con las flechas del teclado. Solo tiene las horas válidas (24 h, cada 5 min); al cambiar la hora, los minutos son los que valen para esa hora; al cambiar el día se intenta mantener la misma hora. **Nada cambia hasta pulsar ✓**; ✕, el fondo o Escape cierran sin cambiar. Componente `checkout/TimePicker.tsx` (la hoja se pinta con un portal en `body`).
+  - No se usan `<input type="time">` ni `<select>`: el primero sale en a.m./p.m. en Chrome de escritorio y el segundo abre un desplegable, no la rueda a la vista que quiere el dueño.
   - Debajo se indica el tramo disponible («Puedes elegir entre las 20:20 y las 23:55»).
   - Qué horas hay depende de **Configuración → Horario y zonas** y del tiempo de preparación o entrega: la tienda solo ofrece horas en las que está abierta y la cocina puede empezar a tiempo.
 - Horas cada **5 min** (`SLOT_STEP_MIN` en `schedule.ts`), para **hoy y los dos días siguientes**. Una hora vale si el local está abierto **a esa hora y cuando la cocina tiene que empezar** (hora − tiempo de preparación o entrega).
