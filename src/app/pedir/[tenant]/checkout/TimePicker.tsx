@@ -14,7 +14,7 @@ import { slotDay, ui, type Lang } from "@/app/lib/i18n";
 type Slot = { at: string; day: string; time: string };
 
 const ITEM = 44; // alto de cada fila (px)
-const VISIBLE = 7; // filas visibles (impar: la del centro es la elegida)
+const VISIBLE = 5; // filas visibles (impar: la del centro es la elegida)
 const PAD = Math.floor(VISIBLE / 2);
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
@@ -65,8 +65,9 @@ function Wheel({ items, index, onPick, label }: { items: string[]; index: number
       style={{
         height: ITEM * VISIBLE,
         scrollbarWidth: "none",
-        maskImage: "linear-gradient(transparent, black 22%, black 78%, transparent)",
-        WebkitMaskImage: "linear-gradient(transparent, black 22%, black 78%, transparent)",
+        perspective: 600, // efecto de tambor: las filas lejanas se inclinan
+        maskImage: "linear-gradient(transparent, black 30%, black 70%, transparent)",
+        WebkitMaskImage: "linear-gradient(transparent, black 30%, black 70%, transparent)",
       }}
     >
       <div style={{ height: ITEM * PAD }} />
@@ -80,14 +81,15 @@ function Wheel({ items, index, onPick, label }: { items: string[]; index: number
             role="option"
             aria-selected={i === index}
             onClick={() => onPick(i)}
-            className="flex w-full snap-center items-center justify-center tabular-nums transition-[opacity,transform,color] duration-200"
+            className="flex w-full snap-center items-center justify-center tabular-nums outline-none transition-[opacity,transform,color] duration-200"
             style={{
               height: ITEM,
               fontSize: 28,
               fontWeight: i === index ? 600 : 400,
               color: "var(--text-primary)",
-              opacity: i === index ? 1 : Math.max(0.18, 0.55 - (d - 1) * 0.14),
-              transform: `scale(${i === index ? 1 : Math.max(0.84, 1 - d * 0.05)})`,
+              opacity: i === index ? 1 : Math.max(0.22, 0.6 - (d - 1) * 0.18),
+              // Las filas se inclinan como en un tambor y se alejan del centro.
+              transform: i === index ? "none" : `rotateX(${(i - index) * -24}deg) scale(${Math.max(0.82, 1 - d * 0.06)})`,
             }}
           >
             {it}
@@ -139,7 +141,7 @@ function Panel({ slots, value, onChange, lang }: { slots: Slot[]; value: string;
               role="radio"
               aria-checked={on}
               onClick={() => pickDay(d)}
-              className="flex-1 rounded-xl px-1.5 py-2.5 text-[14px]"
+              className="flex-1 rounded-xl px-1.5 py-2.5 text-[14px] outline-none"
               style={{
                 border: `2px solid ${on ? "var(--brand-accent)" : "var(--border)"}`,
                 backgroundColor: on ? "color-mix(in srgb, var(--brand-accent) 10%, transparent)" : "transparent",
@@ -154,7 +156,7 @@ function Panel({ slots, value, onChange, lang }: { slots: Slot[]; value: string;
       </div>
 
       {/* Rueda: hora · minutos. La banda del centro marca la elegida. */}
-      <div className="relative flex items-center rounded-2xl px-3" style={{ backgroundColor: "var(--surface-0)" }}>
+      <div className="relative flex items-center rounded-2xl px-3" style={{ backgroundColor: "color-mix(in srgb, var(--text-primary) 4%, transparent)" }}>
         <div aria-hidden className="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-xl" style={{ height: ITEM, backgroundColor: "color-mix(in srgb, var(--text-primary) 9%, transparent)" }} />
         <Wheel items={hours} index={hourIdx} onPick={pickHour} label={lang === "en" ? "Hour" : "Hora"} />
         <span aria-hidden className="relative pb-1 text-[26px] font-semibold" style={{ color: "var(--text-primary)" }}>
