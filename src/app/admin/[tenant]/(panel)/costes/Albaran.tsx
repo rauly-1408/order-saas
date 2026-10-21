@@ -3,16 +3,21 @@
 import { useMemo, useRef, useState } from "react";
 import { lineMismatch, type ScanResult } from "@/app/lib/invoice";
 import { priceChangePct } from "@/app/lib/purchasing";
-import { UNIT_LABEL, euros, type Overview } from "./types";
+import { UNIT_LABEL, euros, type BaseUnit, type Overview } from "./types";
 
 // Lectura de albaranes con IA (fase 4): foto → revisión → stock y precios.
+// Las líneas sin ingrediente llegan con una propuesta de ingrediente nuevo
+// (nombre, unidad, formato, precio) que se da de alta al aplicar.
 
 const MAX_SIDE = 2000; // px: suficiente para leer el texto y ligero de enviar
 const MAX_PDF_BYTES = 3_900_000;
+const NEW = "__new__"; // valor del select para «crear nuevo»
 
+type NewIng = { name: string; baseUnit: BaseUnit; packSize: string; price: string; allergens: string[] };
 type Row = {
   description: string;
   ingredientId: string;
+  newIng: NewIng | null; // ingrediente nuevo que se creará (solo si no hay ingredientId)
   quantity: string;
   price: string; // € por formato
   lineTotalCents: number | null;
@@ -81,17 +86,21 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
       if (!res.ok) throw new Error(json.error ?? "No se pudo leer el documento");
       const result = json.result as ScanResult;
       setScan(result);
-      setSupplierId(result.supplierId ?? "");
+      // Sin proveedor conocido pero con nombre en el documento: se propone crearlo.
+      setSupplierId(result.supplierId ?? (result.supplierName ? NEW : ""));
       setDocNumber(result.documentNumber ?? "");
       setRows(
         result.lines.map((l) => ({
           description: l.description,
           ingredientId: l.ingredientId ?? "",
+          newIng: l.newIngredient
+            ? { name: l.newIngredient.name, baseUnit: l.newIngredient.baseUnit, packSize: String(l.newIngredient.packSize).replace(".", ","), price: toEurosInput(l.newIngredient.packPriceCents), allergens: l.newIngredient.allergens }
+            : null,
           quantity: l.quantity != null ? String(Math.round(l.quantity * 1000) / 1000).replace(".", ",") : "",
           price: toEurosInput(l.packPriceCents),
           lineTotalCents: l.lineTotalCents,
           note: l.note,
-          include: !!l.ingredientId && l.quantity != null,
+          include: (!!l.ingredientId || !!l.newIngredient) && l.quantity != null,
         }))
       );
       setStage("review");
@@ -103,12 +112,15 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
     }
   }
 
-  const ready = rows.filter((r) => r.include && r.ingredientId && parseNum(r.quantity) >= 0 && r.quantity.trim() !== "");
+  const newIngOk = (n: NewIng | null) => !!n && n.name.trim() !== "" && parseNum(n.packSize) > 0 && n.price.trim() !== "" && parseNum(n.price) >= 0;
+  const ready = rows.filter((r) => r.include && (r.ingredientId || newIngOk(r.newIng)) && parseNum(r.quantity) >= 0 && r.quantity.trim() !== "");
   const includedTotal = ready.reduce((acc, r) => {
     const ing = ingredients.get(r.ingredientId);
-    const price = parseNum(r.price);
-    return ing && price >= 0 && ing.packSize > 0 ? acc + (parseNum(r.quantity) / ing.packSize) * price * 100 : acc;
+    const packSize = ing ? ing.packSize : parseNum(r.newIng!.packSize);
+    const price = ing ? parseNum(r.price) : parseNum(r.newIng!.price);
+    return price >= 0 && packSize > 0 ? acc + (parseNum(r.quantity) / packSize) * price * 100 : acc;
   }, 0);
+  const toCreate = ready.filter((r) => !r.ingredientId).length;
 
   async function apply() {
     setStage("applying");
@@ -118,13 +130,18 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          supplierId: supplierId || null,
+          supplierId: supplierId && supplierId !== NEW ? supplierId : null,
+          newSupplierName: supplierId === NEW ? scan?.supplierName ?? null : null,
           documentNumber: docNumber || null,
-          lines: ready.map((r) => ({
-            ingredientId: r.ingredientId,
-            quantity: parseNum(r.quantity),
-            packPriceCents: r.price.trim() ? Math.round(parseNum(r.price) * 100) : null,
-          })),
+          lines: ready.map((r) =>
+            r.ingredientId
+              ? { ingredientId: r.ingredientId, quantity: parseNum(r.quantity), packPriceCents: r.price.trim() ? Math.round(parseNum(r.price) * 100) : null }
+              : {
+                  newIngredient: { name: r.newIng!.name.trim(), baseUnit: r.newIng!.baseUnit, packSize: parseNum(r.newIng!.packSize), packPriceCents: Math.round(parseNum(r.newIng!.price) * 100), allergens: r.newIng!.allergens },
+                  quantity: parseNum(r.quantity),
+                  packPriceCents: null,
+                }
+          ),
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -132,7 +149,9 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
       await onSaved();
       setDone(
         `Albarán aplicado: ${json.stockLines} ${json.stockLines === 1 ? "entrada" : "entradas"} de stock` +
-          (json.priceChanges ? ` y ${json.priceChanges} ${json.priceChanges === 1 ? "precio actualizado" : "precios actualizados"}.` : ".")
+          (json.created ? `, ${json.created} ${json.created === 1 ? "ingrediente nuevo" : "ingredientes nuevos"}` : "") +
+          (json.priceChanges ? ` y ${json.priceChanges} ${json.priceChanges === 1 ? "precio actualizado" : "precios actualizados"}` : "") +
+          (json.supplierCreated ? ". Proveedor dado de alta." : ".")
       );
       setScan(null);
       setRows([]);
@@ -154,12 +173,12 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
           <div>
             <h2 className="text-[17px] font-semibold">Leer albarán o factura</h2>
             <p className="text-sm text-[var(--p-muted)]">
-              Haz una foto y la IA rellena las cantidades y los precios. Tú lo revisas antes de aplicarlo.
+              Haz una foto y la IA rellena las cantidades y los precios. Lo que aún no tengas se da de alta como ingrediente nuevo. Tú lo revisas antes de aplicarlo.
             </p>
           </div>
           <button
             onClick={() => fileRef.current?.click()}
-            disabled={!data.aiEnabled || stage === "reading" || data.ingredients.length === 0}
+            disabled={!data.aiEnabled || stage === "reading"}
             className="p-press shrink-0 self-start rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 sm:self-auto"
           >
             {stage === "reading" ? "Leyendo…" : "📷 Hacer foto o subir"}
@@ -172,9 +191,6 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
         </p>
       )}
       {!data.aiEnabled && <p className="mt-2 text-xs text-[var(--p-muted)]">La lectura con IA se activará en cuanto esté configurada.</p>}
-      {data.aiEnabled && data.ingredients.length === 0 && (
-        <p className="mt-2 text-xs text-[var(--p-muted)]">Primero da de alta tus ingredientes para poder relacionar las líneas del albarán.</p>
-      )}
       {done && <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{done}</p>}
 
       {(stage === "review" || stage === "applying") && scan && (
@@ -185,13 +201,14 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
               Descartar
             </button>
           </div>
-          <p className="text-sm text-[var(--p-muted)]">Comprueba cada línea. Solo se aplican las marcadas.</p>
+          <p className="text-sm text-[var(--p-muted)]">Comprueba cada línea. Solo se aplican las marcadas. Las que no tengas aún se crean como ingredientes nuevos.</p>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <label className="block text-[13px] font-medium text-[var(--p-muted)]">
               Proveedor
               <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className="mt-1 block w-full rounded-lg px-3 py-2 text-sm text-[var(--p-ink)]">
                 <option value="">{scan.supplierName ? `Sin asignar (${scan.supplierName})` : "Sin asignar"}</option>
+                {scan.supplierName && !scan.supplierId && <option value={NEW}>➕ Crear proveedor «{scan.supplierName}»</option>}
                 {data.suppliers.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -224,11 +241,16 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
                   </label>
                   <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_9rem_9rem] sm:items-end">
                     <select
-                      value={r.ingredientId}
-                      onChange={(e) => update(i, { ingredientId: e.target.value, include: !!e.target.value && r.quantity.trim() !== "" })}
+                      value={r.ingredientId || (r.newIng ? NEW : "")}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === NEW) update(i, { ingredientId: "", newIng: r.newIng ?? { name: r.description.slice(0, 80), baseUnit: "G", packSize: "", price: r.price, allergens: [] }, include: r.quantity.trim() !== "" });
+                        else update(i, { ingredientId: v, newIng: null, include: !!v && r.quantity.trim() !== "" });
+                      }}
                       className="min-w-0 rounded-lg px-2 py-2 text-sm"
                     >
                       <option value="">— Sin ingrediente (no se aplica) —</option>
+                      <option value={NEW}>➕ Ingrediente nuevo</option>
                       {data.ingredients.map((x) => (
                         <option key={x.id} value={x.id}>{x.name}</option>
                       ))}
@@ -237,17 +259,50 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
                       Cantidad recibida
                       <span className="mt-0.5 flex items-center gap-1">
                         <input inputMode="decimal" value={r.quantity} onChange={(e) => update(i, { quantity: e.target.value })} className="w-full min-w-0 rounded-lg px-2 py-2 text-sm text-[var(--p-ink)]" />
-                        <span className="w-6 text-xs">{ing ? UNIT_LABEL[ing.baseUnit] : ""}</span>
+                        <span className="w-6 text-xs">{ing ? UNIT_LABEL[ing.baseUnit] : r.newIng ? UNIT_LABEL[r.newIng.baseUnit] : ""}</span>
                       </span>
                     </label>
-                    <label className="block text-[11px] font-medium text-[var(--p-muted)]">
-                      Precio del formato
-                      <span className="mt-0.5 flex items-center gap-1">
-                        <input inputMode="decimal" value={r.price} onChange={(e) => update(i, { price: e.target.value })} className="w-full min-w-0 rounded-lg px-2 py-2 text-sm text-[var(--p-ink)]" />
-                        <span className="w-6 text-xs">€</span>
-                      </span>
-                    </label>
+                    {!r.newIng && (
+                      <label className="block text-[11px] font-medium text-[var(--p-muted)]">
+                        Precio del formato
+                        <span className="mt-0.5 flex items-center gap-1">
+                          <input inputMode="decimal" value={r.price} onChange={(e) => update(i, { price: e.target.value })} className="w-full min-w-0 rounded-lg px-2 py-2 text-sm text-[var(--p-ink)]" />
+                          <span className="w-6 text-xs">€</span>
+                        </span>
+                      </label>
+                    )}
                   </div>
+                  {r.newIng && (
+                    <div className="mt-2 grid gap-2 rounded-lg bg-[var(--p-surface)] p-2 sm:grid-cols-[1fr_7rem_8rem_8rem]">
+                      <label className="block text-[11px] font-medium text-[var(--p-muted)]">
+                        Nombre del ingrediente nuevo
+                        <input value={r.newIng.name} onChange={(e) => update(i, { newIng: { ...r.newIng!, name: e.target.value } })} className="mt-0.5 w-full min-w-0 rounded-lg px-2 py-2 text-sm text-[var(--p-ink)]" />
+                      </label>
+                      <label className="block text-[11px] font-medium text-[var(--p-muted)]">
+                        Unidad
+                        <select value={r.newIng.baseUnit} onChange={(e) => update(i, { newIng: { ...r.newIng!, baseUnit: e.target.value as BaseUnit } })} className="mt-0.5 w-full rounded-lg px-2 py-2 text-sm text-[var(--p-ink)]">
+                          {(Object.keys(UNIT_LABEL) as BaseUnit[]).map((u) => (
+                            <option key={u} value={u}>{UNIT_LABEL[u]}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-[11px] font-medium text-[var(--p-muted)]">
+                        Formato de compra
+                        <span className="mt-0.5 flex items-center gap-1">
+                          <input inputMode="decimal" value={r.newIng.packSize} onChange={(e) => update(i, { newIng: { ...r.newIng!, packSize: e.target.value } })} className="w-full min-w-0 rounded-lg px-2 py-2 text-sm text-[var(--p-ink)]" />
+                          <span className="w-6 text-xs">{UNIT_LABEL[r.newIng.baseUnit]}</span>
+                        </span>
+                      </label>
+                      <label className="block text-[11px] font-medium text-[var(--p-muted)]">
+                        Precio del formato
+                        <span className="mt-0.5 flex items-center gap-1">
+                          <input inputMode="decimal" value={r.newIng.price} onChange={(e) => update(i, { newIng: { ...r.newIng!, price: e.target.value } })} className="w-full min-w-0 rounded-lg px-2 py-2 text-sm text-[var(--p-ink)]" />
+                          <span className="w-6 text-xs">€</span>
+                        </span>
+                      </label>
+                      {r.newIng.allergens.length > 0 && <p className="text-[11px] text-[var(--p-muted)] sm:col-span-4">Alérgenos detectados: {r.newIng.allergens.join(", ")}</p>}
+                    </div>
+                  )}
                   {ing && (
                     <p className="mt-1 text-xs text-[var(--p-muted)]">
                       Precio por formato de {ing.packSize} {UNIT_LABEL[ing.baseUnit]} · ahora {euros(ing.packPriceCents)}
@@ -267,7 +322,8 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
 
           <div className="mt-4 flex flex-col gap-3 border-t border-[var(--p-line)] pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-[var(--p-muted)]">
-              {ready.length} {ready.length === 1 ? "línea marcada" : "líneas marcadas"} · {euros(Math.round(includedTotal))}
+              {ready.length} {ready.length === 1 ? "línea marcada" : "líneas marcadas"}
+              {toCreate > 0 && <> ({toCreate} {toCreate === 1 ? "ingrediente nuevo" : "ingredientes nuevos"})</>} · {euros(Math.round(includedTotal))}
               {scan.totalCents != null && <> · total del albarán {euros(scan.totalCents)} (sin IVA)</>}
             </p>
             <button onClick={apply} disabled={stage === "applying" || ready.length === 0} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">

@@ -5,6 +5,7 @@
 import type { BaseUnit } from "@prisma/client";
 import { AiError, claudeClient, toAiError } from "@/app/lib/anthropic";
 import { sanitizeScan, type ScanIngredient, type ScanMediaType, type ScanResult, type ScanSupplier } from "@/app/lib/invoice";
+import { ALLERGENS } from "@/app/lib/costs";
 
 const MODEL = "claude-opus-5-5";
 
@@ -15,6 +16,7 @@ const SYSTEM = `Lees albaranes y facturas de proveedores de un restaurante espa�
 Para cada línea de producto del documento:
 - description: el texto de la línea tal cual (resumido si es muy largo).
 - ingredientId: el id del ingrediente del restaurante que corresponde a esa línea, de la lista que te paso. Si no hay ninguno que corresponda con claridad, null. No fuerces coincidencias.
+- newIngredient: SOLO si ingredientId es null, propón el ingrediente nuevo que el dueño debería dar de alta con esa línea; si ingredientId tiene valor, null. Campos: name (nombre corto en singular y con mayúscula inicial, p. ej. «Pollo entero», «Aceite de oliva»), baseUnit (G para sólidos que se pesan, KG si se compran y usan por kilos enteros, ML para líquidos pequeños, L para líquidos grandes, UNIT para piezas que se cuentan: huevos, panes, latas), packSize (el formato de compra tal como se compra, en esa unidad base: «caja de 5 kg» con base G → 5000; «garrafa 5 l» con base L → 5; «docena» con base UNIT → 12), packPriceCents (precio SIN IVA de UN formato, en céntimos) y allergens (solo los evidentes de esta lista: ${ALLERGENS.join(", ")}; si no está claro, lista vacía). En ese caso quantity va en esa unidad base.
 - quantity: la cantidad recibida, convertida a la UNIDAD BASE de ese ingrediente (kg, g, l, ml o unidades). Ejemplos: "2 cajas de 5 kg" con unidad base g → 10000; "3 docenas" con unidad base unidades → 36. Si no hay ingrediente, la cantidad en la unidad del documento.
 - packPriceCents: el precio SIN IVA, en céntimos, de UN formato del ingrediente (el formato de compra que te indico para cada ingrediente). Ejemplo: formato 5000 g y el documento dice 2,40 €/kg → 1200. Si no hay ingrediente, null.
 - lineTotalCents: el importe de la línea SIN IVA en céntimos, tal como aparece (o cantidad × precio si no aparece).
@@ -41,12 +43,29 @@ const SCHEMA = {
         properties: {
           description: { type: "string" },
           ingredientId: nullable("string"),
+          newIngredient: {
+            anyOf: [
+              {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  baseUnit: { type: "string", enum: ["KG", "G", "L", "ML", "UNIT"] },
+                  packSize: { type: "number" },
+                  packPriceCents: { type: "integer" },
+                  allergens: { type: "array", items: { type: "string" } },
+                },
+                required: ["name", "baseUnit", "packSize", "packPriceCents", "allergens"],
+                additionalProperties: false,
+              },
+              { type: "null" },
+            ],
+          },
           quantity: nullable("number"),
           packPriceCents: nullable("integer"),
           lineTotalCents: nullable("integer"),
           note: nullable("string"),
         },
-        required: ["description", "ingredientId", "quantity", "packPriceCents", "lineTotalCents", "note"],
+        required: ["description", "ingredientId", "newIngredient", "quantity", "packPriceCents", "lineTotalCents", "note"],
         additionalProperties: false,
       },
     },
