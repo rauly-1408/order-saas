@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/app/lib/rateLimit";
 import { prisma } from "@/app/lib/prisma";
 import { usableGiftCard } from "@/app/lib/giftCards";
 
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 // GET /api/giftcards/[tenant]?code=… → saldo de una tarjeta regalo (checkout).
 // Solo dice el saldo; el canje real se hace al crear el pedido.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+  const limited = await rateLimit(req, "giftcards", 20, 60);
+  if (limited) return limited;
   const { tenant: slug } = await params;
   const code = new URL(req.url).searchParams.get("code") ?? "";
   const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true } });

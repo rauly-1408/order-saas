@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/app/lib/rateLimit";
 import { prisma } from "@/app/lib/prisma";
 import { suggestAddresses } from "@/app/lib/address";
 
@@ -8,6 +9,8 @@ export const runtime = "nodejs";
 // checkout. Si el restaurante tiene zonas de reparto, solo se buscan sus
 // códigos postales. Público (es lo que escribe el cliente) y sin guardar nada.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+  const limited = await rateLimit(req, "address", 60, 60);
+  if (limited) return limited;
   const { tenant } = await params;
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim().slice(0, 120);
   if (q.length < 3) return NextResponse.json({ suggestions: [] });

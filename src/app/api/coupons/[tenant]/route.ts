@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/app/lib/rateLimit";
 import { prisma } from "@/app/lib/prisma";
 import { couponDiscount, couponLabel, couponProblem, normalizeCode } from "@/app/lib/retention";
 
@@ -10,6 +11,8 @@ export const dynamic = "force-dynamic";
 // devuelve lo necesario para mostrar el descuento. El importe definitivo se
 // recalcula en el servidor al crear el pedido.
 export async function GET(req: NextRequest) {
+  const limited = await rateLimit(req, "coupons", 20, 60);
+  if (limited) return limited;
   const url = new URL(req.url);
   const slug = url.pathname.split("/").pop() ?? "";
   const code = normalizeCode(url.searchParams.get("code") ?? "");

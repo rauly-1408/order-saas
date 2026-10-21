@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/app/lib/rateLimit";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { customerProven, withCustomerProof } from "@/app/lib/customerProof";
@@ -66,6 +67,8 @@ function isValidSpanishPhone(raw: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = await rateLimit(req, "orders", 12, 60);
+  if (limited) return limited;
   try {
     const url = new URL(req.url);
     const segments = url.pathname.split("/");

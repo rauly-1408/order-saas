@@ -40,9 +40,19 @@ Cada función de Vercel abre su propia conexión. Con la URL directa, en un pico
 - Neon guarda el historial para volver a cualquier instante (PITR). En el plan gratuito son pocas horas; en el plan Launch, 7 días. Antes del primer restaurante de pago conviene pasar a Launch.
 - Nunca `prisma db push` contra Neon: solo migraciones (ver ROADMAP).
 
-## 5. Pendiente (antes de 50 restaurantes)
+## 5. Caché de la carta
 
-- Límite de peticiones por IP en rutas públicas (pedidos, cupones, direcciones, perks).
-- Caché de la página de la tienda con renovación al editar la carta.
+- La consulta de categorías, productos, opciones y menús (la más pesada de la tienda) se guarda **por restaurante durante 60 s** (`lib/menuCache.ts`, `unstable_cache` con etiqueta `menu:<tenantId>`).
+- Se invalida al momento (`revalidateMenu`) cuando el panel cambia productos, categorías, menús o traducciones, y cuando el inventario marca algo como agotado. Como red de seguridad, caduca sola a los 60 s.
+- Lo que depende de la hora (abierto/cerrado, huecos para programar) y las promociones no pasan por la caché.
+
+## 6. Límite de peticiones por IP
+
+- `lib/rateLimit.ts`. Con `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` (Upstash Redis, plan gratuito) el contador es compartido entre todas las funciones de Vercel; sin esas variables se cuenta en memoria por instancia (protege menos). Respuesta 429 con `Retry-After`.
+- Límites: pedidos 12/min, cupones 20/min, tarjetas regalo 20/min, perks 30/min, direcciones 60/min, carta (API) 120/min, reseñas 5/min, **login 10 cada 15 min**.
+- Alta de Upstash: upstash.com → Redis → base en `eu-central-1` → copiar REST URL y token → variables en Vercel → Redeploy.
+
+## 7. Pendiente (antes de 50 restaurantes)
+
 - Prueba de carga con k6: 50 restaurantes, 500 pedidos/hora.
 - Tope mensual de gasto en IA por restaurante.

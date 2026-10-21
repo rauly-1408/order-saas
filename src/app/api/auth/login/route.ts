@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/app/lib/rateLimit";
 import { prisma } from "@/app/lib/prisma";
 import { verifyPassword } from "@/app/lib/password";
 import { setSessionCookie } from "@/app/lib/auth";
@@ -13,6 +14,8 @@ type LoginBody = {
 };
 
 export async function POST(req: NextRequest) {
+  const limited = await rateLimit(req, "login", 10, 900);
+  if (limited) return limited;
   try {
     const { email, password, tenant: tenantSlug }: LoginBody = await req.json();
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { autoTranslateMenu } from "@/app/lib/menuTranslate";
+import { revalidateMenu } from "@/app/lib/menuCache";
 import { prisma } from "@/app/lib/prisma";
 import { comboTenant, parseCombo, slotsCreate } from "@/app/lib/combosApi";
 
@@ -16,6 +17,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if ("error" in ctx) return ctx.error;
   // Carta en inglés: lo nuevo o cambiado se traduce solo, después de responder.
   after(() => autoTranslateMenu(ctx.tenant.id));
+  after(() => revalidateMenu(ctx.tenant.id));
   const { id } = await params;
   if (!(await findCombo(ctx.tenant.id, id))) return NextResponse.json({ error: "Menú no encontrado" }, { status: 404 });
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
@@ -43,6 +45,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if ("error" in ctx) return ctx.error;
   // Carta en inglés: lo nuevo o cambiado se traduce solo, después de responder.
   after(() => autoTranslateMenu(ctx.tenant.id));
+  after(() => revalidateMenu(ctx.tenant.id));
   const { id } = await params;
   if (!(await findCombo(ctx.tenant.id, id))) return NextResponse.json({ error: "Menú no encontrado" }, { status: 404 });
   await prisma.product.delete({ where: { id } });

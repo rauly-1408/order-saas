@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { autoTranslateMenu } from "@/app/lib/menuTranslate";
+import { revalidateMenu } from "@/app/lib/menuCache";
 import { prisma } from "@/app/lib/prisma";
 import { denyUnlessTenantAdmin } from "@/app/lib/auth";
 
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
     if (denied) return denied;
     // Carta en inglés: lo nuevo o cambiado se traduce solo, después de responder.
     after(() => autoTranslateMenu(tenant.id));
+    after(() => revalidateMenu(tenant.id));
 
     const body = await req.json();
     const { name, description, imageUrl, sortOrder, isActive, isFeatured } = body;

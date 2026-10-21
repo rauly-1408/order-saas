@@ -1,4 +1,5 @@
 import { prisma } from "@/app/lib/prisma";
+import { cachedMenuCategories } from "@/app/lib/menuCache";
 import { getTenantTheme, getTenantSettings } from "@/app/lib/tenantConfig";
 import type { MenuModifierGroup } from "@/app/lib/menuOptions";
 import { ALLERGENS } from "@/app/lib/costs";
@@ -43,62 +44,8 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
   // Promociones en vigor y tarjeta de fidelidad (motor de retención).
   const perks = publicPerks(await loadPerks(tenant.id, tenant.settings, tenant.addons), lang);
 
-  const categories = await prisma.category.findMany({
-    where: { tenantId: tenant.id, isActive: true },
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    include: {
-      products: {
-        where: { isActive: true, isAvailable: true, stockOut: false },
-        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          translations: true,
-          basePriceCents: true,
-          imageUrl: true,
-          isFeatured: true,
-          hasModifiers: true,
-          // Combos: huecos y productos elegibles (el cliente solo ve los disponibles).
-          isCombo: true,
-          comboSlots: {
-            orderBy: { sortOrder: "asc" },
-            select: { id: true, name: true, required: true, translations: true, items: { orderBy: { sortOrder: "asc" }, select: { productId: true, extraCents: true } } },
-          },
-          // Alérgenos derivados del escandallo (módulo Costes); vacío si no hay receta.
-          recipeLines: { select: { ingredient: { select: { allergens: true } } } },
-          modifierGroups: {
-            orderBy: { sortOrder: "asc" },
-            select: {
-              defaultOptionId: true,
-              group: {
-                select: {
-                  id: true,
-                  code: true,
-                  name: true,
-                  translations: true,
-                  isRequired: true,
-                  minSelect: true,
-                  maxSelect: true,
-                  options: {
-                    where: { isAvailable: true, stockOut: false },
-                    orderBy: { sortOrder: "asc" },
-                    select: {
-                      id: true,
-                      name: true,
-                      translations: true,
-                      priceDeltaCents: true,
-                      recipeLines: { select: { ingredient: { select: { allergens: true } } } },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
+  // Categorías, productos y opciones: en caché por restaurante (ver menuCache.ts).
+  const categories = await cachedMenuCategories(tenant.id);
 
   // Aplana ProductModifierGroup -> MenuModifierGroup (con la opción por defecto del
   // producto) y pone cada texto en el idioma del cliente (o el original si falta).

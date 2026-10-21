@@ -2,6 +2,7 @@
 // y agotado automático de platos/opciones. Se ejecuta dentro de transacciones de
 // Prisma para que pedido y stock nunca queden a medias.
 import type { Prisma, StockMovementType } from "@prisma/client";
+import { revalidateMenu } from "@/app/lib/menuCache";
 import { unitCostCents } from "@/app/lib/costs";
 
 type Tx = Prisma.TransactionClient;
@@ -89,6 +90,7 @@ export async function refreshStockOuts(tx: Tx, tenantId: string, ingredientIds: 
     const out = products.filter((p) => isOut(p.recipeLines)).map((p) => p.id);
     const back = products.filter((p) => !isOut(p.recipeLines)).map((p) => p.id);
     if (out.length) await tx.product.updateMany({ where: { id: { in: out } }, data: { stockOut: true } });
+    if (out.length) void revalidateMenu(tenantId); // la carta pública oculta los agotados
     if (back.length) await tx.product.updateMany({ where: { id: { in: back } }, data: { stockOut: false } });
   }
   if (optionIds.length) {
@@ -96,6 +98,7 @@ export async function refreshStockOuts(tx: Tx, tenantId: string, ingredientIds: 
     const out = options.filter((o) => isOut(o.recipeLines)).map((o) => o.id);
     const back = options.filter((o) => !isOut(o.recipeLines)).map((o) => o.id);
     if (out.length) await tx.modifierOption.updateMany({ where: { id: { in: out } }, data: { stockOut: true } });
+    if (out.length) void revalidateMenu(tenantId);
     if (back.length) await tx.modifierOption.updateMany({ where: { id: { in: back } }, data: { stockOut: false } });
   }
 }
