@@ -19,7 +19,7 @@ import { slotDay, storeMessage, ui, whenText, type Lang } from "@/app/lib/i18n";
 import StampCard from "../StampCard";
 import { bestPromotion, joinLabels, rewardDiscount } from "@/app/lib/promotions";
 
-type PerkState = { firstOrder: boolean; loyalty: { stamps: number; needed: number; rewardAvailable: boolean } | null };
+type PerkState = { proven: boolean; firstOrder: boolean | null; loyalty: { stamps: number; needed: number; rewardAvailable: boolean } | null };
 
 type AppliedCoupon = { code: string; label: string; type: "PERCENT" | "FIXED"; value: number; minOrderCents: number };
 
@@ -605,17 +605,18 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 onChange={(e) => setPhone(e.target.value)}
                 required
               />
-              {perks?.loyalty && perksFor?.loyalty && (
+              {/* Sellos: con cookie del cliente se ven los suyos; sin ella, la tarjeta genérica (stamps null). */}
+              {perks?.loyalty && perksFor && (
                 <div style={{ marginTop: "10px" }}>
                   <StampCard
                     lang={lang}
                     ordersRequired={perks.loyalty.ordersRequired}
-                    stamps={perksFor.loyalty.stamps + 1}
+                    stamps={perksFor.loyalty ? perksFor.loyalty.stamps + 1 : null}
                     rewardName={perks.loyalty.rewardName}
-                    rewardReady={perksFor.loyalty.rewardAvailable}
+                    rewardReady={!!perksFor.loyalty?.rewardAvailable}
                     upperHeadings={cssVars["--heading-case"] === "uppercase"}
                     note={
-                      perksFor.loyalty.rewardAvailable && reward && reward.missing.length > 0
+                      perksFor.loyalty?.rewardAvailable && reward && reward.missing.length > 0
                         ? reward.matched.length
                           ? T.addAlsoReward(joinLabels(reward.missing).toLowerCase())
                           : T.addForReward(joinLabels(reward.missing).toLowerCase())

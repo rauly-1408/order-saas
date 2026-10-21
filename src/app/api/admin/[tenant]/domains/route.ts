@@ -40,6 +40,18 @@ export async function POST(req: NextRequest) {
   if (c.tenant.domains.length >= 3) return NextResponse.json({ error: "Como mucho 3 dominios" }, { status: 400 });
   const taken = await prisma.tenant.findFirst({ where: { domains: { has: host } }, select: { id: true } });
   if (taken) return NextResponse.json({ error: "Ese dominio ya lo usa otro restaurante" }, { status: 400 });
+  // Prueba de propiedad: el DNS del dominio tiene que apuntar ya a la plataforma.
+  // Así nadie puede reservar el dominio de otro restaurante.
+  const platformHost = (process.env.APP_HOST ?? "").toLowerCase();
+  if (platformHost && (host === platformHost || host.endsWith(`.${platformHost}`))) {
+    return NextResponse.json({ error: "Ese dominio es el de la plataforma" }, { status: 400 });
+  }
+  if ((await dnsStatus(host)) !== "ok") {
+    return NextResponse.json(
+      { error: `Ese dominio todavía no apunta aquí. Crea primero el registro DNS (CNAME a ${VERCEL_CNAME} o A a ${VERCEL_A}), espera a que se aplique y vuelve a añadirlo.` },
+      { status: 400 }
+    );
+  }
   const t = await prisma.tenant.update({ where: { slug: c.tenant.slug }, data: { domains: { push: host } }, select: { slug: true, domains: true } });
   return NextResponse.json(await view(req, t));
 }

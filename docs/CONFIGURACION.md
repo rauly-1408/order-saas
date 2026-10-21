@@ -75,8 +75,8 @@ Panel → **Configuración**, abajo en la barra lateral. Solo gerentes.
 
 ## Dominio propio
 
-1. El restaurante añade su dominio en Configuración → Dominios (como mucho 3; no puede repetirse entre restaurantes).
-2. Crea en su DNS un **CNAME** `pedidos → cname.vercel-dns.com`, o un **A** `@ → 76.76.21.21` si es el dominio raíz. «Comprobar» mira el DNS.
+1. El restaurante crea en su DNS un **CNAME** `pedidos → cname.vercel-dns.com`, o un **A** `@ → 76.76.21.21` si es el dominio raíz.
+2. Después añade el dominio en Configuración → Dominios (como mucho 3; no puede repetirse entre restaurantes). **Solo se guarda si el DNS ya apunta a la plataforma** (`dnsStatus`): es la prueba de que el dominio es suyo y evita que un restaurante reserve el dominio de otro. También se rechaza el dominio de la propia plataforma (`APP_HOST`). «Comprobar» vuelve a mirar el DNS.
 3. **El equipo de la plataforma añade el dominio en Vercel** (proyecto `order-saas` → Settings → Domains) para el certificado https. No hay clave de Vercel en el código.
 - `src/proxy.ts`: si la visita llega por un dominio que no es de la plataforma, busca el restaurante (`/api/domains/resolve`, en memoria 5 min) y abre su tienda. `/pedir`, `/api`, `/admin` y `/pwa` funcionan igual. `APP_HOST` (opcional) indica el dominio principal de la plataforma.
 
