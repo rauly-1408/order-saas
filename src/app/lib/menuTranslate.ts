@@ -4,6 +4,7 @@
 // campo `translations.en` de cada fila. El dueño puede corregirlos a mano.
 // Ver docs/CARTA-IDIOMAS.md
 import { prisma } from "@/app/lib/prisma";
+import { revalidateMenu } from "@/app/lib/menuCache";
 import { AiError, aiConfigured, claudeClient, toAiError } from "@/app/lib/anthropic";
 import { parseSlots } from "@/app/lib/promotions";
 
@@ -70,7 +71,7 @@ export async function collectMenuTexts(tenantId: string): Promise<MenuText[]> {
 
 // Guarda traducciones { ref, field, en, es } (en vacío = se borra y se usa el
 // español). «es» es el texto original del que sale: se guarda en en._src.
-export async function saveTranslations(tenantId: string, items: { ref: string; field: string; en: string | null; es?: string }[]): Promise<number> {
+async function saveTranslationsRaw(tenantId: string, items: { ref: string; field: string; en: string | null; es?: string }[]): Promise<number> {
   const byRef = new Map<string, { field: string; en: string | null; es?: string }[]>();
   for (const it of items) byRef.set(it.ref, [...(byRef.get(it.ref) ?? []), it]);
   let saved = 0;
@@ -110,6 +111,13 @@ export async function saveTranslations(tenantId: string, items: { ref: string; f
     await delegate.update({ where: { id }, data: { translations: { ...current, en } } });
     saved += fields.length;
   }
+  return saved;
+}
+
+// Al guardar traducciones la carta pública cambia: se invalida su caché.
+export async function saveTranslations(tenantId: string, items: { ref: string; field: string; en: string | null; es?: string }[]): Promise<number> {
+  const saved = await saveTranslationsRaw(tenantId, items);
+  if (saved > 0) await revalidateMenu(tenantId);
   return saved;
 }
 

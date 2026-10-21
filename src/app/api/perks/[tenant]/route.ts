@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/app/lib/rateLimit";
 import { prisma } from "@/app/lib/prisma";
 import { customerPerkState, loadPerks } from "@/app/lib/perks";
 import { customerProven } from "@/app/lib/customerProof";
@@ -12,6 +13,8 @@ export const dynamic = "force-dynamic";
 // (se deja al hacer un pedido): así nadie puede consultar los sellos de otro
 // ni saber si un número es cliente. Sin cookie: { proven: false } y nada más.
 export async function POST(req: NextRequest) {
+  const limited = await rateLimit(req, "perks", 30, 60);
+  if (limited) return limited;
   const slug = new URL(req.url).pathname.split("/").pop() ?? "";
   const body = (await req.json().catch(() => null)) as { phone?: unknown } | null;
   const phone = typeof body?.phone === "string" ? body.phone.replace(/[\s-]/g, "") : "";

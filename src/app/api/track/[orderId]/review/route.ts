@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/app/lib/rateLimit";
 import { prisma } from "@/app/lib/prisma";
 import { parseReview } from "@/app/lib/tracking";
 
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 // POST /api/track/[orderId]/review { rating, comment } → valoración del pedido.
 // Solo cuando ya está entregado, y una sola vez por pedido.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
+  const limited = await rateLimit(req, "review", 5, 60);
+  if (limited) return limited;
   const { orderId } = await params;
   const input = parseReview(await req.json().catch(() => null));
   if (typeof input === "string") return NextResponse.json({ error: input }, { status: 400 });

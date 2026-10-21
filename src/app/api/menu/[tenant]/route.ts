@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/app/lib/rateLimit";
 import { loadMenu } from "@/app/lib/menu";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const limited = await rateLimit(req, "menu", 120, 60);
+  if (limited) return limited;
   try {
     const url = new URL(req.url);
     const segments = url.pathname.split("/");
