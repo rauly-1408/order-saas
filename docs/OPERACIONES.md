@@ -58,6 +58,7 @@ Cada función de Vercel abre su propia conexión. Con la URL directa, en un pico
 - `npm run typecheck`: tipos de TypeScript.
 - `.github/workflows/ci.yml`: en cada PR y en main se ejecutan lint, tipos y pruebas. Si algo falla, el PR lo marca en rojo antes de publicar.
 - Para añadir una prueba: archivo `*.test.ts` junto a la lógica que prueba, con `describe`/`it` de Vitest.
+- Dependencias: `@types/node` va en la versión 22 porque Vitest 5 la exige; con la 20, `npm install` fallaba en Vercel (ERESOLVE) y el despliegue del 21-10-2026 se quedó sin publicar.
 
 ## 8. Pendiente (antes de 50 restaurantes)
 
