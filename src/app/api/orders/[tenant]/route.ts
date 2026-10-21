@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { notifyNewOrder } from "@/app/lib/notifyOrder";
 import { rateLimit } from "@/app/lib/rateLimit";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
@@ -421,6 +422,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Aviso por email al restaurante (si lo tiene activo), después de responder.
+    after(() => notifyNewOrder(order.id));
     return withCustomerProof(
       NextResponse.json({
       orderId: order.id,

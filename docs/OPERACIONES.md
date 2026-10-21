@@ -56,3 +56,4 @@ Cada función de Vercel abre su propia conexión. Con la URL directa, en un pico
 
 - Prueba de carga con k6: 50 restaurantes, 500 pedidos/hora.
 - Tope mensual de gasto en IA por restaurante.
+- Confirmación de pedido al cliente por email (hoy el checkout no pide email) o WhatsApp.

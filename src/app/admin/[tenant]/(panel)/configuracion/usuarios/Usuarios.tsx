@@ -13,7 +13,7 @@ export default function Usuarios({ tenant }: { tenant: string }) {
   const [users, setUsers] = useState<User[] | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
   const [form, setForm] = useState({ email: "", name: "", role: "STORE_MANAGER", storeId: "" });
-  const [secret, setSecret] = useState<{ email: string; password: string } | null>(null);
+  const [secret, setSecret] = useState<{ email: string; password: string; emailed: boolean } | null>(null);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pw, setPw] = useState({ current: "", next: "" });
@@ -36,7 +36,7 @@ export default function Usuarios({ tenant }: { tenant: string }) {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Algo ha fallado");
       setUsers(json.users);
-      if (json.password && email) setSecret({ email, password: json.password });
+      if (json.password && email) setSecret({ email, password: json.password, emailed: !!json.emailed });
       return true;
     } catch (e) {
       toast(e instanceof Error ? e.message : "Algo ha fallado", false);
@@ -63,7 +63,7 @@ export default function Usuarios({ tenant }: { tenant: string }) {
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="status">
           <p className="font-semibold">Contraseña de {secret.email}</p>
           <p className="mt-1 font-mono text-base tracking-wide">{secret.password}</p>
-          <p className="mt-1 text-xs">Dásela a esa persona en mano. No se vuelve a mostrar; puede cambiarla al entrar.</p>
+          <p className="mt-1 text-xs">{secret.emailed ? "Se la hemos enviado también a su email." : "Dásela a esa persona en mano."} No se vuelve a mostrar; puede cambiarla al entrar.</p>
           <button type="button" onClick={() => setSecret(null)} className="mt-2 text-xs font-semibold underline">
             Ya la he apuntado
           </button>
