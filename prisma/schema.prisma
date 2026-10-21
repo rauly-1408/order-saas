@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // en producción, la URL «pooled» de Neon (-pooler): una conexión por función de Vercel
+  directUrl = env("DIRECT_URL") // conexión directa: solo para migraciones (prisma migrate)
 }
 
 enum Role {
