@@ -52,7 +52,14 @@ Cada función de Vercel abre su propia conexión. Con la URL directa, en un pico
 - Límites: pedidos 12/min, cupones 20/min, tarjetas regalo 20/min, perks 30/min, direcciones 60/min, carta (API) 120/min, reseñas 5/min, **login 10 cada 15 min**.
 - Alta de Upstash: upstash.com → Redis → base en `eu-central-1` → copiar REST URL y token → variables en Vercel → Redeploy.
 
-## 7. Pendiente (antes de 50 restaurantes)
+## 7. Pruebas automáticas y CI
+
+- `npm test` (Vitest): pruebas de la lógica pura en `src/app/lib/__tests__/`: precios de menús y opciones, promociones y tarjeta de sellos, propinas e IVA, costes y margen, segmentos de clientes, horarios y pedidos programados, dominios, lectura de albaranes y límite de peticiones. No tocan la base de datos.
+- `npm run typecheck`: tipos de TypeScript.
+- `.github/workflows/ci.yml`: en cada PR y en main se ejecutan lint, tipos y pruebas. Si algo falla, el PR lo marca en rojo antes de publicar.
+- Para añadir una prueba: archivo `*.test.ts` junto a la lógica que prueba, con `describe`/`it` de Vitest.
+
+## 8. Pendiente (antes de 50 restaurantes)
 
 - Prueba de carga con k6: 50 restaurantes, 500 pedidos/hora.
 - Tope mensual de gasto en IA por restaurante.
