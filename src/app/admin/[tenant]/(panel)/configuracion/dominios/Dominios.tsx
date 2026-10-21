@@ -40,6 +40,10 @@ export default function Dominios({ tenant }: { tenant: string }) {
 
   if (!view) return <p className="text-sm text-[var(--p-muted)]">{msg?.text ?? "Cargando…"}</p>;
   const sub = (host: string) => host.split(".").length > 2;
+  // Filas de la tabla de DNS: los dominios ya añadidos y el que se está escribiendo.
+  const typed = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const hosts = [...view.domains.map((d) => d.host), ...(typed.includes(".") && !view.domains.some((d) => d.host === typed) ? [typed] : [])];
+  if (hosts.length === 0) hosts.push("pedidos.turestaurante.com");
 
   return (
     <div className="space-y-5">
@@ -49,7 +53,7 @@ export default function Dominios({ tenant }: { tenant: string }) {
         </a>
       </Card>
 
-      <Card title="Dominio propio" description="Que tu tienda se abra en tu web, por ejemplo pedidos.turestaurante.com. Necesitas un dominio comprado (en IONOS, GoDaddy, DonDominio…).">
+      <Card title="Dominio propio" description="Que tu tienda se abra en tu web, por ejemplo pedidos.turestaurante.com. Necesitas un dominio comprado (en IONOS, GoDaddy, DonDominio…). Primero crea el registro DNS (abajo) y después añádelo aquí: solo se acepta un dominio que ya apunte a tu tienda.">
         {view.domains.length > 0 && (
           <ul className="mb-4 divide-y divide-[var(--p-line)]">
             {view.domains.map((d) => (
@@ -81,11 +85,10 @@ export default function Dominios({ tenant }: { tenant: string }) {
         <Msg msg={msg} />
       </Card>
 
-      {view.domains.length > 0 && (
-        <Card title="Cómo conectarlo" description="Dos pasos. Si no te aclaras, pásale esto a quien te lleve la web.">
+      <Card title="Cómo conectarlo" description="Tres pasos. Si no te aclaras, pásale esto a quien te lleve la web.">
           <ol className="list-decimal space-y-3 pl-5 text-sm">
             <li>
-              En el panel de tu dominio (DNS), crea este registro:
+              En el panel de tu dominio (DNS), crea este registro{hosts.length > 1 ? " para cada dominio" : ""}:
               <div className="-mx-1 mt-2 overflow-x-auto">
                 <table className="min-w-[420px] text-left text-xs">
                   <thead className="text-[var(--p-muted)]">
@@ -96,15 +99,15 @@ export default function Dominios({ tenant }: { tenant: string }) {
                     </tr>
                   </thead>
                   <tbody className="font-mono">
-                    {view.domains.map((d) =>
-                      sub(d.host) ? (
-                        <tr key={d.host}>
+                    {hosts.map((h) =>
+                      sub(h) ? (
+                        <tr key={h}>
                           <td className="px-1 py-1">CNAME</td>
-                          <td className="px-1 py-1">{d.host.split(".")[0]}</td>
+                          <td className="px-1 py-1">{h.split(".")[0]}</td>
                           <td className="px-1 py-1">{view.cname}</td>
                         </tr>
                       ) : (
-                        <tr key={d.host}>
+                        <tr key={h}>
                           <td className="px-1 py-1">A</td>
                           <td className="px-1 py-1">@</td>
                           <td className="px-1 py-1">{view.aRecord}</td>
@@ -115,10 +118,10 @@ export default function Dominios({ tenant }: { tenant: string }) {
                 </table>
               </div>
             </li>
+            <li>Cuando el DNS esté aplicado (puede tardar unas horas), escribe el dominio arriba y pulsa «Añadir dominio». Si todavía no apunta aquí, te lo diremos.</li>
             <li>Avisa al equipo de la plataforma para que active el dominio en el servidor (Vercel → Domains) y su certificado de seguridad (https). Tarda unos minutos.</li>
           </ol>
         </Card>
-      )}
     </div>
   );
 }

@@ -24,6 +24,13 @@ Cada pedido suma un sello con el **teléfono** del cliente (sin registro). En el
 - Solo cuentan pedidos no cancelados hechos desde que se creó la tarjeta. Si se cancela el pedido del premio, el premio vuelve a estar disponible.
 - Cálculo: sellos = pedidos sin premio − (N − 1) × premios canjeados; hay premio cuando sellos ≥ N − 1.
 
+### Quién puede ver y canjear los sellos
+
+- Al crear un pedido, el servidor deja una **cookie firmada** (`cp_<tenant>`, HMAC con `SESSION_SECRET`, un año, solo http) ligada al restaurante y al teléfono (`lib/customerProof.ts`).
+- `POST /api/perks/[tenant]` solo devuelve «primer pedido» y los sellos si la petición trae esa cookie para ese teléfono; si no, `{ proven: false }`. Así nadie puede saber si un número es cliente ni cuántos sellos tiene con solo escribirlo.
+- El **premio solo se canjea** en un pedido hecho desde un dispositivo con esa cookie. Los sellos se siguen sumando por teléfono desde cualquier sitio. En el checkout, sin cookie se enseña la tarjeta genérica (sin cuenta de sellos).
+- Un pedido público **no cambia el nombre** de un cliente que ya existe.
+
 ## Cómo se combinan los descuentos
 
 1. Primero el premio de la tarjeta.

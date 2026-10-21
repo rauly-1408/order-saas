@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
+import { customerProven, withCustomerProof } from "@/app/lib/customerProof";
 import { syncCourier, toPublicCourier } from "@/app/lib/couriers";
 import { ACTIVE_STATUSES } from "@/app/lib/couriers/types";
 import { listStores, resolveStoreId } from "@/app/lib/stores";
@@ -310,8 +311,10 @@ export async function POST(req: NextRequest) {
     // 2) la mejor promoción automática O el cupón — no se acumulan, gana el que más ahorra.
     const perks = await loadPerks(tenant.id, tenant.settings, tenant.addons);
     const state = await customerPerkState(prisma, tenant.id, customerPhone, perks.loyalty);
+    // El premio solo se canjea desde un dispositivo que ya pidió con ese
+    // teléfono (cookie firmada): saber el número de otro no basta para gastarlo.
     let loyaltyDiscountCents = 0;
-    if (perks.loyalty && state.loyalty?.rewardAvailable) {
+    if (perks.loyalty && state.loyalty?.rewardAvailable && customerProven(req, tenant.id, customerPhone)) {
       loyaltyDiscountCents = rewardDiscount(perks.loyalty, cartLines).discountCents;
     }
     const afterLoyalty = subtotalCents - loyaltyDiscountCents;
@@ -408,14 +411,15 @@ export async function POST(req: NextRequest) {
     if (online && order.status === "AWAITING_PAYMENT") {
       try {
         const start = await startPayment(order.id, paymentMethod as OnlineMethod, url.origin, body.lang === "en" ? "en" : "es");
-        return NextResponse.json({ orderId: order.id, orderNumber: order.orderNumber, totalCents: order.totalCents, payment: start });
+        return withCustomerProof(NextResponse.json({ orderId: order.id, orderNumber: order.orderNumber, totalCents: order.totalCents, payment: start }), tenant.id, customerPhone);
       } catch (err) {
         const msg = err instanceof GatewayError ? err.message : "No se ha podido abrir el pago";
         return NextResponse.json({ error: msg }, { status: 502 });
       }
     }
 
-    return NextResponse.json({
+    return withCustomerProof(
+      NextResponse.json({
       orderId: order.id,
       orderNumber: order.orderNumber,
       status: order.status,
@@ -424,7 +428,10 @@ export async function POST(req: NextRequest) {
         channel === "DELIVERY"
           ? ops.estimatedDeliveryMinutes + ops.prepExtraMinutes
           : ops.estimatedPickupMinutes + ops.prepExtraMinutes,
-    });
+      }),
+      tenant.id,
+      customerPhone
+    );
   } catch (err) {
     console.error("[POST /api/orders]", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
@@ -509,8 +516,8 @@ async function createOrderWithNumber(input: CreateOrderInput) {
         marketingConsentAt: input.marketingConsent ? now : null,
       },
       update: {
-        // Actualizamos el nombre por si lo cambió; el teléfono es la clave estable.
-        name: input.customerName,
+        // El nombre guardado no se pisa desde un pedido público: cualquiera
+        // podría escribir otro nombre con el teléfono de un cliente.
         ordersCount: newOrdersCount,
         totalSpentCents: newTotalSpent,
         lastOrderAt: now,
