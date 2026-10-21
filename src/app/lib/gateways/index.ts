@@ -4,7 +4,9 @@
 // (stock, cupón, compras del cliente, campaña) y queda cancelado.
 // Ver docs/PAGOS.md
 import type { Order, Prisma } from "@prisma/client";
+import { after } from "next/server";
 import { prisma } from "@/app/lib/prisma";
+import { notifyNewOrder } from "@/app/lib/notifyOrder";
 import { unseal } from "@/app/lib/secretBox";
 import { returnOrderStock } from "@/app/lib/inventory";
 import { platformFeeCents } from "@/app/lib/payments";
@@ -95,7 +97,7 @@ export async function finalizePayment(orderId: string, outcome: PaymentOutcome):
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { tenant: { select: { platformFeeBps: true } } } });
     if (!order || order.status !== "AWAITING_PAYMENT") return order;
     if (outcome.status === "PAID") {
-      return tx.order.update({
+      const paid = await tx.order.update({
         where: { id: orderId },
         data: {
           status: "CREATED",
@@ -105,6 +107,9 @@ export async function finalizePayment(orderId: string, outcome: PaymentOutcome):
           applicationFeeCents: platformFeeCents(order.totalCents, order.tenant.platformFeeBps),
         },
       });
+      // Ya pagado: ahora sí avisamos al restaurante (después de responder).
+      after(() => notifyNewOrder(paid.id));
+      return paid;
     }
     await undoUnpaidOrder(tx, order);
     return tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED", paymentStatus: "FAILED" } });

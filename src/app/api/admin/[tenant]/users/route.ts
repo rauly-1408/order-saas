@@ -3,6 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { denyUnlessTenantAdmin, getSessionFromRequest } from "@/app/lib/auth";
 import { hashPassword } from "@/app/lib/password";
+import { emailConfigured, sendEmail, tempPasswordEmail } from "@/app/lib/email";
+
+// Envía la contraseña temporal al email del usuario (si hay servicio de email).
+async function mailPassword(req: NextRequest, tenantId: string, email: string, password: string, reset: boolean): Promise<boolean> {
+  if (!emailConfigured()) return false;
+  const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } });
+  if (!t) return false;
+  return sendEmail({ to: email, ...tempPasswordEmail({ restaurant: t.name, email, password, loginUrl: `${new URL(req.url).origin}/admin/${t.slug}/login`, reset }) });
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,7 +71,8 @@ export async function POST(req: NextRequest) {
   await prisma.user.create({
     data: { email, name: typeof b.name === "string" ? b.name.trim().slice(0, 80) || null : null, role, storeId, tenantId: c.tenantId, password: await hashPassword(password) },
   });
-  return NextResponse.json({ users: await list(c.tenantId, c.me), password });
+  const emailed = await mailPassword(req, c.tenantId, email, password, false);
+  return NextResponse.json({ users: await list(c.tenantId, c.me), password, emailed });
 }
 
 // PATCH { id, role?, storeId?, active?, name?, resetPassword? }
@@ -97,5 +107,6 @@ export async function PATCH(req: NextRequest) {
       ...(password && { password: await hashPassword(password) }),
     },
   });
-  return NextResponse.json({ users: await list(c.tenantId, c.me), ...(password && { password }) });
+  const emailed = password ? await mailPassword(req, c.tenantId, user.email, password, true) : false;
+  return NextResponse.json({ users: await list(c.tenantId, c.me), ...(password && { password, emailed }) });
 }

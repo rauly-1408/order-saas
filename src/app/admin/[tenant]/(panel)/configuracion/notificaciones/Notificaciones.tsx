@@ -2,11 +2,37 @@
 
 import { useEffect, useState } from "react";
 import { playOrderChime, repeatUntilAccepted, setRepeatUntilAccepted, setSoundEnabled, soundEnabled, unlockAudio } from "../../sound";
-import { Card, Toggle, ghostBtn } from "../ui";
+import { readBusiness } from "@/app/lib/business";
+import { Card, Toggle, ghostBtn, toast, useSaveBar, useTenantSettings } from "../ui";
 
-// Notificaciones: cómo te avisa el panel de un pedido (en este dispositivo) y
-// cómo se entera el cliente del estado de su pedido.
-export default function Notificaciones() {
+// Notificaciones: cómo te avisa el panel de un pedido (en este dispositivo),
+// los avisos por email al restaurante y cómo se entera el cliente de su pedido.
+type Prefs = { newOrderEmail: boolean; dailySummaryEmail: boolean };
+const readPrefs = (s: Record<string, unknown> | null): Prefs => {
+  const n = (s?.notifications ?? {}) as Record<string, unknown>;
+  return { newOrderEmail: n.newOrderEmail !== false, dailySummaryEmail: n.dailySummaryEmail !== false };
+};
+
+export default function Notificaciones({ tenant }: { tenant: string }) {
+  const { settings, save } = useTenantSettings(tenant);
+  const [edits, setEdits] = useState<Prefs | null>(null);
+  const saved = readPrefs(settings);
+  const prefs = edits ?? saved;
+  const businessEmail = settings ? readBusiness(settings).email : null;
+  useSaveBar("notificaciones", {
+    dirty: !!edits && JSON.stringify(edits) !== JSON.stringify(saved),
+    discard: () => setEdits(null),
+    save: async () => {
+      try {
+        await save({ notifications: prefs });
+        setEdits(null);
+        return true;
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "No se pudo guardar", false);
+        return false;
+      }
+    },
+  });
   const [sound, setSound] = useState(true);
   const [repeat, setRepeat] = useState(true);
   const [perm, setPerm] = useState<string>("default");
@@ -63,6 +89,20 @@ export default function Notificaciones() {
           Consejo: instala el panel como app («Instalar como app» en la barra lateral). Así suena aunque no hayas tocado la pantalla.
           {perm === "denied" && " Este navegador tiene bloqueadas las notificaciones."}
         </p>
+      </Card>
+
+      <Card
+        title="Avisos por email"
+        description={
+          businessEmail
+            ? `Se envían a ${businessEmail} (el email de contacto de Información del negocio).`
+            : "Pon tu email de contacto en Información del negocio para recibirlos."
+        }
+      >
+        <div className="divide-y divide-[var(--p-line)]">
+          <Toggle checked={prefs.newOrderEmail} onChange={(v) => setEdits({ ...prefs, newOrderEmail: v })} label="Email por cada pedido nuevo" hint="Con lo que ha pedido, quién y cómo paga. Los pedidos online se avisan cuando se confirma el pago." />
+          <Toggle checked={prefs.dailySummaryEmail} onChange={(v) => setEdits({ ...prefs, dailySummaryEmail: v })} label="Resumen diario" hint="Cada noche, si hubo pedidos: cuántos, ingresos, ticket medio y lo más vendido." />
+        </div>
       </Card>
 
       <Card title="Avisos a tus clientes" description="Lo que recibe el cliente sin que tengas que hacer nada.">
