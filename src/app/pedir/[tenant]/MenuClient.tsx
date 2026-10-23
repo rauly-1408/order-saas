@@ -464,7 +464,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
               <div key={bump} className={`text-[16px] font-bold tabular-nums ${bump ? "s-bump inline-block" : ""}`}>{euros(totalCents)}</div>
               <div className="text-[12px] opacity-80">{T.items(totalItems)}</div>
             </div>
-            <button onClick={clear} className="p-press shrink-0 rounded-full px-3 py-2 text-[13px] opacity-80 hover:opacity-100">{T.clear}</button>
+            <button onClick={() => window.confirm(T.confirmClear) && clear()} className="p-press shrink-0 rounded-full px-3 py-2 text-[13px] opacity-80 hover:opacity-100">{T.clear}</button>
             <a href={`/pedir/${tenant}/checkout`} className="p-press shrink-0 rounded-full px-6 py-3 text-[15px] font-bold no-underline" style={{ backgroundColor: cssVars["--bg-base"], color: cssVars["--brand-accent"] }}>
               {T.viewOrder}
             </a>

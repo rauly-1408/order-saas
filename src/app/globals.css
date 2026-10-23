@@ -94,9 +94,11 @@ nav { scrollbar-width: none; }
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
 }
 .p-glass {
-  background: color-mix(in srgb, var(--p-surface) 72%, transparent);
-  backdrop-filter: saturate(180%) blur(20px);
+  background: color-mix(in srgb, var(--p-surface) 92%, transparent);
+  /* Primero el prefijo de Safari y después el estándar: al revés, el
+     compilador de CSS se quedaba solo con el de Safari y Chrome no desenfocaba. */
   -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
 }
 
 /* ── Tienda pública (carta): animaciones ─────────────────────────────── */

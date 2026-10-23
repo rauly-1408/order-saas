@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { denyUnlessTenantAdmin } from "@/app/lib/auth";
+import { denyUnlessTenantAdmin, getSessionFromRequest } from "@/app/lib/auth";
 import { addDays, daysBetween, localParts, startOfDayIn, tenantTimeZone } from "@/app/lib/time";
 import { MAX_RANGE_DAYS, type ReportOrder } from "@/app/lib/reports";
 
@@ -19,6 +19,9 @@ export async function reportContext(
   if (!tenant) return { error: NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 }) };
   const denied = await denyUnlessTenantAdmin(req, tenant.id);
   if (denied) return { error: denied };
+  // Las ventas son recaudación: solo con el permiso «Ve lo recaudado».
+  const session = await getSessionFromRequest(req);
+  if (!session?.seesTakings) return { error: NextResponse.json({ error: "No tienes permiso para ver las ventas" }, { status: 403 }) };
 
   const timeZone = tenantTimeZone(tenant.settings);
   const today = localParts(new Date(), timeZone).ymd;

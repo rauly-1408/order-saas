@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/app/lib/prisma";
-import { requireManagerPage } from "@/app/lib/auth";
+import { getSession, requireManagerPage } from "@/app/lib/auth";
 import { formatTimeIn, startOfTodayIn, tenantTimeZone } from "@/app/lib/time";
 import CountUp from "../CountUp";
 import GrowthCards from "./GrowthCards";
@@ -21,6 +21,7 @@ const euros = (cents: number) => new Intl.NumberFormat("es-ES", { style: "curren
 export default async function AdminHomePage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
   await requireManagerPage(tenant); // Inicio muestra ingresos: solo dueño/superadmin
+  const canSeeTakings = Boolean((await getSession())?.seesTakings); // permiso «Ve lo recaudado»
 
   const tenantData = await prisma.tenant.findUnique({
     where: { slug: tenant },
@@ -65,9 +66,9 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
         </h1>
         <div className="mt-8 flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="text-sm text-[var(--p-brand)]/70">Ingresos de hoy</p>
+            <p className="text-sm text-[var(--p-brand)]/70">{canSeeTakings ? "Ingresos de hoy" : "Pedidos de hoy"}</p>
             <p className="text-4xl font-semibold tracking-tight text-[var(--p-brand)] sm:text-5xl">
-              <CountUp value={revenueCents} format="euros" />
+              {canSeeTakings ? <CountUp value={revenueCents} format="euros" /> : <CountUp value={ordersToday} />}
             </p>
           </div>
           <p className="flex items-center gap-2 text-xs text-[var(--p-brand)]/60">
@@ -91,7 +92,7 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
             urgent={activeOrders > 0}
           />
         </Link>
-        <Stat label="Ticket medio hoy" value={<CountUp value={avgTicket} format="euros" />} />
+        {canSeeTakings ? <Stat label="Ticket medio hoy" value={<CountUp value={avgTicket} format="euros" />} /> : <Stat label="Categorías" value={<CountUp value={categories} />} sub="en la carta" />}
         <Stat label="Carta" value={<CountUp value={products} />} sub={`productos en ${categories} categorías`} />
       </section>
 

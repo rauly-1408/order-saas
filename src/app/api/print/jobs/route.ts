@@ -30,6 +30,16 @@ export async function GET(req: NextRequest) {
       await prisma.tenant.update({ where: { id: tenant.id }, data: { settings: { ...settings, printing } as object } });
     }
 
+    // No imprimir lo que ya no sirve: pedidos cancelados o trabajos de hace más
+    // de 2 horas (p. ej. si el agente estuvo apagado toda la noche).
+    const stale = new Date(Date.now() - 2 * 3_600_000);
+    await prisma.printJob.updateMany({ where: { tenantId: tenant.id, status: "PENDING", createdAt: { lt: stale } }, data: { status: "FAILED", error: "Caducado: llevaba más de 2 horas en cola" } });
+    const cancelled = await prisma.printJob.findMany({ where: { tenantId: tenant.id, status: "PENDING", orderId: { not: null } }, select: { id: true, orderId: true } });
+    if (cancelled.length) {
+      const dead = await prisma.order.findMany({ where: { id: { in: cancelled.map((j) => j.orderId!) }, status: "CANCELLED" }, select: { id: true } });
+      if (dead.length) await prisma.printJob.updateMany({ where: { tenantId: tenant.id, status: "PENDING", orderId: { in: dead.map((o) => o.id) } }, data: { status: "FAILED", error: "Pedido cancelado" } });
+    }
+
     const jobs = await prisma.printJob.findMany({
       where: { tenantId: tenant.id, status: "PENDING", attempts: { lt: 5 } },
       orderBy: { createdAt: "asc" },
