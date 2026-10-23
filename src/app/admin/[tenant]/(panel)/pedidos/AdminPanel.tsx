@@ -20,7 +20,7 @@ const CLOCK_MS = 15_000;
 // Mientras haya pedidos sin aceptar, el aviso se repite (como las tablets de
 // Glovo / Uber Eats) para que ninguno se quede olvidado.
 
-type OrdersResponse = { orders: Order[]; history?: Order[]; estimates?: Estimates; store?: StoreLive | null; courierEnabled?: boolean; stores?: { id: string; name: string }[]; storeFilter?: string | null };
+type OrdersResponse = { orders: Order[]; history?: Order[]; estimates?: Estimates; store?: StoreLive | null; courierEnabled?: boolean; printingEnabled?: boolean; stores?: { id: string; name: string }[]; storeFilter?: string | null };
 const STORE_FILTER_KEY = "panel-store-filter";
 
 const DEFAULT_ESTIMATES: Estimates = { deliveryMinutes: 45, pickupMinutes: 20 };
@@ -32,6 +32,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
   const [estimates, setEstimates] = useState<Estimates>(DEFAULT_ESTIMATES);
   const [storeLive, setStoreLive] = useState<StoreLive | null>(null);
   const [courierEnabled, setCourierEnabled] = useState(false);
+  const [printingEnabled, setPrintingEnabled] = useState(false);
   // Sucursales: filtro por local (se recuerda en este dispositivo).
   const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
   const [storeFilter, setStoreFilter] = useState<string>(() => {
@@ -78,6 +79,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
       if (data.estimates) setEstimates(data.estimates);
       setStoreLive(data.store ?? null);
       setCourierEnabled(!!data.courierEnabled);
+      setPrintingEnabled(!!data.printingEnabled);
       setStores(data.stores ?? []);
       setError("");
     } catch {
@@ -144,6 +146,18 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
     }
   }
 
+
+  // Reimprimir comanda o ticket (la cola la vacía el agente del local).
+  async function handlePrint(orderId: string, kind: "KITCHEN" | "RECEIPT") {
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/${tenant}/print/${orderId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind }) });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) setError(data.error ?? "No se pudo imprimir");
+    } catch {
+      setError("Sin conexión. No se pudo imprimir.");
+    }
+  }
 
   // Repartidor externo: pedir/reintentar (POST) o cancelar (DELETE).
   async function handleCourier(orderId: string, action: "request" | "cancel") {
@@ -298,6 +312,8 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                           onStatus={handleStatus}
                           courierEnabled={courierEnabled}
                           onCourier={handleCourier}
+                          printingEnabled={printingEnabled}
+                          onPrint={handlePrint}
                         />
                       ))
                     )}

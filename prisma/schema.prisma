@@ -82,6 +82,19 @@ enum PaymentStatus {
   REFUNDED
 }
 
+// Impresión: trabajos que recoge el agente del local y manda a la impresora.
+enum PrintKind {
+  KITCHEN // comanda para cocina
+  RECEIPT // ticket del cliente
+  TEST // página de prueba desde Configuración
+}
+
+enum PrintJobStatus {
+  PENDING
+  PRINTED
+  FAILED
+}
+
 enum OrderStatus {
   AWAITING_PAYMENT // pago online sin confirmar: no llega a la cocina ni cuenta en informes
   CREATED
@@ -1108,4 +1121,23 @@ model MediaFile {
   createdAt DateTime @default(now())
 
   @@index([tenantId, kind, createdAt])
+}
+
+// Cola de impresión. Ver docs/IMPRESION.md
+model PrintJob {
+  id        String         @id @default(cuid())
+  tenantId  String
+  orderId   String?
+  kind      PrintKind
+  printerId String // id de la impresora en settings.printing.printers
+  host      String
+  port      Int            @default(9100)
+  data      Bytes // ESC/POS ya generado
+  status    PrintJobStatus @default(PENDING)
+  attempts  Int            @default(0)
+  error     String?
+  createdAt DateTime       @default(now())
+  printedAt DateTime?
+
+  @@index([tenantId, status, createdAt])
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyNewOrder } from "@/app/lib/notifyOrder";
+import { printOnNewOrder, readPrinting } from "@/app/lib/printing";
 import { rateLimit } from "@/app/lib/rateLimit";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
@@ -303,7 +304,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Aviso por email al restaurante (si lo tiene activo), después de responder.
-    after(() => notifyNewOrder(order.id));
+    after(() => Promise.all([notifyNewOrder(order.id), printOnNewOrder(order.id)]));
     return withCustomerProof(
       NextResponse.json({
       orderId: order.id,
@@ -393,6 +394,7 @@ export async function GET(req: NextRequest) {
       orders: orders.map(withCourier),
       history: history.map(withCourier),
       courierEnabled: !!account && account.provider !== "NONE",
+      printingEnabled: readPrinting(tenant.settings).printers.length > 0,
       // Sucursales: lista para el filtro (solo si hay más de un local) y el filtro aplicado.
       stores: stores.length > 1 && !session.storeId ? stores.map((st) => ({ id: st.id, name: st.name })) : [],
       storeFilter,

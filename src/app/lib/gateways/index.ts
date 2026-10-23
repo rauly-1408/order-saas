@@ -7,6 +7,7 @@ import type { Order, Prisma } from "@prisma/client";
 import { after } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { notifyNewOrder } from "@/app/lib/notifyOrder";
+import { printOnNewOrder } from "@/app/lib/printing";
 import { unseal } from "@/app/lib/secretBox";
 import { returnOrderStock } from "@/app/lib/inventory";
 import { platformFeeCents } from "@/app/lib/payments";
@@ -108,7 +109,7 @@ export async function finalizePayment(orderId: string, outcome: PaymentOutcome):
         },
       });
       // Ya pagado: ahora sí avisamos al restaurante (después de responder).
-      after(() => notifyNewOrder(paid.id));
+      after(() => Promise.all([notifyNewOrder(paid.id), printOnNewOrder(paid.id)]));
       return paid;
     }
     await undoUnpaidOrder(tx, order);
