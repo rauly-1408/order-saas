@@ -13,7 +13,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   READY: { label: "Listo", cls: "bg-emerald-50 text-emerald-700" },
   DELIVERING: { label: "En reparto", cls: "bg-sky-50 text-sky-700" },
   DELIVERED: { label: "Entregado", cls: "bg-black/[0.04] text-[var(--p-muted)]" },
-  CANCELLED: { label: "Cancelado", cls: "bg-black/[0.04] text-[var(--p-faint)] line-through" },
+  CANCELLED: { label: "Cancelado", cls: "bg-red-50 text-red-600" },
 };
 
 const euros = (cents: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -83,17 +83,15 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
 
       {/* Cifras clave */}
       <section className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <Stat label="Pedidos hoy" value={<CountUp value={ordersToday} />} />
-        <Link href={`/admin/${tenant}/pedidos`} className="block">
-          <Stat
-            label="Activos ahora"
-            value={<CountUp value={activeOrders} />}
-            sub={activeOrders ? "Ver en Pedidos →" : "Nada pendiente"}
-            urgent={activeOrders > 0}
-          />
-        </Link>
-        {canSeeTakings ? <Stat label="Ticket medio hoy" value={<CountUp value={avgTicket} format="euros" />} /> : <Stat label="Categorías" value={<CountUp value={categories} />} sub="en la carta" />}
-        <Stat label="Carta" value={<CountUp value={products} />} sub={`productos en ${categories} categorías`} />
+        {/* Cada cifra lleva a su pantalla: toda la tarjeta se puede tocar */}
+        <Stat href={`/admin/${tenant}/pedidos`} label="Pedidos hoy" value={<CountUp value={ordersToday} />} sub="Ver pedidos" />
+        <Stat href={`/admin/${tenant}/pedidos`} label="Activos ahora" value={<CountUp value={activeOrders} />} sub={activeOrders ? "Atender ahora" : "Nada pendiente"} urgent={activeOrders > 0} />
+        {canSeeTakings ? (
+          <Stat href={`/admin/${tenant}/informes`} label="Ticket medio hoy" value={<CountUp value={avgTicket} format="euros" />} sub="Ver informes" />
+        ) : (
+          <Stat href={`/admin/${tenant}/carta`} label="Categorías" value={<CountUp value={categories} />} sub="en la carta" />
+        )}
+        <Stat href={`/admin/${tenant}/carta`} label="Carta" value={<CountUp value={products} />} sub={`productos en ${categories} categorías`} />
       </section>
 
       {/* Ideas para personalizar la tienda (estilo Shopify) */}
@@ -112,7 +110,8 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
         ) : (
           <ul className="divide-y divide-[var(--p-line)] overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             {recentOrders.map((o, i) => (
-              <li key={o.id} className="p-rise flex items-center gap-4 px-5 py-4" style={{ "--i": i } as React.CSSProperties}>
+              <li key={o.id} className="p-rise" style={{ "--i": i } as React.CSSProperties}>
+                <Link href={`/admin/${tenant}/pedidos`} className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-black/[0.025] sm:gap-4 sm:px-5">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-sm font-semibold tabular-nums">
                   {o.orderNumber}
                 </span>
@@ -122,10 +121,11 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
                     {o.channel === "DELIVERY" ? "A domicilio" : "Para recoger"} · {time(o.createdAt)}
                   </p>
                 </div>
-                <span className={`hidden rounded-full px-2.5 py-1 text-xs font-medium sm:inline ${STATUS[o.status]?.cls ?? ""}`}>
+                <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STATUS[o.status]?.cls ?? ""}`}>
                   {STATUS[o.status]?.label ?? o.status}
                 </span>
-                <span className="w-20 text-right font-semibold tabular-nums">{euros(o.totalCents)}</span>
+                <span className={`w-16 text-right font-semibold tabular-nums sm:w-20 ${o.status === "CANCELLED" ? "text-[var(--p-faint)]" : ""}`}>{euros(o.totalCents)}</span>
+                </Link>
               </li>
             ))}
           </ul>
@@ -135,16 +135,28 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
   );
 }
 
-function Stat({ label, value, sub, urgent = false }: { label: string; value: React.ReactNode; sub?: string; urgent?: boolean }) {
-  return (
+function Stat({ label, value, sub, urgent = false, href }: { label: string; value: React.ReactNode; sub?: string; urgent?: boolean; href?: string }) {
+  const body = (
     <div
-      className={`p-lift h-full rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+      className={`p-lift flex h-full flex-col rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
         urgent ? "bg-[var(--p-accent)] text-white" : "bg-[var(--p-surface)]"
       }`}
     >
       <p className={`text-sm ${urgent ? "text-white/80" : "text-[var(--p-muted)]"}`}>{label}</p>
       <p className="mt-2 text-3xl font-semibold tracking-tight">{value}</p>
-      {sub && <p className={`mt-1 text-xs ${urgent ? "text-white/80" : "text-[var(--p-faint)]"}`}>{sub}</p>}
+      {sub && (
+        <p className={`mt-auto flex items-center justify-between gap-2 pt-1 text-xs ${urgent ? "text-white/90" : "text-[var(--p-faint)]"}`}>
+          <span>{sub}</span>
+          {href && <span aria-hidden className="text-base leading-none">›</span>}
+        </p>
+      )}
     </div>
+  );
+  return href ? (
+    <Link href={href} className="block h-full">
+      {body}
+    </Link>
+  ) : (
+    body
   );
 }
