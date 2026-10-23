@@ -8,6 +8,8 @@ export type OrderItem = {
   quantity: number;
   totalCents: number;
   modifiers: unknown; // JSON snapshot: OrderLineModifier[] (ver lib/menuOptions)
+  note?: string | null; // nota de la línea (Caja)
+  discountCents?: number; // descuento manual de la línea (Caja)
 };
 
 export type Order = {

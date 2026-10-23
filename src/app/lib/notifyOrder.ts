@@ -40,7 +40,7 @@ export async function notifyNewOrder(orderId: string): Promise<void> {
       customerPhone: order.customerPhone,
       address: order.customerAddress,
       scheduledFor: order.scheduledFor ? scheduledLabel(order.scheduledFor, new Date(), tz) : null,
-      lines: order.items.map((l) => ({ quantity: l.quantity, name: l.productName, detail: modifierLabels(l.modifiers), totalCents: l.totalCents })),
+      lines: order.items.map((l) => ({ quantity: l.quantity, name: l.productName, detail: [...modifierLabels(l.modifiers), ...(l.note ? [`Nota: ${l.note}`] : [])], totalCents: l.totalCents })),
       totalCents: order.totalCents,
       paid: order.paymentStatus === "PAID",
       panelUrl: `${appOrigin()}/admin/${order.tenant.slug}/pedidos`,

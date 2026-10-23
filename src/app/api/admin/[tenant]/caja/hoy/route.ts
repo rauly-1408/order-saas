@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
     const session = await getSessionFromRequest(req);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+    if (!session.seesTakings) return NextResponse.json({ error: "No tienes permiso para ver lo recaudado" }, { status: 403 });
 
     const tz = tenantTimeZone(tenant.settings);
     const dayStart = startOfTodayIn(tz, new Date());
