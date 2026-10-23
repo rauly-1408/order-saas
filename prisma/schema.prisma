@@ -71,6 +71,7 @@ enum OrderSource {
   ONLINE
   COUNTER // mostrador
   PHONE // por teléfono
+  TABLE // mesa de la sala (Mesas, ver docs/MESAS.md)
 }
 
 // Quién canceló el pedido. Ver docs/SEGUIMIENTO-Y-RESENAS.md
@@ -111,6 +112,7 @@ enum PrintJobStatus {
 }
 
 enum OrderStatus {
+  OPEN // cuenta de una mesa abierta: se le añaden rondas hasta cobrarla (Mesas)
   AWAITING_PAYMENT // pago online sin confirmar: no llega a la cocina ni cuenta en informes
   CREATED
   PAID
@@ -127,17 +129,17 @@ enum OrderStatus {
 //  USER
 // ─────────────────────────────────────────────
 model User {
-  id       String  @id @default(cuid())
-  email    String  @unique
-  password String
-  role     Role    @default(TENANT_ADMIN)
-  name     String?
-  active   Boolean @default(true) // desactivado = no puede entrar (Configuración → Usuarios)
+  id          String    @id @default(cuid())
+  email       String    @unique
+  password    String
+  role        Role      @default(TENANT_ADMIN)
+  name        String?
+  active      Boolean   @default(true) // desactivado = no puede entrar (Configuración → Usuarios)
   // Solo para el rol «Pedidos»: limita a un local (null = todos los locales)
   storeId     String?
   // Ve lo recaudado (Caja → «Hoy en caja»). Solo el administrador principal
   // por defecto; se concede por usuario en Configuración → Usuarios.
-  seesTakings Boolean @default(false)
+  seesTakings Boolean   @default(false)
   lastLoginAt DateTime?
 
   tenantId String?
@@ -191,6 +193,7 @@ model Tenant {
 
   users          User[]
   stores         Store[]
+  diningTables   DiningTable[]
   categories     Category[]
   products       Product[]
   modifierGroups ModifierGroup[]
@@ -256,6 +259,7 @@ model Store {
   orders        Order[]
   closures      StoreClosure[]
   deliveryZones DeliveryZone[]
+  diningTables  DiningTable[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -443,14 +447,19 @@ model Order {
 
   orderNumber Int?
 
-  channel Channel
-  status  OrderStatus @default(CREATED)
+  channel           Channel
+  status            OrderStatus   @default(CREATED)
   // Caja (ver docs/CAJA.md): origen, «para comer aquí», quién lo tomó y el efectivo entregado
-  source           OrderSource @default(ONLINE)
-  cancelledBy      CancelledBy? // quién canceló (null si no está cancelado)
-  cancelReason     CancelReason? // motivo del cliente
-  dineIn           Boolean     @default(false)
-  createdByUserId  String?
+  source            OrderSource   @default(ONLINE)
+  cancelledBy       CancelledBy? // quién canceló (null si no está cancelado)
+  cancelReason      CancelReason? // motivo del cliente
+  dineIn            Boolean       @default(false)
+  createdByUserId   String?
+  // Mesas: la mesa, los comensales y cuándo se imprimió la cuenta (pidiendo la cuenta)
+  tableId           String?
+  table             DiningTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  guests            Int?
+  billRequestedAt   DateTime?
   cashTenderedCents Int?
 
   customerName       String
@@ -486,11 +495,11 @@ model Order {
 
   // Propina (Configuración → Pantalla de pago) y tarjeta regalo canjeada.
   // totalCents ya incluye la propina y ya descuenta la tarjeta regalo.
-  tipCents      Int       @default(0)
-  giftCardId    String?
-  giftCard      GiftCard? @relation(fields: [giftCardId], references: [id], onDelete: SetNull)
-  giftCardCents Int       @default(0)
-  applicationFeeCents   Int           @default(0) // comisión de la plataforma cobrada en este pedido
+  tipCents            Int       @default(0)
+  giftCardId          String?
+  giftCard            GiftCard? @relation(fields: [giftCardId], references: [id], onDelete: SetNull)
+  giftCardCents       Int       @default(0)
+  applicationFeeCents Int       @default(0) // comisión de la plataforma cobrada en este pedido
 
   posProvider   String?
   posExternalId String?
@@ -502,14 +511,15 @@ model Order {
   scheduledFor     DateTime?
   review           Review?
 
-  invoices Invoice[] // VeriFactu: factura simplificada y, si se cancela, su rectificativa
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  invoices  Invoice[] // VeriFactu: factura simplificada y, si se cancela, su rectificativa
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  items OrderLine[]
+  items   OrderLine[]
   courier CourierDelivery?
 
   @@unique([tenantId, orderNumber])
+  @@index([tableId, status])
 }
 
 model OrderLine {
@@ -530,8 +540,44 @@ model OrderLine {
   note          String?
   discountCents Int     @default(0)
 
+  // Mesas: número de ronda (0 fuera de mesas) y quién la añadió
+  round         Int     @default(0)
+  addedByUserId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum TableShape {
+  SQUARE // mesa
+  ROUND // taburete de barra o mesa redonda
+}
+
+// Mesa de la sala (Mesas). Cada local tiene las suyas, agrupadas por zona.
+// Ver docs/MESAS.md
+model DiningTable {
+  id        String     @id @default(cuid())
+  tenantId  String
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  storeId   String
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name      String // «4», «T2», «Barra 1»
+  zone      String     @default("Sala")
+  seats     Int        @default(4)
+  sortOrder Int        @default(0)
+  isActive  Boolean    @default(true)
+  // Plano: posición del centro en % del plano de su zona (null = sin colocar) y forma
+  posX      Float?
+  posY      Float?
+  shape     TableShape @default(SQUARE)
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, name])
+  @@index([tenantId])
 }
 
 // ─────────────────────────────────────────────
@@ -981,7 +1027,7 @@ model ComboSlot {
   combo   Product @relation("ComboSlots", fields: [comboId], references: [id], onDelete: Cascade)
 
   name      String
-  sortOrder Int    @default(0)
+  sortOrder Int     @default(0)
   // false = paso opcional (p. ej. «Complementos»): el cliente puede no elegir nada
   required  Boolean @default(true)
 
@@ -1055,12 +1101,12 @@ model CourierDelivery {
   orderId  String @unique
   order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  provider   String
-  externalId String?
+  provider     String
+  externalId   String?
   // REQUESTED | ASSIGNED | AT_PICKUP | PICKED_UP | NEAR_CUSTOMER | DELIVERED | CANCELLED | FAILED
-  status     String  @default("REQUESTED")
-  rawStatus  String?
-  feeCents   Int?
+  status       String    @default("REQUESTED")
+  rawStatus    String?
+  feeCents     Int?
   trackingUrl  String?
   courierName  String?
   courierPhone String?
@@ -1163,22 +1209,22 @@ model PrintJob {
 // Cierre de caja: una sesión por local desde que se abre con un fondo hasta
 // que se cierra contando el cajón. Ver docs/CAJA.md
 model CashSession {
-  id               String    @id @default(cuid())
-  tenantId         String
-  storeId          String
-  openedAt         DateTime  @default(now())
-  openedByUserId   String?
-  openedByName     String?
+  id                String         @id @default(cuid())
+  tenantId          String
+  storeId           String
+  openedAt          DateTime       @default(now())
+  openedByUserId    String?
+  openedByName      String?
   openingFloatCents Int
-  closedAt         DateTime?
-  closedByUserId   String?
-  closedByName     String?
-  countedCashCents Int?
+  closedAt          DateTime?
+  closedByUserId    String?
+  closedByName      String?
+  countedCashCents  Int?
   expectedCashCents Int? // fondo + ventas en efectivo + entradas − salidas, al cerrar
-  differenceCents  Int? // contado − esperado
-  summary          Json? // al cerrar: ventas por forma de pago, pedidos, movimientos
-  notes            String?
-  movements        CashMovement[]
+  differenceCents   Int? // contado − esperado
+  summary           Json? // al cerrar: ventas por forma de pago, pedidos, movimientos
+  notes             String?
+  movements         CashMovement[]
 
   @@index([tenantId, storeId, closedAt])
 }
@@ -1200,33 +1246,33 @@ model CashMovement {
 // por su huella SHA-256. No se modifica ni se borra: una devolución genera una
 // rectificativa (R5). Ver docs/VERIFACTU.md
 model Invoice {
-  id           String   @id @default(cuid())
-  tenantId     String
-  storeId      String
-  orderId      String
-  order        Order    @relation(fields: [orderId], references: [id])
-  chainIndex   Int // posición en la cadena del emisor (1, 2, 3…)
-  invoiceType  String // F2 = factura simplificada · R5 = rectificativa de simplificada
-  series       String // T2026 · R2026
-  number       Int
-  numSerie     String // NumSerieFactura: «T2026-000001»
-  issueDate    String // FechaExpedicionFactura: dd-mm-aaaa (hora de Madrid)
-  genTimestamp String // FechaHoraHusoGenRegistro: 2026-10-23T18:20:30+02:00
-  issuerNif    String
-  issuerName   String
-  taxRate      Int // %
-  baseCents    Int
-  taxCents     Int // CuotaTotal
-  totalCents   Int // ImporteTotal (negativo en una rectificativa por diferencias)
+  id                 String   @id @default(cuid())
+  tenantId           String
+  storeId            String
+  orderId            String
+  order              Order    @relation(fields: [orderId], references: [id])
+  chainIndex         Int // posición en la cadena del emisor (1, 2, 3…)
+  invoiceType        String // F2 = factura simplificada · R5 = rectificativa de simplificada
+  series             String // T2026 · R2026
+  number             Int
+  numSerie           String // NumSerieFactura: «T2026-000001»
+  issueDate          String // FechaExpedicionFactura: dd-mm-aaaa (hora de Madrid)
+  genTimestamp       String // FechaHoraHusoGenRegistro: 2026-10-23T18:20:30+02:00
+  issuerNif          String
+  issuerName         String
+  taxRate            Int // %
+  baseCents          Int
+  taxCents           Int // CuotaTotal
+  totalCents         Int // ImporteTotal (negativo en una rectificativa por diferencias)
   rectifiedInvoiceId String? // R5: la factura que rectifica
-  prevHash     String? // huella del registro anterior (null = primer registro)
-  hash         String // Huella
-  qrUrl        String
-  mode         String // VERIFACTU | NO_VERIFACTU
-  environment  String // PRUEBAS | PRODUCCION
-  aeatStatus   String   @default("PENDIENTE_ENVIO") // PENDIENTE_ENVIO | ACEPTADO | ACEPTADO_CON_ERRORES | RECHAZADO
-  aeatResponse Json?
-  createdAt    DateTime @default(now())
+  prevHash           String? // huella del registro anterior (null = primer registro)
+  hash               String // Huella
+  qrUrl              String
+  mode               String // VERIFACTU | NO_VERIFACTU
+  environment        String // PRUEBAS | PRODUCCION
+  aeatStatus         String   @default("PENDIENTE_ENVIO") // PENDIENTE_ENVIO | ACEPTADO | ACEPTADO_CON_ERRORES | RECHAZADO
+  aeatResponse       Json?
+  createdAt          DateTime @default(now())
 
   @@unique([tenantId, chainIndex])
   @@unique([tenantId, numSerie])

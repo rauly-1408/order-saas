@@ -81,16 +81,36 @@ const euros = (c: number) => (c / 100).toFixed(2).replace(".", ",") + " €";
 const hhmm = (d: Date, tz: string) => new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(d);
 const dmy = (d: Date, tz: string) => new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: tz }).format(d);
 
-type OrderForPrint = Prisma.OrderGetPayload<{ include: { items: true; invoices: true; tenant: { select: { name: true; slug: true; settings: true } }; store: { select: { name: true; address: true; phone: true } } } }>;
+type OrderForPrint = Prisma.OrderGetPayload<{ include: { items: true; invoices: true; table: { select: { name: true } }; tenant: { select: { name: true; slug: true; settings: true } }; store: { select: { name: true; address: true; phone: true } } } }>;
 
 const PAYMENT_LABEL: Record<string, string> = { CASH: "efectivo", CARD_TERMINAL: "datáfono", BIZUM: "Bizum", CARD: "tarjeta online", IN_STORE: "al recoger" };
-const modeOf = (o: OrderForPrint) => (o.channel === "DELIVERY" ? "A DOMICILIO" : o.dineIn ? "COMER AQUÍ" : "PARA LLEVAR");
-const sourceOf = (o: OrderForPrint) => (o.source === "COUNTER" ? "Mostrador" : o.source === "PHONE" ? "Teléfono" : "Online");
+const modeOf = (o: OrderForPrint) => (o.table ? `MESA ${o.table.name}` : o.channel === "DELIVERY" ? "A DOMICILIO" : o.dineIn ? "COMER AQUÍ" : "PARA LLEVAR");
+const sourceOf = (o: OrderForPrint) => (o.source === "TABLE" ? "Sala" : o.source === "COUNTER" ? "Mostrador" : o.source === "PHONE" ? "Teléfono" : "Online");
+const isTable = (o: OrderForPrint) => o.source === "TABLE";
 
 // Comanda para cocina: grande y sin precios.
-export function renderKitchen(o: OrderForPrint, p: Printer): Uint8Array {
+// Mesas: `round` imprime solo esa ronda; `voided` imprime una anulación.
+export type KitchenOpts = { round?: number; voided?: { quantity: number; productName: string; modifiers: unknown; note: string | null }[] };
+export function renderKitchen(o: OrderForPrint, p: Printer, opts: KitchenOpts = {}): Uint8Array {
   const tz = tenantTimeZone(o.tenant.settings);
   const t = new Escpos({ width: p.width, codepage: p.codepage });
+  if (o.table) {
+    t.align("center").bold(true).size(2, 2).line(`MESA ${o.table.name}`).size(1, 1).bold(false);
+    if (opts.voided) t.bold(true).size(1, 2).line("*** ANULADO ***").size(1, 1).bold(false);
+    else if (opts.round) t.bold(true).size(1, 2).line(`Ronda ${opts.round}`).size(1, 1).bold(false);
+    t.line(`${hhmm(new Date(), tz)} · Cuenta nº ${o.orderNumber ?? "?"}${o.guests ? ` · ${o.guests} pax` : ""}`);
+    t.align("left").rule("=");
+    const items = opts.voided ?? (opts.round ? o.items.filter((l) => l.round === opts.round) : o.items);
+    for (const l of items) {
+      t.bold(true).size(1, 2).wrap(`${l.quantity}x ${l.productName}`).size(1, 1).bold(false);
+      for (const m of modifierLabels(l.modifiers)) t.wrap(m, { indent: 3 });
+      if (l.note) t.bold(true).wrap(`>> ${l.note}`, { indent: 3 }).bold(false);
+    }
+    t.rule();
+    if (opts.voided) t.align("center").bold(true).line("NO PREPARAR").bold(false);
+    t.cut();
+    return t.bytes();
+  }
   t.align("center").bold(true).size(2, 2).line(`Nº ${o.orderNumber ?? "?"}`).size(1, 1).bold(false);
   t.line(`${hhmm(o.createdAt, tz)} · ${sourceOf(o)}`);
   t.bold(true).size(1, 2).line(modeOf(o)).size(1, 1).bold(false);
@@ -132,9 +152,11 @@ export function renderReceipt(o: OrderForPrint, p: Printer, opts: { drawer?: boo
     t.line(`Emisor: ${invoice.issuerName} · NIF ${invoice.issuerNif}`);
     t.rule();
   }
-  t.bold(true).row(`Pedido nº ${o.orderNumber ?? "?"}`, `${dmy(o.createdAt, tz)} ${hhmm(o.createdAt, tz)}`).bold(false);
-  t.line(`${modeOf(o).charAt(0)}${modeOf(o).slice(1).toLowerCase()} · ${sourceOf(o)}`);
-  if (o.customerName && !["Mostrador", "Teléfono"].includes(o.customerName)) t.line(`Cliente: ${o.customerName}`);
+  // Mesas: la cuenta antes de cobrar no es una factura.
+  if (isTable(o) && o.paymentStatus !== "PAID") t.align("center").bold(true).size(1, 2).line("CUENTA").size(1, 1).line("No es una factura").bold(false).align("left").rule();
+  t.bold(true).row(`${isTable(o) ? "Cuenta" : "Pedido"} nº ${o.orderNumber ?? "?"}`, `${dmy(o.createdAt, tz)} ${hhmm(o.createdAt, tz)}`).bold(false);
+  t.line(o.table ? `Mesa ${o.table.name}${o.guests ? ` · ${o.guests} comensales` : ""}` : `${modeOf(o).charAt(0)}${modeOf(o).slice(1).toLowerCase()} · ${sourceOf(o)}`);
+  if (o.customerName && !["Mostrador", "Teléfono"].includes(o.customerName) && !isTable(o)) t.line(`Cliente: ${o.customerName}`);
   if (o.channel === "DELIVERY" && o.customerAddress) t.wrap(o.customerAddress);
   t.rule();
   for (const l of o.items) {
@@ -167,7 +189,7 @@ export function renderReceipt(o: OrderForPrint, p: Printer, opts: { drawer?: boo
       t.row("Entregado", euros(o.cashTenderedCents));
       t.row("Cambio", euros(o.cashTenderedCents - o.totalCents));
     }
-  } else t.bold(true).line(`PENDIENTE DE PAGO · ${PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}`).bold(false);
+  } else t.bold(true).line(isTable(o) ? "PENDIENTE DE PAGO" : `PENDIENTE DE PAGO · ${PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}`).bold(false);
   t.rule();
   if (invoice) {
     // QR de cotejo de la AEAT; con VERI*FACTU, la leyenda obligatoria.
@@ -176,7 +198,7 @@ export function renderReceipt(o: OrderForPrint, p: Printer, opts: { drawer?: boo
     if (invoice.mode === "VERIFACTU") t.line("electrónica de la AEAT");
     t.rule();
   }
-  t.align("center").line("¡Gracias por tu pedido!");
+  t.align("center").line(isTable(o) ? "¡Gracias por tu visita!" : "¡Gracias por tu pedido!");
   const origin = process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
   if (origin) t.line(`Pide online: ${origin.replace(/^https?:\/\//, "")}/pedir/${o.tenant.slug}`);
   // El cajón solo se abre al cobrar, nunca al reimprimir un ticket.
@@ -206,7 +228,7 @@ export function renderTest(p: Printer, tenantName: string): Uint8Array {
 async function loadOrder(orderId: string): Promise<OrderForPrint | null> {
   return prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true, invoices: true, tenant: { select: { name: true, slug: true, settings: true } }, store: { select: { name: true, address: true, phone: true } } },
+    include: { items: { orderBy: { createdAt: "asc" } }, invoices: true, table: { select: { name: true } }, tenant: { select: { name: true, slug: true, settings: true } }, store: { select: { name: true, address: true, phone: true } } },
   });
 }
 
@@ -242,6 +264,39 @@ export async function printOnNewOrder(orderId: string): Promise<void> {
     if (kinds.length) await enqueueOrderPrints(orderId, kinds);
   } catch (err) {
     console.error("[printOnNewOrder]", err instanceof Error ? err.message : err);
+  }
+}
+
+// Mesas: comanda de una ronda o de una anulación (impresoras de comandas) y la
+// cuenta antes de cobrar (impresoras de tickets, sin abrir el cajón).
+export async function enqueueTablePrint(orderId: string, what: { kind: "ROUND"; round: number } | { kind: "VOID"; lines: NonNullable<KitchenOpts["voided"]> } | { kind: "BILL" }): Promise<number> {
+  try {
+    const o = await loadOrder(orderId);
+    if (!o) return 0;
+    const cfg = readPrinting(o.tenant.settings);
+    if (!cfg.agentToken || !cfg.printers.length) return 0;
+    const role: PrinterRole = what.kind === "BILL" ? "receipt" : "kitchen";
+    const jobs: Prisma.PrintJobCreateManyInput[] = [];
+    for (const p of cfg.printers.filter((x) => x.roles.includes(role) && (!x.storeId || x.storeId === o.storeId))) {
+      const data = what.kind === "BILL" ? renderReceipt(o, p, { drawer: false }) : renderKitchen(o, p, what.kind === "ROUND" ? { round: what.round } : { voided: what.lines });
+      const copies = what.kind === "BILL" ? 1 : p.copies;
+      for (let i = 0; i < copies; i++) jobs.push({ tenantId: o.tenantId, orderId: o.id, kind: (what.kind === "BILL" ? "RECEIPT" : "KITCHEN") as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(data) });
+    }
+    if (jobs.length) await prisma.printJob.createMany({ data: jobs });
+    return jobs.length;
+  } catch (err) {
+    console.error("[enqueueTablePrint]", err instanceof Error ? err.message : err);
+    return 0;
+  }
+}
+
+// Mesas: al cobrar, el ticket (factura simplificada) si se imprime solo al cobrar.
+export async function printTablePayment(orderId: string): Promise<void> {
+  try {
+    const o = await prisma.order.findUnique({ where: { id: orderId }, select: { tenant: { select: { settings: true } } } });
+    if (o && readPrinting(o.tenant.settings).autoReceipt) await enqueueOrderPrints(orderId, ["RECEIPT"]);
+  } catch (err) {
+    console.error("[printTablePayment]", err instanceof Error ? err.message : err);
   }
 }
 

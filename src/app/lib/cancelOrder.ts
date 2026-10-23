@@ -13,8 +13,8 @@ import { issueInvoiceSafe } from "@/app/lib/verifactu";
 
 // Estados desde los que el restaurante puede cancelar. En «Listos» (el cliente
 // no ha venido a recoger) la comida ya está hecha: no se devuelve el stock.
-export const CANCELLABLE = ["CREATED", "ACCEPTED", "PREPARING", "READY"] as const;
-const STOCK_RETURNABLE = ["CREATED", "ACCEPTED", "PREPARING"] as const;
+export const CANCELLABLE = ["OPEN", "CREATED", "ACCEPTED", "PREPARING", "READY"] as const; // OPEN: cuenta de una mesa (Mesas)
+const STOCK_RETURNABLE = ["OPEN", "CREATED", "ACCEPTED", "PREPARING"] as const;
 
 // Margen para un pedido programado: el cliente puede cancelarlo hasta una hora
 // antes de la hora elegida aunque el restaurante ya lo haya aceptado.

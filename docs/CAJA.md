@@ -41,7 +41,7 @@ Las promociones automáticas y los cupones se aplican igual que en la tienda. No
 | 3. Apertura y cierre de caja (arqueo) | ✅ 2026-10-23 |
 | 4. VeriFactu (facturas simplificadas, huella encadenada, QR, envío a Hacienda). Obligatorio desde 2027 | ✅ 2026-10-23 emisión, cadena, QR y registro (ver `docs/VERIFACTU.md`); falta el envío a la AEAT, que necesita el certificado del restaurante |
 
-Fuera de alcance (sería un TPV completo): mesas y sala, varios terminales, modo sin internet.
+Mesas y sala: ver `docs/MESAS.md`. Fuera de alcance todavía: varios terminales sincronizados sin internet (modo sin conexión).
 
 ## Técnica
 

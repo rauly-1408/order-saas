@@ -16,7 +16,7 @@ export type HoyOrder = {
   id: string;
   orderNumber: number | null;
   customerName: string;
-  source: "ONLINE" | "COUNTER" | "PHONE";
+  source: "ONLINE" | "COUNTER" | "PHONE" | "TABLE";
   channel: "TAKEAWAY" | "DELIVERY";
   dineIn: boolean;
   paymentMethod: HoyPayment;
