@@ -238,12 +238,13 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                   </>
                 )}
               </div>
+              {/* Móvil y tablet: filas que se tocan. Ordenador: rejilla de tarjetas por categoría. */}
               {g.products.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-[var(--p-line)] px-4 py-6 text-center text-sm text-[var(--p-muted)]">{q ? "No hay productos con ese nombre." : "Todavía no hay productos en esta categoría."}</p>
               ) : (
-                <ul className="overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                <ul className="overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible lg:rounded-none lg:bg-transparent lg:shadow-none xl:grid-cols-4">
                   {g.products.map((p, i) => (
-                    <li key={p.id} className={i ? "border-t border-[var(--p-line)]" : ""}>
+                    <li key={p.id} className={`lg:overflow-hidden lg:rounded-2xl lg:border-0 lg:bg-[var(--p-surface)] lg:shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${i ? "border-t border-[var(--p-line)]" : ""}`}>
                       <div
                         role="button"
                         tabIndex={0}
@@ -254,18 +255,18 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                             openEdit(p, p._cat.id);
                           }
                         }}
-                        className={`flex cursor-pointer items-center gap-3 px-3 py-3 transition-colors hover:bg-black/[0.025] sm:px-4 ${p.isActive ? "" : "opacity-60"}`}
+                        className={`p-lift flex cursor-pointer items-center gap-3 px-3 py-3 transition-colors hover:bg-black/[0.025] sm:px-4 lg:h-full lg:flex-col lg:items-stretch lg:gap-0 lg:p-0 ${p.isActive ? "" : "opacity-60"}`}
                         aria-label={`Editar ${p.name}`}
                       >
                         {p.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                          <img src={p.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover lg:h-28 lg:w-full lg:rounded-none" />
                         ) : (
-                          <div aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--p-brand-soft)] text-lg font-semibold text-[var(--p-brand)]">
+                          <div aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--p-brand-soft)] text-lg font-semibold text-[var(--p-brand)] lg:h-28 lg:w-full lg:rounded-none lg:text-3xl">
                             {p.name.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 lg:px-3 lg:pt-2.5">
                           <p className="flex items-center gap-1.5 truncate text-[15px] font-medium">
                             <span className="truncate">{p.name}</span>
                             {p.isFeatured && <span className="shrink-0 text-xs text-amber-600" title="Destacado">★</span>}
@@ -279,7 +280,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                           </p>
                         </div>
                         {/* Acciones rápidas: no abren la edición */}
-                        <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex shrink-0 items-center gap-3 lg:mt-2 lg:justify-between lg:border-t lg:border-[var(--p-line)] lg:px-3 lg:py-2" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
                             disabled={busy === p.id}
@@ -293,7 +294,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                             <Switch checked={p.isActive} onChange={(v) => quick(p, { isActive: v })} label={`${p.name}: ${p.isActive ? "se ve en la tienda" : "oculto en la tienda"}`} />
                             <span className="text-[10px] text-[var(--p-muted)]">En carta</span>
                           </div>
-                          <span aria-hidden className="text-lg text-[var(--p-faint)]">›</span>
+                          <span aria-hidden className="text-lg text-[var(--p-faint)] lg:hidden">›</span>
                         </div>
                       </div>
                     </li>
