@@ -127,3 +127,9 @@ Ventaja de venta: **Tavola cobra 75 €/mes por conectarse al TPV**; nosotros ya
 - **Alérgenos en la carta del cliente**: unión de los alérgenos de los ingredientes del escandallo, por plato y por opción. Solo aparecen si hay escandallo.
 - Un proveedor con pedidos no se puede borrar (es historial de compras).
 
+
+## 📝 Pantalla (revisión 2026-10-24)
+
+- **Primeros pasos**: arriba de Costes, una guía con el orden recomendado (proveedores → ingredientes con precio → escandallos → control de stock). Cada paso lleva a su pestaña, el siguiente pendiente va resaltado y la guía desaparece cuando están los cuatro.
+- **Inventario vacío**: botón «Ir a ingredientes», igual que en Escandallos.
+- **Proveedores e Ingredientes**: cada fila se toca para editarla (como la Carta). Mientras se edita se oculta la lista y la pantalla va al formulario. «Borrar» está dentro de la edición.

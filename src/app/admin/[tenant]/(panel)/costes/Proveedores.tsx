@@ -54,6 +54,7 @@ export default function Proveedores({ data, api, onSaved }: { data: Overview; ap
   const ingredientCount = (id: string) => data.ingredients.filter((i) => i.supplierId === id).length;
 
   function edit(s: Supplier) {
+    requestAnimationFrame(() => document.getElementById("costes-form")?.scrollIntoView({ block: "start" }));
     setError("");
     setForm({
       id: s.id,
@@ -101,7 +102,10 @@ export default function Proveedores({ data, api, onSaved }: { data: Overview; ap
   async function remove(s: Supplier) {
     if (!window.confirm(`¿Borrar "${s.name}"? Sus ingredientes se quedarán sin proveedor.`)) return;
     const res = await fetch(`${api}/suppliers/${s.id}`, { method: "DELETE" });
-    if (res.ok) await onSaved();
+    if (res.ok) {
+      await onSaved();
+      setForm(null);
+    } else setError("No se pudo borrar");
   }
 
   const schedule = form ? { deliveryDays: form.deliveryDays, leadDays: Number(form.leadDays) || 0, orderCutoff: form.orderCutoff || null } : null;
@@ -116,7 +120,7 @@ export default function Proveedores({ data, api, onSaved }: { data: Overview; ap
       )}
 
       {form && (
-        <div className="rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_12px_32px_-14px_rgba(0,0,0,0.22)] sm:p-6">
+        <div id="costes-form" className="scroll-mt-4 rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_12px_32px_-14px_rgba(0,0,0,0.22)] sm:p-6">
           <h3 className="mb-5 text-[17px] font-semibold">{form.id ? "Editar proveedor" : "Nuevo proveedor"}</h3>
 
           <p className={section}>Datos</p>
@@ -241,16 +245,27 @@ export default function Proveedores({ data, api, onSaved }: { data: Overview; ap
           <textarea className={`${input} min-h-20`} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Condiciones de pago, forma de entrega…" />
 
           {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-          <div className="mt-5 flex gap-2">
+          <div className="mt-5 flex flex-wrap gap-2">
             <button onClick={save} disabled={saving} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
               {saving ? "Guardando…" : "Guardar"}
             </button>
             <button onClick={() => setForm(null)} className="rounded-full px-4 py-2 text-sm text-[var(--p-muted)] hover:bg-black/[0.04]">Cancelar</button>
+            {form.id && (
+              <button
+                onClick={() => {
+                  const it = data.suppliers.find((x) => x.id === form.id);
+                  if (it) remove(it);
+                }}
+                className="ml-auto whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+              >
+                Borrar proveedor
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {data.suppliers.length === 0 ? (
+      {form ? null : data.suppliers.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center text-sm text-[var(--p-muted)]">
           Añade a quién le compras para tener sus datos a mano y hacerle pedidos desde Compras.
         </p>
@@ -260,7 +275,20 @@ export default function Proveedores({ data, api, onSaved }: { data: Overview; ap
             const summary = deliverySummary(s);
             const next = nextDeliveryText(s);
             return (
-              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+              <li key={s.id}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => edit(s)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      edit(s);
+                    }
+                  }}
+                  aria-label={`Editar ${s.name}`}
+                  className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-black/[0.025]"
+                >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold">{s.name}</span>
@@ -275,9 +303,7 @@ export default function Proveedores({ data, api, onSaved }: { data: Overview; ap
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => edit(s)} className="text-sm font-semibold text-[var(--p-brand)]">Editar</button>
-                  <button onClick={() => remove(s)} className="text-sm text-red-500">Borrar</button>
+                <span aria-hidden className="shrink-0 text-lg text-[var(--p-faint)]">›</span>
                 </div>
               </li>
             );

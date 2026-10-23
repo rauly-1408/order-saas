@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { unitCostCents } from "@/app/lib/costs";
 import { UNIT_LABEL, euros, formatQty, type Ingredient, type MovementType, type Overview } from "./types";
 
-type Props = { data: Overview; api: string; onSaved: () => Promise<void> };
+type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToIngredients: () => void };
 type Action = { ingredient: Ingredient; type: "RECEIPT" | "COUNT" | "WASTE" | "MIN" };
 
 const MOVE_LABEL: Record<MovementType, string> = {
@@ -29,7 +29,7 @@ function status(i: Ingredient): { label: string; cls: string; rank: number } {
   return { label: "OK", cls: "bg-emerald-50 text-emerald-700", rank: 2 };
 }
 
-export default function Inventario({ data, api, onSaved }: Props) {
+export default function Inventario({ data, api, onSaved, onGoToIngredients }: Props) {
   const [action, setAction] = useState<Action | null>(null);
   const ingredientsById = useMemo(() => new Map(data.ingredients.map((i) => [i.id, i])), [data.ingredients]);
 
@@ -70,9 +70,13 @@ export default function Inventario({ data, api, onSaved }: Props) {
       )}
 
       {data.ingredients.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center text-sm text-[var(--p-muted)]">
-          Crea primero tus ingredientes en la pestaña Ingredientes.
-        </p>
+        <div className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center">
+          <p className="font-semibold">Primero crea tus ingredientes</p>
+          <p className="mt-1 text-sm text-[var(--p-muted)]">El stock se lleva por ingrediente y se descuenta solo con cada venta.</p>
+          <button onClick={onGoToIngredients} className="mt-4 p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
+            Ir a ingredientes
+          </button>
+        </div>
       ) : (
         <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <h2 className="px-5 pt-4 pb-1 text-[17px] font-semibold">Stock por ingrediente</h2>

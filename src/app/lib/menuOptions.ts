@@ -28,9 +28,10 @@ export type OrderLineModifier = {
   priceDeltaCents: number;
 };
 
-// Texto corto para cocina / resumen del cliente.
-export function formatModifier(m: Pick<OrderLineModifier, "groupCode" | "option">): string {
-  if (m.groupCode === "BREAD") return `Pan ${m.option.charAt(0).toLowerCase()}${m.option.slice(1)}`;
+// Texto corto para cocina / resumen del cliente. En inglés el pan va detrás
+// («Traditional bread»), no «Pan traditional».
+export function formatModifier(m: Pick<OrderLineModifier, "groupCode" | "option">, lang: "es" | "en" = "es"): string {
+  if (m.groupCode === "BREAD") return lang === "en" ? `${m.option} bread` : `Pan ${m.option.charAt(0).toLowerCase()}${m.option.slice(1)}`;
   if (m.groupCode === "SIDE") return m.option;
   if (m.groupCode === "COMBO") return m.option; // plato elegido dentro de un combo
   return `+ ${m.option}`;
@@ -38,17 +39,17 @@ export function formatModifier(m: Pick<OrderLineModifier, "groupCode" | "option"
 
 // Extrae las etiquetas de un snapshot JSON. Acepta el formato actual
 // (OrderLineModifier[]) y el antiguo ({ bread, side, sidePriceCents }).
-export function modifierLabels(modifiers: unknown): string[] {
+export function modifierLabels(modifiers: unknown, lang: "es" | "en" = "es"): string[] {
   const list = Array.isArray(modifiers) ? modifiers : modifiers ? [modifiers] : [];
   const labels: string[] = [];
   for (const entry of list) {
     if (!entry || typeof entry !== "object") continue;
     const e = entry as Record<string, unknown>;
     if (typeof e.option === "string" && typeof e.groupCode === "string") {
-      labels.push(formatModifier({ groupCode: e.groupCode, option: e.option }));
+      labels.push(formatModifier({ groupCode: e.groupCode, option: e.option }, lang));
       continue;
     }
-    if (typeof e.bread === "string" && e.bread.trim()) labels.push(formatModifier({ groupCode: "BREAD", option: e.bread.trim() }));
+    if (typeof e.bread === "string" && e.bread.trim()) labels.push(formatModifier({ groupCode: "BREAD", option: e.bread.trim() }, lang));
     if (typeof e.side === "string" && e.side.trim()) labels.push(e.side.trim());
   }
   return labels;

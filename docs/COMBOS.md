@@ -10,7 +10,7 @@ Panel → **Carta → Combos y menús**. Solo gerentes. Incluido en el producto 
 - **Pasos opcionales**: en el editor, cada paso tiene la casilla «Opcional». El cliente puede no elegir nada en ese paso; ve «Opcional» y una primera opción «No, gracias», y la tarjeta del menú lo marca «(opcional)». Al menos un paso tiene que ser obligatorio. Ejemplo: Estafetén tiene «4. Complementos (opcional)» en el Menú mollete, con los 12 entrantes y su precio como suplemento.
 - Los combos se crean en la categoría **«Menús»**, que aparece la primera de la carta (se crea sola con el primer combo).
 - Solo se ofrecen los productos disponibles en ese momento: un producto agotado desaparece del paso sin tocar el combo.
-- «Agotar» quita el combo de la carta sin borrarlo.
+- En Carta → Combos y menús cada menú es una tarjeta como las de Productos: se toca para editarlo y el interruptor «En carta» lo quita de la tienda sin borrarlo. «Borrar menú» está dentro de la edición, para no borrarlo sin querer.
 
 - **Foto del menú**: en Carta → editar el menú → «Imagen». En la tienda se ve arriba de la tarjeta del menú, igual que en los productos.
 - **Categorías**: en Carta → Productos, debajo de la lista, cada categoría tiene un lápiz ✎ para cambiarle el nombre (`PATCH /api/admin/[tenant]/categories/[id]`). Así «Entrantes y complementos» puede llamarse «Complementos».

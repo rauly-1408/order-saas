@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cleanText } from "../text";
+import { formatModifier } from "../menuOptions";
 import { Escpos } from "../escpos";
 import { isPrinterAddress } from "../printing";
 
@@ -31,5 +32,11 @@ describe("Seguridad · impresoras solo en la red del local", () => {
     expect(isPrinterAddress("192.168.1.31", 80)).toBe(false);
     expect(isPrinterAddress("192.168.1.31", 6379)).toBe(false);
     expect(isPrinterAddress("192.168.1.300", 9100)).toBe(false);
+  });
+});
+describe("Opciones · pan en inglés", () => {
+  it("pone «bread» detrás en inglés y «Pan» delante en español", () => {
+    expect(formatModifier({ groupCode: "BREAD", option: "Traditional" }, "en")).toBe("Traditional bread");
+    expect(formatModifier({ groupCode: "BREAD", option: "Tradicional" })).toBe("Pan tradicional");
   });
 });
