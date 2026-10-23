@@ -15,7 +15,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
       CREATED:    ["PREPARING", "ACCEPTED", "CANCELLED"],
       ACCEPTED:   ["PREPARING", "CANCELLED"],
       PREPARING:  ["READY", "CANCELLED"],
-      READY:      ["DELIVERING", "DELIVERED"],
+      READY:      ["DELIVERING", "DELIVERED", "CANCELLED"], // cancelar en Listos: el cliente no ha venido a recoger
       DELIVERING: ["DELIVERED"],
       DELIVERED:  [],
       CANCELLED:  [],
@@ -55,6 +55,8 @@ export async function PATCH(req: NextRequest) {
         // Solo apuntar el cobro (sin cambiar de estado).
         if (typeof newStatus !== "string") {
           if (order.status === "CANCELLED") return NextResponse.json({ error: "El pedido está cancelado" }, { status: 400 });
+          // Un pago online sin confirmar no se puede apuntar como cobrado en persona.
+          if (order.status === "AWAITING_PAYMENT") return NextResponse.json({ error: "Este pedido está pendiente de pago online" }, { status: 400 });
           if (order.paymentStatus === "PAID") return NextResponse.json({ error: "El pedido ya está cobrado" }, { status: 400 });
           const u = await prisma.order.update({ where: { id: orderId }, data: { paymentStatus: "PAID", paymentMethod: paidWith as PaymentMethod, paidAt: new Date() } });
           after(() => issueInvoiceSafe(u.id));

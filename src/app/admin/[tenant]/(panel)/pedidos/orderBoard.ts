@@ -97,8 +97,9 @@ export function dropTarget(order: Order): DropKey | null {
   return COLUMNS.find((c) => c.statuses.includes(next.status))?.key ?? null;
 }
 
+// También en «Listos»: cliente que no viene a recoger (sin devolver el stock).
 export function canCancel(order: Order): boolean {
-  return ["CREATED", "ACCEPTED", "PREPARING"].includes(order.status);
+  return ["CREATED", "ACCEPTED", "PREPARING", "READY"].includes(order.status);
 }
 
 export type TimerTone = "ok" | "warn" | "late";

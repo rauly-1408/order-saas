@@ -11,8 +11,10 @@ import { refundOrder } from "@/app/lib/gateways";
 import { restoreGiftCard } from "@/app/lib/giftCards";
 import { issueInvoiceSafe } from "@/app/lib/verifactu";
 
-// Estados desde los que se puede cancelar (el panel ya no cancela un pedido listo).
-export const CANCELLABLE = ["CREATED", "ACCEPTED", "PREPARING"] as const;
+// Estados desde los que el restaurante puede cancelar. En «Listos» (el cliente
+// no ha venido a recoger) la comida ya está hecha: no se devuelve el stock.
+export const CANCELLABLE = ["CREATED", "ACCEPTED", "PREPARING", "READY"] as const;
+const STOCK_RETURNABLE = ["CREATED", "ACCEPTED", "PREPARING"] as const;
 
 // Margen para un pedido programado: el cliente puede cancelarlo hasta una hora
 // antes de la hora elegida aunque el restaurante ya lo haya aceptado.
@@ -31,7 +33,7 @@ export const CANCEL_REASON_LABEL: Record<CancelReason, string> = {
 export function customerCanCancel(order: Pick<Order, "status" | "scheduledFor">, now = new Date()): boolean {
   if (order.status === "CREATED") return true;
   if (!order.scheduledFor) return false;
-  if (!(CANCELLABLE as readonly string[]).includes(order.status)) return false;
+  if (!(STOCK_RETURNABLE as readonly string[]).includes(order.status)) return false; // en Listos ya no
   return order.scheduledFor.getTime() - now.getTime() >= SCHEDULED_CANCEL_MARGIN_MS;
 }
 
@@ -43,10 +45,13 @@ export async function cancelOrder(orderId: string, by: CancelledBy, reason: Canc
     const order = await tx.order.findUnique({ where: { id: orderId } });
     if (!order) throw new Error("Pedido no encontrado");
     if (!(CANCELLABLE as readonly string[]).includes(order.status)) throw new Error(`Transicion invalida: ${order.status} -> CANCELLED`);
-    const u = await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED", cancelledBy: by, cancelReason: reason } });
-    await returnOrderStock(tx, order.tenantId, orderId);
+    // Cambio condicionado al estado leído: dos cancelaciones a la vez (panel y
+    // cliente, o dos toques) no pueden devolver dos veces el stock ni la tarjeta regalo.
+    const r = await tx.order.updateMany({ where: { id: orderId, status: order.status }, data: { status: "CANCELLED", cancelledBy: by, cancelReason: reason } });
+    if (r.count === 0) throw new Error("Transicion invalida: el pedido acaba de cambiar de estado");
+    if ((STOCK_RETURNABLE as readonly string[]).includes(order.status)) await returnOrderStock(tx, order.tenantId, orderId);
     await restoreGiftCard(tx, order); // el saldo vuelve a la tarjeta regalo
-    return u;
+    return { ...order, status: "CANCELLED" as const, cancelledBy: by, cancelReason: reason };
   });
   const courier = await cancelCourier(orderId); // viaje del repartidor externo, si lo había
   const refundError = await refundOrder(orderId); // pagado online: se devuelve por la pasarela
