@@ -32,3 +32,4 @@ Fuera de alcance (sería un TPV completo): mesas y sala, varios terminales, modo
 - `POST /api/admin/[tenant]/caja`: sesión del restaurante (cualquier rol), local de la sesión o el primero activo. No comprueba el horario (el mostrador siempre puede) ni exige teléfono. Pagos `CASH`/`CARD_TERMINAL`/`BIZUM` quedan `PAID` al crearse; `IN_STORE` queda sin cobrar.
 - Pantalla `caja/CajaClient.tsx`: lee la carta de `/api/menu/[tenant]` y reutiliza `ProductOptionsSheet` y `ComboSheet` de la tienda (las variables de color de la tienda se mapean a las del panel).
 - El tablero de Pedidos muestra `source`, `dineIn` y la forma de pago.
+- Cancelar un pedido cobrado en caja (sin pasarela) lo marca como devuelto y avisa «Devuelve el efectivo al cliente en caja» (o por datáfono/Bizum); no se llama a ninguna pasarela.
