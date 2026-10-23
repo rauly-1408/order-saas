@@ -8,6 +8,7 @@ import { modifierLabels, type MenuModifierGroup, type OrderLineModifier } from "
 import { comboChoicesKey, type ChoiceProduct, type ComboChoice, type ComboSlotDef } from "@/app/lib/combos";
 import type { HoyPayment, HoyResponse } from "@/app/api/admin/[tenant]/caja/hoy/route";
 import CashSessionSheet, { type CashState } from "./CashSessionSheet";
+import { STORE_VARS } from "../storeVars";
 
 // Caja: tomar un pedido en el mostrador o por teléfono, cobrarlo y mandarlo a
 // cocina. Tres pantallas en el ticket: pedido → cobro → confirmación, como en
@@ -30,7 +31,7 @@ const parseEuros = (v: string) => Math.round(Number(v.replace(",", ".")) * 100);
 const MODE_LABEL: Record<Mode, string> = { TAKEAWAY: "Para llevar", DINE_IN: "Comer aquí", DELIVERY: "A domicilio" };
 const PAYMENT_LABEL: Record<Payment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", IN_STORE: "Pagar al recoger" };
 const HOY_PAYMENT_LABEL: Record<HoyPayment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
-const STATUS_LABEL: Record<string, string> = { CREATED: "Nuevo", PAID: "Nuevo", SENT_TO_POS: "Nuevo", ACCEPTED: "Preparando", PREPARING: "Preparando", READY: "Listo", DELIVERING: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
+const STATUS_LABEL: Record<string, string> = { OPEN: "Mesa abierta", CREATED: "Nuevo", PAID: "Nuevo", SENT_TO_POS: "Nuevo", ACCEPTED: "Preparando", PREPARING: "Preparando", READY: "Listo", DELIVERING: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
 const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
 // Importes rápidos para el efectivo: el justo y los billetes que lo cubren.
@@ -43,23 +44,6 @@ function quickAmounts(totalCents: number): number[] {
   return [...out].sort((a, b) => a - b).slice(0, 5);
 }
 
-// Las hojas de la tienda usan sus propias variables de color: aquí se mapean a las del panel.
-const STORE_VARS = {
-  "--bg-base": "var(--p-bg)",
-  "--surface-0": "var(--p-bg)",
-  "--surface-1": "var(--p-surface)",
-  "--border": "var(--p-line)",
-  "--text-primary": "var(--p-ink)",
-  "--text-secondary": "var(--p-muted)",
-  "--brand-accent": "var(--p-brand)",
-  "--on-accent": "#ffffff",
-  "--brand-secondary": "var(--p-accent)",
-  "--on-secondary": "#ffffff",
-  "--font-body": "inherit",
-  "--font-heading": "inherit",
-  "--heading-case": "none",
-  "--border-radius": "14px",
-} as React.CSSProperties;
 
 // canSeeTakings: permiso «Ve lo recaudado» (Configuración → Usuarios). Sin él no
 // se carga ni se muestra nada de lo recaudado; con él, el ojo lo tapa a la vista.

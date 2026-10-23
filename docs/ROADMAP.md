@@ -25,6 +25,8 @@ Panel admin: ✅ Login + sesión por tenant; barra lateral (Inicio, Pedidos, Inf
              Carta, Costes, Personalización, Configuración); kanban de pedidos con sonido; usable en móvil
 Informes: ✅ Ventas vs periodo anterior, lo más vendido, horas punta, canal, cupones y CSV para Excel
 Pagos: ✅ Pasarela de cada restaurante (Redsys/Bizum, Stripe) + pago en el local — ver PAGOS.md
+Caja y sala: ✅ Caja (mostrador y teléfono), cierre de caja, impresión ESC/POS, VeriFactu y Mesas
+             (plano por zonas, rondas a cocina, cuenta dividida) — ver CAJA.md y MESAS.md
 CRM / retención: ✅ Clientes, segmentos, cupones, campañas WhatsApp manuales con texto IA, atribución,
              promociones automáticas y tarjeta de fidelidad — Business API pendiente
 Base de datos: ✅ Migraciones Prisma con baseline (0_init); nunca `db push` contra Neon

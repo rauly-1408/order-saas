@@ -52,6 +52,9 @@ export async function PATCH(req: NextRequest) {
           return NextResponse.json({ error: "Este pedido es de otro local" }, { status: 403 });
         }
 
+        // Una mesa abierta se cobra, se mueve o se cierra desde Mesas.
+        if (order.status === "OPEN") return NextResponse.json({ error: "Esta cuenta es de una mesa: se gestiona desde Mesas" }, { status: 400 });
+
         // Solo apuntar el cobro (sin cambiar de estado).
         if (typeof newStatus !== "string") {
           if (order.status === "CANCELLED") return NextResponse.json({ error: "El pedido está cancelado" }, { status: 400 });
