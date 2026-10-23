@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { readPrinting } from "@/app/lib/printing";
+import { rateLimit } from "@/app/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ async function tenantByToken(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const limited = await rateLimit(req, "print-agent", 120, 60); // el agente pregunta cada 2 s
+  if (limited) return limited;
   try {
     const tenant = await tenantByToken(req);
     if (!tenant) return NextResponse.json({ error: "Token no válido" }, { status: 401 });
@@ -25,9 +28,10 @@ export async function GET(req: NextRequest) {
     const cfg = readPrinting(tenant.settings);
     const seen = cfg.agentSeenAt ? Date.parse(cfg.agentSeenAt) : 0;
     if (Date.now() - seen > 60_000) {
-      const settings = tenant.settings as Record<string, unknown>;
-      const printing = { ...((settings.printing as Record<string, unknown>) ?? {}), agentSeenAt: new Date().toISOString() };
-      await prisma.tenant.update({ where: { id: tenant.id }, data: { settings: { ...settings, printing } as object } });
+      // Solo esa clave: reescribir toda la configuración podría deshacer un
+      // cambio que el gerente guarde a la vez (p. ej. un token nuevo).
+      const iso = new Date().toISOString();
+      await prisma.$executeRaw`UPDATE "Tenant" SET settings = jsonb_set(settings::jsonb, '{printing,agentSeenAt}', to_jsonb(${iso}::text)) WHERE id = ${tenant.id} AND settings::jsonb ? 'printing'`;
     }
 
     // No imprimir lo que ya no sirve: pedidos cancelados o trabajos de hace más
@@ -40,8 +44,11 @@ export async function GET(req: NextRequest) {
       if (dead.length) await prisma.printJob.updateMany({ where: { tenantId: tenant.id, status: "PENDING", orderId: { in: dead.map((o) => o.id) } }, data: { status: "FAILED", error: "Pedido cancelado" } });
     }
 
+    // Con varios locales, cada agente pide solo los de las impresoras de su local (--store).
+    const store = new URL(req.url).searchParams.get("store");
+    const printerIds = store ? cfg.printers.filter((p) => !p.storeId || p.storeId === store).map((p) => p.id) : null;
     const jobs = await prisma.printJob.findMany({
-      where: { tenantId: tenant.id, status: "PENDING", attempts: { lt: 5 } },
+      where: { tenantId: tenant.id, status: "PENDING", attempts: { lt: 5 }, ...(printerIds && { printerId: { in: printerIds } }) },
       orderBy: { createdAt: "asc" },
       take: 20,
       select: { id: true, kind: true, host: true, port: true, data: true, attempts: true },
@@ -57,6 +64,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/print/jobs { id, ok, error? } → el agente confirma impreso o fallo.
 export async function POST(req: NextRequest) {
+  const limited = await rateLimit(req, "print-agent-ack", 240, 60);
+  if (limited) return limited;
   try {
     const tenant = await tenantByToken(req);
     if (!tenant) return NextResponse.json({ error: "Token no válido" }, { status: 401 });

@@ -21,6 +21,7 @@ export type Printer = {
   codepage: Codepage;
   drawer: boolean; // abre el cajón al cobrar en efectivo
   copies: number; // copias de la comanda (1–3)
+  storeId: string | null; // local donde está (null = imprime los pedidos de todos)
 };
 export type PrintingSettings = {
   agentToken: string | null;
@@ -30,7 +31,15 @@ export type PrintingSettings = {
   printers: Printer[];
 };
 
-const HOST = /^(\d{1,3}\.){3}\d{1,3}$|^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+// Solo impresoras de la red del local: IPv4 privada y puertos de impresión en
+// crudo (9100–9109). Así el agente no se puede usar para conectar con otra cosa.
+export function isPrinterAddress(host: string, port: number): boolean {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!m || m.slice(1).some((x) => Number(x) > 255)) return false;
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  const privateNet = a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+  return privateNet && Number.isInteger(port) && port >= 9100 && port <= 9109;
+}
 
 export function readPrinting(settings: unknown): PrintingSettings {
   const p = ((settings ?? {}) as Record<string, unknown>).printing as Record<string, unknown> | undefined;
@@ -47,10 +56,10 @@ export function readPrinting(settings: unknown): PrintingSettings {
 export function parsePrinter(raw: unknown): Printer | null {
   const r = (raw ?? {}) as Record<string, unknown>;
   const host = typeof r.host === "string" ? r.host.trim() : "";
-  if (!HOST.test(host)) return null;
+  const port = r.port === undefined || r.port === null || r.port === "" ? 9100 : Number(r.port);
+  if (!isPrinterAddress(host, port)) return null;
   const roles = (Array.isArray(r.roles) ? r.roles : []).filter((x): x is PrinterRole => x === "kitchen" || x === "receipt");
   const width = r.width === 42 || r.width === 32 ? r.width : 48;
-  const port = Number.isInteger(r.port) && (r.port as number) > 0 && (r.port as number) < 65536 ? (r.port as number) : 9100;
   const copies = Number.isInteger(r.copies) ? Math.min(Math.max(r.copies as number, 1), 3) : 1;
   return {
     id: typeof r.id === "string" && /^[a-z0-9_-]{1,40}$/i.test(r.id) ? r.id : randomBytes(4).toString("hex"),
@@ -62,6 +71,7 @@ export function parsePrinter(raw: unknown): Printer | null {
     codepage: r.codepage === "ascii" ? "ascii" : "cp858",
     drawer: r.drawer === true,
     copies,
+    storeId: typeof r.storeId === "string" && /^[a-z0-9]{10,40}$/i.test(r.storeId) ? r.storeId : null,
   };
 }
 
@@ -102,7 +112,7 @@ export function renderKitchen(o: OrderForPrint, p: Printer): Uint8Array {
 }
 
 // Ticket para el cliente: con precios, IVA incluido y datos del negocio.
-export function renderReceipt(o: OrderForPrint, p: Printer): Uint8Array {
+export function renderReceipt(o: OrderForPrint, p: Printer, opts: { drawer?: boolean } = {}): Uint8Array {
   const tz = tenantTimeZone(o.tenant.settings);
   const biz = readBusiness(o.tenant.settings);
   const tax = readTax(o.tenant.settings);
@@ -169,7 +179,8 @@ export function renderReceipt(o: OrderForPrint, p: Printer): Uint8Array {
   t.align("center").line("¡Gracias por tu pedido!");
   const origin = process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
   if (origin) t.line(`Pide online: ${origin.replace(/^https?:\/\//, "")}/pedir/${o.tenant.slug}`);
-  if (p.drawer && o.paymentMethod === "CASH" && o.paymentStatus === "PAID") t.drawer();
+  // El cajón solo se abre al cobrar, nunca al reimprimir un ticket.
+  if (opts.drawer !== false && p.drawer && o.paymentMethod === "CASH" && o.paymentStatus === "PAID") t.drawer();
   t.cut();
   return t.bytes();
 }
@@ -200,7 +211,7 @@ async function loadOrder(orderId: string): Promise<OrderForPrint | null> {
 }
 
 // Encola la comanda y/o el ticket de un pedido en las impresoras con ese uso.
-export async function enqueueOrderPrints(orderId: string, kinds: ("KITCHEN" | "RECEIPT")[]): Promise<number> {
+export async function enqueueOrderPrints(orderId: string, kinds: ("KITCHEN" | "RECEIPT")[], opts: { reprint?: boolean } = {}): Promise<number> {
   const o = await loadOrder(orderId);
   if (!o) return 0;
   const cfg = readPrinting(o.tenant.settings);
@@ -208,8 +219,9 @@ export async function enqueueOrderPrints(orderId: string, kinds: ("KITCHEN" | "R
   const jobs: Prisma.PrintJobCreateManyInput[] = [];
   for (const kind of kinds) {
     const role: PrinterRole = kind === "KITCHEN" ? "kitchen" : "receipt";
-    for (const p of cfg.printers.filter((x) => x.roles.includes(role))) {
-      const data = kind === "KITCHEN" ? renderKitchen(o, p) : renderReceipt(o, p);
+    // Cada pedido, a las impresoras de su local (o a las que no tienen local).
+    for (const p of cfg.printers.filter((x) => x.roles.includes(role) && (!x.storeId || x.storeId === o.storeId))) {
+      const data = kind === "KITCHEN" ? renderKitchen(o, p) : renderReceipt(o, p, { drawer: !opts.reprint });
       const copies = kind === "KITCHEN" ? p.copies : 1;
       for (let i = 0; i < copies; i++) jobs.push({ tenantId: o.tenantId, orderId: o.id, kind: kind as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(data) });
     }
@@ -292,7 +304,7 @@ export async function enqueueClosing(sessionId: string): Promise<number> {
   ]);
   if (!tenant) return 0;
   const cfg = readPrinting(tenant.settings);
-  const printers = cfg.agentToken ? cfg.printers.filter((x) => x.roles.includes("receipt")) : [];
+  const printers = cfg.agentToken ? cfg.printers.filter((x) => x.roles.includes("receipt") && (!x.storeId || x.storeId === s.storeId)) : [];
   if (!printers.length) return 0;
   const summary = s.summary as unknown as { orders: number; byPayment: Record<string, number>; totalCents: number; inCents: number; outCents: number };
   const data = {

@@ -3,6 +3,7 @@ import { prisma } from "@/app/lib/prisma";
 import { retentionTenant } from "@/app/lib/retentionApi";
 import { computeSegment, SEGMENTS, type Segment } from "@/app/lib/retention";
 import { aiConfigured } from "@/app/lib/aiCopy";
+import { getSessionFromRequest } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest) {
   if ("error" in ctx) return ctx.error;
   const tenantId = ctx.tenant.id;
   const now = new Date();
+  const sees = Boolean((await getSessionFromRequest(req))?.seesTakings); // «Ve lo recaudado»
 
   const [customers, coupons, campaigns, promotions, loyalty, categories, promoUses, loyaltyUses] = await Promise.all([
     prisma.customer.findMany({
@@ -73,7 +75,7 @@ export async function GET(req: NextRequest) {
     restaurant: ctx.tenant.name,
     aiEnabled: aiConfigured(),
     segments,
-    customers: rows,
+    customers: sees ? rows : rows.map((c) => ({ ...c, totalSpentCents: null })),
     coupons,
     promotions: promotions.map((p) => ({ ...p, ...(usesByPromo.get(p.id) ?? { uses: 0, discountCents: 0 }) })),
     loyalty: loyalty && { ...loyalty, rewardsGiven: loyaltyUses._count, rewardsCents: loyaltyUses._sum.loyaltyDiscountCents ?? 0 },
@@ -84,7 +86,7 @@ export async function GET(req: NextRequest) {
       recipients: sends.length,
       sent: sends.filter((s) => s.status === "SENT" || s.status === "CONVERTED").length,
       converted: sends.filter((s) => s.status === "CONVERTED").length,
-      revenueCents: sends.reduce((sum, s) => sum + (s.convertedOrderId ? orderTotal.get(s.convertedOrderId) ?? 0 : 0), 0),
+      revenueCents: sees ? sends.reduce((sum, s) => sum + (s.convertedOrderId ? orderTotal.get(s.convertedOrderId) ?? 0 : 0), 0) : null,
     })),
   });
 }

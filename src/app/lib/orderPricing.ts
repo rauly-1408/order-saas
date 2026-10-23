@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { cleanText } from "@/app/lib/text";
 import { prisma } from "@/app/lib/prisma";
 import { priceCombo, type ChoiceProduct, type ComboChoice } from "@/app/lib/combos";
 import { selectionToModifiers, validateSelection, type MenuModifierGroup } from "@/app/lib/menuOptions";
@@ -24,7 +25,7 @@ export const MAX_LINE_NOTE = 120;
 // Nota de la línea (cualquier canal) y descuento manual (solo si allowDiscount,
 // es decir, personal del restaurante en la Caja); nunca deja la línea en negativo.
 function withLineExtras(line: Prisma.OrderLineCreateWithoutOrderInput, item: OrderLineInput, opts: { allowDiscount?: boolean }): Prisma.OrderLineCreateWithoutOrderInput {
-  const note = typeof item.note === "string" && item.note.trim() ? item.note.trim().slice(0, MAX_LINE_NOTE) : null;
+  const note = cleanText(item.note, MAX_LINE_NOTE) || null;
   const total = line.totalCents ?? 0;
   const discountCents = opts.allowDiscount && Number.isInteger(item.discountCents) ? Math.min(Math.max(item.discountCents as number, 0), total) : 0;
   return { ...line, note, discountCents, totalCents: total - discountCents };

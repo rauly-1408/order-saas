@@ -18,7 +18,7 @@ Entrega 4 de la Caja (2026-10-23). Facturas simplificadas con numeración legal,
 - **Importe facturado**: lo que paga el cliente por la operación. La propina voluntaria no forma parte de la base; la tarjeta regalo es una forma de pago y se factura igual. Base y cuota con el tipo de Impuestos (10 % por defecto en hostelería).
 - **Huella**: SHA-256 en hexadecimal mayúsculas de `IDEmisorFactura=…&NumSerieFactura=…&FechaExpedicionFactura=dd-mm-aaaa&TipoFactura=…&CuotaTotal=…&ImporteTotal=…&Huella=<anterior>&FechaHoraHusoGenRegistro=aaaa-mm-ddThh:mm:ss+hh:mm`, con importes con punto y dos decimales. Comprobada con los ejemplos oficiales de la AEAT (pruebas en `lib/__tests__/verifactu.test.ts`).
 - **Encadenamiento**: cada registro guarda la huella del anterior del mismo emisor; la cadena se recalcula entera en «Cadena íntegra». Un bloqueo en la base de datos evita que dos cobros a la vez se encadenen sobre el mismo registro.
-- **Inalterable**: un disparador en la base de datos impide borrar registros y cambiar cualquier dato salvo el estado de envío a la AEAT.
+- **Inalterable**: un disparador en la base de datos impide borrar registros y cambiar cualquier dato salvo el estado de envío a la AEAT, y otro impide vaciar la tabla (`TRUNCATE`, migración `20261024100000_verifactu_truncate`). El CSV neutraliza las celdas que Excel tomaría por fórmulas.
 - **QR**: `https://www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQR?nif=…&numserie=…&fecha=dd-mm-aaaa&importe=…` (en Pruebas, `prewww2.aeat.es`), corrección de errores M.
 
 ## Lo que falta (necesita al restaurante o al fabricante)

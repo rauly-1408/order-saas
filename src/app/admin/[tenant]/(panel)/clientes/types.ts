@@ -6,7 +6,7 @@ export type CustomerRow = {
   phone: string;
   segment: Segment;
   ordersCount: number;
-  totalSpentCents: number;
+  totalSpentCents: number | null; // null sin «Ve lo recaudado»
   firstOrderAt: string | null;
   lastOrderAt: string | null;
   marketingConsent: boolean;
@@ -39,7 +39,7 @@ export type CampaignRow = {
   recipients: number;
   sent: number;
   converted: number;
-  revenueCents: number;
+  revenueCents: number | null; // null sin «Ve lo recaudado»
 };
 
 export type PromotionRow = {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { denyUnlessTenantAdmin } from "@/app/lib/auth";
+import { denyUnlessTenantAdmin, getSessionFromRequest } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +14,8 @@ export async function GET(req: NextRequest) {
   if (!tenant) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
   const denied = await denyUnlessTenantAdmin(req, tenant.id);
   if (denied) return denied;
+  const sees = Boolean((await getSessionFromRequest(req))?.seesTakings);
+  if (!sees) return NextResponse.json({ addons: tenant.addons, feePercent: tenant.platformFeeBps / 100, since: tenant.createdAt, months: [], hidden: true });
 
   const now = new Date();
   const months = await Promise.all(
@@ -21,7 +23,8 @@ export async function GET(req: NextRequest) {
       const from = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const to = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
       const agg = await prisma.order.aggregate({
-        where: { tenantId: tenant.id, paymentStatus: "PAID", paymentMethod: { not: "IN_STORE" }, paidAt: { gte: from, lt: to } },
+        // Solo pagos online por la pasarela: la Caja (efectivo, datáfono, Bizum en el local) no lleva comisión.
+        where: { tenantId: tenant.id, source: "ONLINE", paymentStatus: "PAID", paymentMethod: { in: ["CARD", "BIZUM"] }, paidAt: { gte: from, lt: to } },
         _count: true,
         _sum: { totalCents: true, applicationFeeCents: true },
       });

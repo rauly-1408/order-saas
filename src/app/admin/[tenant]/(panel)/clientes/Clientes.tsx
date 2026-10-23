@@ -148,7 +148,8 @@ export default function Clientes({
               <div className="flex flex-wrap items-center gap-2 pl-[52px] sm:pl-0">
                 <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${SEGMENT_STYLE[c.segment]}`}>{SEGMENT_LABEL[c.segment]}</span>
                 <span className="text-xs text-[var(--p-muted)] tabular-nums">
-                  {c.ordersCount} {c.ordersCount === 1 ? "pedido" : "pedidos"} · {euros(c.totalSpentCents)}
+                  {c.ordersCount} {c.ordersCount === 1 ? "pedido" : "pedidos"}
+                  {c.totalSpentCents != null && ` · ${euros(c.totalSpentCents)}`}
                 </span>
                 {c.marketingConsent ? (
                   <button

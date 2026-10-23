@@ -143,13 +143,13 @@ export default async function ConfirmacionPage({
           {isDelivery && order.customerAddress && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
               <span style={{ color: cssVars["--text-secondary"] }}>{T.addressLabel}</span>
-              <span style={{ fontWeight: 600, textAlign: "right", maxWidth: "60%" }}>{order.customerAddress}</span>
+              <span style={{ fontWeight: 600, textAlign: "right", maxWidth: "60%", overflowWrap: "anywhere" }}>{order.customerAddress}</span>
             </div>
           )}
           {order.notes && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
               <span style={{ color: cssVars["--text-secondary"] }}>{T.notesLabel}</span>
-              <span style={{ fontWeight: 600, textAlign: "right", maxWidth: "60%" }}>{order.notes}</span>
+              <span style={{ fontWeight: 600, textAlign: "right", maxWidth: "60%", overflowWrap: "anywhere" }}>{order.notes}</span>
             </div>
           )}
         </div>

@@ -63,7 +63,8 @@ const STORE_VARS = {
 
 // canSeeTakings: permiso «Ve lo recaudado» (Configuración → Usuarios). Sin él no
 // se carga ni se muestra nada de lo recaudado; con él, el ojo lo tapa a la vista.
-export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: string; canSeeTakings?: boolean }) {
+// canDiscount: los descuentos por línea solo los aplica un gerente.
+export default function CajaClient({ tenant, canSeeTakings = false, canDiscount = false }: { tenant: string; canSeeTakings?: boolean; canDiscount?: boolean }) {
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [error, setError] = useState("");
   const [cat, setCat] = useState("");
@@ -401,6 +402,8 @@ export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: 
                 <div className="mb-1 flex flex-col gap-2 rounded-xl bg-[var(--p-bg)] p-3">
                   <input value={l.note ?? ""} onChange={(e) => patchLine(l.key, { note: e.target.value.slice(0, 120) })} placeholder="Nota para cocina (sin cebolla, poco hecho…)" aria-label={`Nota de ${l.name}`} className="w-full rounded-lg px-3 py-2 text-sm" />
                   <div className="flex flex-wrap items-center gap-1.5">
+                    {canDiscount && (
+                      <>
                     <span className="text-xs text-[var(--p-muted)]">Descuento</span>
                     {[
                       [10, "−10 %"],
@@ -428,6 +431,8 @@ export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: 
                       className="w-20 rounded-lg px-2 py-1.5 text-right text-xs tabular-nums"
                     />
                     <span className="text-xs text-[var(--p-muted)]">€</span>
+                      </>
+                    )}
                     <button type="button" onClick={() => setQty(l.key, 0)} className="ml-auto rounded-full px-3 py-1.5 text-xs font-semibold text-[var(--p-accent)] hover:bg-black/[0.05]">
                       Quitar línea
                     </button>

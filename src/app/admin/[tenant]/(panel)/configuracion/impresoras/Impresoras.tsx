@@ -7,14 +7,14 @@ import { Card, Toggle, ghostBtn, input, primaryBtn, toast, useSaveBar } from "..
 // cada una, el agente que las conecta con la app y las últimas impresiones.
 // Ver docs/IMPRESION.md
 
-type Printer = { id: string; name: string; host: string; port: number; roles: ("kitchen" | "receipt")[]; width: 48 | 42 | 32; codepage: "cp858" | "ascii"; drawer: boolean; copies: number };
+type Printer = { id: string; name: string; host: string; port: number; roles: ("kitchen" | "receipt")[]; width: 48 | 42 | 32; codepage: "cp858" | "ascii"; drawer: boolean; copies: number; storeId: string | null };
 type Job = { id: string; kind: string; status: string; printerId: string; error: string | null; createdAt: string; printedAt: string | null; orderId: string | null };
-type Data = { agentToken: string | null; agentSeenAt: string | null; agentOnline: boolean; autoKitchen: boolean; autoReceipt: boolean; printers: Printer[]; pending: number; recent: Job[] };
+type Data = { stores?: { id: string; name: string }[]; agentToken: string | null; agentSeenAt: string | null; agentOnline: boolean; autoKitchen: boolean; autoReceipt: boolean; printers: Printer[]; pending: number; recent: Job[] };
 type Form = { printers: Printer[]; autoKitchen: boolean; autoReceipt: boolean };
 
 const KIND: Record<string, string> = { KITCHEN: "Comanda", RECEIPT: "Ticket", TEST: "Prueba", CLOSING: "Cierre de caja" };
 const STATUS: Record<string, string> = { PENDING: "Pendiente", PRINTED: "Impreso", FAILED: "Fallido" };
-const newPrinter = (): Printer => ({ id: Math.random().toString(36).slice(2, 10), name: "", host: "", port: 9100, roles: ["kitchen", "receipt"], width: 48, codepage: "cp858", drawer: false, copies: 1 });
+const newPrinter = (): Printer => ({ id: Math.random().toString(36).slice(2, 10), name: "", host: "", port: 9100, roles: ["kitchen", "receipt"], width: 48, codepage: "cp858", drawer: false, copies: 1, storeId: null });
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
 export default function Impresoras({ tenant }: { tenant: string }) {
@@ -153,6 +153,7 @@ export default function Impresoras({ tenant }: { tenant: string }) {
                   <label className="col-span-2 text-sm">
                     Dirección IP
                     <input value={p.host} onChange={(e) => patch(i, { host: e.target.value.trim() })} placeholder="192.168.1.31" inputMode="decimal" className={input} />
+                    <span className="mt-1 block text-xs text-[var(--p-muted)]">De tu red: 192.168.x.x, 10.x.x.x o 172.16–31.x.x</span>
                   </label>
                   <label className="text-sm">
                     Puerto
@@ -160,6 +161,20 @@ export default function Impresoras({ tenant }: { tenant: string }) {
                   </label>
                 </div>
               </div>
+              {(data.stores?.length ?? 0) > 1 && (
+                <label className="mt-3 block text-sm">
+                  Local
+                  <select value={p.storeId ?? ""} onChange={(e) => patch(i, { storeId: e.target.value || null })} className={input}>
+                    <option value="">Todos los locales</option>
+                    {data.stores!.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block text-xs text-[var(--p-muted)]">Imprime solo los pedidos de ese local. Con varios locales, cada uno necesita su agente con su local (ver instrucciones).</span>
+                </label>
+              )}
               <div className="mt-3 flex flex-wrap gap-2">
                 {(
                   [

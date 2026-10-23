@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { notifyNewOrder } from "@/app/lib/notifyOrder";
 import { printOnNewOrder, readPrinting } from "@/app/lib/printing";
 import { issueInvoiceSafe } from "@/app/lib/verifactu";
+import { cleanText } from "@/app/lib/text";
 import { rateLimit } from "@/app/lib/rateLimit";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
@@ -64,6 +65,12 @@ export async function POST(req: NextRequest) {
     const tenantSlug = segments[segments.length - 1];
 
     const body: OrderBody = await req.json();
+    // Texto del cliente: sin caracteres de control y con largo máximo (sale en
+    // la comanda impresa y en el panel). Ver lib/text.ts
+    body.customerName = cleanText(body.customerName, 80);
+    body.customerAddress = cleanText(body.customerAddress, 200) || undefined;
+    body.customerPostalCode = cleanText(body.customerPostalCode, 10) || undefined;
+    body.notes = cleanText(body.notes, 300) || undefined;
     const {
       customerName,
       customerPhone,
