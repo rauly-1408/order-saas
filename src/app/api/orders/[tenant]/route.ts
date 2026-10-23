@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyNewOrder } from "@/app/lib/notifyOrder";
 import { printOnNewOrder, readPrinting } from "@/app/lib/printing";
+import { issueInvoiceSafe } from "@/app/lib/verifactu";
 import { rateLimit } from "@/app/lib/rateLimit";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
@@ -304,7 +305,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Aviso por email al restaurante (si lo tiene activo), después de responder.
-    after(() => Promise.all([notifyNewOrder(order.id), printOnNewOrder(order.id)]));
+    after(() => Promise.all([notifyNewOrder(order.id), issueInvoiceSafe(order.id).then(() => printOnNewOrder(order.id))]));
     return withCustomerProof(
       NextResponse.json({
       orderId: order.id,

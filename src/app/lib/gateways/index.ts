@@ -8,6 +8,7 @@ import { after } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { notifyNewOrder } from "@/app/lib/notifyOrder";
 import { printOnNewOrder } from "@/app/lib/printing";
+import { issueInvoiceSafe } from "@/app/lib/verifactu";
 import { unseal } from "@/app/lib/secretBox";
 import { returnOrderStock } from "@/app/lib/inventory";
 import { platformFeeCents } from "@/app/lib/payments";
@@ -109,7 +110,7 @@ export async function finalizePayment(orderId: string, outcome: PaymentOutcome):
         },
       });
       // Ya pagado: ahora sí avisamos al restaurante (después de responder).
-      after(() => Promise.all([notifyNewOrder(paid.id), printOnNewOrder(paid.id)]));
+      after(() => Promise.all([notifyNewOrder(paid.id), issueInvoiceSafe(paid.id).then(() => printOnNewOrder(paid.id))]));
       return paid;
     }
     await undoUnpaidOrder(tx, order);

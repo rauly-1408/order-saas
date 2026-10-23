@@ -71,7 +71,7 @@ const euros = (c: number) => (c / 100).toFixed(2).replace(".", ",") + " €";
 const hhmm = (d: Date, tz: string) => new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(d);
 const dmy = (d: Date, tz: string) => new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: tz }).format(d);
 
-type OrderForPrint = Prisma.OrderGetPayload<{ include: { items: true; tenant: { select: { name: true; slug: true; settings: true } }; store: { select: { name: true; address: true; phone: true } } } }>;
+type OrderForPrint = Prisma.OrderGetPayload<{ include: { items: true; invoices: true; tenant: { select: { name: true; slug: true; settings: true } }; store: { select: { name: true; address: true; phone: true } } } }>;
 
 const PAYMENT_LABEL: Record<string, string> = { CASH: "efectivo", CARD_TERMINAL: "datáfono", BIZUM: "Bizum", CARD: "tarjeta online", IN_STORE: "al recoger" };
 const modeOf = (o: OrderForPrint) => (o.channel === "DELIVERY" ? "A DOMICILIO" : o.dineIn ? "COMER AQUÍ" : "PARA LLEVAR");
@@ -114,7 +114,14 @@ export function renderReceipt(o: OrderForPrint, p: Printer): Uint8Array {
   if (biz.taxId) t.line(`NIF ${biz.taxId}`);
   const phone = o.store.phone || biz.phone;
   if (phone) t.line(`Tel. ${phone}`);
+  // VeriFactu: con factura, el ticket es la factura simplificada.
+  const invoice = o.invoices.find((i) => i.invoiceType === "F2") ?? null;
   t.align("left").rule();
+  if (invoice) {
+    t.align("center").bold(true).line("FACTURA SIMPLIFICADA").bold(false).line(`Nº ${invoice.numSerie} · ${invoice.issueDate}`).align("left");
+    t.line(`Emisor: ${invoice.issuerName} · NIF ${invoice.issuerNif}`);
+    t.rule();
+  }
   t.bold(true).row(`Pedido nº ${o.orderNumber ?? "?"}`, `${dmy(o.createdAt, tz)} ${hhmm(o.createdAt, tz)}`).bold(false);
   t.line(`${modeOf(o).charAt(0)}${modeOf(o).slice(1).toLowerCase()} · ${sourceOf(o)}`);
   if (o.customerName && !["Mostrador", "Teléfono"].includes(o.customerName)) t.line(`Cliente: ${o.customerName}`);
@@ -139,7 +146,11 @@ export function renderReceipt(o: OrderForPrint, p: Printer): Uint8Array {
     if (o.giftCardCents > 0) t.row("Tarjeta regalo", `-${euros(o.giftCardCents)}`);
   }
   t.bold(true).size(1, 2).row("TOTAL", euros(o.totalCents)).size(1, 1).bold(false);
-  if (tax.showOnReceipt) t.row(`IVA ${tax.rate}% incluido`, euros(includedTax(o.totalCents, tax.rate)));
+  if (invoice) {
+    t.row(`Base imponible (IVA ${invoice.taxRate}%)`, euros(invoice.baseCents));
+    t.row(`Cuota IVA ${invoice.taxRate}%`, euros(invoice.taxCents));
+    if (invoice.totalCents !== o.totalCents) t.row("Importe facturado", euros(invoice.totalCents));
+  } else if (tax.showOnReceipt) t.row(`IVA ${tax.rate}% incluido`, euros(includedTax(o.totalCents, tax.rate)));
   if (o.paymentStatus === "PAID") {
     t.line(`Pagado · ${PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}`);
     if (o.paymentMethod === "CASH" && o.cashTenderedCents != null && o.cashTenderedCents >= o.totalCents) {
@@ -148,6 +159,13 @@ export function renderReceipt(o: OrderForPrint, p: Printer): Uint8Array {
     }
   } else t.bold(true).line(`PENDIENTE DE PAGO · ${PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}`).bold(false);
   t.rule();
+  if (invoice) {
+    // QR de cotejo de la AEAT; con VERI*FACTU, la leyenda obligatoria.
+    t.align("center").qr(invoice.qrUrl, p.width === 32 ? 4 : 6).feed(1);
+    if (invoice.mode === "VERIFACTU") t.bold(true).line("VERI*FACTU").bold(false).line("Factura verificable en la sede");
+    if (invoice.mode === "VERIFACTU") t.line("electrónica de la AEAT");
+    t.rule();
+  }
   t.align("center").line("¡Gracias por tu pedido!");
   const origin = process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
   if (origin) t.line(`Pide online: ${origin.replace(/^https?:\/\//, "")}/pedir/${o.tenant.slug}`);
@@ -177,7 +195,7 @@ export function renderTest(p: Printer, tenantName: string): Uint8Array {
 async function loadOrder(orderId: string): Promise<OrderForPrint | null> {
   return prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true, tenant: { select: { name: true, slug: true, settings: true } }, store: { select: { name: true, address: true, phone: true } } },
+    include: { items: true, invoices: true, tenant: { select: { name: true, slug: true, settings: true } }, store: { select: { name: true, address: true, phone: true } } },
   });
 }
 

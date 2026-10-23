@@ -12,6 +12,7 @@ import { invalidLine, priceOrderItems, type OrderLineInput } from "@/app/lib/ord
 import { CouponError, createOrderWithNumber } from "@/app/lib/createOrder";
 import { notifyNewOrder } from "@/app/lib/notifyOrder";
 import { printOnNewOrder } from "@/app/lib/printing";
+import { issueInvoiceSafe } from "@/app/lib/verifactu";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -155,8 +156,11 @@ export async function POST(req: NextRequest) {
       }
     }
     if (!order) throw new Error("No se pudo crear el pedido");
+    // VeriFactu: la factura simplificada se emite al cobrar (si está activo).
+    const invoice = await issueInvoiceSafe(order.id);
     after(() => Promise.all([notifyNewOrder(order!.id), printOnNewOrder(order!.id)]));
     return NextResponse.json({
+      invoiceNumber: invoice?.numSerie ?? null,
       orderId: order.id,
       orderNumber: order.orderNumber,
       totalCents: order.totalCents,
