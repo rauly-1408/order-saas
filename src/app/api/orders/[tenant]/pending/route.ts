@@ -6,7 +6,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // GET /api/orders/[tenant]/pending → pedidos nuevos sin aceptar (para el aviso
-// sonoro del panel). Ligera: solo lo necesario para sonar y mostrar el aviso.
+// sonoro del panel) y pedidos que el cliente ha cancelado en los últimos minutos
+// (aviso distinto, para que cocina no lo prepare). Ligera: solo lo necesario.
 export async function GET(req: NextRequest) {
   const parts = new URL(req.url).pathname.split("/");
   const slug = parts[parts.length - 2];
@@ -23,5 +24,10 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "asc" },
     select: { id: true, orderNumber: true, customerName: true, totalCents: true, channel: true },
   });
-  return NextResponse.json({ pending });
+  const cancelled = await prisma.order.findMany({
+    where: { tenantId: tenant.id, status: "CANCELLED", cancelledBy: "CUSTOMER", updatedAt: { gte: new Date(Date.now() - 10 * 60_000) }, ...(session.storeId && { storeId: session.storeId }) },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, orderNumber: true, customerName: true, totalCents: true, channel: true, cancelReason: true },
+  });
+  return NextResponse.json({ pending, cancelled });
 }

@@ -6,6 +6,7 @@ import { includedTax } from "@/app/lib/storePolicies";
 export type ReportOrder = {
   createdAt: Date;
   status: string;
+  cancelledBy?: string | null;
   channel: string;
   totalCents: number;
   discountCents: number;
@@ -29,6 +30,7 @@ export type Totals = {
   deliveryFeesCents: number;
   newCustomers: number;
   cancelled: number;
+  cancelledByCustomer: number; // de los cancelados, cuántos los canceló el cliente
   // IVA incluido en las ventas de comida (sin propinas; con lo pagado con tarjeta regalo)
   taxCents: number;
   taxRate: number;
@@ -65,6 +67,7 @@ function totalsOf(orders: ReportOrder[], from: Date, to: Date, taxRate: number):
     deliveryFeesCents: valid.reduce((a, o) => a + (o.channel === "DELIVERY" ? o.feesCents : 0), 0),
     newCustomers,
     cancelled: orders.length - valid.length,
+    cancelledByCustomer: orders.filter((o) => o.status === "CANCELLED" && o.cancelledBy === "CUSTOMER").length,
     taxCents: includedTax(valid.reduce((a, o) => a + o.totalCents + (o.giftCardCents ?? 0) - (o.tipCents ?? 0), 0), taxRate),
     taxRate,
     tipsCents: valid.reduce((a, o) => a + (o.tipCents ?? 0), 0),

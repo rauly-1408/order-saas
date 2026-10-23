@@ -128,3 +128,16 @@ export function playOrderChime(): void {
   if (c.state === "suspended") c.resume().then(ring).catch(() => null);
   else ring();
 }
+
+// Aviso corto y grave: un cliente ha cancelado su pedido. Suena una sola vez.
+export function playCancelChime(): void {
+  const c = getContext();
+  if (!c) return;
+  const ring = () => {
+    const t = c.currentTime + 0.02;
+    bell(c, t, 659.3, 0.3); // Mi5
+    bell(c, t + 0.16, 523.3, 0.4); // Do5 (baja: algo se ha ido)
+  };
+  if (c.state === "suspended") c.resume().then(ring).catch(() => null);
+  else ring();
+}
