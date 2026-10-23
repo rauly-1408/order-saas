@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CuentaView from "./CuentaView";
-import { Sheet, Stepper, euros, minutesSince, post, type Fixture, type MapData, type Shape, type Table } from "./shared";
+import SalaView from "./SalaView";
+import { Sheet, Stepper, post, type Fixture, type MapData, type Shape, type Table } from "./shared";
 
 // Mesas: el plano de la sala por zonas (Interior, Terraza, Barra…). Libre en
 // blanco, ocupada en el color de la marca y «pide la cuenta» en ámbar. Tocar una
@@ -11,12 +12,6 @@ import { Sheet, Stepper, euros, minutesSince, post, type Fixture, type MapData, 
 
 const POLL_MS = 8000;
 type Pos = Record<string, { x: number; y: number }>;
-
-function tileClass(t: Table): string {
-  if (!t.open) return "bg-white text-[var(--p-ink)] ring-1 ring-black/10";
-  if (t.open.billRequested) return "bg-amber-400 text-amber-950";
-  return "bg-[var(--p-brand)] text-white";
-}
 
 // Posición inicial de las mesas que aún no están en el plano: en filas.
 function autoPlace(tables: Table[], taken: Pos): Pos {
@@ -36,6 +31,8 @@ export default function MesasClient({ tenant }: { tenant: string }) {
   const [storeId, setStoreId] = useState<string | null>(null);
   const [zone, setZone] = useState<string>("");
   const [view, setView] = useState<string | null>(null); // cuenta abierta (orderId)
+  const [viewAction, setViewAction] = useState<"round" | "pay" | undefined>(undefined);
+  const [notice, setNotice] = useState("");
   const [opening, setOpening] = useState<Table | null>(null);
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -77,7 +74,20 @@ export default function MesasClient({ tenant }: { tenant: string }) {
   const inZone = useMemo(() => (data?.tables ?? []).filter((t) => t.zone === currentZone), [data, currentZone]);
   const busyCount = (data?.tables ?? []).filter((t) => t.open).length;
 
-  if (view) return <CuentaView tenant={tenant} orderId={view} onBack={() => { setView(null); load(); }} />;
+  if (view)
+    return (
+      <CuentaView
+        key={view}
+        tenant={tenant}
+        orderId={view}
+        initialAction={viewAction}
+        onBack={() => {
+          setView(null);
+          setViewAction(undefined);
+          load();
+        }}
+      />
+    );
 
   return (
     <div className="text-[var(--p-ink)]">
@@ -111,6 +121,11 @@ export default function MesasClient({ tenant }: { tenant: string }) {
       </div>
 
       {error && <p className="mt-4 rounded-2xl bg-[var(--p-accent-soft)] px-4 py-3 text-sm text-[var(--p-accent)]">{error}</p>}
+      {notice && (
+        <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+          {notice}
+        </p>
+      )}
 
       {!data ? (
         !error && <p className="py-16 text-center text-sm text-[var(--p-muted)]">Cargando las mesas…</p>
@@ -162,15 +177,30 @@ export default function MesasClient({ tenant }: { tenant: string }) {
               api={api}
             />
           ) : (
-            <Plan tables={inZone} fixtures={data.fixtures?.[currentZone] ?? []} onTap={(t) => (t.open ? setView(t.open.orderId) : setOpening(t))} />
-          )}
-
-          {!editing && (
-            <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--p-muted)]">
-              <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-white ring-1 ring-black/15" /> Libre</span>
-              <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-[var(--p-brand)]" /> Ocupada</span>
-              <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-amber-400" /> Pide la cuenta</span>
-            </p>
+            <SalaView
+              tables={inZone}
+              allTables={data.tables}
+              fixtures={data.fixtures?.[currentZone] ?? []}
+              sees={data.sees}
+              now={Date.now()}
+              onOpenFree={setOpening}
+              onAction={async (t, a) => {
+                if (!t.open) return;
+                if (a === "bill") {
+                  try {
+                    const r = await post<{ printed: number }>(`${api}/${t.open.orderId}`, { action: "bill" });
+                    setNotice(r.printed > 0 ? `Cuenta de la mesa ${t.name} enviada a la impresora` : `Mesa ${t.name} marcada «pide la cuenta» (no hay impresora de tickets)`);
+                  } catch (e) {
+                    setNotice(e instanceof Error ? e.message : "No se pudo imprimir la cuenta");
+                  }
+                  setTimeout(() => setNotice(""), 4000);
+                  load();
+                  return;
+                }
+                setViewAction(a === "view" ? undefined : a);
+                setView(t.open.orderId);
+              }}
+            />
           )}
         </>
       )}
@@ -221,85 +251,9 @@ export default function MesasClient({ tenant }: { tenant: string }) {
   );
 }
 
-// Una mesa dibujada: cuadrada o redonda (taburete), con su estado.
-function Tile({ t, compact }: { t: Table; compact?: boolean }) {
-  return (
-    <>
-      <span className={`font-semibold leading-none ${compact ? "text-sm" : "text-base sm:text-lg"}`}>{t.name}</span>
-      {t.open ? (
-        <span className="mt-0.5 text-[10px] font-semibold leading-tight tabular-nums sm:text-xs">
-          {euros(t.open.totalCents)}
-          <span className="hidden font-normal opacity-80 sm:block">{minutesSince(t.open.openedAt)}</span>
-        </span>
-      ) : (
-        <span className="mt-0.5 text-[10px] leading-tight text-[var(--p-faint)] sm:text-xs">Libre</span>
-      )}
-    </>
-  );
-}
-
-// Elementos fijos dibujados en el plano (barra, pared, texto). No se tocan en servicio.
-function FixtureView({ f }: { f: Fixture }) {
-  const style = { left: `${f.x}%`, top: `${f.y}%`, width: `${f.w}%`, height: `${f.h}%` };
-  if (f.kind === "LABEL")
-    return (
-      <div aria-hidden style={style} className="pointer-events-none absolute flex items-center justify-center text-center text-[10px] font-semibold uppercase tracking-wide text-[var(--p-muted)] sm:text-xs">
-        {f.label}
-      </div>
-    );
-  return (
-    <div aria-hidden style={style} className={`pointer-events-none absolute flex items-center justify-center overflow-hidden text-center text-[10px] font-semibold uppercase tracking-wide sm:text-sm ${f.kind === "BAR" ? "rounded-md bg-[var(--p-brand)]/75 text-white" : "rounded-sm bg-neutral-600"}`}>
-      {f.kind === "BAR" && <span className={isTall(f) ? "[writing-mode:vertical-rl]" : ""}>{f.label}</span>}
-    </div>
-  );
-}
-
 const TILE = "aspect-square w-[8%] min-w-[44px] max-w-[96px]";
 // Barra alta y estrecha: el texto en vertical para que quepa.
 const isTall = (f: Fixture) => f.h * 3 > f.w * 4 * 1.5;
-
-// El plano: mesas colocadas en su sitio (con la barra y lo demás); si la zona
-// aún no tiene plano, en cuadrícula.
-function Plan({ tables, fixtures, onTap }: { tables: Table[]; fixtures: Fixture[]; onTap: (t: Table) => void }) {
-  const placed = tables.filter((t) => t.posX != null && t.posY != null);
-  const loose = tables.filter((t) => t.posX == null || t.posY == null);
-  return (
-    <>
-      {(placed.length > 0 || fixtures.length > 0) && (
-        // Misma proporción en todos los aparatos; en el móvil el plano se desplaza a los lados.
-        <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-        <div className="relative mx-auto aspect-[4/3] w-full min-w-[600px] overflow-hidden rounded-3xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:max-w-[calc((100vh-15rem)*4/3)]">
-          {fixtures.map((f) => (
-            <FixtureView key={f.id} f={f} />
-          ))}
-          {placed.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => onTap(t)}
-              aria-label={`Mesa ${t.name}: ${t.open ? (t.open.billRequested ? "pide la cuenta" : `ocupada, ${euros(t.open.totalCents)}`) : "libre"}`}
-              style={{ left: `${t.posX}%`, top: `${t.posY}%` }}
-              className={`p-press absolute flex ${TILE} -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden px-0.5 text-center shadow-[0_2px_6px_rgba(0,0,0,0.12)] ${t.shape === "ROUND" ? "rounded-full" : "rounded-xl"} ${tileClass(t)}`}
-            >
-              <Tile t={t} compact />
-            </button>
-          ))}
-        </div>
-        </div>
-      )}
-      {loose.length > 0 && (
-        <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
-          {loose.map((t) => (
-            <button key={t.id} type="button" onClick={() => onTap(t)} className={`p-press flex aspect-square flex-col items-center justify-center p-2 text-center shadow-[0_1px_3px_rgba(0,0,0,0.08)] ${t.shape === "ROUND" ? "rounded-full" : "rounded-2xl"} ${tileClass(t)}`}>
-              <Tile t={t} />
-              {t.open?.waiter && <span className="mt-0.5 hidden max-w-full truncate text-[10px] opacity-80 sm:block">{t.open.waiter}</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
 
 const FIXTURE_NEW: Record<Fixture["kind"], Omit<Fixture, "id">> = {
   BAR: { kind: "BAR", x: 30, y: 70, w: 35, h: 8, label: "Barra" },

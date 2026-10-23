@@ -5,6 +5,11 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
 ## Qué ve el restaurante
 
 - **Mesas** en el menú lateral. Lo usa cualquier usuario del restaurante, también los camareros con el rol «Pedidos».
+- **Resumen de la sala** arriba: mesas ocupadas, comensales sobre plazas, mesas que piden la cuenta, la mesa que más tiempo lleva y, con «Ve lo recaudado», el importe abierto en mesas. En el móvil se desliza a los lados.
+- **Filtros**: todas, libres, ocupadas y piden la cuenta. Las demás mesas se atenúan en el plano.
+- **Mesas dibujadas**: cada mesa cuadrada lleva sus sillas, una por plaza (hasta 8), y los taburetes son redondos. Una mesa ocupada muestra los comensales, el tiempo con color (verde hasta 45 min, ámbar hasta 90 y rojo después) y las iniciales del camarero. Si pide la cuenta, se ve en ámbar con un «€» que parpadea.
+- **Panel «Mesas abiertas»**: las mesas por orden de llegada, con comensales, productos, camarero, importe y tiempo. En el ordenador va a la derecha del plano y en el móvil, debajo.
+- **Ficha de la mesa**: al tocar una mesa ocupada se ve el total, el tiempo, las rondas, quién la atiende y cuándo fue la última ronda. Tiene acciones rápidas: «+ Nueva ronda», «Cobrar», «Imprimir cuenta» y «Ver cuenta». En el ordenador aparece en el panel y en el móvil sube desde abajo.
 - **El plano por zonas**, con pestañas como Interior, Terraza o Barra:
   - Libre en blanco, ocupada en el color de la marca con el importe y los minutos, y «pide la cuenta» en ámbar.
   - Las mesas son cuadradas y los taburetes de barra, redondos.
@@ -65,7 +70,7 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - El GET devuelve la cuenta.
   - El POST admite `round`, `void` (gerente), `bill`, `pay`, `move` y `cancel`.
 - **Impresión**: `renderKitchen(o, p, { round | voided })`, la cuenta previa en `renderReceipt`, `enqueueTablePrint` y `printTablePayment`.
-- **Pantalla**: `mesas/MesasClient.tsx` (plano y editor), `CuentaView.tsx` (cuenta y cobro), `RoundComposer.tsx` (ronda) y `shared.tsx`.
+- **Pantalla**: `mesas/MesasClient.tsx` (zonas, editor y fichas), `mesas/SalaView.tsx` (sala en servicio: resumen, filtros, mesas con sillas, panel y ficha), `CuentaView.tsx` (cuenta y cobro), `RoundComposer.tsx` (ronda) y `shared.tsx`.
 
 ## Pendiente
 

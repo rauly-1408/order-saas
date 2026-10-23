@@ -19,13 +19,13 @@ function quickAmounts(total: number): number[] {
   return [...out].filter((n) => n >= total).sort((a, b) => a - b).slice(0, 4);
 }
 
-export default function CuentaView({ tenant, orderId, onBack }: { tenant: string; orderId: string; onBack: (opts?: { closed?: boolean }) => void }) {
+export default function CuentaView({ tenant, orderId, onBack, initialAction }: { tenant: string; orderId: string; onBack: (opts?: { closed?: boolean }) => void; initialAction?: "round" | "pay" }) {
   const api = `/api/admin/${tenant}/mesas/${orderId}`;
   const [data, setData] = useState<Cuenta | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [composing, setComposing] = useState(false);
-  const [paying, setPaying] = useState(false);
+  const [composing, setComposing] = useState(initialAction === "round");
+  const [paying, setPaying] = useState(initialAction === "pay");
   const [moving, setMoving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [, setTick] = useState(0);
