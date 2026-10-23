@@ -96,6 +96,9 @@ async function undoUnpaidOrder(tx: Prisma.TransactionClient, order: Order) {
 export async function finalizePayment(orderId: string, outcome: PaymentOutcome): Promise<Order | null> {
   if (outcome.status === "PENDING") return prisma.order.findUnique({ where: { id: orderId } });
   return prisma.$transaction(async (tx) => {
+    // Bloquea el pedido: el aviso de la pasarela (pagado) y la caducidad
+    // (fallido) pueden llegar a la vez; el segundo espera y ve el estado nuevo.
+    await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { tenant: { select: { platformFeeBps: true } } } });
     if (!order || order.status !== "AWAITING_PAYMENT") return order;
     if (outcome.status === "PAID") {
