@@ -35,3 +35,20 @@ Comprobado:
 | 12 | Todos | Aviso de hidratación en Configuración → Pantalla de pago | — | Descartado: lo provoca una extensión del navegador que añade un estilo a `<body>` |
 
 Pendiente de probar con gente real: un día de servicio en Estafetén solo con la Caja (ver `docs/CAJA.md`).
+
+## 2026-10-23 · revisión de todas las tarjetas
+
+Recorrido de las tarjetas del panel (Inicio, Pedidos, Caja, Informes, Clientes, Carta, Costes, Archivos, Configuración) y de la tienda (productos, promociones, sellos), en móvil y ordenador. Regla aplicada: **si algo parece que se puede tocar, se puede tocar y lleva a donde dice; si no, no lo parece**.
+
+| # | Dónde | Hallazgo | Estado |
+|---|---|---|---|
+| 1 | Carta | En el móvil era una tabla de 720 px: precio, interruptores y «Editar» quedaban fuera de la pantalla | Arreglado: lista de tarjetas por categoría (foto, nombre, precio, estado) que se toca para editar |
+| 2 | Carta | El precio se escribía en céntimos («1200 = 12,00 €») | Arreglado: en euros («12,50 €») |
+| 3 | Carta | El formulario de editar aparecía arriba del todo, fuera de la vista si el producto estaba abajo | Arreglado: hoja de edición encima de la pantalla, con categoría, foto y los tres interruptores explicados |
+| 4 | Carta | Para añadir un producto había que bajar a unas etiquetas al final | Arreglado: «+ Añadir producto» arriba y «+ Añadir» en cada categoría |
+| 5 | Carta | «Activo» y «Disponible» se confundían, y «Disponible» no se podía cambiar desde la lista; «Eliminar» siempre a la vista | Arreglado: «En carta» (se ve o no en la tienda) y «Marcar agotado / reponer» a un toque, con aviso; eliminar dentro de la hoja, con confirmación |
+| 6 | Inicio | Las cifras parecían tarjetas pulsables pero solo una lo era; los últimos pedidos no llevaban a ningún sitio | Arreglado: cada cifra lleva a su pantalla (con «›») y cada pedido abre Pedidos |
+| 7 | Inicio | En el móvil no se veía el estado de los últimos pedidos, y «Cancelado» iba tachado en gris casi invisible | Arreglado: estado siempre visible; cancelado en rojo suave y su importe atenuado |
+| 8 | Clientes | «Sin permiso» se leía como un permiso de usuario | Arreglado: «No quiere ofertas», con explicación al pasar el ratón |
+
+Sin cambios: tarjetas de pedido (rediseñadas en la PR #83), Caja, «Haz tuya tu tienda», Informes, Archivos, Configuración y tienda, que ya siguen la regla.

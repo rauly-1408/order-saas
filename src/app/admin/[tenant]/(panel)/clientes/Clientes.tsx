@@ -160,7 +160,7 @@ export default function Clientes({
                     Acepta ofertas ✕
                   </button>
                 ) : (
-                  <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs text-[var(--p-faint)]">Sin permiso</span>
+                  <span className="whitespace-nowrap rounded-full bg-black/[0.04] px-2.5 py-1 text-xs text-[var(--p-muted)]" title="No ha dado permiso para recibir ofertas: no entra en las campañas">No quiere ofertas</span>
                 )}
               </div>
             </li>
