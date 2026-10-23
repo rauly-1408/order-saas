@@ -4,12 +4,13 @@ Panel → **Caja**. La usan el gerente y el rol «Pedidos». Sirve para que el r
 
 ## Qué hace el restaurante
 
-1. Toca categorías y productos (la misma carta que ve el cliente, con sus opciones y menús). Los productos con opciones o los menús abren la misma hoja que en la tienda.
-2. A la derecha (o abajo, en el móvil) va el ticket: cantidades, quitar, total.
-3. Elige: **Mostrador** o **Teléfono**; **para llevar**, **para comer aquí** o **a domicilio** (con dirección).
-4. Cliente opcional: nombre y teléfono. Con teléfono, el pedido suma sellos en la tarjeta de fidelidad y entra en Clientes como cualquier pedido online; sin teléfono queda como «Mostrador».
-5. Cobro: **efectivo** (escribe lo que entrega el cliente y calcula el cambio), **datáfono**, **Bizum** o **pagar al recoger** (pedidos por teléfono).
-6. «Cobrar y enviar a cocina»: crea el pedido y aparece en Pedidos → Nuevos con la etiqueta «Mostrador» o «Teléfono» y cómo se ha pagado.
+Tres pantallas en el ticket, como en un TPV (Square, Shopify POS):
+
+1. **Pedido.** Toca categorías y productos (la misma carta que ve el cliente, con foto si la tiene). Los productos con opciones o los menús abren la misma hoja que en la tienda; los simples entran al primer toque y el azulejo muestra cuántos van. Arriba del ticket se elige **Para llevar / Comer aquí / A domicilio** (con dirección) y si llega por **Mostrador** o **Teléfono**. Cliente, cupón y nota para cocina van plegados en «＋ Cliente, cupón o nota». Con teléfono, el pedido suma sellos y entra en Clientes como un pedido online; sin teléfono queda como «Mostrador».
+2. **Cobro.** «Cobrar X €» lleva a la pantalla de cobro: total en grande, forma de pago (**efectivo**, **datáfono**, **Bizum** o **pagar al recoger**) y, en efectivo, importes rápidos (justo y los billetes que lo cubren) más un teclado numérico; el cambio o lo que falta se ve al momento. Sin dirección en un pedido a domicilio no deja confirmar.
+3. **Hecho.** Número de pedido y, en efectivo, el **cambio a devolver** en grande. «Nuevo pedido» vuelve a empezar. El pedido aparece en Pedidos → Nuevos con la etiqueta «Mostrador» o «Teléfono» y cómo se ha pagado.
+
+En el móvil el ticket es una hoja que sube desde abajo («Ver pedido · n · total»); el cobro y la confirmación van en la misma hoja.
 
 Las promociones automáticas y los cupones se aplican igual que en la tienda. No hay propina ni tarjeta regalo en la Caja (de momento).
 
@@ -17,7 +18,7 @@ Las promociones automáticas y los cupones se aplican igual que en la tienda. No
 
 | Entrega | Estado |
 |---|---|
-| 1. Tomar pedidos y cobrar | ✅ 2026-10-23 |
+| 1. Tomar pedidos y cobrar | ✅ 2026-10-23 (pantallas de pedido → cobro → hecho, 2026-10-23) |
 | 2. Impresión de ticket y comanda (80 mm) | pendiente |
 | 3. Apertura y cierre de caja (arqueo) | pendiente |
 | 4. VeriFactu (facturas simplificadas, huella encadenada, QR, envío a Hacienda). Obligatorio desde 2027 | pendiente, antes de 2027 |
