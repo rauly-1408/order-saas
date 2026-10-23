@@ -245,13 +245,15 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
       {loading ? (
         <p className="py-12 text-center text-sm text-[var(--p-muted)]">Cargando la carta…</p>
       ) : (
-        <div className="mt-4 space-y-6">
+        <div className="mt-4 space-y-2">
           {groups.map((g) => {
             const isCollapsed = !q && !!collapsed?.has(g.id);
             const stats = { soldOut: g.products.filter((p) => !p.isAvailable).length, hidden: g.products.filter((p) => !p.isActive).length };
+            const peek = g.products.slice(0, 3); // miniaturas de la cabecera plegada
             return (
-            <section key={g.id} aria-label={g.name}>
-              <div className="mb-2 flex items-center gap-2">
+            <section key={g.id} aria-label={g.name} className="group/cat rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_6px_18px_-8px_rgba(0,0,0,0.18)]">
+              {/* Cabecera: 56 px, chevron en círculo, nombre, número y avisos; acciones a la derecha */}
+              <div className={`flex min-h-14 items-center gap-2 px-3 py-2 sm:px-4 ${isCollapsed ? "" : "border-b border-[var(--p-line)]"}`}>
                 {renaming?.id === g.id ? (
                   <input
                     autoFocus
@@ -266,8 +268,8 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                     className="min-w-0 flex-1 rounded-lg border border-[var(--p-brand)] px-3 py-1.5 text-[15px] font-semibold"
                   />
                 ) : q ? (
-                  <h2 className="min-w-0 truncate text-[15px] font-semibold">
-                    {g.name} <span className="font-normal text-[var(--p-muted)]">· {g.products.length}</span>
+                  <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold">
+                    {g.name} <span className="ml-1.5 rounded-full bg-black/[0.06] px-2 py-0.5 text-xs font-semibold text-[var(--p-muted)]">{g.products.length}</span>
                   </h2>
                 ) : (
                   <button
@@ -275,36 +277,54 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                     onClick={() => toggle(g.id)}
                     aria-expanded={!isCollapsed}
                     aria-controls={`cat-${g.id}`}
-                    className="flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1.5 pr-2 text-left hover:bg-black/[0.03]"
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-xl py-1 pr-2 text-left"
                   >
-                    <span aria-hidden className={`inline-block w-4 text-center text-[var(--p-muted)] transition-transform ${isCollapsed ? "" : "rotate-90"}`}>
+                    <span aria-hidden className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.05] text-lg leading-none text-[var(--p-muted)] transition-transform duration-150 group-hover/cat:bg-black/[0.08] ${isCollapsed ? "" : "rotate-90"}`}>
                       ›
                     </span>
-                    <h2 className="min-w-0 truncate text-[15px] font-semibold">
-                      {g.name} <span className="font-normal text-[var(--p-muted)]">· {g.products.length}</span>
-                      {stats.soldOut > 0 && <span className="ml-2 rounded-full bg-[var(--p-accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--p-accent)]">{stats.soldOut} {stats.soldOut === 1 ? "agotado" : "agotados"}</span>}
-                      {stats.hidden > 0 && <span className="ml-2 rounded-full bg-black/[0.06] px-2 py-0.5 text-xs font-semibold text-[var(--p-muted)]">{stats.hidden} {stats.hidden === 1 ? "oculto" : "ocultos"}</span>}
+                    <h2 className="flex min-w-0 items-center gap-2 text-[15px] font-semibold">
+                      <span className="truncate">{g.name}</span>
+                      <span className="shrink-0 rounded-full bg-black/[0.06] px-2 py-0.5 text-xs font-semibold text-[var(--p-muted)]">{g.products.length}</span>
+                      {stats.soldOut > 0 && <span className="shrink-0 whitespace-nowrap rounded-full bg-[var(--p-accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--p-accent)]">{stats.soldOut} {stats.soldOut === 1 ? "agotado" : "agotados"}</span>}
+                      {stats.hidden > 0 && <span className="hidden shrink-0 whitespace-nowrap rounded-full bg-black/[0.06] px-2 py-0.5 text-xs font-semibold text-[var(--p-muted)] sm:inline">{stats.hidden} {stats.hidden === 1 ? "oculto" : "ocultos"}</span>}
                     </h2>
+                    {/* Plegada: una pista de lo que hay dentro */}
+                    {isCollapsed && peek.length > 0 && (
+                      <span aria-hidden className="ml-auto hidden shrink-0 -space-x-2 sm:flex">
+                        {peek.map((p) =>
+                          p.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img key={p.id} src={p.imageUrl} alt="" className="h-7 w-7 rounded-full object-cover ring-2 ring-[var(--p-surface)]" />
+                          ) : (
+                            <span key={p.id} className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--p-brand-soft)] text-[11px] font-semibold text-[var(--p-brand)] ring-2 ring-[var(--p-surface)]">
+                              {p.name.charAt(0).toUpperCase()}
+                            </span>
+                          )
+                        )}
+                      </span>
+                    )}
                   </button>
                 )}
                 {!q && renaming?.id !== g.id && (
                   <>
-                    <button type="button" onClick={() => setRenaming({ id: g.id, name: g.name })} className="shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-xs text-[var(--p-muted)] hover:bg-black/[0.05] hover:text-[var(--p-ink)]" title="Cambiar el nombre de la categoría" aria-label={`Renombrar ${g.name}`}>
-                      ✎<span className="hidden sm:inline"> Renombrar</span>
+                    <button type="button" onClick={() => setRenaming({ id: g.id, name: g.name })} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm text-[var(--p-muted)] transition-opacity hover:bg-black/[0.05] hover:text-[var(--p-ink)] focus:opacity-100 sm:opacity-0 sm:group-hover/cat:opacity-100" title="Cambiar el nombre de la categoría" aria-label={`Renombrar ${g.name}`}>
+                      ✎
                     </button>
-                    <button type="button" onClick={() => openNew(g.id)} className="ml-auto shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-[var(--p-brand)] hover:bg-[var(--p-brand-soft)]" aria-label={`Añadir producto en ${g.name}`}>
+                    <button type="button" onClick={() => openNew(g.id)} className="shrink-0 whitespace-nowrap rounded-full border border-[var(--p-line)] px-3 py-1.5 text-xs font-semibold text-[var(--p-brand)] hover:border-transparent hover:bg-[var(--p-brand-soft)]" aria-label={`Añadir producto en ${g.name}`}>
                       + Añadir
                     </button>
                   </>
                 )}
               </div>
               {/* Móvil y tablet: filas que se tocan. Ordenador: rejilla de tarjetas por categoría. */}
-              {isCollapsed ? null : g.products.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-[var(--p-line)] px-4 py-6 text-center text-sm text-[var(--p-muted)]">{q ? "No hay productos con ese nombre." : "Todavía no hay productos en esta categoría."}</p>
+              {isCollapsed ? null : (
+              <div id={`cat-${g.id}`} className="p-unfold px-3 pb-3 pt-3 sm:px-4 sm:pb-4">
+              {g.products.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-[var(--p-line)] px-4 py-6 text-center text-sm text-[var(--p-muted)]">{q ? "No hay productos con ese nombre." : "Todavía no hay productos en esta categoría."}</p>
               ) : (
-                <ul id={`cat-${g.id}`} className="overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible lg:rounded-none lg:bg-transparent lg:shadow-none xl:grid-cols-4">
+                <ul className="overflow-hidden rounded-xl border border-[var(--p-line)] lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible lg:rounded-none lg:border-0 xl:grid-cols-4">
                   {g.products.map((p, i) => (
-                    <li key={p.id} className={`lg:overflow-hidden lg:rounded-2xl lg:border-0 lg:bg-[var(--p-surface)] lg:shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${i ? "border-t border-[var(--p-line)]" : ""}`}>
+                    <li key={p.id} className={`lg:overflow-hidden lg:rounded-2xl lg:border lg:border-[var(--p-line)] lg:bg-[var(--p-surface)] ${i ? "border-t border-[var(--p-line)]" : ""}`}>
                       <div
                         role="button"
                         tabIndex={0}
@@ -360,6 +380,8 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                     </li>
                   ))}
                 </ul>
+              )}
+              </div>
               )}
             </section>
             );
