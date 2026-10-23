@@ -335,7 +335,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                     <div style={{ fontSize: "14px", fontWeight: 600, color: cssVars["--text-primary"] }}>{item.name}</div>
                     {item.modifiers.length > 0 && (
                       <div style={{ fontSize: "12px", color: cssVars["--text-secondary"], marginTop: "2px", lineHeight: 1.4 }}>
-                        {item.modifiers.map(formatModifier).join(" · ")}
+                        {item.modifiers.map((m) => formatModifier(m, lang)).join(" · ")}
                       </div>
                     )}
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px" }}>

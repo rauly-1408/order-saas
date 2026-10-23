@@ -28,6 +28,7 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
   const supplierName = new Map(data.suppliers.map((s) => [s.id, s.name]));
 
   function edit(i: Ingredient) {
+    requestAnimationFrame(() => document.getElementById("costes-form")?.scrollIntoView({ block: "start" }));
     setError("");
     setForm({
       id: i.id,
@@ -75,7 +76,10 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
   async function remove(i: Ingredient) {
     if (!window.confirm(`¿Borrar "${i.name}"? Se quitará de todos los escandallos.`)) return;
     const res = await fetch(`${api}/ingredients/${i.id}`, { method: "DELETE" });
-    if (res.ok) await onSaved();
+    if (res.ok) {
+      await onSaved();
+      setForm(null);
+    } else setError("No se pudo borrar");
   }
 
   const unit = form ? UNIT_LABEL[form.baseUnit] : "";
@@ -89,7 +93,7 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
       )}
 
       {form && (
-        <div className="rounded-2xl bg-[var(--p-surface)] shadow-[0_12px_32px_-14px_rgba(0,0,0,0.22)] p-4 sm:p-6">
+        <div id="costes-form" className="scroll-mt-4 rounded-2xl bg-[var(--p-surface)] shadow-[0_12px_32px_-14px_rgba(0,0,0,0.22)] p-4 sm:p-6">
           <h3 className="mb-4 font-bold">{form.id ? "Editar ingrediente" : "Nuevo ingrediente"}</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -153,23 +157,47 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
             </div>
           </div>
           {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-          <div className="mt-5 flex gap-2">
+          <div className="mt-5 flex flex-wrap gap-2">
             <button onClick={save} disabled={saving} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
               {saving ? "Guardando…" : "Guardar"}
             </button>
-            <button onClick={() => setForm(null)} className="rounded-lg px-4 py-2 text-sm text-[var(--p-muted)] hover:bg-[var(--p-bg)]">Cancelar</button>
+            <button onClick={() => setForm(null)} className="rounded-full px-4 py-2 text-sm text-[var(--p-muted)] hover:bg-black/[0.04]">Cancelar</button>
+            {form.id && (
+              <button
+                onClick={() => {
+                  const it = data.ingredients.find((x) => x.id === form.id);
+                  if (it) remove(it);
+                }}
+                className="ml-auto whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+              >
+                Borrar ingrediente
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {data.ingredients.length === 0 ? (
+      {form ? null : data.ingredients.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center text-sm text-[var(--p-muted)]">
           Añade los ingredientes que compras con su precio para calcular el coste de tus platos.
         </p>
       ) : (
         <ul className="divide-y divide-[var(--p-line)] rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           {data.ingredients.map((i) => (
-            <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+            <li key={i.id}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => edit(i)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      edit(i);
+                    }
+                  }}
+                  aria-label={`Editar ${i.name}`}
+                  className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-black/[0.025]"
+                >
               <div className="min-w-0">
                 <div className="font-semibold">{i.name}</div>
                 <div className="text-xs text-[var(--p-muted)]">
@@ -187,10 +215,10 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex shrink-0 items-center gap-3">
                 <span className="text-sm font-semibold">{costPerUnit(i)}</span>
-                <button onClick={() => edit(i)} className="text-sm font-semibold text-[var(--p-brand)]">Editar</button>
-                <button onClick={() => remove(i)} className="text-sm text-red-500">Borrar</button>
+                <span aria-hidden className="text-lg text-[var(--p-faint)]">›</span>
+              </div>
               </div>
             </li>
           ))}

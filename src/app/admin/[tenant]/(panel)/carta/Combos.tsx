@@ -88,20 +88,28 @@ export default function Combos({ tenant }: { tenant: string }) {
     }
   }
 
+  function edit(c: Combo) {
+    setError("");
+    setForm({ id: c.id, name: c.name, description: c.description ?? "", price: toText(c.basePriceCents), isAvailable: c.isAvailable, slots: c.comboSlots.map((s) => ({ name: s.name, required: s.required !== false, items: s.items.map((i) => ({ productId: i.productId, extra: toText(i.extraCents) })) })) });
+  }
+
   async function toggle(c: Combo) {
     const res = await fetch(`${api}/${c.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isAvailable: !c.isAvailable }) });
     if (res.ok) await reload();
   }
 
-  async function remove(c: Combo) {
-    if (!confirm(`¿Borrar el menú «${c.name}»? Los pedidos ya hechos no cambian.`)) return;
-    const res = await fetch(`${api}/${c.id}`, { method: "DELETE" });
-    if (res.ok) await reload();
+  async function remove() {
+    if (!form?.id || !confirm(`¿Borrar el menú «${form.name}»? Los pedidos ya hechos no cambian.`)) return;
+    const res = await fetch(`${api}/${form.id}`, { method: "DELETE" });
+    if (res.ok) {
+      await reload();
+      setForm(null);
+    } else setError("No se pudo borrar el menú");
   }
 
   if (!data) return error ? <p className="rounded-2xl bg-[var(--p-accent-soft)] px-4 py-3 text-sm text-[var(--p-accent)]">{error}</p> : <p className="py-16 text-center text-[var(--p-muted)]">Cargando…</p>;
 
-  if (form) return <ComboForm form={form} onChange={setForm} categories={data.categories} error={error} saving={saving} onSave={save} onCancel={() => { setForm(null); setError(""); }} />;
+  if (form) return <ComboForm form={form} onChange={setForm} categories={data.categories} error={error} saving={saving} onSave={save} onDelete={remove} onCancel={() => { setForm(null); setError(""); }} />;
 
   return (
     <div className="space-y-4">
@@ -118,32 +126,57 @@ export default function Combos({ tenant }: { tenant: string }) {
           </button>
         )}
       </div>
+      {data.combos.length > 0 && (
+        <p className="text-xs text-[var(--p-muted)]">
+          {data.combos.length} {data.combos.length === 1 ? "menú" : "menús"} · toca un menú para editarlo
+        </p>
+      )}
       {data.combos.length === 0 ? (
         <p className={`${card} p-10 text-center text-sm text-[var(--p-muted)]`}>Aún no tienes menús.</p>
       ) : (
-        <ul className={`${card} divide-y divide-[var(--p-line)] overflow-hidden`}>
-          {data.combos.map((c) => (
-            <li key={c.id} className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold">
-                  {c.name} <span className="font-normal text-[var(--p-muted)]">· {eur(c.basePriceCents)}</span>
-                </p>
-                <p className="text-xs text-[var(--p-muted)]">{c.comboSlots.map((s) => `${s.name} (${s.items.length})`).join(" · ")}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${c.isAvailable ? "bg-emerald-50 text-emerald-700" : "bg-black/[0.04] text-[var(--p-faint)]"}`}>{c.isAvailable ? "En la carta" : "Agotado"}</span>
-                <button
-                  onClick={() => { setError(""); setForm({ id: c.id, name: c.name, description: c.description ?? "", price: toText(c.basePriceCents), isAvailable: c.isAvailable, slots: c.comboSlots.map((s) => ({ name: s.name, required: s.required !== false, items: s.items.map((i) => ({ productId: i.productId, extra: toText(i.extraCents) })) })) }); }}
-                  className="p-press rounded-full px-3 py-1 text-xs font-medium text-[var(--p-muted)] hover:bg-black/[0.04]"
-                >
-                  Editar
-                </button>
-                <button onClick={() => toggle(c)} className="p-press rounded-full px-3 py-1 text-xs font-medium text-[var(--p-brand)] hover:bg-black/[0.04]">
-                  {c.isAvailable ? "Agotar" : "Volver a la carta"}
-                </button>
-                <button onClick={() => remove(c)} className="p-press rounded-full px-3 py-1 text-xs font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">
-                  Borrar
-                </button>
+        <ul className={`${card} overflow-hidden`}>
+          {data.combos.map((c, i) => (
+            <li key={c.id} className={i ? "border-t border-[var(--p-line)]" : ""}>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => edit(c)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    edit(c);
+                  }
+                }}
+                aria-label={`Editar ${c.name}`}
+                className={`flex cursor-pointer items-center gap-3 px-3 py-3 transition-colors hover:bg-black/[0.025] sm:px-4 ${c.isAvailable ? "" : "opacity-60"}`}
+              >
+                <div aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--p-brand-soft)] text-lg font-semibold text-[var(--p-brand)]">
+                  {c.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-medium">{c.name}</p>
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--p-muted)]">
+                    <span className="font-semibold tabular-nums text-[var(--p-ink)]">{eur(c.basePriceCents)}</span>
+                    <span className="min-w-0 truncate">{c.comboSlots.length} {c.comboSlots.length === 1 ? "paso" : "pasos"}: {c.comboSlots.map((s) => s.name).join(", ")}</span>
+                    {!c.isAvailable && <span className="rounded-full bg-black/[0.06] px-2 py-0.5 font-semibold">Oculto en la tienda</span>}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={c.isAvailable}
+                      aria-label={`${c.name}: ${c.isAvailable ? "se ve en la tienda" : "oculto en la tienda"}`}
+                      onClick={() => toggle(c)}
+                      className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${c.isAvailable ? "bg-[var(--p-brand)]" : "bg-black/15"}`}
+                    >
+                      <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-all ${c.isAvailable ? "left-5" : "left-1"}`} />
+                    </button>
+                    <span className="text-[10px] text-[var(--p-muted)]">En carta</span>
+                  </div>
+                  <span aria-hidden className="text-lg text-[var(--p-faint)]">›</span>
+                </div>
               </div>
             </li>
           ))}
@@ -153,7 +186,7 @@ export default function Combos({ tenant }: { tenant: string }) {
   );
 }
 
-function ComboForm({ form, onChange, categories, error, saving, onSave, onCancel }: { form: Form; onChange: (f: Form) => void; categories: Catalog; error: string; saving: boolean; onSave: () => void; onCancel: () => void }) {
+function ComboForm({ form, onChange, categories, error, saving, onSave, onDelete, onCancel }: { form: Form; onChange: (f: Form) => void; categories: Catalog; error: string; saving: boolean; onSave: () => void; onDelete: () => void; onCancel: () => void }) {
   const setSlot = (i: number, slot: Form["slots"][number]) => onChange({ ...form, slots: form.slots.map((s, j) => (j === i ? slot : s)) });
   const [openCat, setOpenCat] = useState<string | null>(null); // "paso:categoría" desplegada
   const products = categories.flatMap((c) => c.products);
@@ -299,6 +332,11 @@ function ComboForm({ form, onChange, categories, error, saving, onSave, onCancel
         <button onClick={onCancel} className="p-press rounded-full px-4 py-2 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.04]">
           Cancelar
         </button>
+        {form.id && (
+          <button onClick={onDelete} className="p-press ml-auto whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">
+            Borrar menú
+          </button>
+        )}
       </div>
     </div>
   );

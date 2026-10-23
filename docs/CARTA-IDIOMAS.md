@@ -5,6 +5,7 @@
 - Botón **ES / EN** en la cabecera de la tienda. Si el móvil del cliente está en inglés, la tienda sale en inglés sola.
 - Se traduce todo lo que ve: carta (categorías, productos, descripciones, opciones, pasos de los menús, alérgenos), promociones, tarjeta de sellos, checkout, rueda de la hora, confirmación y seguimiento.
 - Si un texto no tiene traducción, se muestra en español.
+- El pan elegido se escribe a la inglesa: «Traditional bread», no «Pan traditional» (en el pago y en la confirmación).
 - **No se traduce**: la cocina y el panel (los pedidos llegan en español) y los textos legales.
 - La elección se guarda en la cookie técnica `pedir_lang` (un año). Está explicada en la página de cookies.
 

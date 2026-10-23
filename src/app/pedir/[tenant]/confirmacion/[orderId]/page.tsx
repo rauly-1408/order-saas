@@ -168,8 +168,8 @@ export default async function ConfirmacionPage({
                 <span>
                   <span style={{ fontWeight: 700, color: cssVars["--brand-accent"], marginRight: "8px" }}>{item.quantity}x</span>
                   {item.productName}
-                  {modifierLabels(item.modifiers).length > 0 && (
-                    <span style={{ display: "block", marginTop: "2px", fontSize: "12px", color: cssVars["--text-secondary"] }}>{modifierLabels(item.modifiers).join(" · ")}</span>
+                  {modifierLabels(item.modifiers, lang).length > 0 && (
+                    <span style={{ display: "block", marginTop: "2px", fontSize: "12px", color: cssVars["--text-secondary"] }}>{modifierLabels(item.modifiers, lang).join(" · ")}</span>
                   )}
                   {item.note && <span style={{ display: "block", marginTop: "2px", fontSize: "12px", color: cssVars["--text-secondary"] }}>{item.note}</span>}
                 </span>
