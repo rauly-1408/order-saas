@@ -29,7 +29,7 @@ Las promociones automáticas y los cupones se aplican igual que en la tienda. No
 | Entrega | Estado |
 |---|---|
 | 1. Tomar pedidos y cobrar | ✅ 2026-10-23 (pantallas de pedido → cobro → hecho; líneas con nota y descuento; pedidos en espera) |
-| 2. Impresión de ticket y comanda (80 mm) | pendiente |
+| 2. Impresión de ticket y comanda (80 mm) | ✅ 2026-10-23 (ver `docs/IMPRESION.md`); pendiente la prueba con la impresora real |
 | 3. Apertura y cierre de caja (arqueo) | pendiente |
 | 4. VeriFactu (facturas simplificadas, huella encadenada, QR, envío a Hacienda). Obligatorio desde 2027 | pendiente, antes de 2027 |
 

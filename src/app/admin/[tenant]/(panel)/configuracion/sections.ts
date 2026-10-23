@@ -1,7 +1,7 @@
 // Apartados de Configuración, en el orden de Shopify. Sin React: lo usan el
 // menú (cliente) y las páginas (servidor).
 export type IconName =
-  | "store" | "plan" | "users" | "card" | "cart" | "truck" | "tax" | "pin" | "clock" | "gift" | "globe" | "brush" | "bell" | "lang" | "doc";
+  | "store" | "plan" | "users" | "card" | "cart" | "truck" | "tax" | "pin" | "clock" | "gift" | "globe" | "brush" | "bell" | "lang" | "doc" | "printer";
 
 export const CONFIG_SECTIONS: { slug: string; label: string; icon: IconName; description: string }[] = [
   { slug: "negocio", label: "Información del negocio", icon: "store", description: "Razón social, NIF, dirección y contacto. Salen en el pie de tu tienda y en los textos legales." },
@@ -17,6 +17,7 @@ export const CONFIG_SECTIONS: { slug: string; label: string; icon: IconName; des
   { slug: "dominios", label: "Dominios", icon: "globe", description: "La dirección web de tu tienda y tu dominio propio." },
   { slug: "marca", label: "Marca", icon: "brush", description: "Logotipos, colores, fuentes y cómo apareces en Google y en redes." },
   { slug: "notificaciones", label: "Notificaciones", icon: "bell", description: "Cómo te avisamos de los pedidos y cómo avisamos a tus clientes." },
+  { slug: "impresoras", label: "Impresoras", icon: "printer", description: "Comandas a cocina y tickets al cliente en tus impresoras de tickets." },
   { slug: "idiomas", label: "Idiomas", icon: "lang", description: "Tu carta en inglés para los turistas." },
   { slug: "politicas", label: "Políticas", icon: "doc", description: "Aviso legal, privacidad, cookies y condiciones de venta." },
 ];

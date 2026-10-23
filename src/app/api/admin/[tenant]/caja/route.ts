@@ -11,6 +11,7 @@ import { couponDiscount, couponProblem, normalizeCode } from "@/app/lib/retentio
 import { invalidLine, priceOrderItems, type OrderLineInput } from "@/app/lib/orderPricing";
 import { CouponError, createOrderWithNumber } from "@/app/lib/createOrder";
 import { notifyNewOrder } from "@/app/lib/notifyOrder";
+import { printOnNewOrder } from "@/app/lib/printing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -154,7 +155,7 @@ export async function POST(req: NextRequest) {
       }
     }
     if (!order) throw new Error("No se pudo crear el pedido");
-    after(() => notifyNewOrder(order!.id));
+    after(() => Promise.all([notifyNewOrder(order!.id), printOnNewOrder(order!.id)]));
     return NextResponse.json({
       orderId: order.id,
       orderNumber: order.orderNumber,

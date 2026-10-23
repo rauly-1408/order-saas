@@ -37,6 +37,8 @@ type OrderCardProps = {
   onStatus: (id: string, status: string, paidWith?: PaidWith) => void;
   courierEnabled?: boolean;
   onCourier?: (id: string, action: "request" | "cancel") => void;
+  printingEnabled?: boolean;
+  onPrint?: (id: string, kind: "KITCHEN" | "RECEIPT") => void;
 };
 
 const COURIER_TONE: Record<string, string> = {
@@ -46,7 +48,7 @@ const COURIER_TONE: Record<string, string> = {
 };
 const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : null);
 
-export default function OrderCard({ order, estimates, now, busy, onStatus, courierEnabled = false, onCourier }: OrderCardProps) {
+export default function OrderCard({ order, estimates, now, busy, onStatus, courierEnabled = false, onCourier, printingEnabled = false, onPrint }: OrderCardProps) {
   const action = nextAction(order);
   const [askPay, setAskPay] = useState(false);
   // Entregar un pedido pendiente de cobro: primero preguntar cómo ha pagado.
@@ -196,6 +198,16 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
             <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">{order.channel === "DELIVERY" ? "Cobrar al entregar" : "Cobrar al recoger"}</span>
           )}
         </span>
+        {printingEnabled && onPrint && (
+          <span className="flex gap-1">
+            <button type="button" onClick={() => onPrint(order.id, "KITCHEN")} disabled={busy} className="rounded-lg px-2 py-1 text-xs font-medium text-[var(--p-faint)] hover:bg-black/[0.05] hover:text-[var(--p-ink)] disabled:opacity-50" title="Reimprimir la comanda de cocina">
+              🖨 Comanda
+            </button>
+            <button type="button" onClick={() => onPrint(order.id, "RECEIPT")} disabled={busy} className="rounded-lg px-2 py-1 text-xs font-medium text-[var(--p-faint)] hover:bg-black/[0.05] hover:text-[var(--p-ink)] disabled:opacity-50" title="Imprimir el ticket del cliente">
+              🖨 Ticket
+            </button>
+          </span>
+        )}
         {canCancel(order) && (
           <button
             onClick={handleCancel}
