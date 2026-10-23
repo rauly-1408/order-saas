@@ -151,6 +151,12 @@ export async function expireStalePayments(tenantId: string): Promise<void> {
 export async function refundOrder(orderId: string): Promise<string | null> {
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { tenant: { select: { name: true } } } });
   if (!order || order.paymentStatus !== "PAID" || order.paymentMethod === "IN_STORE") return null;
+  // Cobrado en caja (efectivo, datáfono o Bizum en el local): no hay pasarela
+  // a la que pedir la devolución; se marca y el dinero se devuelve en mano.
+  if (!order.paymentProvider || order.paymentMethod === "CASH" || order.paymentMethod === "CARD_TERMINAL") {
+    await prisma.order.update({ where: { id: orderId }, data: { paymentStatus: "REFUNDED" } });
+    return order.paymentMethod === "CASH" ? "Devuelve el efectivo al cliente en caja." : "Devuélvelo desde el datáfono o por Bizum.";
+  }
   const impl = IMPL[asGateway(order.paymentProvider)];
   const account = await paymentAccount(order.tenantId);
   try {

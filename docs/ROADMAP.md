@@ -39,7 +39,7 @@ Base de datos: ✅ Migraciones Prisma con baseline (0_init); nunca `db push` con
 | Pedidos (base) | 3 % por pedido pagado online; 0 % en "pagar en el local"; sin cuota fija | ✅ Producción |
 | Costes y margen | Add-on de pago (referencia Tavola: 0 / 45 / 75 €/mes) | 🔄 Fases 1-3 (escandallos, inventario, compras) — ver [MODULO-COSTES.md](./MODULO-COSTES.md) |
 | Retención | Add-on de pago | 🔄 Fase 1 (clientes, cupones, campañas, atribución) — ver [SPRINT-03.md](./SPRINT-03.md) |
-| TPV propio | — | 🅿️ Aparcado (ver backlog) |
+| Caja (TPV ligero) | Incluido en el plan base (a decidir) | 🔄 Entrega 1 hecha; impresión, cierre de caja y VeriFactu pendientes (ver CAJA.md) |
 
 Los módulos se activan por restaurante (`Tenant.addons`).
 
@@ -201,6 +201,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-21 | Operaciones: conexión «pooled» de Neon (`directUrl` para migraciones), Sentry opcional por variable, `/api/health` para el vigilante de disponibilidad y plan de capacidad (ver OPERACIONES.md) | Antes del primer restaurante de pago: que un pico no agote las conexiones y que un fallo avise en vez de descubrirse al día siguiente |
 | 2026-10-21 | Caché de la carta por restaurante (60 s, invalidada al editar) y límite de peticiones por IP en rutas públicas y login (Upstash opcional; ver OPERACIONES.md §5-6) | Cada visita leía toda la carta de la base de datos; y nada frenaba a quien machacara pedidos, cupones o el login |
 | 2026-10-21 | Emails con Resend (opcional por variable): pedido nuevo al restaurante, resumen diario por cron y contraseña temporal a usuarios nuevos; interruptores en Notificaciones (ver OPERACIONES.md §8) | La app no enviaba ningún email; la contraseña de un usuario nuevo solo se veía en pantalla |
+| 2026-10-23 | Caja, entrega 1: pedidos de mostrador y teléfono desde el panel, cobro en efectivo/datáfono/Bizum, al mismo tablero de cocina (ver CAJA.md). TPV propio deja de estar aparcado: sin caja no hay piloto real | Estafetén no puede trabajar solo con el panel si no toma pedidos en mostrador. VeriFactu (2027) va en la entrega 4 |
 | 2026-10-18 | Configuración al estilo Shopify: pantalla completa con 15 apartados, y además usuarios y permisos, sucursales, tarjetas regalo, propinas, impuestos y dominio propio (ver CONFIGURACION.md) | El dueño pidió que se pareciera a Shopify y que no faltara nada. Todo lo que es ajuste vive en Configuración; la barra lateral queda para el día a día |
 | 2026-10-18 | Pagos online como Shopify: cada restaurante conecta su pasarela (Redsys con Bizum, Stripe o modo prueba); comisión del 3 % apuntada y facturada aparte (ver PAGOS.md). Configuración pasa abajo en la barra lateral, por apartados | Sustituye a Stripe Connect: en España casi todos los restaurantes tienen ya TPV del banco (Redsys) y quieren elegir. El dinero va directo al restaurante (merchant of record) |
 | 2026-10-17 | Repartidor externo: Glovo On-Demand y modo prueba; se pide al aceptar el pedido, y el panel y el cliente siguen el viaje (ver REPARTO-EXTERNO.md) | Estafetén no tendrá motos propias. Pedir en nuestra tienda y contratar solo el viaje evita la comisión del 25-35 % y conserva el cliente. Cada restaurante firma con Glovo y el cliente paga el envío fijo de su zona |
