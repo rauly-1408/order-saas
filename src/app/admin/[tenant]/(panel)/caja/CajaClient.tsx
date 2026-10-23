@@ -7,6 +7,7 @@ import ComboSheet, { type ComboProduct } from "@/app/pedir/[tenant]/ComboSheet";
 import { modifierLabels, type MenuModifierGroup, type OrderLineModifier } from "@/app/lib/menuOptions";
 import { comboChoicesKey, type ChoiceProduct, type ComboChoice, type ComboSlotDef } from "@/app/lib/combos";
 import type { HoyPayment, HoyResponse } from "@/app/api/admin/[tenant]/caja/hoy/route";
+import CashSessionSheet, { type CashState } from "./CashSessionSheet";
 
 // Caja: tomar un pedido en el mostrador o por teléfono, cobrarlo y mandarlo a
 // cocina. Tres pantallas en el ticket: pedido → cobro → confirmación, como en
@@ -118,6 +119,18 @@ export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: 
     } catch {}
   }, [parked, parkedReady, tenant]);
   const [hoyOpen, setHoyOpen] = useState(false);
+  // Cierre de caja: sesión del local (abierta o no) y la hoja para gestionarla.
+  const [cash, setCash] = useState<CashState | null>(null);
+  const [cashOpen, setCashOpen] = useState(false);
+  const loadCash = useCallback(() => {
+    fetch(`/api/admin/${tenant}/caja/sesion`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setCash(d as CashState))
+      .catch(() => {});
+  }, [tenant]);
+  useEffect(() => {
+    loadCash();
+  }, [loadCash]);
   // Las hojas y la barra del móvil se pintan en .panel (fuera de .p-page): la
   // animación de entrada de la página encierra los elementos «fixed».
   const [portal, setPortal] = useState<HTMLElement | null>(null);
@@ -285,6 +298,7 @@ export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: 
       reset();
       setStep("done");
       loadHoy();
+      loadCash();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo crear el pedido");
     } finally {
@@ -573,13 +587,24 @@ export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: 
             </span>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="w-full rounded-full py-2.5 pl-9 pr-3 text-sm" />
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              loadCash();
+              setCashOpen(true);
+            }}
+            className={`p-press ml-auto flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:ml-0 ${cash && !cash.open ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)]"}`}
+          >
+            <span aria-hidden className={`h-2 w-2 rounded-full ${cash?.open ? "bg-emerald-500" : "bg-white/70"}`} />
+            {cash ? (cash.open ? "Caja abierta" : "Abrir caja") : "Caja"}
+          </button>
           {parked.length > 0 && (
-            <button type="button" onClick={() => setParkedOpen(true)} className="p-press ml-auto flex items-center gap-2 rounded-full bg-[var(--p-accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:ml-0">
+            <button type="button" onClick={() => setParkedOpen(true)} className="p-press flex items-center gap-2 rounded-full bg-[var(--p-accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
               En espera · {parked.length}
             </button>
           )}
           {canSeeTakings && (
-            <button type="button" onClick={() => setHoyOpen(true)} className={`p-press flex items-center gap-2 ${parked.length ? "" : "ml-auto"} sm:ml-0 rounded-full bg-[var(--p-surface)] px-4 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]`}>
+            <button type="button" onClick={() => setHoyOpen(true)} className={`p-press flex items-center gap-2 rounded-full bg-[var(--p-surface)] px-4 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]`}>
               <span className="text-[var(--p-muted)]">Hoy</span>
               {hoy ? (
                 <>
@@ -594,6 +619,14 @@ export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: 
             </button>
           )}
         </div>
+        {cash && !cash.open && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span>La caja está cerrada. Ábrela con el efectivo del cajón para poder cuadrar al final del día.</span>
+            <button type="button" onClick={() => setCashOpen(true)} className="p-press rounded-full bg-amber-900 px-4 py-1.5 text-xs font-semibold text-white">
+              Abrir caja
+            </button>
+          </div>
+        )}
         {error && !lines.length && step === "order" && <p className="mt-3 text-sm text-[var(--p-accent)]">{error}</p>}
         {categories && !q && (
           <nav className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0" style={{ scrollbarWidth: "none" }}>
@@ -712,6 +745,7 @@ export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: 
                 </div>
               </div>
             )}
+            {cashOpen && <CashSessionSheet tenant={tenant} state={cash} onState={setCash} onClose={() => setCashOpen(false)} />}
             {hoyOpen && canSeeTakings && (
               <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label="Hoy en caja">
                 <button type="button" aria-label="Cerrar" onClick={() => setHoyOpen(false)} className="absolute inset-0 bg-black/40" />

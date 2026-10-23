@@ -218,3 +218,80 @@ export async function printOnNewOrder(orderId: string): Promise<void> {
 export async function enqueueTest(tenantId: string, tenantName: string, p: Printer): Promise<void> {
   await prisma.printJob.create({ data: { tenantId, kind: "TEST", printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderTest(p, tenantName)) } });
 }
+
+// Informe Z: resumen del cierre de caja en la impresora de tickets.
+const PAY_NAME: Record<string, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
+export function renderClosing(
+  c: {
+    openedAt: Date;
+    closedAt: Date;
+    openedByName: string | null;
+    closedByName: string | null;
+    openingFloatCents: number;
+    countedCashCents: number;
+    expectedCashCents: number;
+    differenceCents: number;
+    summary: { orders: number; byPayment: Record<string, number>; totalCents: number; inCents: number; outCents: number };
+    notes: string | null;
+    storeName: string;
+    tenantName: string;
+    tz: string;
+  },
+  p: Printer
+): Uint8Array {
+  const t = new Escpos({ width: p.width, codepage: p.codepage });
+  t.align("center").bold(true).size(2, 2).line("CIERRE DE CAJA").size(1, 1).bold(false);
+  t.line(c.tenantName).line(c.storeName);
+  t.align("left").rule();
+  t.row("Apertura", `${dmy(c.openedAt, c.tz)} ${hhmm(c.openedAt, c.tz)}`);
+  if (c.openedByName) t.row("  por", c.openedByName);
+  t.row("Cierre", `${dmy(c.closedAt, c.tz)} ${hhmm(c.closedAt, c.tz)}`);
+  if (c.closedByName) t.row("  por", c.closedByName);
+  t.rule();
+  t.bold(true).line("VENTAS COBRADAS").bold(false);
+  for (const [k, v] of Object.entries(c.summary.byPayment)) if (v) t.row(PAY_NAME[k] ?? k, euros(v));
+  t.bold(true).row(`Total (${c.summary.orders} pedidos)`, euros(c.summary.totalCents)).bold(false);
+  t.rule();
+  t.bold(true).line("EFECTIVO EN EL CAJÓN").bold(false);
+  t.row("Fondo de apertura", euros(c.openingFloatCents));
+  t.row("+ Ventas en efectivo", euros(c.summary.byPayment.CASH ?? 0));
+  if (c.summary.inCents) t.row("+ Entradas", euros(c.summary.inCents));
+  if (c.summary.outCents) t.row("- Salidas", euros(c.summary.outCents));
+  t.bold(true).row("Debería haber", euros(c.expectedCashCents)).bold(false);
+  t.row("Contado", euros(c.countedCashCents));
+  t.bold(true).size(1, 2).row(c.differenceCents === 0 ? "Cuadra" : c.differenceCents > 0 ? "Sobra" : "Falta", euros(Math.abs(c.differenceCents))).size(1, 1).bold(false);
+  if (c.notes) t.rule().wrap(`Nota: ${c.notes}`);
+  t.cut();
+  return t.bytes();
+}
+
+export async function enqueueClosing(sessionId: string): Promise<number> {
+  const s = await prisma.cashSession.findUnique({ where: { id: sessionId } });
+  if (!s || !s.closedAt || s.countedCashCents == null || s.expectedCashCents == null || s.differenceCents == null) return 0;
+  const [tenant, store] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: s.tenantId }, select: { name: true, settings: true } }),
+    prisma.store.findUnique({ where: { id: s.storeId }, select: { name: true } }),
+  ]);
+  if (!tenant) return 0;
+  const cfg = readPrinting(tenant.settings);
+  const printers = cfg.agentToken ? cfg.printers.filter((x) => x.roles.includes("receipt")) : [];
+  if (!printers.length) return 0;
+  const summary = s.summary as unknown as { orders: number; byPayment: Record<string, number>; totalCents: number; inCents: number; outCents: number };
+  const data = {
+    openedAt: s.openedAt,
+    closedAt: s.closedAt,
+    openedByName: s.openedByName,
+    closedByName: s.closedByName,
+    openingFloatCents: s.openingFloatCents,
+    countedCashCents: s.countedCashCents,
+    expectedCashCents: s.expectedCashCents,
+    differenceCents: s.differenceCents,
+    summary,
+    notes: s.notes,
+    storeName: store?.name ?? "",
+    tenantName: tenant.name,
+    tz: tenantTimeZone(tenant.settings),
+  };
+  await prisma.printJob.createMany({ data: printers.map((p) => ({ tenantId: s.tenantId, kind: "CLOSING" as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderClosing(data, p)) })) });
+  return printers.length;
+}

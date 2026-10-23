@@ -57,7 +57,7 @@ export async function PATCH(req: NextRequest) {
         if (typeof newStatus !== "string") {
           if (order.status === "CANCELLED") return NextResponse.json({ error: "El pedido está cancelado" }, { status: 400 });
           if (order.paymentStatus === "PAID") return NextResponse.json({ error: "El pedido ya está cobrado" }, { status: 400 });
-          const u = await prisma.order.update({ where: { id: orderId }, data: { paymentStatus: "PAID", paymentMethod: paidWith as PaymentMethod } });
+          const u = await prisma.order.update({ where: { id: orderId }, data: { paymentStatus: "PAID", paymentMethod: paidWith as PaymentMethod, paidAt: new Date() } });
           return NextResponse.json({ orderId: u.id, status: u.status, courier: null, refundError: null });
         }
 
@@ -76,7 +76,7 @@ export async function PATCH(req: NextRequest) {
           const collect = newStatus === "DELIVERED" && paidWith && order.paymentStatus !== "PAID" && order.paymentStatus !== "REFUNDED";
           const u = await tx.order.update({
             where: { id: orderId },
-            data: { status: newStatus as OrderStatus, ...(collect && { paymentStatus: "PAID", paymentMethod: paidWith as PaymentMethod }) }, // validado contra VALID_TRANSITIONS
+            data: { status: newStatus as OrderStatus, ...(collect && { paymentStatus: "PAID", paymentMethod: paidWith as PaymentMethod, paidAt: new Date() }) }, // validado contra VALID_TRANSITIONS
           });
           if (newStatus === "CANCELLED") {
             await returnOrderStock(tx, order.tenantId, orderId);
