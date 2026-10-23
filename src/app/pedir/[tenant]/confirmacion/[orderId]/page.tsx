@@ -1,3 +1,5 @@
+import { readBusiness } from "@/app/lib/business";
+import { modifierLabels } from "@/app/lib/menuOptions";
 import { prisma } from "@/app/lib/prisma";
 import { discountLines } from "@/app/lib/promotions";
 import { getTenantTheme, themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
@@ -57,6 +59,10 @@ export default async function ConfirmacionPage({
   const tax = readTax(tenantData?.settings);
 
   const isDelivery = order.channel === "DELIVERY";
+  // Recogida: dirección del local (o la del negocio) y enlace para llegar.
+  const biz = readBusiness(tenantData?.settings);
+  const pickupAddress = order.store.address || [biz.street, [biz.postalCode, biz.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") || null;
+  const mapsHref = biz.mapsLink || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${tenantData?.name ?? ""} ${pickupAddress ?? ""}`)}`;
   // Importes tal como se guardaron en el pedido (incluyen suplementos y cupón).
   const subtotalCents = order.subtotalCents;
   const deliveryFee = order.feesCents;
@@ -117,6 +123,18 @@ export default async function ConfirmacionPage({
             <span style={{ color: cssVars["--text-secondary"] }}>{T.typeLabel}</span>
             <span style={{ fontWeight: 600 }}>{isDelivery ? T.deliveryOnly : lang === "en" ? "Pickup" : "Recogida"}</span>
           </div>
+          {!isDelivery && pickupAddress && (
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "14px" }}>
+              <span style={{ color: cssVars["--text-secondary"] }}>{T.pickupAtLabel}</span>
+              <span style={{ fontWeight: 600, textAlign: "right", maxWidth: "65%" }}>
+                {pickupAddress}
+                <br />
+                <a href={mapsHref} target="_blank" rel="noopener noreferrer" style={{ fontSize: "13px", fontWeight: 600, color: cssVars["--brand-accent"] }}>
+                  {T.howToGet} →
+                </a>
+              </span>
+            </div>
+          )}
           {isDelivery && order.customerAddress && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
               <span style={{ color: cssVars["--text-secondary"] }}>{T.addressLabel}</span>
@@ -137,12 +155,16 @@ export default async function ConfirmacionPage({
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {order.items.map((item) => (
-              <div key={item.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
+              <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "14px" }}>
                 <span>
                   <span style={{ fontWeight: 700, color: cssVars["--brand-accent"], marginRight: "8px" }}>{item.quantity}x</span>
                   {item.productName}
+                  {modifierLabels(item.modifiers).length > 0 && (
+                    <span style={{ display: "block", marginTop: "2px", fontSize: "12px", color: cssVars["--text-secondary"] }}>{modifierLabels(item.modifiers).join(" · ")}</span>
+                  )}
+                  {item.note && <span style={{ display: "block", marginTop: "2px", fontSize: "12px", color: cssVars["--text-secondary"] }}>{item.note}</span>}
                 </span>
-                <span style={{ fontWeight: 600 }}>{euros(item.totalCents)}</span>
+                <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>{euros(item.totalCents)}</span>
               </div>
             ))}
           </div>

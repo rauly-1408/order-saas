@@ -60,7 +60,7 @@ export default async function AdminLayout({
 
   return (
     <div className={`panel ${inter.variable} ${display.variable} flex min-h-screen`} style={panelCssVars(panelBrand(branding))}>
-      <AdminSidebar tenant={tenant} tenantName={tenantName} logoUrl={logoUrl} canManage={canManageTenant(session.role)} />
+      <AdminSidebar tenant={tenant} tenantName={tenantName} logoUrl={logoUrl} canManage={canManageTenant(session.role)} seesTakings={Boolean(session.seesTakings)} />
       {/* pt-20 en móvil deja sitio a la barra superior fija */}
       <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-20 pb-12 lg:px-10 lg:pt-10">
         <div className="p-page mx-auto max-w-6xl">{children}</div>

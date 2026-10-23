@@ -81,6 +81,7 @@ type NavItem = {
   icon: IconName;
   exact?: boolean;
   managerOnly?: boolean; // oculto para STORE_MANAGER
+  takingsOnly?: boolean; // solo con el permiso «Ve lo recaudado»
 };
 
 function buildNav(tenant: string): NavItem[] {
@@ -89,7 +90,7 @@ function buildNav(tenant: string): NavItem[] {
     { label: "Inicio", href: `${base}/home`, icon: "home", exact: true, managerOnly: true },
     { label: "Pedidos", href: `${base}/pedidos`, icon: "orders" },
     { label: "Caja", href: `${base}/caja`, icon: "cash" },
-    { label: "Informes", href: `${base}/informes`, icon: "chart", managerOnly: true },
+    { label: "Informes", href: `${base}/informes`, icon: "chart", managerOnly: true, takingsOnly: true },
     { label: "Clientes", href: `${base}/clientes`, icon: "users", managerOnly: true },
     { label: "Carta", href: `${base}/carta`, icon: "menu", managerOnly: true },
     { label: "Costes", href: `${base}/costes`, icon: "costs", managerOnly: true },
@@ -102,15 +103,17 @@ export default function AdminSidebar({
   tenantName,
   logoUrl,
   canManage,
+  seesTakings = false,
 }: {
   tenant: string;
   tenantName: string;
   logoUrl: string | null;
   canManage: boolean;
+  seesTakings?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const nav = buildNav(tenant).filter((item) => canManage || !item.managerOnly);
+  const nav = buildNav(tenant).filter((item) => (canManage || !item.managerOnly) && (seesTakings || !item.takingsOnly));
   const [open, setOpen] = useState(false);
 
   async function handleLogout() {
@@ -206,6 +209,14 @@ export default function AdminSidebar({
           <Link href={`/pedir/${tenant}`} target="_blank" className="p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
             <Icon name="external" />
             Ver carta pública
+          </Link>
+          <Link
+            href={`/admin/${tenant}/cuenta`}
+            onClick={() => setOpen(false)}
+            className={`p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] hover:bg-black/[0.04] ${pathname.startsWith(`/admin/${tenant}/cuenta`) ? "font-medium text-[var(--p-ink)]" : "text-[var(--p-muted)]"}`}
+          >
+            <Icon name="users" />
+            Mi cuenta
           </Link>
           <button onClick={handleLogout} className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
             <Icon name="logout" />

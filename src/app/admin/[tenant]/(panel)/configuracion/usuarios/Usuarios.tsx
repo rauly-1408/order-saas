@@ -7,7 +7,7 @@ import { Card, Msg, ghostBtn, input, primaryBtn, toast } from "../ui";
 type User = { id: string; email: string; name: string | null; role: string; active: boolean; storeId: string | null; seesTakings: boolean; lastLoginAt: string | null; me: boolean };
 type Store = { id: string; name: string };
 
-// Usuarios y permisos: Gerente (todo) o Pedidos (solo pedidos, de un local o de todos).
+// Usuarios y permisos: Gerente (todo) o Pedidos (pedidos y caja, de un local o de todos).
 export default function Usuarios({ tenant }: { tenant: string }) {
   const api = `/api/admin/${tenant}/users`;
   const [users, setUsers] = useState<User[] | null>(null);
@@ -70,7 +70,7 @@ export default function Usuarios({ tenant }: { tenant: string }) {
         </div>
       )}
 
-      <Card title="Usuarios" description="Gerente: todo el panel. Pedidos: solo pedidos y Caja (ideal para cocina o encargados). Lo recaudado del día solo lo ve quien tenga marcado «Ve lo recaudado».">
+      <Card title="Usuarios" description="Gerente: todo el panel. Pedidos: solo pedidos y Caja (ideal para cocina o encargados). Ventas, informes y lo recaudado solo los ve quien tenga marcado «Ve lo recaudado».">
         {!users ? (
           <p className="text-sm text-[var(--p-muted)]">Cargando…</p>
         ) : (
@@ -149,7 +149,7 @@ export default function Usuarios({ tenant }: { tenant: string }) {
           <label className="text-xs text-[var(--p-muted)]">
             Permiso
             <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className={input}>
-              <option value="STORE_MANAGER">Pedidos (solo pedidos)</option>
+              <option value="STORE_MANAGER">Pedidos (pedidos y caja)</option>
               <option value="TENANT_ADMIN">Gerente (todo)</option>
             </select>
           </label>
