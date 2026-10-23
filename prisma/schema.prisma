@@ -87,6 +87,7 @@ enum PrintKind {
   KITCHEN // comanda para cocina
   RECEIPT // ticket del cliente
   TEST // página de prueba desde Configuración
+  CLOSING // cierre de caja (informe Z)
 }
 
 enum PrintJobStatus {
@@ -1140,4 +1141,39 @@ model PrintJob {
   printedAt DateTime?
 
   @@index([tenantId, status, createdAt])
+}
+
+// Cierre de caja: una sesión por local desde que se abre con un fondo hasta
+// que se cierra contando el cajón. Ver docs/CAJA.md
+model CashSession {
+  id               String    @id @default(cuid())
+  tenantId         String
+  storeId          String
+  openedAt         DateTime  @default(now())
+  openedByUserId   String?
+  openedByName     String?
+  openingFloatCents Int
+  closedAt         DateTime?
+  closedByUserId   String?
+  closedByName     String?
+  countedCashCents Int?
+  expectedCashCents Int? // fondo + ventas en efectivo + entradas − salidas, al cerrar
+  differenceCents  Int? // contado − esperado
+  summary          Json? // al cerrar: ventas por forma de pago, pedidos, movimientos
+  notes            String?
+  movements        CashMovement[]
+
+  @@index([tenantId, storeId, closedAt])
+}
+
+// Entradas y salidas de efectivo durante la sesión (pago a proveedor, retirada…).
+model CashMovement {
+  id          String      @id @default(cuid())
+  sessionId   String
+  session     CashSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  kind        String // IN | OUT
+  amountCents Int
+  reason      String
+  userName    String?
+  createdAt   DateTime    @default(now())
 }

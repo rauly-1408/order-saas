@@ -146,6 +146,7 @@ export async function createOrderWithNumber(input: CreateOrderInput) {
         status: input.payment.method === "IN_STORE" || input.payment.paid ? "CREATED" : "AWAITING_PAYMENT",
         paymentMethod: input.payment.method,
         paymentStatus: input.payment.paid ? "PAID" : input.payment.method === "IN_STORE" ? "UNPAID" : "PENDING",
+        ...(input.payment.paid && { paidAt: new Date() }),
         paymentProvider: input.payment.provider,
         tipCents: input.tipCents,
         giftCardId: input.giftCard?.id ?? null,

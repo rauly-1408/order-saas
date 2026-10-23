@@ -18,6 +18,14 @@ Tres pantallas en el ticket, como en un TPV (Square, Shopify POS):
 
 **Quién ve lo recaudado.** Solo los usuarios con la casilla **«Ve lo recaudado»** (Configuración → Usuarios y permisos): al crear el restaurante la tiene el administrador principal y nadie más. Sin ella, la Caja no muestra ni el botón «Hoy», ni la tarjeta «Recaudado hoy», ni la barra del móvil; Inicio enseña «Pedidos de hoy» en lugar de los ingresos y oculta el ticket medio; Informes no sale en el menú y su página explica cómo pedir el permiso; y las APIs de resumen, informes y exportación responden 403. Quien la tiene dispone además de un **ojo** en la tarjeta para tapar los importes (••••) cuando haya alguien mirando; se recuerda en el dispositivo.
 
+**Abrir y cerrar caja (arqueo).** El botón «Abrir caja / Caja abierta» de arriba abre la hoja **Caja**. Si está cerrada, un aviso lo recuerda al entrar.
+1. **Abrir**: «¿Con cuánto efectivo empiezas?» (el fondo; atajos 0, 50, 100, 150, 200 €).
+2. **Durante el día**: «− Sale dinero» y «+ Entra dinero», con motivo (pago a proveedor, retirada al banco, cambio para el cajón, propinas, otro).
+3. **Cerrar**: se cuenta el cajón y se escribe el total (más una nota si hace falta). Se cuenta **a ciegas**: lo que debería haber se ve después, nunca antes.
+4. **Resultado**: «Cuadra», «Sobran X €» o «Faltan X €» (verde si cuadra, ámbar hasta 1 €, rojo si es más), con lo esperado, lo contado y lo cobrado en total. Si hay impresora de tickets, sale el **informe de cierre** (ventas por forma de pago y efectivo del cajón).
+
+Lo que debería haber = fondo + cobrado en efectivo desde la apertura + entradas − salidas. Cuenta el momento del cobro: un pedido «al recoger» cobrado en efectivo al entregarlo entra en la caja que esté abierta en ese momento. Quien no tiene «Ve lo recaudado» abre, apunta y cierra igual, pero no ve lo esperado, la diferencia ni los cierres anteriores; el administrador sí (lista de los últimos 14 cierres con quién y cuánto). Una caja por local.
+
 **Hoy en caja.** Con el ticket vacío, la columna del pedido muestra **«Recaudado hoy»** (lo cobrado, pedidos, desglose por forma de pago y lo pendiente). Tocándolo, o con el botón «Hoy · n ventas · total» junto al buscador, se abre el resumen del día en la hora del restaurante: ventas y pedidos, desglose por forma de pago (efectivo, datáfono, Bizum, tarjeta online), lo pendiente de cobrar (pedidos activos «al recoger» o «al entregar»), lo devuelto por cancelaciones y la lista de pedidos con hora, origen, forma de pago y estado. Cuenta todo lo que llegó a cocina (online y Caja); un usuario con local asignado solo ve su local. El efectivo que debe haber en el cajón es la venta en efectivo más el fondo de apertura; el arqueo con fondo y recuento es la entrega 3.
 
 En el móvil el ticket es una hoja que sube desde abajo («Ver pedido · n · total»); el cobro y la confirmación van en la misma hoja. Sin pedido en marcha, la barra de abajo muestra «Recaudado hoy · total» y abre el detalle.
@@ -30,7 +38,7 @@ Las promociones automáticas y los cupones se aplican igual que en la tienda. No
 |---|---|
 | 1. Tomar pedidos y cobrar | ✅ 2026-10-23 (pantallas de pedido → cobro → hecho; líneas con nota y descuento; pedidos en espera) |
 | 2. Impresión de ticket y comanda (80 mm) | ✅ 2026-10-23 (ver `docs/IMPRESION.md`); pendiente la prueba con la impresora real |
-| 3. Apertura y cierre de caja (arqueo) | pendiente |
+| 3. Apertura y cierre de caja (arqueo) | ✅ 2026-10-23 |
 | 4. VeriFactu (facturas simplificadas, huella encadenada, QR, envío a Hacienda). Obligatorio desde 2027 | pendiente, antes de 2027 |
 
 Fuera de alcance (sería un TPV completo): mesas y sala, varios terminales, modo sin internet.
@@ -43,6 +51,8 @@ Fuera de alcance (sería un TPV completo): mesas y sala, varios terminales, modo
 - `POST /api/admin/[tenant]/caja`: sesión del restaurante (cualquier rol), local de la sesión o el primero activo. No comprueba el horario (el mostrador siempre puede) ni exige teléfono. Pagos `CASH`/`CARD_TERMINAL`/`BIZUM` quedan `PAID` al crearse; `IN_STORE` queda sin cobrar.
 - `PATCH /api/orders/status/[orderId]` acepta `paidWith` (`CASH` | `CARD_TERMINAL` | `BIZUM`): con `status: "DELIVERED"` apunta el cobro al entregar; solo, registra el cobro de un pedido ya entregado (rechaza cancelados y ya cobrados).
 - `User.seesTakings` (migración `20261023160000_sees_takings`: la pone a true al gerente más antiguo de cada restaurante y al SUPERADMIN). Va en la sesión (`seesTakings`, releída de la base de datos en cada petición) y se edita con `PATCH /api/admin/[tenant]/users { id, seesTakings }`.
+- Modelos `CashSession` (fondo, apertura y cierre con quién, contado, esperado, diferencia, resumen y nota) y `CashMovement` (entradas y salidas), migración `20261023180000_cierre_caja` (también añade `CLOSING` a `PrintKind`). `lib/cashSession.ts` (`sessionFigures`: cobros del local por `paidAt` en la ventana de la sesión). `Order.paidAt` se rellena al cobrar en la Caja y al apuntar el cobro al entregar.
+- `GET/POST /api/admin/[tenant]/caja/sesion` (`open`, `move`, `close`): cualquier usuario del restaurante; cifras, diferencia e histórico solo con `seesTakings`. Al cerrar encola el informe de cierre (`enqueueClosing`) en las impresoras de tickets.
 - `GET /api/admin/[tenant]/caja/hoy`: resumen del día (403 sin `seesTakings`) (desde `startOfTodayIn` en la zona horaria del restaurante), sin `AWAITING_PAYMENT`; filtra por `storeId` de la sesión si lo hay.
 - Pantalla `caja/CajaClient.tsx`: lee la carta de `/api/menu/[tenant]` y reutiliza `ProductOptionsSheet` y `ComboSheet` de la tienda (las variables de color de la tienda se mapean a las del panel).
 - El tablero de Pedidos muestra `source`, `dineIn` y la forma de pago.
