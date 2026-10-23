@@ -30,7 +30,9 @@ export type Order = {
   updatedAt: string;
   items: OrderItem[];
   courier?: CourierView | null; // repartidor externo (Glovo, modo prueba…)
-  paymentMethod?: "IN_STORE" | "CARD" | "BIZUM";
+  paymentMethod?: "IN_STORE" | "CARD" | "BIZUM" | "CASH" | "CARD_TERMINAL";
+  source?: "ONLINE" | "COUNTER" | "PHONE"; // Caja: mostrador o teléfono
+  dineIn?: boolean;
   paymentStatus?: "UNPAID" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
   tipCents?: number;
   giftCardCents?: number;
@@ -120,3 +122,7 @@ export function orderLabel(order: Order): string {
 
 export const toEuros = (cents: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
+
+// Etiquetas de la Caja para la tarjeta del pedido.
+export const SOURCE_LABEL: Record<string, string> = { COUNTER: "Mostrador", PHONE: "Teléfono" };
+export const PAYMENT_LABEL: Record<string, string> = { CASH: "efectivo", CARD_TERMINAL: "datáfono", BIZUM: "Bizum", CARD: "tarjeta online", IN_STORE: "al recoger" };

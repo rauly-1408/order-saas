@@ -11,6 +11,8 @@ import {
   modifierLabels,
   nextAction,
   orderLabel,
+  PAYMENT_LABEL,
+  SOURCE_LABEL,
   timerTone,
   toEuros,
   type Estimates,
@@ -63,9 +65,13 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold tracking-tight text-[var(--p-ink)]">{orderLabel(order)}</span>
             <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[11px] font-medium text-[var(--p-muted)]">
-              {order.channel === "DELIVERY" ? "A domicilio" : "Para recoger"}
+              {order.channel === "DELIVERY" ? "A domicilio" : order.dineIn ? "Comer aquí" : "Para recoger"}
             </span>
+            {order.source && SOURCE_LABEL[order.source] && (
+              <span className="rounded-full bg-[var(--p-brand-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--p-brand)]">{SOURCE_LABEL[order.source]}</span>
+            )}
           </div>
+
           <div className="truncate font-semibold text-[var(--p-ink)]">{order.customerName}</div>
           <a href={`tel:${order.customerPhone}`} className="text-sm text-[var(--p-muted)] hover:text-[var(--p-brand-strong)]">
             {formatPhone(order.customerPhone)}
@@ -175,7 +181,7 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
           <span className="font-bold text-[var(--p-ink)]">{toEuros(order.totalCents)}</span>
           {/* Cobro: pagado online o pendiente de cobrar en persona */}
           {order.paymentStatus === "PAID" ? (
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">{order.paymentMethod === "BIZUM" ? "Pagado con Bizum" : "💳 Pagado"}</span>
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">{order.paymentMethod && order.paymentMethod !== "CARD" ? `Pagado · ${PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}` : "💳 Pagado"}</span>
           ) : order.paymentStatus === "REFUNDED" ? (
             <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[11px] font-semibold text-[var(--p-muted)]">Devuelto</span>
           ) : (

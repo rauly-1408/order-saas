@@ -59,9 +59,18 @@ enum PriceChangeSource {
 
 // Cómo paga el cliente: en el local (efectivo/datáfono) o con tarjeta online (Stripe).
 enum PaymentMethod {
-  IN_STORE
-  CARD
-  BIZUM
+  IN_STORE // pago al recoger / al recibir (pedido online sin cobrar)
+  CARD // tarjeta online (pasarela del restaurante)
+  BIZUM // Bizum online
+  CASH // efectivo en caja (Caja)
+  CARD_TERMINAL // datáfono del local (Caja)
+}
+
+// De dónde viene el pedido: la tienda online o la Caja del panel.
+enum OrderSource {
+  ONLINE
+  COUNTER // mostrador
+  PHONE // por teléfono
 }
 
 // Estado del cobro online. Los pedidos IN_STORE quedan en UNPAID (se cobran en el local).
@@ -405,6 +414,11 @@ model Order {
 
   channel Channel
   status  OrderStatus @default(CREATED)
+  // Caja (ver docs/CAJA.md): origen, «para comer aquí», quién lo tomó y el efectivo entregado
+  source           OrderSource @default(ONLINE)
+  dineIn           Boolean     @default(false)
+  createdByUserId  String?
+  cashTenderedCents Int?
 
   customerName       String
   customerPhone      String
