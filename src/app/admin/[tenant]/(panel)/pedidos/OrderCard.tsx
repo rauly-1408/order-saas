@@ -39,6 +39,13 @@ type OrderCardProps = {
   onCourier?: (id: string, action: "request" | "cancel") => void;
   printingEnabled?: boolean;
   onPrint?: (id: string, kind: "KITCHEN" | "RECEIPT") => void;
+  // Arrastrar la tarjeta a la siguiente columna (solo con ratón, en pantallas grandes).
+  draggable?: boolean;
+  dragging?: boolean;
+  onDragStart?: (id: string) => void;
+  onDragEnd?: () => void;
+  // Sube cada vez que, al soltar la tarjeta, hay que preguntar cómo ha pagado.
+  payRequest?: number;
 };
 
 const COURIER_TONE: Record<string, string> = {
@@ -49,9 +56,11 @@ const COURIER_TONE: Record<string, string> = {
 const SECONDARY = "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-black/[0.04] px-2 py-2 text-xs font-medium text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)] disabled:opacity-50";
 const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : null);
 
-export default function OrderCard({ order, estimates, now, busy, onStatus, courierEnabled = false, onCourier, printingEnabled = false, onPrint }: OrderCardProps) {
+export default function OrderCard({ order, estimates, now, busy, onStatus, courierEnabled = false, onCourier, printingEnabled = false, onPrint, draggable = false, dragging = false, onDragStart, onDragEnd, payRequest = 0 }: OrderCardProps) {
   const action = nextAction(order);
-  const [askPay, setAskPay] = useState(false);
+  // askPay se abre con el botón o cuando sube payRequest (soltar la tarjeta en «Entregado»).
+  const [askPayState, setAskPay] = useState<{ open: boolean; seen: number }>({ open: false, seen: 0 });
+  const askPay = askPayState.open || askPayState.seen < payRequest;
   // Entregar un pedido pendiente de cobro: primero preguntar cómo ha pagado.
   const needsPay = action?.status === "DELIVERED" && order.paymentStatus !== "PAID" && order.paymentStatus !== "REFUNDED";
   const isNew = order.status === "CREATED" || order.status === "ACCEPTED";
@@ -65,9 +74,18 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
 
   return (
     <article
+      draggable={draggable && !busy}
+      onDragStart={(e) => {
+        if (!draggable || !onDragStart) return;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", order.id);
+        onDragStart(order.id);
+      }}
+      onDragEnd={onDragEnd}
+      title={draggable ? "Arrastra la tarjeta a la siguiente columna o usa el botón" : undefined}
       className={`p-lift rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
         isNew ? "ring-2 ring-[var(--p-accent)]" : ""
-      }`}
+      } ${draggable ? "cursor-grab active:cursor-grabbing" : ""} ${dragging ? "opacity-40" : ""}`}
     >
       <header className="mb-3">
         <div className="flex items-center justify-between gap-3">
@@ -203,16 +221,16 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
       {action && askPay && needsPay && (
         <PaidWithChooser
           busy={busy}
-          onCancel={() => setAskPay(false)}
+          onCancel={() => setAskPay({ open: false, seen: payRequest })}
           onPick={(m) => {
-            setAskPay(false);
+            setAskPay({ open: false, seen: payRequest });
             onStatus(order.id, action.status, m);
           }}
         />
       )}
       {action && !(askPay && needsPay) && (
         <button
-          onClick={() => (needsPay ? setAskPay(true) : onStatus(order.id, action.status))}
+          onClick={() => (needsPay ? setAskPay({ open: true, seen: payRequest }) : onStatus(order.id, action.status))}
           disabled={busy}
           className={`p-press mt-3 w-full rounded-full py-3 text-[15px] font-semibold disabled:opacity-50 ${
             isNew ? "bg-[var(--p-accent)] text-white hover:brightness-95" : "bg-[var(--p-brand)] text-white hover:bg-[var(--p-brand-strong)]"

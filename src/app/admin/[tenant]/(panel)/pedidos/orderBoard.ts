@@ -83,6 +83,18 @@ export function nextAction(order: Order): NextAction | null {
   }
 }
 
+// Arrastrar: a qué columna se puede soltar la tarjeta (solo hacia delante, la
+// misma transición que el botón). "DONE" es la zona «Entregado» que aparece al
+// arrastrar un pedido listo o en reparto.
+export type DropKey = ColumnKey | "DONE";
+
+export function dropTarget(order: Order): DropKey | null {
+  const next = nextAction(order);
+  if (!next) return null;
+  if (next.status === "DELIVERED") return "DONE";
+  return COLUMNS.find((c) => c.statuses.includes(next.status))?.key ?? null;
+}
+
 export function canCancel(order: Order): boolean {
   return ["CREATED", "ACCEPTED", "PREPARING"].includes(order.status);
 }
