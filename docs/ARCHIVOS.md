@@ -7,7 +7,8 @@ Panel → **Archivos** (barra lateral). Solo gerentes. Dos pestañas: **Imágene
 - **Subir**: botón «Subir imágenes / vídeos» o arrastrar los archivos a la página (hasta 20 a la vez), con barra de progreso.
 - Ver todo lo subido en una **tabla como la de Shopify**: casilla de selección, miniatura, nombre y tipo (PNG, JPG, WebP, MP4…), fecha de adición, tamaño y **en cuántos productos se usa**. Las columnas Nombre, Fecha y Tamaño se ordenan al tocar la cabecera; 50 archivos por página.
 - **Seleccionar varios** (o todos los de la página) y borrarlos de una vez; avisa si alguno se usa en un producto.
-- Tocar un archivo abre la **vista previa** a tamaño completo con «Copiar enlace» y «Borrar». En el móvil las columnas de fecha, tamaño y referencias pasan debajo del nombre y las acciones van en la vista previa.
+- En cada fila, dos iconos con tooltip: **enlace** (copia la dirección y avisa «Enlace copiado») y **papelera**. Tocar un archivo abre la **vista previa** a tamaño completo con «Copiar enlace» y «Borrar».
+- **Borrar** siempre pregunta en una ventana propia: «¿Borrar «foto.jpg»?» o «¿Borrar 3 archivos?», «Desaparecerán de tu biblioteca. No se puede deshacer», y si alguna imagen se usa en productos, cuáles se quedarán sin foto. Botones «Cancelar» y «Sí, borrar». En el móvil las columnas de fecha, tamaño y referencias pasan debajo del nombre y las acciones van en la vista previa.
 - El selector de fotos de un producto (Carta) sigue siendo una cuadrícula de miniaturas.
 - **Buscar** por nombre, **copiar el enlace** y **borrar**. Si una imagen se usa en algún producto, avisa antes de borrarla.
 - **Fotos de productos** (Carta → editar producto → «Imagen»):
