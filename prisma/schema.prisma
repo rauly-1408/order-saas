@@ -492,6 +492,10 @@ model OrderLine {
   // Modificadores seleccionados en JSON snapshot
   modifiers Json @default("[]")
 
+  // Caja: nota de la línea para cocina y descuento manual (ya restado en totalCents).
+  note          String?
+  discountCents Int     @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

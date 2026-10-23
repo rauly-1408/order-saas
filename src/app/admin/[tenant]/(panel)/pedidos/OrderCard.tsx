@@ -113,6 +113,8 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
                 <span className="text-[var(--p-muted)]">{toEuros(item.totalCents)}</span>
               </div>
               {mods.length > 0 && <div className="pl-6 text-xs text-[var(--p-muted)]">{mods.join(" · ")}</div>}
+              {item.note && <div className="pl-6 text-xs font-semibold text-[var(--p-brand)]">Nota: {item.note}</div>}
+              {(item.discountCents ?? 0) > 0 && <div className="pl-6 text-xs text-[var(--p-muted)]">Descuento −{toEuros(item.discountCents ?? 0)}</div>}
             </li>
           );
         })}

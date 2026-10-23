@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     const ops = await getStoreOps(tenant.id, tenant.settings, new Date(), storeId);
     if (!ops) return NextResponse.json({ error: "Local no encontrado" }, { status: 404 });
 
-    const priced = await priceOrderItems(tenant.id, items);
+    const priced = await priceOrderItems(tenant.id, items, { allowDiscount: true });
     if ("error" in priced) return NextResponse.json({ error: priced.error }, { status: 400 });
     const { linesCreate, cartLines, consumption, subtotalCents } = priced;
 

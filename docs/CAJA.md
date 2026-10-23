@@ -10,6 +10,10 @@ Tres pantallas en el ticket, como en un TPV (Square, Shopify POS):
 2. **Cobro.** «Cobrar X €» lleva a la pantalla de cobro: total en grande, forma de pago (**efectivo**, **datáfono**, **Bizum** o **pagar al recoger**) y, en efectivo, importes rápidos (justo y los billetes que lo cubren) más un teclado numérico; el cambio o lo que falta se ve al momento. Sin dirección en un pedido a domicilio no deja confirmar.
 3. **Hecho.** Número de pedido y, en efectivo, el **cambio a devolver** en grande. «Nuevo pedido» vuelve a empezar. El pedido aparece en Pedidos → Nuevos con la etiqueta «Mostrador» o «Teléfono» y cómo se ha pagado.
 
+**Cada línea se edita.** Tocando el nombre de una línea se despliega: **nota para cocina** («sin cebolla»), **descuento** (−10 %, −50 %, invitación o un importe a mano) y «Quitar línea». La nota sale en la tarjeta de Pedidos y en el email de pedido nuevo; el descuento se resta en la línea y queda guardado en ella (`OrderLine.note`, `OrderLine.discountCents`). Solo la Caja puede aplicar descuentos: la tienda pública los ignora.
+
+**Pedidos en espera.** «Aparcar» guarda el pedido en curso (líneas, tipo, cliente, nota, cupón) y deja el ticket limpio; el botón «En espera · n» lo recupera o lo descarta. Si al recuperar uno hay otro a medias, ese se aparca solo. Se guardan en el dispositivo (localStorage), no en el servidor: un pedido aparcado en la tablet no se ve en el móvil.
+
 **Cobro al entregar o al recoger.** Un pedido pendiente de cobro (online «al recoger / al entregar», o de Caja con «pagar al recoger») no se da por entregado sin apuntar el cobro: el botón pasa a «Entregado y cobrar» y pregunta **¿Cómo ha pagado? Efectivo / Datáfono / Bizum**. Si alguno se entregó sin apuntarlo, en Pedidos → Últimas 24 h aparece «Sin cobrar · apuntar» para registrarlo después. Así el resumen de caja y los informes cuadran con el dinero real.
 
 **Hoy en caja.** Con el ticket vacío, la columna del pedido muestra **«Recaudado hoy»** (lo cobrado, pedidos, desglose por forma de pago y lo pendiente). Tocándolo, o con el botón «Hoy · n ventas · total» junto al buscador, se abre el resumen del día en la hora del restaurante: ventas y pedidos, desglose por forma de pago (efectivo, datáfono, Bizum, tarjeta online), lo pendiente de cobrar (pedidos activos «al recoger» o «al entregar»), lo devuelto por cancelaciones y la lista de pedidos con hora, origen, forma de pago y estado. Cuenta todo lo que llegó a cocina (online y Caja); un usuario con local asignado solo ve su local. El efectivo que debe haber en el cajón es la venta en efectivo más el fondo de apertura; el arqueo con fondo y recuento es la entrega 3.
@@ -22,7 +26,7 @@ Las promociones automáticas y los cupones se aplican igual que en la tienda. No
 
 | Entrega | Estado |
 |---|---|
-| 1. Tomar pedidos y cobrar | ✅ 2026-10-23 (pantallas de pedido → cobro → hecho, 2026-10-23) |
+| 1. Tomar pedidos y cobrar | ✅ 2026-10-23 (pantallas de pedido → cobro → hecho; líneas con nota y descuento; pedidos en espera) |
 | 2. Impresión de ticket y comanda (80 mm) | pendiente |
 | 3. Apertura y cierre de caja (arqueo) | pendiente |
 | 4. VeriFactu (facturas simplificadas, huella encadenada, QR, envío a Hacienda). Obligatorio desde 2027 | pendiente, antes de 2027 |
@@ -32,7 +36,7 @@ Fuera de alcance (sería un TPV completo): mesas y sala, varios terminales, modo
 ## Técnica
 
 - Migración `20261023090000_caja`: enum `OrderSource` (ONLINE, COUNTER, PHONE), `PaymentMethod` suma `CASH` y `CARD_TERMINAL`; `Order.source`, `dineIn`, `createdByUserId`, `cashTenderedCents`.
-- `lib/orderPricing.ts` (`priceOrderItems`): precio de las líneas desde la base de datos; lo comparten la tienda y la Caja.
+- `lib/orderPricing.ts` (`priceOrderItems`): precio de las líneas desde la base de datos; lo comparten la tienda y la Caja. Acepta `note` por línea (cualquier canal) y `discountCents` solo con `{ allowDiscount: true }` (la Caja). Migración `20261023150000_caja_lineas`.
 - `lib/createOrder.ts` (`createOrderWithNumber`): crea el pedido con número correlativo, CRM (solo si hay teléfono), cupón, tarjeta regalo, atribución y stock. Antes vivía dentro de la ruta de pedidos.
 - `POST /api/admin/[tenant]/caja`: sesión del restaurante (cualquier rol), local de la sesión o el primero activo. No comprueba el horario (el mostrador siempre puede) ni exige teléfono. Pagos `CASH`/`CARD_TERMINAL`/`BIZUM` quedan `PAID` al crearse; `IN_STORE` queda sin cobrar.
 - `PATCH /api/orders/status/[orderId]` acepta `paidWith` (`CASH` | `CARD_TERMINAL` | `BIZUM`): con `status: "DELIVERED"` apunta el cobro al entregar; solo, registra el cobro de un pedido ya entregado (rechaza cancelados y ya cobrados).

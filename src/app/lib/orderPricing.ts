@@ -15,7 +15,20 @@ export type OrderLineInput = {
   quantity: number;
   optionIds?: string[];
   comboChoices?: ComboChoice[]; // solo para combos: lo elegido en cada hueco
+  note?: string; // nota de la línea para cocina («sin cebolla»)
+  discountCents?: number; // descuento manual de la línea: solo la Caja (allowDiscount)
 };
+
+export const MAX_LINE_NOTE = 120;
+
+// Nota de la línea (cualquier canal) y descuento manual (solo si allowDiscount,
+// es decir, personal del restaurante en la Caja); nunca deja la línea en negativo.
+function withLineExtras(line: Prisma.OrderLineCreateWithoutOrderInput, item: OrderLineInput, opts: { allowDiscount?: boolean }): Prisma.OrderLineCreateWithoutOrderInput {
+  const note = typeof item.note === "string" && item.note.trim() ? item.note.trim().slice(0, MAX_LINE_NOTE) : null;
+  const total = line.totalCents ?? 0;
+  const discountCents = opts.allowDiscount && Number.isInteger(item.discountCents) ? Math.min(Math.max(item.discountCents as number, 0), total) : 0;
+  return { ...line, note, discountCents, totalCents: total - discountCents };
+}
 
 export const MAX_QTY_PER_LINE = 50;
 
@@ -33,6 +46,8 @@ export function invalidLine(item: unknown): boolean {
   const comboChoices = i.comboChoices as unknown;
   const badIds = (arr: unknown) => !Array.isArray(arr) || arr.some((id) => typeof id !== "string");
   return (
+    (i.note !== undefined && typeof i.note !== "string") ||
+    (i.discountCents !== undefined && (!Number.isInteger(i.discountCents) || (i.discountCents as number) < 0)) ||
     typeof i.productId !== "string" ||
     !Number.isInteger(i.quantity) ||
     (i.quantity as number) < 1 ||
@@ -48,7 +63,7 @@ export function invalidLine(item: unknown): boolean {
   );
 }
 
-export async function priceOrderItems(tenantId: string, items: OrderLineInput[]): Promise<PricedItems | { error: string }> {
+export async function priceOrderItems(tenantId: string, items: OrderLineInput[], opts: { allowDiscount?: boolean } = {}): Promise<PricedItems | { error: string }> {
   const productIds = [...new Set(items.map((i) => i.productId))];
   const groupsSelect = {
     orderBy: { sortOrder: "asc" as const },
@@ -112,14 +127,14 @@ export async function priceOrderItems(tenantId: string, items: OrderLineInput[])
       if (typeof priced === "string") return { error: priced };
       cartLines.push({ key: String(cartLines.length), categoryId: product.categoryId, unitBaseCents: product.basePriceCents, quantity: item.quantity });
       for (const c of choices) consumption.push({ productId: c.productId, quantity: item.quantity, optionIds: c.optionIds });
-      linesCreate.push({
+      linesCreate.push(withLineExtras({
         productId: product.id,
         productName: product.name,
         quantity: item.quantity,
         basePriceCents: product.basePriceCents,
         modifiers: priced.modifiers as unknown as Prisma.InputJsonValue,
         totalCents: priced.unitCents * item.quantity,
-      });
+      }, item, opts));
       continue;
     }
     const groups: MenuModifierGroup[] = product.modifierGroups.map((pmg) => ({
@@ -146,14 +161,14 @@ export async function priceOrderItems(tenantId: string, items: OrderLineInput[])
     const unitCents = product.basePriceCents + modifiers.reduce((acc, m) => acc + m.priceDeltaCents, 0);
     cartLines.push({ key: String(cartLines.length), categoryId: product.categoryId, unitBaseCents: product.basePriceCents, quantity: item.quantity });
     consumption.push({ productId: product.id, quantity: item.quantity, optionIds: Object.values(selection).flat() });
-    linesCreate.push({
+    linesCreate.push(withLineExtras({
       productId: product.id,
       productName: product.name,
       quantity: item.quantity,
       basePriceCents: product.basePriceCents,
       modifiers: modifiers as unknown as Prisma.InputJsonValue,
       totalCents: unitCents * item.quantity,
-    });
+    }, item, opts));
   }
 
   const subtotalCents = linesCreate.reduce((acc, line) => acc + (line.totalCents ?? 0), 0);
