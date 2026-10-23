@@ -64,21 +64,31 @@ export async function GET(req: NextRequest) {
     const { tenant, session } = ctx;
     const storeId = await storeForSession(tenant.id, session.storeId, new URL(req.url).searchParams.get("store"));
     const stores = session.storeId ? [] : (await listStores(tenant.id, { activeOnly: true })).map((s) => ({ id: s.id, name: s.name }));
-    if (!storeId) return NextResponse.json({ stores, storeId: null, canManage: canManageTenant(session.role), tables: [], fixtures: {} });
-    const store = await prisma.store.findUnique({ where: { id: storeId }, select: { floorPlan: true } });
+    if (!storeId) return NextResponse.json({ stores, storeId: null, canManage: canManageTenant(session.role), sees: Boolean(session.seesTakings), tables: [], fixtures: {} });
 
-    const tables = await prisma.diningTable.findMany({ where: { tenantId: tenant.id, storeId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
-    const open = await prisma.order.findMany({
-      where: { tenantId: tenant.id, storeId, status: "OPEN", tableId: { not: null } },
-      select: { id: true, orderNumber: true, tableId: true, guests: true, totalCents: true, createdAt: true, billRequestedAt: true, createdByUserId: true, _count: { select: { items: true } } },
-    });
+    // En paralelo: el plano se refresca cada pocos segundos en todos los móviles de sala.
+    const [store, tables, open] = await Promise.all([
+      prisma.store.findUnique({ where: { id: storeId }, select: { floorPlan: true } }),
+      prisma.diningTable.findMany({ where: { tenantId: tenant.id, storeId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
+      prisma.order.findMany({
+        where: { tenantId: tenant.id, storeId, status: "OPEN", tableId: { not: null } },
+        select: { id: true, orderNumber: true, tableId: true, guests: true, totalCents: true, createdAt: true, billRequestedAt: true, createdByUserId: true },
+      }),
+    ]);
     const userIds = [...new Set(open.flatMap((o) => (o.createdByUserId ? [o.createdByUserId] : [])))];
-    const users = new Map((await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, email: true } })).map((u) => [u.id, u]));
+    const orderIds = open.map((o) => o.id);
+    const [userRows, lineStats] = await Promise.all([
+      userIds.length ? prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, email: true } }) : Promise.resolve([]),
+      orderIds.length ? prisma.orderLine.groupBy({ by: ["orderId"], where: { orderId: { in: orderIds } }, _sum: { quantity: true }, _max: { round: true, createdAt: true } }) : Promise.resolve([]),
+    ]);
+    const users = new Map(userRows.map((u) => [u.id, u]));
+    const stats = new Map(lineStats.map((l) => [l.orderId, l]));
     const byTable = new Map(open.map((o) => [o.tableId, o]));
     return NextResponse.json({
       stores,
       storeId,
       canManage: canManageTenant(session.role),
+      sees: Boolean(session.seesTakings),
       fixtures: readFixtures(store?.floorPlan),
       tables: tables.map((t) => {
         const o = byTable.get(t.id);
@@ -91,7 +101,18 @@ export async function GET(req: NextRequest) {
           posX: t.posX,
           posY: t.posY,
           open: o
-            ? { orderId: o.id, orderNumber: o.orderNumber, guests: o.guests, totalCents: o.totalCents, openedAt: o.createdAt, billRequested: Boolean(o.billRequestedAt), waiter: nameOf(o.createdByUserId ? users.get(o.createdByUserId) : undefined), lines: o._count.items }
+            ? {
+                orderId: o.id,
+                orderNumber: o.orderNumber,
+                guests: o.guests,
+                totalCents: o.totalCents,
+                openedAt: o.createdAt,
+                billRequested: Boolean(o.billRequestedAt),
+                waiter: nameOf(o.createdByUserId ? users.get(o.createdByUserId) : undefined),
+                lines: stats.get(o.id)?._sum.quantity ?? 0,
+                rounds: stats.get(o.id)?._max.round ?? 0,
+                lastRoundAt: stats.get(o.id)?._max.createdAt ?? null,
+              }
             : null,
         };
       }),
