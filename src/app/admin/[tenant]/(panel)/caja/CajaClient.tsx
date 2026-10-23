@@ -231,7 +231,7 @@ export default function CajaClient({ tenant }: { tenant: string }) {
       </div>
       <div className="mt-3 flex gap-1.5 rounded-xl bg-black/[0.05] p-1" role="radiogroup" aria-label="Tipo de pedido">
         {(Object.keys(MODE_LABEL) as Mode[]).map((m) => (
-          <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`flex-1 rounded-lg py-2 text-[13px] font-semibold transition-colors ${mode === m ? "bg-[var(--p-ink)] text-white shadow-sm" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
+          <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`flex-1 rounded-lg py-2 text-[13px] font-semibold outline-none transition-colors ${mode === m ? "bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.06)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
             {MODE_LABEL[m]}
           </button>
         ))}
@@ -347,7 +347,7 @@ export default function CajaClient({ tenant }: { tenant: string }) {
 
       <div className="mt-4 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Forma de pago">
         {(Object.keys(PAYMENT_LABEL) as Payment[]).map((p) => (
-          <button key={p} type="button" role="radio" aria-checked={payment === p} onClick={() => setPayment(p)} className={`p-press flex items-center gap-2.5 rounded-2xl border-2 px-3 py-3 text-left text-sm font-semibold transition-colors ${payment === p ? "border-[var(--p-ink)] bg-[var(--p-ink)] text-white" : "border-transparent bg-black/[0.04] hover:bg-black/[0.07]"}`}>
+          <button key={p} type="button" role="radio" aria-checked={payment === p} onClick={() => setPayment(p)} className={`p-press flex items-center gap-2.5 rounded-2xl border-2 px-3 py-3 text-left text-sm font-semibold outline-none transition-colors ${payment === p ? "border-[var(--p-ink)] bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "border-transparent bg-black/[0.04] text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)]"}`}>
             <PayIcon kind={p} />
             {PAYMENT_LABEL[p]}
           </button>
