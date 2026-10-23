@@ -32,9 +32,18 @@ Este ticket es la base de la factura simplificada de VeriFactu (entrega 6): le f
 - `POST /api/admin/[tenant]/print/[orderId] { kind }` (cualquier usuario del restaurante; un usuario con local asignado solo sus pedidos): reimprime.
 - El agente se descarga desde el panel (`public/print-agent/agent.js`, copia de `tools/print-agent/agent.js`; hay que mantener las dos iguales).
 
+## Seguridad
+
+- Solo se aceptan impresoras con IPv4 privada y puerto 9100 a 9109, en el panel y en el agente.
+- Cada impresora puede pertenecer a un local; el agente de ese local se arranca con `--store ID` o `ORDER_SAAS_STORE`.
+- El texto de clientes y notas se limpia de caracteres de control y `Escpos.encode()` no deja pasar ninguno.
+- Reimprimir nunca abre el cajón.
+- `/api/print/jobs` tiene límite de peticiones y el latido solo actualiza `agentSeenAt`.
+- Más detalle en `docs/SEGURIDAD.md`.
+
 ## Probado
 
-Con una impresora simulada (servidor TCP en el puerto 9100 que guarda lo recibido): página de prueba, comanda y ticket de un pedido de Caja con nota de línea, descuento y cobro en efectivo con cambio; acentos y € correctos en CP858; el agente marca los tres como impresos y la página muestra «Agente conectado». Pendiente: prueba real con la impresora 10POS de Estafetén (192.168.1.31).
+Con una impresora simulada y con la impresora real 10POS de Estafetén (192.168.1.31): página de prueba y tickets correctos, con acentos y €.
 
 ## Pendiente
 

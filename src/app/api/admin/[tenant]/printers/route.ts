@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { denyUnlessTenantAdmin } from "@/app/lib/auth";
+import { listStores } from "@/app/lib/stores";
 import { enqueueTest, newAgentToken, parsePrinter, readPrinting, type Printer } from "@/app/lib/printing";
 
 export const runtime = "nodejs";
@@ -28,7 +29,8 @@ async function payload(tenantId: string, settings: unknown) {
     prisma.printJob.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: 8, select: { id: true, kind: true, status: true, printerId: true, error: true, createdAt: true, printedAt: true, orderId: true } }),
   ]);
   const seen = cfg.agentSeenAt ? Date.parse(cfg.agentSeenAt) : 0;
-  return { ...cfg, agentOnline: Date.now() - seen < 3 * 60_000, pending, recent };
+  const stores = (await listStores(tenantId)).map((s) => ({ id: s.id, name: s.name }));
+  return { ...cfg, agentOnline: Date.now() - seen < 3 * 60_000, pending, recent, stores };
 }
 
 export async function GET(req: NextRequest) {
@@ -46,7 +48,7 @@ export async function PUT(req: NextRequest) {
   const printers: Printer[] = [];
   for (const r of raw) {
     const p = parsePrinter(r);
-    if (!p) return NextResponse.json({ error: "Revisa la dirección IP de la impresora" }, { status: 400 });
+    if (!p) return NextResponse.json({ error: "Revisa la impresora: tiene que ser una IP de tu red (192.168.x.x, 10.x.x.x o 172.16–31.x.x) y el puerto 9100 (hasta 9109)" }, { status: 400 });
     printers.push(p);
   }
   const settings = (c.tenant.settings as Record<string, unknown>) ?? {};

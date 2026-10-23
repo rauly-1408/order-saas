@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
-import { resolveStoreId } from "@/app/lib/stores";
+import { storeForSession } from "@/app/lib/stores";
 import { MOVE_REASONS, openSession, sessionFigures } from "@/app/lib/cashSession";
 import { enqueueClosing } from "@/app/lib/printing";
 
@@ -27,8 +27,8 @@ async function ctx(req: NextRequest) {
   const session = await getSessionFromRequest(req);
   if (!session) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }) };
   if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return { error: NextResponse.json({ error: "Prohibido" }, { status: 403 }) };
-  const storeId = await resolveStoreId(tenant.id, session.storeId ?? new URL(req.url).searchParams.get("store"), { activeOnly: true });
-  if (!storeId) return { error: NextResponse.json({ error: "No hay ningún local activo" }, { status: 400 }) };
+  const storeId = await storeForSession(tenant.id, session.storeId, new URL(req.url).searchParams.get("store"));
+  if (!storeId) return { error: NextResponse.json({ error: session.storeId ? "Tu local no está activo. Habla con el gerente." : "No hay ningún local activo" }, { status: 400 }) };
   const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { name: true, email: true } });
   return { tenant, session, storeId, userName: user?.name || user?.email || null };
 }
@@ -85,7 +85,13 @@ export async function POST(req: NextRequest) {
       if (current) return NextResponse.json({ error: "La caja ya está abierta" }, { status: 400 });
       const float = cents(b.floatCents);
       if (float == null) return NextResponse.json({ error: "Escribe el efectivo con el que abres (puede ser 0)" }, { status: 400 });
-      await prisma.cashSession.create({ data: { tenantId: tenant.id, storeId, openingFloatCents: float, openedByUserId: session.userId, openedByName: userName } });
+      const opened = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"caja:" + storeId}))`;
+        if (await tx.cashSession.findFirst({ where: { tenantId: tenant.id, storeId, closedAt: null }, select: { id: true } })) return false;
+        await tx.cashSession.create({ data: { tenantId: tenant.id, storeId, openingFloatCents: float, openedByUserId: session.userId, openedByName: userName } });
+        return true;
+      });
+      if (!opened) return NextResponse.json({ error: "La caja ya está abierta" }, { status: 400 });
       return NextResponse.json(await payload(tenant.id, storeId, sees));
     }
 
@@ -108,8 +114,8 @@ export async function POST(req: NextRequest) {
       const fig = await sessionFigures(current, closedAt);
       const difference = counted - fig.expectedCashCents;
       const notes = typeof b.notes === "string" && b.notes.trim() ? b.notes.trim().slice(0, 300) : null;
-      const closed = await prisma.cashSession.update({
-        where: { id: current.id },
+      const done = await prisma.cashSession.updateMany({
+        where: { id: current.id, closedAt: null },
         data: {
           closedAt,
           closedByUserId: session.userId,
@@ -121,8 +127,11 @@ export async function POST(req: NextRequest) {
           summary: { orders: fig.orders, byPayment: fig.byPayment, totalCents: fig.totalCents, inCents: fig.inCents, outCents: fig.outCents } as unknown as Prisma.InputJsonValue,
         },
       });
-      // Informe Z en la impresora de tickets (si hay). Nunca bloquea el cierre.
-      await enqueueClosing(closed.id).catch((e) => console.error("[cierre] imprimir", e));
+      if (done.count === 0) return NextResponse.json({ error: "Esta caja ya se ha cerrado" }, { status: 400 });
+      const closed = { id: current.id };
+      // Informe de cierre impreso (con cifras): solo si quien cierra ve lo
+      // recaudado; quien cuenta a ciegas no recibe las cifras en papel.
+      if (sees) await enqueueClosing(closed.id).catch((e) => console.error("[cierre] imprimir", e));
       return NextResponse.json({
         ...(await payload(tenant.id, storeId, sees)),
         closed: sees ? { id: closed.id, countedCashCents: counted, expectedCashCents: fig.expectedCashCents, differenceCents: difference, figures: fig } : { id: closed.id, countedCashCents: counted },

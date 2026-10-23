@@ -21,11 +21,15 @@ Programa pequeño que corre en un ordenador del local (el PC de Windows que ya t
 
    Tiene que decir «Agente de impresión en marcha». En el panel, Configuración → Impresoras pasará a «Agente conectado» en menos de un minuto. Pulsa «Imprimir prueba».
 
-4. Para que arranque solo al encender el PC: crea un archivo `C:\impresion\agente.bat` con esta línea (con tu token):
+4. Para que arranque solo al encender el PC: crea un archivo `C:\impresion\agente.bat` con estas líneas (con tu token). Así el token va en una variable y no se ve en la lista de procesos:
 
    ```
-   node C:\impresion\agent.js --url https://order-saas-delta.vercel.app --token TU_TOKEN
+   set ORDER_SAAS_URL=https://order-saas-delta.vercel.app
+   set ORDER_SAAS_PRINT_TOKEN=TU_TOKEN
+   node C:\impresion\agent.js
    ```
+
+   Con **varios locales**, cada local tiene su agente: añade `set ORDER_SAAS_STORE=ID_DEL_LOCAL` (el identificador sale en Configuración → Sucursales) y en Configuración → Impresoras asigna cada impresora a su local.
 
    y pon un acceso directo a ese `.bat` en la carpeta de inicio: tecla Windows + R, escribe `shell:startup`, Intro, y arrastra ahí el acceso directo. Si quieres que no se vea la ventana negra, usa en su lugar el Programador de tareas (Crear tarea básica → Al iniciar sesión → Iniciar un programa → `node` con argumentos `C:\impresion\agent.js --url … --token …`).
 
@@ -36,6 +40,12 @@ node agent.js --url https://order-saas-delta.vercel.app --token TU_TOKEN
 ```
 
 Para dejarlo fijo en un Mac: Ajustes → General → Ítems de inicio, o un `launchd` plist. En Raspberry: un servicio `systemd`.
+
+## Seguridad
+
+- El agente solo se conecta a impresoras de la red del local (direcciones 192.168.x.x, 10.x.x.x o 172.16–31.x.x, puertos 9100–9109) y solo habla con la app por `https://`.
+- El token es como una contraseña: no lo compartas ni lo mandes en fotos. Si se ve, pulsa «Nuevo token» en Configuración → Impresoras y cámbialo en el `.bat`.
+- La impresora abre el cajón solo al cobrar en efectivo, nunca al reimprimir un ticket.
 
 ## Si algo falla
 

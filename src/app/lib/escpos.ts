@@ -23,6 +23,11 @@ function encode(text: string, codepage: Codepage): number[] {
   const out: number[] = [];
   for (const ch of text) {
     const code = ch.codePointAt(0) ?? 0;
+    // Control (ESC, GS, saltos…): fuera. Las órdenes las pone solo este módulo.
+    if (code < 0x20 || code === 0x7f || (code >= 0x80 && code < 0xa0)) {
+      out.push(0x20);
+      continue;
+    }
     if (code < 0x80) {
       out.push(code);
       continue;

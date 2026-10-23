@@ -1,4 +1,5 @@
 import { getSession } from "@/app/lib/auth";
+import { canManageTenant } from "@/app/lib/roles";
 import CajaClient from "./CajaClient";
 
 // Caja: tomar pedidos en mostrador y por teléfono desde el panel. Lo usa
@@ -6,5 +7,5 @@ import CajaClient from "./CajaClient";
 export default async function CajaPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
   const session = await getSession();
-  return <CajaClient tenant={tenant} canSeeTakings={Boolean(session?.seesTakings)} />;
+  return <CajaClient tenant={tenant} canSeeTakings={Boolean(session?.seesTakings)} canDiscount={canManageTenant(session?.role ?? "")} />;
 }

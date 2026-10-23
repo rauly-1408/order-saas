@@ -18,7 +18,7 @@ type View = {
   stripe: { mode: "test" | "live" | null; hasWebhookSecret: boolean };
   notifyUrl: string;
   feePercent: number;
-  month: { orders: number; totalCents: number; feeCents: number };
+  month: { orders: number; totalCents: number; feeCents: number } | null; // null sin «Ve lo recaudado»
 };
 type Form = { provider: Provider; payInStore: boolean; bizum: boolean; redsys: Redsys; redsysKey: string; stripeKey: string; stripeWebhook: string };
 

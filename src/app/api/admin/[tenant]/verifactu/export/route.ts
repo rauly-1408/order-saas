@@ -21,8 +21,9 @@ export async function GET(req: NextRequest) {
   const rect = new Map(rows.map((r) => [r.id, r.numSerie]));
   const head = ["Orden", "NumSerieFactura", "TipoFactura", "FechaExpedicion", "FechaHoraHusoGenRegistro", "NIF", "RazonSocial", "TipoIVA", "BaseImponible", "CuotaIVA", "ImporteTotal", "Rectifica", "Pedido", "HuellaAnterior", "Huella", "Modo", "Entorno", "EstadoAEAT", "QR"];
   const esc = (v: unknown) => {
-    const s = v == null ? "" : String(v);
-    return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    let s = v == null ? "" : String(v);
+    if (/^[=+@\t]/.test(s) || (/^-/.test(s) && !/^-\d/.test(s))) s = `'${s}`; // que Excel no lo lea como fórmula
+    return /[;"\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines = rows.map((r) =>
     [r.chainIndex, r.numSerie, r.invoiceType, r.issueDate, r.genTimestamp, r.issuerNif, r.issuerName, r.taxRate, amount(r.baseCents), amount(r.taxCents), amount(r.totalCents), r.rectifiedInvoiceId ? rect.get(r.rectifiedInvoiceId) ?? "" : "", r.order.orderNumber ?? "", r.prevHash ?? "", r.hash, r.mode, r.environment, r.aeatStatus, r.qrUrl]

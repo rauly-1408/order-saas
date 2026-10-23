@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { hashPassword, verifyPassword } from "@/app/lib/password";
+import { rateLimit } from "@/app/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // PUT { current, next } → cambiar mi contraseña (cualquier usuario del panel).
 export async function PUT(req: NextRequest) {
+  const limited = await rateLimit(req, "password-change", 5, 15 * 60);
+  if (limited) return limited;
   const session = await getSessionFromRequest(req);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const { current, next } = (await req.json().catch(() => ({}))) as { current?: string; next?: string };

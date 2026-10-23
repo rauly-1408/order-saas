@@ -2,7 +2,8 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
-import { resolveStoreId } from "@/app/lib/stores";
+import { storeForSession } from "@/app/lib/stores";
+import { canManageTenant } from "@/app/lib/roles";
 import { getStoreOps, leadMinutes } from "@/app/lib/storeOps";
 import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
 import { customerPerkState, loadPerks } from "@/app/lib/perks";
@@ -11,6 +12,7 @@ import { couponDiscount, couponProblem, normalizeCode } from "@/app/lib/retentio
 import { invalidLine, priceOrderItems, type OrderLineInput } from "@/app/lib/orderPricing";
 import { CouponError, createOrderWithNumber } from "@/app/lib/createOrder";
 import { notifyNewOrder } from "@/app/lib/notifyOrder";
+import { cleanText } from "@/app/lib/text";
 import { printOnNewOrder } from "@/app/lib/printing";
 import { issueInvoiceSafe } from "@/app/lib/verifactu";
 
@@ -59,18 +61,18 @@ export async function POST(req: NextRequest) {
     const paymentMethod = (["CASH", "CARD_TERMINAL", "BIZUM", "IN_STORE"] as const).find((m) => m === b.paymentMethod) ?? "CASH";
     const customerPhone = typeof b.customerPhone === "string" ? b.customerPhone.replace(/[\s-]/g, "") : "";
     if (customerPhone && !PHONE.test(customerPhone)) return NextResponse.json({ error: "Teléfono no válido" }, { status: 400 });
-    const customerName = (typeof b.customerName === "string" && b.customerName.trim().slice(0, 80)) || (source === "PHONE" ? "Teléfono" : "Mostrador");
-    const customerAddress = typeof b.customerAddress === "string" ? b.customerAddress.trim().slice(0, 200) : "";
+    const customerName = cleanText(b.customerName, 80) || (source === "PHONE" ? "Teléfono" : "Mostrador");
+    const customerAddress = cleanText(b.customerAddress, 200);
     if (channel === "DELIVERY" && !customerAddress) return NextResponse.json({ error: "Escribe la dirección de entrega" }, { status: 400 });
     const cashTendered = paymentMethod === "CASH" && Number.isInteger(b.cashTenderedCents) && (b.cashTenderedCents as number) >= 0 ? (b.cashTenderedCents as number) : null;
 
     // Local: el de la sesión (rol «Pedidos» limitado) o el elegido / el primero.
-    const storeId = await resolveStoreId(tenant.id, session.storeId ?? b.storeId, { activeOnly: true });
-    if (!storeId) return NextResponse.json({ error: "No hay ningún local activo" }, { status: 400 });
+    const storeId = await storeForSession(tenant.id, session.storeId, b.storeId);
+    if (!storeId) return NextResponse.json({ error: session.storeId ? "Tu local no está activo. Habla con el gerente." : "No hay ningún local activo" }, { status: 400 });
     const ops = await getStoreOps(tenant.id, tenant.settings, new Date(), storeId);
     if (!ops) return NextResponse.json({ error: "Local no encontrado" }, { status: 404 });
 
-    const priced = await priceOrderItems(tenant.id, items, { allowDiscount: true });
+    const priced = await priceOrderItems(tenant.id, items, { allowDiscount: canManageTenant(session.role) }); // descuentos: solo gerentes
     if ("error" in priced) return NextResponse.json({ error: priced.error }, { status: 400 });
     const { linesCreate, cartLines, consumption, subtotalCents } = priced;
 
@@ -123,7 +125,7 @@ export async function POST(req: NextRequest) {
           customerPhone,
           customerAddress: customerAddress || null,
           customerPostalCode: postalCode || null,
-          notes: typeof b.notes === "string" && b.notes.trim() ? b.notes.trim().slice(0, 300) : null,
+          notes: cleanText(b.notes, 300) || null,
           marketingConsent: false,
           currency: ((tenant.settings as Record<string, unknown>)?.currency as string) ?? "EUR",
           subtotalCents,

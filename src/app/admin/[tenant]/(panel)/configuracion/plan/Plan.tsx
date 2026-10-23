@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, euros } from "../ui";
 
-type Billing = { addons: string[]; feePercent: number; since: string; months: { month: string; orders: number; totalCents: number; feeCents: number }[] };
+type Billing = { addons: string[]; feePercent: number; since: string; months: { month: string; orders: number; totalCents: number; feeCents: number }[]; hidden?: boolean };
 
 const MODULES: { key: string; name: string; what: string }[] = [
   { key: "RETENTION", name: "Retención", what: "Clientes, cupones, campañas y atribución de ventas." },
@@ -46,6 +46,9 @@ export default function Plan({ tenant }: { tenant: string }) {
       </Card>
 
       <Card title="Comisión por pedidos online" description={`${data.feePercent} % de cada pedido pagado online, aparte de lo que cobre tu pasarela. Los pedidos pagados en persona no tienen comisión. Se factura a final de mes.`}>
+        {data.hidden ? (
+          <p className="text-sm text-[var(--p-muted)]">Los importes los ve quien tiene el permiso «Ve lo recaudado».</p>
+        ) : (
         <div className="-mx-5 overflow-x-auto sm:-mx-6">
           <table className="w-full min-w-[420px] text-left text-sm">
             <thead className="text-xs text-[var(--p-muted)]">
@@ -68,6 +71,7 @@ export default function Plan({ tenant }: { tenant: string }) {
             </tbody>
           </table>
         </div>
+        )}
       </Card>
     </div>
   );

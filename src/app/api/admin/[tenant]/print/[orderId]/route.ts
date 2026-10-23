@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     if (session.storeId && session.storeId !== order.storeId) return NextResponse.json({ error: "Este pedido es de otro local" }, { status: 403 });
     const b = (await req.json().catch(() => ({}))) as { kind?: unknown };
     const kind = b.kind === "RECEIPT" ? "RECEIPT" : "KITCHEN";
-    const n = await enqueueOrderPrints(order.id, [kind]);
+    const n = await enqueueOrderPrints(order.id, [kind], { reprint: true });
     if (!n) return NextResponse.json({ error: kind === "KITCHEN" ? "No hay ninguna impresora de comandas configurada" : "No hay ninguna impresora de tickets configurada" }, { status: 400 });
     return NextResponse.json({ ok: true, jobs: n });
   } catch (err) {

@@ -344,7 +344,7 @@ export default function Campanas({
                   <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                     <Metric value={`${c.sent}/${c.recipients}`} label="Enviados" />
                     <Metric value={String(c.converted)} label="Volvieron" />
-                    <Metric value={euros(c.revenueCents)} label="Facturado" />
+                    {c.revenueCents != null && <Metric value={euros(c.revenueCents)} label="Facturado" />}
                   </div>
                 </button>
               </li>

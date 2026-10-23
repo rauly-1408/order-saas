@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { denyUnlessTenantAdmin } from "@/app/lib/auth";
+import { denyUnlessTenantAdmin, getSessionFromRequest } from "@/app/lib/auth";
 import { seal, unseal } from "@/app/lib/secretBox";
 import { asGateway, SECRETS_PURPOSE } from "@/app/lib/gateways";
 import { redsysConfig, redsysProblem } from "@/app/lib/gateways/redsys";
@@ -20,7 +20,8 @@ async function ctx(req: NextRequest) {
   if (!tenant) return { error: NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 }) };
   const denied = await denyUnlessTenantAdmin(req, tenant.id);
   if (denied) return { error: denied };
-  return { tenant };
+  const sees = Boolean((await getSessionFromRequest(req))?.seesTakings);
+  return { tenant, sees };
 }
 
 const startOfMonth = () => {
@@ -28,13 +29,14 @@ const startOfMonth = () => {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 };
 
-async function view(req: NextRequest, t: { id: string; slug: string; platformFeeBps: number }) {
+async function view(req: NextRequest, t: { id: string; slug: string; platformFeeBps: number }, sees = false) {
   const row = await prisma.paymentAccount.findUnique({ where: { tenantId: t.id } });
   const secrets = unseal(row?.secrets, SECRETS_PURPOSE);
   const redsys = redsysConfig((row?.config ?? {}) as Record<string, unknown>);
   // Comisión de la plataforma de este mes (se factura aparte, como Shopify).
   const month = await prisma.order.aggregate({
-    where: { tenantId: t.id, paymentStatus: "PAID", paidAt: { gte: startOfMonth() } },
+    // Solo lo cobrado online por la pasarela (la Caja no lleva comisión).
+    where: { tenantId: t.id, source: "ONLINE", paymentStatus: "PAID", paymentMethod: { in: ["CARD", "BIZUM"] }, paidAt: { gte: startOfMonth() } },
     _count: true,
     _sum: { totalCents: true, applicationFeeCents: true },
   });
@@ -47,14 +49,15 @@ async function view(req: NextRequest, t: { id: string; slug: string; platformFee
     stripe: { mode: stripeMode(secrets.stripeKey), hasWebhookSecret: !!secrets.stripeWebhook },
     notifyUrl: `${new URL(req.url).origin}/api/webhooks/payments/${t.slug}`,
     feePercent: t.platformFeeBps / 100,
-    month: { orders: month._count, totalCents: month._sum.totalCents ?? 0, feeCents: month._sum.applicationFeeCents ?? 0 },
+    // Importes del mes solo con «Ve lo recaudado».
+    month: sees ? { orders: month._count, totalCents: month._sum.totalCents ?? 0, feeCents: month._sum.applicationFeeCents ?? 0 } : null,
   };
 }
 
 export async function GET(req: NextRequest) {
   const c = await ctx(req);
   if ("error" in c) return c.error;
-  return NextResponse.json(await view(req, c.tenant));
+  return NextResponse.json(await view(req, c.tenant, c.sees));
 }
 
 // PUT { provider, payInStore, bizum, redsys: { merchantCode, terminal, env }, redsysKey?, stripeKey?, stripeWebhook? }
@@ -90,7 +93,7 @@ export async function PUT(req: NextRequest) {
     secrets: Object.keys(secrets).length ? seal(secrets, SECRETS_PURPOSE) : null,
   };
   await prisma.paymentAccount.upsert({ where: { tenantId: c.tenant.id }, create: { tenantId: c.tenant.id, ...data }, update: data });
-  return NextResponse.json(await view(req, c.tenant));
+  return NextResponse.json(await view(req, c.tenant, c.sees));
 }
 
 // POST { action: "test" } → comprueba la clave de Stripe (Redsys se valida al guardar).
