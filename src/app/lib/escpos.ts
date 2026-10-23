@@ -122,6 +122,17 @@ export class Escpos {
   cut() {
     return this.feed(4).raw(GS, 0x56, 66, 0);
   }
+  // Código QR que dibuja la propia impresora (GS ( k, modelo 2, corrección M).
+  // size = tamaño del módulo en puntos (1–16): 6 ≈ 3 cm en una de 80 mm.
+  qr(data: string, size = 6) {
+    const bytes = encode(data, "ascii");
+    const len = bytes.length + 3;
+    this.raw(GS, 0x28, 0x6b, 4, 0, 49, 65, 50, 0); // modelo 2
+    this.raw(GS, 0x28, 0x6b, 3, 0, 49, 67, Math.max(1, Math.min(size, 16))); // tamaño
+    this.raw(GS, 0x28, 0x6b, 3, 0, 49, 69, 49); // corrección de errores M
+    this.raw(GS, 0x28, 0x6b, len & 0xff, (len >> 8) & 0xff, 49, 80, 48, ...bytes); // guardar
+    return this.raw(GS, 0x28, 0x6b, 3, 0, 49, 81, 48); // imprimir
+  }
   // Abre el cajón conectado a la impresora (ESC p m t1 t2).
   drawer() {
     return this.raw(ESC, 0x70, 0, 25, 250);

@@ -486,6 +486,7 @@ model Order {
   scheduledFor     DateTime?
   review           Review?
 
+  invoices Invoice[] // VeriFactu: factura simplificada y, si se cancela, su rectificativa
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1176,4 +1177,43 @@ model CashMovement {
   reason      String
   userName    String?
   createdAt   DateTime    @default(now())
+}
+
+// VeriFactu: registro de facturación inalterable (RD 1007/2023 y Orden
+// HAC/1177/2024). Cada registro se encadena con el anterior del mismo emisor
+// por su huella SHA-256. No se modifica ni se borra: una devolución genera una
+// rectificativa (R5). Ver docs/VERIFACTU.md
+model Invoice {
+  id           String   @id @default(cuid())
+  tenantId     String
+  storeId      String
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id])
+  chainIndex   Int // posición en la cadena del emisor (1, 2, 3…)
+  invoiceType  String // F2 = factura simplificada · R5 = rectificativa de simplificada
+  series       String // T2026 · R2026
+  number       Int
+  numSerie     String // NumSerieFactura: «T2026-000001»
+  issueDate    String // FechaExpedicionFactura: dd-mm-aaaa (hora de Madrid)
+  genTimestamp String // FechaHoraHusoGenRegistro: 2026-10-23T18:20:30+02:00
+  issuerNif    String
+  issuerName   String
+  taxRate      Int // %
+  baseCents    Int
+  taxCents     Int // CuotaTotal
+  totalCents   Int // ImporteTotal (negativo en una rectificativa por diferencias)
+  rectifiedInvoiceId String? // R5: la factura que rectifica
+  prevHash     String? // huella del registro anterior (null = primer registro)
+  hash         String // Huella
+  qrUrl        String
+  mode         String // VERIFACTU | NO_VERIFACTU
+  environment  String // PRUEBAS | PRODUCCION
+  aeatStatus   String   @default("PENDIENTE_ENVIO") // PENDIENTE_ENVIO | ACEPTADO | ACEPTADO_CON_ERRORES | RECHAZADO
+  aeatResponse Json?
+  createdAt    DateTime @default(now())
+
+  @@unique([tenantId, chainIndex])
+  @@unique([tenantId, numSerie])
+  @@unique([orderId, invoiceType])
+  @@index([tenantId, createdAt])
 }

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import type { OrderStatus, PaymentMethod } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { returnOrderStock } from "@/app/lib/inventory";
@@ -6,6 +6,7 @@ import { getSessionFromRequest } from "@/app/lib/auth";
 import { cancelCourier, courierAccount, requestCourier, toPublicCourier } from "@/app/lib/couriers";
 import { refundOrder } from "@/app/lib/gateways";
 import { restoreGiftCard } from "@/app/lib/giftCards";
+import { issueInvoiceSafe } from "@/app/lib/verifactu";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,6 +59,7 @@ export async function PATCH(req: NextRequest) {
           if (order.status === "CANCELLED") return NextResponse.json({ error: "El pedido está cancelado" }, { status: 400 });
           if (order.paymentStatus === "PAID") return NextResponse.json({ error: "El pedido ya está cobrado" }, { status: 400 });
           const u = await prisma.order.update({ where: { id: orderId }, data: { paymentStatus: "PAID", paymentMethod: paidWith as PaymentMethod, paidAt: new Date() } });
+          after(() => issueInvoiceSafe(u.id));
           return NextResponse.json({ orderId: u.id, status: u.status, courier: null, refundError: null });
         }
 
@@ -97,6 +99,9 @@ export async function PATCH(req: NextRequest) {
 
         // Pedido pagado online y cancelado: se devuelve el dinero por la pasarela.
         const refundError = newStatus === "CANCELLED" ? await refundOrder(order.id) : null;
+        // VeriFactu: cobrado al entregar → factura; cancelado tras facturar → rectificativa.
+        if (newStatus === "DELIVERED" && paidWith) after(() => issueInvoiceSafe(order.id));
+        if (newStatus === "CANCELLED") after(() => issueInvoiceSafe(order.id, "R5"));
 
         return NextResponse.json({ orderId: updated.id, status: updated.status, courier: toPublicCourier(courier), refundError });
       } catch (err) {

@@ -83,7 +83,7 @@ export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: 
   const [tendered, setTendered] = useState("");
   const [sending, setSending] = useState(false);
   const [step, setStep] = useState<Step>("order");
-  const [done, setDone] = useState<{ orderNumber: number | null; totalCents: number; changeCents: number | null; payment: Payment } | null>(null);
+  const [done, setDone] = useState<{ orderNumber: number | null; totalCents: number; changeCents: number | null; payment: Payment; invoiceNumber?: string | null } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false); // ticket en el móvil
   const [hoy, setHoy] = useState<HoyResponse | null>(null);
   const [hideTakings, setHideTakings] = useState(false); // ojo tachado: importes tapados
@@ -294,7 +294,7 @@ export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: 
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "No se pudo crear el pedido");
-      setDone({ orderNumber: json.orderNumber, totalCents: json.totalCents, changeCents: json.changeCents, payment });
+      setDone({ orderNumber: json.orderNumber, totalCents: json.totalCents, changeCents: json.changeCents, payment, invoiceNumber: json.invoiceNumber ?? null });
       reset();
       setStep("done");
       loadHoy();
@@ -555,6 +555,7 @@ export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: 
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl text-emerald-700">✓</div>
       <p className="mt-4 text-sm text-[var(--p-muted)]">Enviado a cocina</p>
       <p className="text-3xl font-semibold">Pedido nº {done.orderNumber}</p>
+      {done.invoiceNumber && <p className="mt-1 text-xs text-[var(--p-muted)]">Factura simplificada {done.invoiceNumber}</p>}
       {done.changeCents != null && done.changeCents > 0 ? (
         <div className="mt-6 w-full rounded-2xl bg-emerald-50 px-4 py-5 text-emerald-800">
           <p className="text-xs uppercase tracking-wide">Devuelve al cliente</p>

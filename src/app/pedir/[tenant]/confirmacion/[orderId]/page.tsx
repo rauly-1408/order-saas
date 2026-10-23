@@ -1,5 +1,6 @@
 import { readBusiness } from "@/app/lib/business";
 import { modifierLabels } from "@/app/lib/menuOptions";
+import QRCode from "qrcode";
 import { prisma } from "@/app/lib/prisma";
 import { discountLines } from "@/app/lib/promotions";
 import { getTenantTheme, themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
@@ -37,7 +38,7 @@ export default async function ConfirmacionPage({
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true, store: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, review: { select: { rating: true, comment: true } }, courier: true },
+    include: { items: true, invoices: true, store: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, review: { select: { rating: true, comment: true } }, courier: true },
   });
 
   // El pedido tiene que ser de este restaurante.
@@ -59,6 +60,10 @@ export default async function ConfirmacionPage({
   const tax = readTax(tenantData?.settings);
 
   const isDelivery = order.channel === "DELIVERY";
+  // VeriFactu: si el pedido ya está facturado, su factura simplificada con el QR de la AEAT.
+  const invoice = order.invoices.find((i) => i.invoiceType === "F2") ?? null;
+  const rectification = order.invoices.find((i) => i.invoiceType === "R5") ?? null;
+  const invoiceQr = invoice ? await QRCode.toString(invoice.qrUrl, { type: "svg", errorCorrectionLevel: "M", margin: 1, width: 132 }) : null;
   // Recogida: dirección del local (o la del negocio) y enlace para llegar.
   const biz = readBusiness(tenantData?.settings);
   const pickupAddress = order.store.address || [biz.street, [biz.postalCode, biz.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") || null;
@@ -214,6 +219,31 @@ export default async function ConfirmacionPage({
             )}
           </div>
         </div>
+
+        {/* VeriFactu: la factura simplificada del pedido, con el QR de cotejo de la AEAT */}
+        {invoice && invoiceQr && (
+          <div style={{ backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)", borderRadius: "18px", padding: "20px", marginBottom: "16px", display: "flex", gap: "16px", alignItems: "center" }}>
+            <div aria-hidden style={{ width: "132px", height: "132px", flexShrink: 0, background: "#fff", borderRadius: "8px", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: invoiceQr }} />
+            <div style={{ minWidth: 0, fontSize: "13px", lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 700, fontSize: "14px" }}>{T.invoiceTitle}</div>
+              <div style={{ color: cssVars["--text-secondary"] }}>
+                Nº {invoice.numSerie} · {invoice.issueDate}
+              </div>
+              <div style={{ color: cssVars["--text-secondary"] }}>
+                {invoice.issuerName} · NIF {invoice.issuerNif}
+              </div>
+              {rectification && (
+                <div style={{ color: cssVars["--brand-secondary"], fontWeight: 600 }}>
+                  {T.invoiceRectified(rectification.numSerie)}
+                </div>
+              )}
+              {invoice.mode === "VERIFACTU" && <div style={{ fontWeight: 700, marginTop: "4px" }}>VERI*FACTU</div>}
+              <a href={invoice.qrUrl} target="_blank" rel="noopener noreferrer" style={{ color: cssVars["--brand-accent"], fontWeight: 600 }}>
+                {T.invoiceCheck}
+              </a>
+            </div>
+          </div>
+        )}
 
         <a
           href={"/pedir/" + tenant}

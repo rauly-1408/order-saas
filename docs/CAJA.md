@@ -39,7 +39,7 @@ Las promociones automáticas y los cupones se aplican igual que en la tienda. No
 | 1. Tomar pedidos y cobrar | ✅ 2026-10-23 (pantallas de pedido → cobro → hecho; líneas con nota y descuento; pedidos en espera) |
 | 2. Impresión de ticket y comanda (80 mm) | ✅ 2026-10-23 (ver `docs/IMPRESION.md`); pendiente la prueba con la impresora real |
 | 3. Apertura y cierre de caja (arqueo) | ✅ 2026-10-23 |
-| 4. VeriFactu (facturas simplificadas, huella encadenada, QR, envío a Hacienda). Obligatorio desde 2027 | pendiente, antes de 2027 |
+| 4. VeriFactu (facturas simplificadas, huella encadenada, QR, envío a Hacienda). Obligatorio desde 2027 | ✅ 2026-10-23 emisión, cadena, QR y registro (ver `docs/VERIFACTU.md`); falta el envío a la AEAT, que necesita el certificado del restaurante |
 
 Fuera de alcance (sería un TPV completo): mesas y sala, varios terminales, modo sin internet.
 
