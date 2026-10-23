@@ -141,10 +141,16 @@ export default function CuentaView({ tenant, orderId, onBack, initialAction }: {
       )}
 
       {data.rounds.length === 0 ? (
-        <div className="mt-5 rounded-2xl border border-dashed border-[var(--p-line)] px-4 py-10 text-center">
-          <p className="font-semibold">Mesa abierta, sin pedir todavía</p>
-          <p className="mt-1 text-sm text-[var(--p-muted)]">Toca «Nueva ronda» para tomar nota.</p>
-        </div>
+        <button
+          type="button"
+          onClick={() => setComposing(true)}
+          disabled={closed}
+          className="p-press mt-5 flex w-full flex-col items-center justify-center rounded-3xl bg-[var(--p-brand)] px-6 py-14 text-center text-white shadow-[0_12px_32px_-14px_rgba(0,0,0,0.45)] sm:py-20"
+        >
+          <span aria-hidden className="flex h-16 w-16 items-center justify-center rounded-full bg-white/15 text-4xl font-light leading-none">+</span>
+          <span className="mt-4 text-2xl font-bold">Tomar nota</span>
+          <span className="mt-1 text-base opacity-85">Mesa {o.table.name} · {o.guests ?? "?"} {o.guests === 1 ? "comensal" : "comensales"}</span>
+        </button>
       ) : (
         <div className="mt-5 space-y-3">
           {data.rounds.map((r) => (
@@ -155,7 +161,7 @@ export default function CuentaView({ tenant, orderId, onBack, initialAction }: {
               </p>
               <ul className="divide-y divide-[var(--p-line)]">
                 {r.lines.map((l) => (
-                  <li key={l.id} className="flex items-start gap-3 px-4 py-2.5">
+                  <li key={l.id} className="flex items-start gap-3 px-4 py-3">
                     <span className="w-7 shrink-0 text-sm font-semibold tabular-nums">{l.quantity}×</span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">{l.name}</p>
@@ -165,7 +171,7 @@ export default function CuentaView({ tenant, orderId, onBack, initialAction }: {
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       <span className="text-sm font-semibold tabular-nums">{euros(l.totalCents)}</span>
                       {data.canVoid && !closed && (
-                        <button type="button" onClick={() => voidLine(l)} disabled={busy} className="rounded-full px-2 py-0.5 text-xs font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">
+                        <button type="button" onClick={() => voidLine(l)} disabled={busy} className="rounded-full px-3 py-1.5 text-sm font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">
                           Anular
                         </button>
                       )}
@@ -215,15 +221,15 @@ export default function CuentaView({ tenant, orderId, onBack, initialAction }: {
                 </p>
                 <p className="text-xl font-semibold tabular-nums">{euros(o.totalCents)}</p>
               </div>
-              <button type="button" onClick={printBill} disabled={busy || !lineCount} className="p-press shrink-0 rounded-2xl bg-black/[0.06] px-4 py-3 text-sm font-semibold disabled:opacity-50 sm:order-last">
+              <button type="button" onClick={printBill} disabled={busy || !lineCount} className="p-press shrink-0 rounded-2xl bg-black/[0.06] px-5 py-4 text-base font-semibold disabled:opacity-50 sm:order-last">
                 Cuenta
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex">
-              <button type="button" onClick={() => setPaying(true)} disabled={busy || !lineCount} className="p-press rounded-2xl bg-[var(--p-ink)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
+              <button type="button" onClick={() => setPaying(true)} disabled={busy || !lineCount} className="p-press rounded-2xl bg-[var(--p-ink)] px-6 py-4 text-base font-bold text-white disabled:opacity-50 sm:min-w-[150px]">
                 Cobrar
               </button>
-              <button type="button" onClick={() => setComposing(true)} disabled={busy} className="p-press rounded-2xl bg-[var(--p-brand)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
+              <button type="button" onClick={() => setComposing(true)} disabled={busy} className="p-press rounded-2xl bg-[var(--p-brand)] px-6 py-4 text-base font-bold text-white disabled:opacity-50 sm:min-w-[190px]">
                 + Nueva ronda
               </button>
             </div>

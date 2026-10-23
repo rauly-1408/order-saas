@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { NoteField } from "./ProductOptionsSheet";
 import { initialSelection, type MenuModifierGroup, type OrderLineModifier } from "@/app/lib/menuOptions";
 import { optionError, ui, type Lang } from "@/app/lib/i18n";
 import { priceCombo, type ChoiceProduct, type ComboChoice, type ComboSlotDef } from "@/app/lib/combos";
@@ -16,12 +17,14 @@ type Props = {
   combo: ComboProduct;
   catalog: Map<string, ChoiceProduct>; // productos disponibles en la carta
   onClose: () => void;
-  onAdd: (line: { comboChoices: ComboChoice[]; modifiers: OrderLineModifier[]; unitPriceCents: number }) => void;
+  onAdd: (line: { comboChoices: ComboChoice[]; modifiers: OrderLineModifier[]; unitPriceCents: number; note?: string }) => void;
+  withNote?: boolean; // panel: nota para cocina
 };
 
 const euros = (cents: number) => (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function ComboSheet({ combo, catalog, onClose, onAdd, lang = "es" }: Props) {
+export default function ComboSheet({ combo, catalog, onClose, onAdd, lang = "es", withNote = false }: Props) {
+  const [note, setNote] = useState("");
   const T = ui(lang);
   // Solo se ofrecen los productos que hoy están disponibles en la carta.
   const slots = useMemo(
@@ -86,7 +89,7 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd, lang = "es"
     const missing = slots.find((s) => s.required !== false && !picked[s.id]);
     if (missing) return setError(T.chooseOption(missing.name));
     if (typeof priced === "string") return setError(optionError(priced, lang));
-    onAdd({ comboChoices: choices, modifiers: priced.modifiers, unitPriceCents: priced.unitCents });
+    onAdd({ comboChoices: choices, modifiers: priced.modifiers, unitPriceCents: priced.unitCents, ...(withNote && note.trim() && { note: note.trim().slice(0, 120) }) });
   }
 
   return (
@@ -194,6 +197,7 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd, lang = "es"
         </div>
 
         <footer className="border-t border-[var(--border)] p-4">
+          {withNote && <NoteField note={note} setNote={setNote} />}
           {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
           <button
             onClick={handleAdd}

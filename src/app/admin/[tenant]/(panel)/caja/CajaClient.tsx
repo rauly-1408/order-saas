@@ -172,12 +172,13 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const detailsSummary = [name, phone, coupon && `cupón ${coupon.toUpperCase()}`, notes && `nota: ${notes}`].filter(Boolean).join(" · ");
   const canConfirm = lines.length > 0 && !sending && (mode !== "DELIVERY" || address.trim().length > 0) && (payment !== "CASH" || tenderedCents == null || tenderedCents >= subtotal);
 
-  function add(product: Product, extra: { optionIds: string[]; comboChoices?: ComboChoice[]; modifiers: OrderLineModifier[]; unitPriceCents: number }) {
-    const key = `${product.id}::${[...extra.optionIds].sort().join(",")}${extra.comboChoices?.length ? `::${comboChoicesKey(extra.comboChoices)}` : ""}`;
+  function add(product: Product, extra: { optionIds: string[]; comboChoices?: ComboChoice[]; modifiers: OrderLineModifier[]; unitPriceCents: number; note?: string }) {
+    // Con nota, línea aparte (no se suma a la misma sin nota).
+    const key = `${product.id}::${[...extra.optionIds].sort().join(",")}${extra.comboChoices?.length ? `::${comboChoicesKey(extra.comboChoices)}` : ""}${extra.note ? `::${Date.now()}` : ""}`;
     setLines((ls) => {
       const i = ls.findIndex((l) => l.key === key);
       if (i >= 0) return ls.map((l, j) => (j === i ? { ...l, quantity: l.quantity + 1 } : l));
-      return [...ls, { key, productId: product.id, name: product.name, unitPriceCents: extra.unitPriceCents, quantity: 1, optionIds: extra.optionIds, comboChoices: extra.comboChoices, modifiers: extra.modifiers }];
+      return [...ls, { key, productId: product.id, name: product.name, unitPriceCents: extra.unitPriceCents, quantity: 1, optionIds: extra.optionIds, comboChoices: extra.comboChoices, modifiers: extra.modifiers, ...(extra.note && { note: extra.note }) }];
     });
     if (step !== "order") {
       setStep("order");
@@ -811,6 +812,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             {optionsFor && (
               <ProductOptionsSheet
                 product={optionsFor as SheetProduct}
+                withNote
                 onClose={() => setOptionsFor(null)}
                 onAdd={(line) => {
                   add(optionsFor, line);
@@ -822,9 +824,10 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
               <ComboSheet
                 combo={{ id: comboFor.id, name: comboFor.name, description: comboFor.description, basePriceCents: comboFor.basePriceCents, comboSlots: comboFor.comboSlots ?? [] } as ComboProduct}
                 catalog={catalog}
+                withNote
                 onClose={() => setComboFor(null)}
                 onAdd={(line) => {
-                  add(comboFor, { optionIds: [], comboChoices: line.comboChoices, modifiers: line.modifiers, unitPriceCents: line.unitPriceCents });
+                  add(comboFor, { optionIds: [], comboChoices: line.comboChoices, modifiers: line.modifiers, unitPriceCents: line.unitPriceCents, note: line.note });
                   setComboFor(null);
                 }}
               />
