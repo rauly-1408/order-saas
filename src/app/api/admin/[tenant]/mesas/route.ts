@@ -24,6 +24,37 @@ async function context(req: NextRequest) {
   return { tenant, session };
 }
 
+// Elementos fijos del plano: barra, pared o texto, en % del plano de su zona.
+type Fixture = { id: string; kind: "BAR" | "WALL" | "LABEL"; x: number; y: number; w: number; h: number; label: string };
+const KINDS = ["BAR", "WALL", "LABEL"] as const;
+const pct = (v: unknown, min: number, max: number, dflt: number) => (typeof v === "number" && Number.isFinite(v) ? Math.max(min, Math.min(max, Math.round(v * 10) / 10)) : dflt);
+function cleanFixtures(raw: unknown): Fixture[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, 40).flatMap((r, i) => {
+    const o = (r ?? {}) as Record<string, unknown>;
+    const kind = KINDS.find((k) => k === o.kind);
+    if (!kind) return [];
+    return [{
+      id: typeof o.id === "string" && /^[\w-]{1,40}$/.test(o.id) ? o.id : `f${Date.now()}${i}`,
+      kind,
+      x: pct(o.x, 0, 99, 10),
+      y: pct(o.y, 0, 99, 10),
+      w: pct(o.w, 1, 100, 20),
+      h: pct(o.h, 1, 100, 8),
+      label: cleanText(o.label, 30),
+    }];
+  });
+}
+function readFixtures(raw: unknown): Record<string, Fixture[]> {
+  const out: Record<string, Fixture[]> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [zone, items] of Object.entries(raw as Record<string, unknown>).slice(0, 20)) {
+    const list = cleanFixtures(items);
+    if (list.length) out[zone.slice(0, 30)] = list;
+  }
+  return out;
+}
+
 const nameOf = (u: { name: string | null; email: string } | undefined) => (u ? u.name?.trim() || u.email.split("@")[0] : null);
 
 export async function GET(req: NextRequest) {
@@ -33,7 +64,8 @@ export async function GET(req: NextRequest) {
     const { tenant, session } = ctx;
     const storeId = await storeForSession(tenant.id, session.storeId, new URL(req.url).searchParams.get("store"));
     const stores = session.storeId ? [] : (await listStores(tenant.id, { activeOnly: true })).map((s) => ({ id: s.id, name: s.name }));
-    if (!storeId) return NextResponse.json({ stores, storeId: null, canManage: canManageTenant(session.role), tables: [] });
+    if (!storeId) return NextResponse.json({ stores, storeId: null, canManage: canManageTenant(session.role), tables: [], fixtures: {} });
+    const store = await prisma.store.findUnique({ where: { id: storeId }, select: { floorPlan: true } });
 
     const tables = await prisma.diningTable.findMany({ where: { tenantId: tenant.id, storeId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
     const open = await prisma.order.findMany({
@@ -47,6 +79,7 @@ export async function GET(req: NextRequest) {
       stores,
       storeId,
       canManage: canManageTenant(session.role),
+      fixtures: readFixtures(store?.floorPlan),
       tables: tables.map((t) => {
         const o = byTable.get(t.id);
         return {
@@ -70,7 +103,8 @@ export async function GET(req: NextRequest) {
 }
 
 type Body = {
-  action?: "open" | "add" | "update" | "remove" | "layout";
+  action?: "open" | "add" | "update" | "remove" | "layout" | "fixtures";
+  items?: unknown[];
   shape?: string;
   positions?: { id?: unknown; posX?: unknown; posY?: unknown }[];
   tableId?: string;
@@ -106,6 +140,19 @@ export async function POST(req: NextRequest) {
     const seats = Math.max(1, Math.min(Math.floor(Number(b.seats) || 4), 50));
     const zone = cleanText(b.zone, 30) || "Sala";
     const shape = b.shape === "ROUND" ? "ROUND" : "SQUARE";
+
+    // Plano: la barra, paredes y textos de una zona (se guarda la zona entera).
+    if (b.action === "fixtures") {
+      const storeId = await storeForSession(tenant.id, session.storeId, b.storeId);
+      if (!storeId) return NextResponse.json({ error: "No hay ningún local activo" }, { status: 400 });
+      const store = await prisma.store.findUnique({ where: { id: storeId }, select: { floorPlan: true } });
+      const plan = readFixtures(store?.floorPlan);
+      const items = cleanFixtures(b.items);
+      if (items.length) plan[zone] = items;
+      else delete plan[zone];
+      await prisma.store.update({ where: { id: storeId }, data: { floorPlan: plan } });
+      return NextResponse.json({ ok: true, fixtures: plan });
+    }
 
     // Plano: guardar dónde está cada mesa (en % del plano de su zona).
     if (b.action === "layout") {
