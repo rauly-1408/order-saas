@@ -12,7 +12,7 @@ type Job = { id: string; kind: string; status: string; printerId: string; error:
 type Data = { agentToken: string | null; agentSeenAt: string | null; agentOnline: boolean; autoKitchen: boolean; autoReceipt: boolean; printers: Printer[]; pending: number; recent: Job[] };
 type Form = { printers: Printer[]; autoKitchen: boolean; autoReceipt: boolean };
 
-const KIND: Record<string, string> = { KITCHEN: "Comanda", RECEIPT: "Ticket", TEST: "Prueba" };
+const KIND: Record<string, string> = { KITCHEN: "Comanda", RECEIPT: "Ticket", TEST: "Prueba", CLOSING: "Cierre de caja" };
 const STATUS: Record<string, string> = { PENDING: "Pendiente", PRINTED: "Impreso", FAILED: "Fallido" };
 const newPrinter = (): Printer => ({ id: Math.random().toString(36).slice(2, 10), name: "", host: "", port: 9100, roles: ["kitchen", "receipt"], width: 48, codepage: "cp858", drawer: false, copies: 1 });
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
