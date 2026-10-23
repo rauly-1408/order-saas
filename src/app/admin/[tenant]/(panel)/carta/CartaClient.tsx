@@ -68,6 +68,36 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
   useEffect(() => {
     setPortal((document.querySelector(".panel") as HTMLElement | null) ?? document.body);
   }, []);
+  // Categorías plegadas (se recuerdan en este dispositivo). Al principio todas
+  // menos la primera, que queda abierta para que se vea cómo funcionan.
+  const collapsedKey = `carta-plegadas:${tenant}`;
+  const [collapsed, setCollapsed] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (collapsed !== null || categories.length === 0) return;
+    try {
+      const saved = localStorage.getItem(collapsedKey);
+      if (saved) return setCollapsed(new Set(JSON.parse(saved) as string[]));
+    } catch {}
+    setCollapsed(new Set(categories.slice(1).map((c) => c.id)));
+  }, [categories, collapsed, collapsedKey]);
+  const setCollapsedAndSave = (next: Set<string>) => {
+    setCollapsed(next);
+    try {
+      localStorage.setItem(collapsedKey, JSON.stringify([...next]));
+    } catch {}
+  };
+  const toggle = (id: string) => {
+    const next = new Set(collapsed ?? []);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setCollapsedAndSave(next);
+  };
+  const expand = (id: string) => {
+    if (!collapsed?.has(id)) return;
+    const next = new Set(collapsed);
+    next.delete(id);
+    setCollapsedAndSave(next);
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -93,10 +123,12 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
 
   function openEdit(p: Product, categoryId: string) {
     setFormError("");
+    expand(categoryId);
     setEditing({ product: p, form: { name: p.name, description: p.description ?? "", price: priceText(p.basePriceCents), imageUrl: p.imageUrl ?? "", isActive: p.isActive, isAvailable: p.isAvailable, isFeatured: p.isFeatured, categoryId } });
   }
   function openNew(categoryId: string) {
     setFormError("");
+    expand(categoryId);
     setEditing({ product: null, form: { name: "", description: "", price: "", imageUrl: "", isActive: true, isAvailable: true, isFeatured: false, categoryId } });
   }
 
@@ -177,6 +209,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
     ? [{ id: "search", name: `Resultados para «${search.trim()}»`, products: categories.flatMap((c) => c.products.filter((p) => p.name.toLowerCase().includes(q)).map((p) => ({ ...p, _cat: c }))) }]
     : categories.map((c) => ({ id: c.id, name: c.name, products: c.products.map((p) => ({ ...p, _cat: c })) }));
   const total = categories.reduce((a, c) => a + c.products.length, 0);
+  const allCollapsed = categories.length > 0 && categories.every((c) => collapsed?.has(c.id));
   const soldOut = categories.reduce((a, c) => a + c.products.filter((p) => !p.isAvailable).length, 0);
 
   const f = editing?.form;
@@ -192,8 +225,15 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
           + Añadir producto
         </button>
       </div>
-      <p className="mt-2 text-xs text-[var(--p-muted)]">
-        {total} productos{soldOut > 0 && ` · ${soldOut} agotados`} · toca un producto para editarlo
+      <p className="mt-2 flex flex-wrap items-center gap-x-3 text-xs text-[var(--p-muted)]">
+        <span>
+          {total} productos{soldOut > 0 && ` · ${soldOut} ${soldOut === 1 ? "agotado" : "agotados"}`} · toca un producto para editarlo
+        </span>
+        {!q && categories.length > 1 && (
+          <button type="button" onClick={() => setCollapsedAndSave(allCollapsed ? new Set() : new Set(categories.map((c) => c.id)))} className="font-medium text-[var(--p-brand)] hover:underline">
+            {allCollapsed ? "Desplegar todo" : "Plegar todo"}
+          </button>
+        )}
       </p>
 
       {msg && (
@@ -206,7 +246,10 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
         <p className="py-12 text-center text-sm text-[var(--p-muted)]">Cargando la carta…</p>
       ) : (
         <div className="mt-4 space-y-6">
-          {groups.map((g) => (
+          {groups.map((g) => {
+            const isCollapsed = !q && !!collapsed?.has(g.id);
+            const stats = { soldOut: g.products.filter((p) => !p.isAvailable).length, hidden: g.products.filter((p) => !p.isActive).length };
+            return (
             <section key={g.id} aria-label={g.name}>
               <div className="mb-2 flex items-center gap-2">
                 {renaming?.id === g.id ? (
@@ -222,10 +265,27 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                     aria-label="Nuevo nombre de la categoría"
                     className="min-w-0 flex-1 rounded-lg border border-[var(--p-brand)] px-3 py-1.5 text-[15px] font-semibold"
                   />
-                ) : (
+                ) : q ? (
                   <h2 className="min-w-0 truncate text-[15px] font-semibold">
                     {g.name} <span className="font-normal text-[var(--p-muted)]">· {g.products.length}</span>
                   </h2>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => toggle(g.id)}
+                    aria-expanded={!isCollapsed}
+                    aria-controls={`cat-${g.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1.5 pr-2 text-left hover:bg-black/[0.03]"
+                  >
+                    <span aria-hidden className={`inline-block w-4 text-center text-[var(--p-muted)] transition-transform ${isCollapsed ? "" : "rotate-90"}`}>
+                      ›
+                    </span>
+                    <h2 className="min-w-0 truncate text-[15px] font-semibold">
+                      {g.name} <span className="font-normal text-[var(--p-muted)]">· {g.products.length}</span>
+                      {stats.soldOut > 0 && <span className="ml-2 rounded-full bg-[var(--p-accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--p-accent)]">{stats.soldOut} {stats.soldOut === 1 ? "agotado" : "agotados"}</span>}
+                      {stats.hidden > 0 && <span className="ml-2 rounded-full bg-black/[0.06] px-2 py-0.5 text-xs font-semibold text-[var(--p-muted)]">{stats.hidden} {stats.hidden === 1 ? "oculto" : "ocultos"}</span>}
+                    </h2>
+                  </button>
                 )}
                 {!q && renaming?.id !== g.id && (
                   <>
@@ -238,12 +298,13 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                   </>
                 )}
               </div>
-              {g.products.length === 0 ? (
+              {/* Móvil y tablet: filas que se tocan. Ordenador: rejilla de tarjetas por categoría. */}
+              {isCollapsed ? null : g.products.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-[var(--p-line)] px-4 py-6 text-center text-sm text-[var(--p-muted)]">{q ? "No hay productos con ese nombre." : "Todavía no hay productos en esta categoría."}</p>
               ) : (
-                <ul className="overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                <ul id={`cat-${g.id}`} className="overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible lg:rounded-none lg:bg-transparent lg:shadow-none xl:grid-cols-4">
                   {g.products.map((p, i) => (
-                    <li key={p.id} className={i ? "border-t border-[var(--p-line)]" : ""}>
+                    <li key={p.id} className={`lg:overflow-hidden lg:rounded-2xl lg:border-0 lg:bg-[var(--p-surface)] lg:shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${i ? "border-t border-[var(--p-line)]" : ""}`}>
                       <div
                         role="button"
                         tabIndex={0}
@@ -254,18 +315,18 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                             openEdit(p, p._cat.id);
                           }
                         }}
-                        className={`flex cursor-pointer items-center gap-3 px-3 py-3 transition-colors hover:bg-black/[0.025] sm:px-4 ${p.isActive ? "" : "opacity-60"}`}
+                        className={`p-lift flex cursor-pointer items-center gap-3 px-3 py-3 transition-colors hover:bg-black/[0.025] sm:px-4 lg:h-full lg:flex-col lg:items-stretch lg:gap-0 lg:p-0 ${p.isActive ? "" : "opacity-60"}`}
                         aria-label={`Editar ${p.name}`}
                       >
                         {p.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                          <img src={p.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover lg:h-28 lg:w-full lg:rounded-none" />
                         ) : (
-                          <div aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--p-brand-soft)] text-lg font-semibold text-[var(--p-brand)]">
+                          <div aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--p-brand-soft)] text-lg font-semibold text-[var(--p-brand)] lg:h-28 lg:w-full lg:rounded-none lg:text-3xl">
                             {p.name.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 lg:px-3 lg:pt-2.5">
                           <p className="flex items-center gap-1.5 truncate text-[15px] font-medium">
                             <span className="truncate">{p.name}</span>
                             {p.isFeatured && <span className="shrink-0 text-xs text-amber-600" title="Destacado">★</span>}
@@ -279,7 +340,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                           </p>
                         </div>
                         {/* Acciones rápidas: no abren la edición */}
-                        <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex shrink-0 items-center gap-3 lg:mt-2 lg:justify-between lg:border-t lg:border-[var(--p-line)] lg:px-3 lg:py-2" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
                             disabled={busy === p.id}
@@ -293,7 +354,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                             <Switch checked={p.isActive} onChange={(v) => quick(p, { isActive: v })} label={`${p.name}: ${p.isActive ? "se ve en la tienda" : "oculto en la tienda"}`} />
                             <span className="text-[10px] text-[var(--p-muted)]">En carta</span>
                           </div>
-                          <span aria-hidden className="text-lg text-[var(--p-faint)]">›</span>
+                          <span aria-hidden className="text-lg text-[var(--p-faint)] lg:hidden">›</span>
                         </div>
                       </div>
                     </li>
@@ -301,7 +362,8 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                 </ul>
               )}
             </section>
-          ))}
+            );
+          })}
           {!q && categories.length === 0 && <p className="py-10 text-center text-sm text-[var(--p-muted)]">Tu carta está vacía.</p>}
         </div>
       )}
