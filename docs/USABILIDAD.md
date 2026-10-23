@@ -29,8 +29,8 @@ Comprobado:
 | 6 | Cliente | «Vaciar» está junto a «Ver pedido» y vaciaba el carrito sin preguntar | Media | Arreglado: pide confirmación |
 | 7 | Cliente | El botón de modalidad decía «Delivery» y el resto de la app «A domicilio» | Baja | Arreglado: «A domicilio» |
 | 8 | Gerente | El rol se llamaba «Pedidos (solo pedidos)» aunque también usa la Caja | Baja | Arreglado: «Pedidos (pedidos y caja)» |
-| 9 | Cliente | En el pago, cupón, tarjeta regalo y propina van antes que la modalidad y los datos; dos campos grandes al principio frenan a quien no tiene cupón | Media | Pendiente: plegar cupón y tarjeta regalo en un enlace «¿Tienes un cupón o una tarjeta regalo?» y llevar la propina junto al total |
-| 10 | Cliente | Al escribir el teléfono aparece la tarjeta de sellos y empuja el botón de pedir hacia abajo | Baja | Pendiente: reservar el hueco o mostrarla debajo del botón |
+| 9 | Cliente | En el pago, cupón, tarjeta regalo y propina van antes que la modalidad y los datos; dos campos grandes al principio frenan a quien no tiene cupón | Media | Arreglado: el pago va en el orden modalidad → cuándo → datos → notas → propina; cupón y tarjeta regalo plegados en el enlace «¿Tienes un cupón o una tarjeta regalo?» (se abren solos si ya hay uno aplicado o un error) |
+| 10 | Cliente | Al escribir el teléfono aparece la tarjeta de sellos y empuja el botón de pedir hacia abajo | Baja | Arreglado: la tarjeta de sellos va debajo del botón de pedir; al escribir el teléfono el botón no se mueve |
 | 11 | Cliente | La confirmación no repite las opciones de cada producto (pan, guarnición) | Baja | Arreglado: opciones y nota debajo de cada producto |
 | 12 | Todos | Aviso de hidratación en Configuración → Pantalla de pago | — | Descartado: lo provoca una extensión del navegador que añade un estilo a `<body>` |
 

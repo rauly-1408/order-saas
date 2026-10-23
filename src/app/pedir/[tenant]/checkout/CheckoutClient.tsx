@@ -90,8 +90,11 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   const [gift, setGift] = useState<{ code: string; balanceCents: number } | null>(null);
   const [giftError, setGiftError] = useState("");
   const [couponInput, setCouponInput] = useState("");
+  const [extrasOpen, setExtrasOpen] = useState(false);
   const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   const [couponError, setCouponError] = useState("");
+  // Cupón y tarjeta regalo plegados salvo que ya haya uno aplicado o un error que enseñar.
+  const showExtras = extrasOpen || !!coupon || !!gift || !!couponError || !!giftError;
   const [couponLoading, setCouponLoading] = useState(false);
   const [perkState, setPerkState] = useState<PerkState | null>(null);
   // Sin reparto propio: "A domicilio" muestra las plataformas en vez de un formulario.
@@ -397,112 +400,6 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
             </div>
           </div>
 
-          {/* CUPÓN */}
-          {couponsEnabled && (
-            <div>
-              <div style={labelStyle}>{T.couponTitle}</div>
-              {coupon ? (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 16px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: "15px" }}>{coupon.code} · {coupon.label}</div>
-                    {!couponBelowMin && promoWins && promo && (
-                      <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>{T.couponNotStack(promo.promotion.name)}</div>
-                    )}
-                    {couponBelowMin && (
-                      <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>{T.couponBelowMin(euros(coupon.minOrderCents))}</div>
-                    )}
-                  </div>
-                  <button type="button" onClick={() => setCoupon(null)} style={{ background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer", flexShrink: 0 }}>
-                    {T.remove}
-                  </button>
-                </div>
-              ) : (
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <input
-                    value={couponInput}
-                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyCoupon(); } }}
-                    placeholder="Ej. VUELVE15"
-                    autoCapitalize="characters"
-                    style={{ ...inputStyle, flex: 1, minWidth: 0, textTransform: "uppercase" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={applyCoupon}
-                    disabled={couponLoading || !couponInput.trim()}
-                    className="p-press"
-                    style={{ padding: "0 18px", borderRadius: "999px", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", cursor: "pointer", flexShrink: 0, opacity: couponLoading || !couponInput.trim() ? 0.5 : 1 }}
-                  >
-                    {couponLoading ? "…" : T.apply}
-                  </button>
-                </div>
-              )}
-              {couponError && <div style={{ fontSize: "13px", color: cssVars["--brand-secondary"], marginTop: "6px" }}>{couponError}</div>}
-            </div>
-          )}
-
-          {/* TARJETA REGALO */}
-          {giftCardsEnabled && (
-            <div>
-              <div style={labelStyle}>🎁 {T.giftCard}</div>
-              {gift ? (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 16px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: "15px" }}>{gift.code}</div>
-                    <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>{T.giftBalance(euros(gift.balanceCents))}</div>
-                  </div>
-                  <button type="button" onClick={() => setGift(null)} style={{ background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer", flexShrink: 0 }}>
-                    {T.remove}
-                  </button>
-                </div>
-              ) : (
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <input
-                    value={giftInput}
-                    onChange={(e) => setGiftInput(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyGift(); } }}
-                    placeholder="XXXX-XXXX-XXXX"
-                    autoCapitalize="characters"
-                    aria-label={T.giftCard}
-                    style={{ ...inputStyle, flex: 1, minWidth: 0, textTransform: "uppercase" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={applyGift}
-                    disabled={!giftInput.trim()}
-                    className="p-press"
-                    style={{ padding: "0 18px", borderRadius: "999px", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", cursor: "pointer", flexShrink: 0, opacity: giftInput.trim() ? 1 : 0.5 }}
-                  >
-                    {T.apply}
-                  </button>
-                </div>
-              )}
-              {giftError && <div style={{ fontSize: "13px", color: cssVars["--brand-secondary"], marginTop: "6px" }}>{giftError}</div>}
-            </div>
-          )}
-
-          {/* PROPINA (si el restaurante la activa) */}
-          {checkout.tips.enabled && (
-            <div>
-              <div style={labelStyle}>{T.tipTitle}</div>
-              <div role="radiogroup" aria-label={T.tipTitle} style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                {[0, ...checkout.tips.percents].map((pct) => (
-                  <button
-                    key={pct}
-                    type="button"
-                    role="radio"
-                    aria-checked={tipPct === pct}
-                    onClick={() => setTipPct(pct)}
-                    className="p-press"
-                    style={{ flex: "1 1 0", minWidth: "64px", padding: "10px", borderRadius: "12px", border: `2px solid ${tipPct === pct ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: tipPct === pct ? `${cssVars["--brand-accent"]}15` : "transparent", color: tipPct === pct ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: tipPct === pct ? 700 : 500, fontSize: "14px", cursor: "pointer" }}
-                  >
-                    {pct === 0 ? T.noTip : `${pct} %`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* MODALIDAD */}
           {(deliveryEnabled || takeawayEnabled || deliveryPartners.length > 0) && (
             <div>
@@ -605,26 +502,6 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 onChange={(e) => setPhone(e.target.value)}
                 required
               />
-              {/* Sellos: con cookie del cliente se ven los suyos; sin ella, la tarjeta genérica (stamps null). */}
-              {perks?.loyalty && perksFor && (
-                <div style={{ marginTop: "10px" }}>
-                  <StampCard
-                    lang={lang}
-                    ordersRequired={perks.loyalty.ordersRequired}
-                    stamps={perksFor.loyalty ? perksFor.loyalty.stamps + 1 : null}
-                    rewardName={perks.loyalty.rewardName}
-                    rewardReady={!!perksFor.loyalty?.rewardAvailable}
-                    upperHeadings={cssVars["--heading-case"] === "uppercase"}
-                    note={
-                      perksFor.loyalty?.rewardAvailable && reward && reward.missing.length > 0
-                        ? reward.matched.length
-                          ? T.addAlsoReward(joinLabels(reward.missing).toLowerCase())
-                          : T.addForReward(joinLabels(reward.missing).toLowerCase())
-                        : null
-                    }
-                  />
-                </div>
-              )}
             </div>
             {channel === "DELIVERY" && (
               <div>
@@ -707,6 +584,124 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
             </div>
           )}
 
+          {/* PROPINA (si el restaurante la activa) */}
+          {checkout.tips.enabled && (
+            <div>
+              <div style={labelStyle}>{T.tipTitle}</div>
+              <div role="radiogroup" aria-label={T.tipTitle} style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {[0, ...checkout.tips.percents].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    role="radio"
+                    aria-checked={tipPct === pct}
+                    onClick={() => setTipPct(pct)}
+                    className="p-press"
+                    style={{ flex: "1 1 0", minWidth: "64px", padding: "10px", borderRadius: "12px", border: `2px solid ${tipPct === pct ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: tipPct === pct ? `${cssVars["--brand-accent"]}15` : "transparent", color: tipPct === pct ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: tipPct === pct ? 700 : 500, fontSize: "14px", cursor: "pointer" }}
+                  >
+                    {pct === 0 ? T.noTip : `${pct} %`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* CUPÓN Y TARJETA REGALO: plegados en un enlace (casi nadie tiene código) */}
+          {(couponsEnabled || giftCardsEnabled) && (
+            showExtras ? (
+              <>
+          {/* CUPÓN */}
+          {couponsEnabled && (
+            <div>
+              <div style={labelStyle}>{T.couponTitle}</div>
+              {coupon ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 16px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: "15px" }}>{coupon.code} · {coupon.label}</div>
+                    {!couponBelowMin && promoWins && promo && (
+                      <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>{T.couponNotStack(promo.promotion.name)}</div>
+                    )}
+                    {couponBelowMin && (
+                      <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>{T.couponBelowMin(euros(coupon.minOrderCents))}</div>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => setCoupon(null)} style={{ background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer", flexShrink: 0 }}>
+                    {T.remove}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyCoupon(); } }}
+                    placeholder="Ej. VUELVE15"
+                    autoCapitalize="characters"
+                    style={{ ...inputStyle, flex: 1, minWidth: 0, textTransform: "uppercase" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={applyCoupon}
+                    disabled={couponLoading || !couponInput.trim()}
+                    className="p-press"
+                    style={{ padding: "0 18px", borderRadius: "999px", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", cursor: "pointer", flexShrink: 0, opacity: couponLoading || !couponInput.trim() ? 0.5 : 1 }}
+                  >
+                    {couponLoading ? "…" : T.apply}
+                  </button>
+                </div>
+              )}
+              {couponError && <div style={{ fontSize: "13px", color: cssVars["--brand-secondary"], marginTop: "6px" }}>{couponError}</div>}
+            </div>
+          )}
+
+          {/* TARJETA REGALO */}
+          {giftCardsEnabled && (
+            <div>
+              <div style={labelStyle}>🎁 {T.giftCard}</div>
+              {gift ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 16px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: "15px" }}>{gift.code}</div>
+                    <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>{T.giftBalance(euros(gift.balanceCents))}</div>
+                  </div>
+                  <button type="button" onClick={() => setGift(null)} style={{ background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer", flexShrink: 0 }}>
+                    {T.remove}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input
+                    value={giftInput}
+                    onChange={(e) => setGiftInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyGift(); } }}
+                    placeholder="XXXX-XXXX-XXXX"
+                    autoCapitalize="characters"
+                    aria-label={T.giftCard}
+                    style={{ ...inputStyle, flex: 1, minWidth: 0, textTransform: "uppercase" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={applyGift}
+                    disabled={!giftInput.trim()}
+                    className="p-press"
+                    style={{ padding: "0 18px", borderRadius: "999px", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", cursor: "pointer", flexShrink: 0, opacity: giftInput.trim() ? 1 : 0.5 }}
+                  >
+                    {T.apply}
+                  </button>
+                </div>
+              )}
+              {giftError && <div style={{ fontSize: "13px", color: cssVars["--brand-secondary"], marginTop: "6px" }}>{giftError}</div>}
+            </div>
+          )}
+
+              </>
+            ) : (
+              <button type="button" onClick={() => setExtrasOpen(true)} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", textDecoration: "underline", textUnderlineOffset: "3px", cursor: "pointer" }}>
+                {couponsEnabled && giftCardsEnabled ? T.haveCodeOrGift : couponsEnabled ? T.haveCode : T.haveGift}
+              </button>
+            )
+          )}
+
           {checkout.marketingConsent && (
             <>
           {/* CONSENTIMIENTO DE MARKETING — opt-in explícito, desmarcado por defecto (RGPD + LSSI) */}
@@ -752,6 +747,27 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           >
             {loading ? (payMethod === "IN_STORE" ? T.sending : T.goingToPay) : blocked ? T.notAccepting : payMethod !== "IN_STORE" ? T.payNow(euros(total)) : chosenSlot ? T.scheduleOrder(euros(total)) : T.confirmOrderTotal(euros(total))}
           </button>
+
+          {/* Sellos: debajo del botón para que al escribir el teléfono no lo empuje. Con cookie del cliente se ven los suyos; sin ella, la genérica (stamps null). */}
+              {perks?.loyalty && perksFor && (
+                <div>
+                  <StampCard
+                    lang={lang}
+                    ordersRequired={perks.loyalty.ordersRequired}
+                    stamps={perksFor.loyalty ? perksFor.loyalty.stamps + 1 : null}
+                    rewardName={perks.loyalty.rewardName}
+                    rewardReady={!!perksFor.loyalty?.rewardAvailable}
+                    upperHeadings={cssVars["--heading-case"] === "uppercase"}
+                    note={
+                      perksFor.loyalty?.rewardAvailable && reward && reward.missing.length > 0
+                        ? reward.matched.length
+                          ? T.addAlsoReward(joinLabels(reward.missing).toLowerCase())
+                          : T.addForReward(joinLabels(reward.missing).toLowerCase())
+                        : null
+                    }
+                  />
+                </div>
+              )}
 
         </form>
       </main>
