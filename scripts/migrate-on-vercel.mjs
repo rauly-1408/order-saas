@@ -14,9 +14,17 @@ if (env !== "production") {
   console.log(`[migraciones] entorno «${env ?? "local"}»: no se aplican migraciones en el build.`);
   process.exit(0);
 }
+// Sin DIRECT_URL, vale DATABASE_URL si es una conexión directa (las migraciones
+// no funcionan a través del pooler de Neon, que lleva «-pooler» en el host).
 if (!process.env.DIRECT_URL) {
-  console.error("[migraciones] Falta DIRECT_URL en Vercel (la conexión directa de Neon, sin «-pooler»). Añádela en Settings → Environment Variables y vuelve a desplegar.");
-  process.exit(1);
+  const db = process.env.DATABASE_URL ?? "";
+  if (db && !db.includes("-pooler")) {
+    console.log("[migraciones] No hay DIRECT_URL: se usa DATABASE_URL (conexión directa).");
+    process.env.DIRECT_URL = db;
+  } else {
+    console.error("[migraciones] Falta DIRECT_URL en Vercel (la conexión directa de Neon, sin «-pooler»). Añádela en Settings → Environment Variables y vuelve a desplegar.");
+    process.exit(1);
+  }
 }
 console.log("[migraciones] producción: aplicando migraciones pendientes antes de compilar…");
 const r = spawnSync("npx", ["prisma", "migrate", "deploy"], { stdio: "inherit", env: process.env });
