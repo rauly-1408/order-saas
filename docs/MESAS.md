@@ -9,6 +9,8 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - Libre en blanco, ocupada en el color de la marca con el importe y los minutos, y «pide la cuenta» en ámbar.
   - Las mesas son cuadradas y los taburetes de barra, redondos.
   - Se refresca solo cada pocos segundos, así que lo que hace otro camarero aparece sin recargar.
+  - El plano dibuja también la **barra**, las **paredes** y **textos** como «Entrada» o «Cocina».
+  - Tiene siempre la misma proporción (4:3), como la pantalla del TPV. En el móvil se desplaza a los lados con el dedo, y las mesas mantienen un tamaño cómodo para tocarlas.
   - Una zona que aún no tiene plano se ve en cuadrícula.
 - **Abrir una mesa**: se toca una mesa libre, se eligen los comensales y se abre su cuenta.
 - **Nueva ronda**:
@@ -29,6 +31,8 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
 - **Editar mesas** (gerente):
   - **Añadir mesas** de golpe: zona, letra opcional, desde y hasta, plazas y forma. Por ejemplo, Interior del 1 al 11 o Barra del B1 al B3 redondas.
   - **Colocar** las mesas arrastrándolas en el plano y pulsar «Guardar plano».
+  - **+ Barra, + Pared y + Texto**: elementos fijos que se arrastran y se estiran desde la esquina. Al tocarlos se cambia su texto o se quitan. Una barra alta y estrecha escribe su texto en vertical.
+  - Si se sale del editor o se cambia de zona con cambios sin guardar, avisa.
   - **Tocar una mesa** para cambiarle el nombre, la zona, las plazas o la forma, o quitarla. Si tiene historial se desactiva en vez de borrarse.
 
 ## Reglas
@@ -50,12 +54,13 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - `20261024120000_mesas`.
   - `20261024120100_mesas_una_abierta`: índice único parcial, que Prisma no sabe expresar en el esquema. Si una migración futura intenta borrarlo, hay que quitar esa línea.
   - `20261024120200_mesas_plano`.
+  - `20261024130000_mesas_elementos`: `Store.floorPlan`, con los elementos fijos por zona: `{ "Interior": [{ id, kind: BAR | WALL | LABEL, x, y, w, h, label }] }` en % del plano. Se guarda la zona entera con la acción `fixtures`.
 - `lib/tables.ts` reúne la lógica:
   - Abrir, añadir ronda, anular, pedir la cuenta, cobrar (entera o por unidades), mover y cerrar.
   - Cálculos puros, probados en `lib/__tests__/tables.test.ts`: `splitLineAmounts`, `equalShares` y `tableNames`.
 - `GET/POST /api/admin/[tenant]/mesas`:
   - El GET devuelve el plano.
-  - El POST admite `open` para cualquier usuario, y `add`, `update`, `remove` y `layout` solo para el gerente.
+  - El POST admite `open` para cualquier usuario, y `add`, `update`, `remove`, `layout` y `fixtures` solo para el gerente.
 - `GET/POST /api/admin/[tenant]/mesas/[orderId]`:
   - El GET devuelve la cuenta.
   - El POST admite `round`, `void` (gerente), `bill`, `pay`, `move` y `cancel`.
@@ -67,6 +72,5 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
 - Juntar mesas y pasar parte de una cuenta a otra mesa.
 - Propinas por camarero y un informe por camarero.
 - Pantalla de cocina en lugar de papel, e impresora de bebidas por categoría.
-- Dibujar elementos fijos en el plano, como la barra o las paredes.
 - Reservas.
 - Modo sin conexión: un servicio lleno no puede depender de la wifi, así que de momento conviene un router 4G de respaldo.

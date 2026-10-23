@@ -260,6 +260,9 @@ model Store {
   closures      StoreClosure[]
   deliveryZones DeliveryZone[]
   diningTables  DiningTable[]
+  // Mesas: elementos fijos del plano por zona (barra, paredes, textos).
+  // { "Interior": [{ id, kind: "BAR"|"WALL"|"LABEL", x, y, w, h, label }] }, en % del plano
+  floorPlan     Json          @default("{}")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

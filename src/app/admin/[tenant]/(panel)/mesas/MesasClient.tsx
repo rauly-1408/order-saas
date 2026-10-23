@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CuentaView from "./CuentaView";
-import { Sheet, Stepper, euros, minutesSince, post, type MapData, type Shape, type Table } from "./shared";
+import { Sheet, Stepper, euros, minutesSince, post, type Fixture, type MapData, type Shape, type Table } from "./shared";
 
 // Mesas: el plano de la sala por zonas (Interior, Terraza, Barra…). Libre en
 // blanco, ocupada en el color de la marca y «pide la cuenta» en ámbar. Tocar una
@@ -40,6 +40,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editTable, setEditTable] = useState<Table | null>(null);
+  const planDirty = useRef(false); // el editor tiene cambios sin guardar
   const [, setTick] = useState(0);
 
   const load = useCallback(async () => {
@@ -98,7 +99,11 @@ export default function MesasClient({ tenant }: { tenant: string }) {
             </select>
           )}
           {data?.canManage && data.tables.length > 0 && (
-            <button type="button" onClick={() => setEditing((v) => !v)} className={`p-press rounded-full px-4 py-2 text-sm font-semibold ${editing ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
+            <button type="button" onClick={() => {
+                if (editing && planDirty.current && !window.confirm("Hay cambios en el plano sin guardar. ¿Salir sin guardarlos?")) return;
+                planDirty.current = false;
+                setEditing((v) => !v);
+              }} className={`p-press rounded-full px-4 py-2 text-sm font-semibold ${editing ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
               {editing ? "Terminar" : "Editar mesas"}
             </button>
           )}
@@ -130,7 +135,11 @@ export default function MesasClient({ tenant }: { tenant: string }) {
               {zones.map((z) => {
                 const n = (data.tables ?? []).filter((t) => t.zone === z && t.open).length;
                 return (
-                  <button key={z} type="button" onClick={() => setZone(z)} aria-pressed={z === currentZone} className={`p-press shrink-0 rounded-full px-4 py-1.5 text-sm font-medium ${z === currentZone ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"}`}>
+                  <button key={z} type="button" onClick={() => {
+                    if (editing && planDirty.current && !window.confirm("Hay cambios en el plano sin guardar. ¿Cambiar de zona sin guardarlos?")) return;
+                    planDirty.current = false;
+                    setZone(z);
+                  }} aria-pressed={z === currentZone} className={`p-press shrink-0 rounded-full px-4 py-1.5 text-sm font-medium ${z === currentZone ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"}`}>
                     {z}
                     {n > 0 && <span className="ml-1.5 text-xs text-[var(--p-brand)]">{n}</span>}
                   </button>
@@ -143,13 +152,17 @@ export default function MesasClient({ tenant }: { tenant: string }) {
             <PlanEditor
               key={`${data.storeId}:${currentZone}`}
               tables={inZone}
+              fixtures={data.fixtures?.[currentZone] ?? []}
+              zone={currentZone}
+              storeId={data.storeId}
+              onDirty={(d) => (planDirty.current = d)}
               onSaved={load}
               onTapTable={setEditTable}
               onAdd={() => setAdding(true)}
               api={api}
             />
           ) : (
-            <Plan tables={inZone} onTap={(t) => (t.open ? setView(t.open.orderId) : setOpening(t))} />
+            <Plan tables={inZone} fixtures={data.fixtures?.[currentZone] ?? []} onTap={(t) => (t.open ? setView(t.open.orderId) : setOpening(t))} />
           )}
 
           {!editing && (
@@ -225,14 +238,40 @@ function Tile({ t, compact }: { t: Table; compact?: boolean }) {
   );
 }
 
-// El plano: mesas colocadas en su sitio; si la zona aún no tiene plano, en cuadrícula.
-function Plan({ tables, onTap }: { tables: Table[]; onTap: (t: Table) => void }) {
+// Elementos fijos dibujados en el plano (barra, pared, texto). No se tocan en servicio.
+function FixtureView({ f }: { f: Fixture }) {
+  const style = { left: `${f.x}%`, top: `${f.y}%`, width: `${f.w}%`, height: `${f.h}%` };
+  if (f.kind === "LABEL")
+    return (
+      <div aria-hidden style={style} className="pointer-events-none absolute flex items-center justify-center text-center text-[10px] font-semibold uppercase tracking-wide text-[var(--p-muted)] sm:text-xs">
+        {f.label}
+      </div>
+    );
+  return (
+    <div aria-hidden style={style} className={`pointer-events-none absolute flex items-center justify-center overflow-hidden text-center text-[10px] font-semibold uppercase tracking-wide sm:text-sm ${f.kind === "BAR" ? "rounded-md bg-[var(--p-brand)]/75 text-white" : "rounded-sm bg-neutral-600"}`}>
+      {f.kind === "BAR" && <span className={isTall(f) ? "[writing-mode:vertical-rl]" : ""}>{f.label}</span>}
+    </div>
+  );
+}
+
+const TILE = "aspect-square w-[8%] min-w-[44px] max-w-[96px]";
+// Barra alta y estrecha: el texto en vertical para que quepa.
+const isTall = (f: Fixture) => f.h * 3 > f.w * 4 * 1.5;
+
+// El plano: mesas colocadas en su sitio (con la barra y lo demás); si la zona
+// aún no tiene plano, en cuadrícula.
+function Plan({ tables, fixtures, onTap }: { tables: Table[]; fixtures: Fixture[]; onTap: (t: Table) => void }) {
   const placed = tables.filter((t) => t.posX != null && t.posY != null);
   const loose = tables.filter((t) => t.posX == null || t.posY == null);
   return (
     <>
-      {placed.length > 0 && (
-        <div className="relative mx-auto mt-4 aspect-[3/4] w-full sm:aspect-[4/3] lg:max-w-[calc((100vh-15rem)*4/3)] overflow-hidden rounded-3xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      {(placed.length > 0 || fixtures.length > 0) && (
+        // Misma proporción en todos los aparatos; en el móvil el plano se desplaza a los lados.
+        <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+        <div className="relative mx-auto aspect-[4/3] w-full min-w-[600px] overflow-hidden rounded-3xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:max-w-[calc((100vh-15rem)*4/3)]">
+          {fixtures.map((f) => (
+            <FixtureView key={f.id} f={f} />
+          ))}
           {placed.map((t) => (
             <button
               key={t.id}
@@ -240,11 +279,12 @@ function Plan({ tables, onTap }: { tables: Table[]; onTap: (t: Table) => void })
               onClick={() => onTap(t)}
               aria-label={`Mesa ${t.name}: ${t.open ? (t.open.billRequested ? "pide la cuenta" : `ocupada, ${euros(t.open.totalCents)}`) : "libre"}`}
               style={{ left: `${t.posX}%`, top: `${t.posY}%` }}
-              className={`p-press absolute flex aspect-square w-[13%] min-w-[42px] max-w-[110px] sm:w-[11%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden px-0.5 text-center shadow-[0_2px_6px_rgba(0,0,0,0.12)] ${t.shape === "ROUND" ? "rounded-full" : "rounded-xl"} ${tileClass(t)}`}
+              className={`p-press absolute flex ${TILE} -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden px-0.5 text-center shadow-[0_2px_6px_rgba(0,0,0,0.12)] ${t.shape === "ROUND" ? "rounded-full" : "rounded-xl"} ${tileClass(t)}`}
             >
-              <Tile t={t} />
+              <Tile t={t} compact />
             </button>
           ))}
+        </div>
         </div>
       )}
       {loose.length > 0 && (
@@ -261,8 +301,17 @@ function Plan({ tables, onTap }: { tables: Table[]; onTap: (t: Table) => void })
   );
 }
 
-// Editar el plano: arrastrar para colocar; tocar sin arrastrar para cambiar la mesa.
-function PlanEditor({ tables, api, onSaved, onTapTable, onAdd }: { tables: Table[]; api: string; onSaved: () => Promise<void>; onTapTable: (t: Table) => void; onAdd: () => void }) {
+const FIXTURE_NEW: Record<Fixture["kind"], Omit<Fixture, "id">> = {
+  BAR: { kind: "BAR", x: 30, y: 70, w: 35, h: 8, label: "Barra" },
+  WALL: { kind: "WALL", x: 5, y: 50, w: 30, h: 1.5, label: "" },
+  LABEL: { kind: "LABEL", x: 40, y: 90, w: 20, h: 6, label: "Entrada" },
+};
+
+type Drag = { kind: "table" | "move" | "resize"; id: string; startX: number; startY: number; moved: boolean; orig?: Fixture };
+
+// Editar el plano: arrastrar mesas y elementos para colocarlos; la esquina de
+// un elemento lo estira; tocar sin arrastrar abre su ficha.
+function PlanEditor({ tables, fixtures, zone, storeId, api, onSaved, onTapTable, onAdd, onDirty }: { tables: Table[]; fixtures: Fixture[]; zone: string; storeId: string | null; api: string; onSaved: () => Promise<void>; onTapTable: (t: Table) => void; onAdd: () => void; onDirty: (dirty: boolean) => void }) {
   const box = useRef<HTMLDivElement>(null);
   // Lo guardado y lo arrastrado; las mesas sin sitio (también las recién creadas) se colocan solas.
   const [pos, setPos] = useState<Pos>(() => {
@@ -271,11 +320,21 @@ function PlanEditor({ tables, api, onSaved, onTapTable, onAdd }: { tables: Table
     return p;
   });
   const shown = useMemo(() => ({ ...autoPlace(tables, pos), ...pos }), [tables, pos]);
+  const [fx, setFx] = useState<Fixture[]>(fixtures);
   const [moved, setMoved] = useState(false);
   const dirty = moved || tables.some((t) => !pos[t.id]);
+  useEffect(() => onDirty(dirty), [dirty, onDirty]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
-  const drag = useRef<{ id: string; startX: number; startY: number; moved: boolean } | null>(null);
+  const [editFx, setEditFx] = useState<Fixture | null>(null);
+  const drag = useRef<Drag | null>(null);
+
+  function addFixture(kind: Fixture["kind"]) {
+    const f = { ...FIXTURE_NEW[kind], id: `f${Date.now()}` };
+    setFx((l) => [...l, f]);
+    setMoved(true);
+    if (kind !== "WALL") setEditFx(f);
+  }
 
   function move(e: React.PointerEvent) {
     const d = drag.current;
@@ -283,17 +342,52 @@ function PlanEditor({ tables, api, onSaved, onTapTable, onAdd }: { tables: Table
     if (!d || !rect) return;
     if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 6) return;
     d.moved = true;
-    const x = Math.max(4, Math.min(96, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
-    setPos((p) => ({ ...p, [d.id]: { x, y } }));
+    const px = ((e.clientX - rect.left) / rect.width) * 100;
+    const py = ((e.clientY - rect.top) / rect.height) * 100;
+    if (d.kind === "table") {
+      setPos((p) => ({ ...p, [d.id]: { x: Math.max(3, Math.min(97, px)), y: Math.max(3, Math.min(97, py)) } }));
+    } else if (d.orig) {
+      const o = d.orig;
+      const dx = ((e.clientX - d.startX) / rect.width) * 100;
+      const dy = ((e.clientY - d.startY) / rect.height) * 100;
+      setFx((l) =>
+        l.map((f) =>
+          f.id !== d.id
+            ? f
+            : d.kind === "move"
+              ? { ...f, x: Math.max(0, Math.min(100 - f.w, o.x + dx)), y: Math.max(0, Math.min(100 - f.h, o.y + dy)) }
+              : { ...f, w: Math.max(1, Math.min(100 - f.x, o.w + dx)), h: Math.max(1, Math.min(100 - f.y, o.h + dy)) }
+        )
+      );
+    }
     setMoved(true);
   }
+
+  function end() {
+    const d = drag.current;
+    drag.current = null;
+    if (!d || d.moved) return;
+    if (d.kind === "table") {
+      const t = tables.find((x) => x.id === d.id);
+      if (t) onTapTable(t);
+    } else {
+      const f = fx.find((x) => x.id === d.id);
+      if (f) setEditFx(f);
+    }
+  }
+
+  const start = (kind: Drag["kind"], id: string, e: React.PointerEvent, orig?: Fixture) => {
+    e.stopPropagation();
+    box.current?.setPointerCapture?.(e.pointerId);
+    drag.current = { kind, id, startX: e.clientX, startY: e.clientY, moved: false, orig };
+  };
 
   async function save() {
     setSaving(true);
     setMsg("");
     try {
       await post(api, { action: "layout", positions: Object.entries(shown).filter(([id]) => tables.some((t) => t.id === id)).map(([id, v]) => ({ id, posX: v.x, posY: v.y })) });
+      await post(api, { action: "fixtures", storeId, zone, items: fx });
       setPos(shown);
       setMoved(false);
       setMsg("Plano guardado");
@@ -307,29 +401,54 @@ function PlanEditor({ tables, api, onSaved, onTapTable, onAdd }: { tables: Table
 
   return (
     <div className="mt-4">
+      <p className="mb-3 text-sm text-[var(--p-muted)]">Arrastra mesas y elementos a su sitio. La esquina de la barra o la pared la estira. Toca algo para cambiarlo o quitarlo.</p>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <p className="mr-auto text-sm text-[var(--p-muted)]">Arrastra las mesas a su sitio. Toca una para cambiarle el nombre, la forma o quitarla.</p>
         <button type="button" onClick={onAdd} className="p-press rounded-full bg-[var(--p-surface)] px-4 py-2 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-          + Añadir mesas
+          + Mesas
         </button>
-        <button type="button" onClick={save} disabled={!dirty || saving} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+        <button type="button" onClick={() => addFixture("BAR")} className="p-press rounded-full bg-[var(--p-surface)] px-4 py-2 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+          + Barra
+        </button>
+        <button type="button" onClick={() => addFixture("WALL")} className="p-press rounded-full bg-[var(--p-surface)] px-4 py-2 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+          + Pared
+        </button>
+        <button type="button" onClick={() => addFixture("LABEL")} className="p-press rounded-full bg-[var(--p-surface)] px-4 py-2 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+          + Texto
+        </button>
+        <button type="button" onClick={save} disabled={!dirty || saving} className="p-press ml-auto rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
           {saving ? "Guardando…" : "Guardar plano"}
         </button>
       </div>
       {msg && <p className="mb-2 text-sm text-[var(--p-muted)]" role="status">{msg}</p>}
+      <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
       <div
         ref={box}
         onPointerMove={move}
-        onPointerUp={() => {
-          const d = drag.current;
-          drag.current = null;
-          if (d && !d.moved) {
-            const t = tables.find((x) => x.id === d.id);
-            if (t) onTapTable(t);
-          }
-        }}
-        className="relative mx-auto aspect-[3/4] w-full touch-none sm:aspect-[4/3] lg:max-w-[calc((100vh-17rem)*4/3)] overflow-hidden rounded-3xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] [background-image:radial-gradient(rgba(0,0,0,0.08)_1px,transparent_1px)] [background-size:24px_24px]"
+        onPointerUp={end}
+        onPointerCancel={() => (drag.current = null)}
+        className="relative mx-auto aspect-[4/3] w-full min-w-[600px] overflow-hidden rounded-3xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] [background-image:radial-gradient(rgba(0,0,0,0.08)_1px,transparent_1px)] [background-size:24px_24px] lg:max-w-[calc((100vh-19rem)*4/3)]"
       >
+        {fx.map((f) => (
+          <div
+            key={f.id}
+            role="button"
+            tabIndex={0}
+            aria-label={`${f.kind === "BAR" ? "Barra" : f.kind === "WALL" ? "Pared" : "Texto"}${f.label ? ` «${f.label}»` : ""}: arrastra para moverla o toca para editarla`}
+            onPointerDown={(e) => start("move", f.id, e, f)}
+            onKeyDown={(e) => e.key === "Enter" && setEditFx(f)}
+            style={{ left: `${f.x}%`, top: `${f.y}%`, width: `${f.w}%`, height: `${f.h}%` }}
+            className={`absolute flex cursor-grab touch-none select-none items-center justify-center text-center text-[10px] font-semibold uppercase tracking-wide ring-2 ring-[var(--p-brand)]/40 sm:text-sm ${f.kind === "BAR" ? "rounded-md bg-[var(--p-brand)]/75 text-white" : f.kind === "WALL" ? "rounded-sm bg-neutral-600" : "rounded-md bg-black/[0.03] text-[var(--p-muted)]"}`}
+          >
+            {f.kind !== "WALL" && <span className={f.kind === "BAR" && isTall(f) ? "[writing-mode:vertical-rl]" : ""}>{f.label}</span>}
+            {f.kind !== "LABEL" && (
+              <span
+                aria-hidden
+                onPointerDown={(e) => start("resize", f.id, e, f)}
+                className="absolute -bottom-2 -right-2 z-20 h-5 w-5 cursor-se-resize touch-none rounded-full border-2 border-white bg-[var(--p-ink)] shadow"
+              />
+            )}
+          </div>
+        ))}
         {tables.map((t) => {
           const p = shown[t.id];
           if (!p) return null;
@@ -339,21 +458,68 @@ function PlanEditor({ tables, api, onSaved, onTapTable, onAdd }: { tables: Table
               role="button"
               tabIndex={0}
               aria-label={`Mesa ${t.name}: arrastra para moverla o toca para editarla`}
-              onPointerDown={(e) => {
-                (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-                drag.current = { id: t.id, startX: e.clientX, startY: e.clientY, moved: false };
-              }}
+              onPointerDown={(e) => start("table", t.id, e)}
               onKeyDown={(e) => e.key === "Enter" && onTapTable(t)}
               style={{ left: `${p.x}%`, top: `${p.y}%` }}
-              className={`absolute flex aspect-square w-[13%] min-w-[42px] max-w-[110px] sm:w-[11%] -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none select-none flex-col items-center justify-center bg-white text-center shadow-[0_2px_8px_rgba(0,0,0,0.18)] ring-2 ring-[var(--p-brand)] active:cursor-grabbing ${t.shape === "ROUND" ? "rounded-full" : "rounded-xl"}`}
+              className={`absolute flex ${TILE} -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none select-none flex-col items-center justify-center bg-white text-center shadow-[0_2px_8px_rgba(0,0,0,0.18)] ring-2 ring-[var(--p-brand)] active:cursor-grabbing ${t.shape === "ROUND" ? "rounded-full" : "rounded-xl"}`}
             >
-              <span className="text-base font-semibold leading-none">{t.name}</span>
-              <span className="mt-0.5 text-[10px] text-[var(--p-muted)]">{t.seats} pax</span>
+              <span className="text-sm font-semibold leading-none sm:text-base">{t.name}</span>
+              <span className="mt-0.5 hidden text-[10px] text-[var(--p-muted)] sm:block">{t.seats} pax</span>
             </div>
           );
         })}
       </div>
+      </div>
+      {editFx && (
+        <FixtureSheet
+          f={editFx}
+          onClose={() => setEditFx(null)}
+          onSave={(label) => {
+            setFx((l) => l.map((x) => (x.id === editFx.id ? { ...x, label } : x)));
+            setMoved(true);
+            setEditFx(null);
+          }}
+          onRemove={() => {
+            setFx((l) => l.filter((x) => x.id !== editFx.id));
+            setMoved(true);
+            setEditFx(null);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function FixtureSheet({ f, onClose, onSave, onRemove }: { f: Fixture; onClose: () => void; onSave: (label: string) => void; onRemove: () => void }) {
+  const [label, setLabel] = useState(f.label);
+  const name = f.kind === "BAR" ? "Barra" : f.kind === "WALL" ? "Pared" : "Texto";
+  return (
+    <Sheet
+      title={name}
+      onClose={onClose}
+      footer={
+        <div className="flex flex-wrap gap-2">
+          {f.kind !== "WALL" && (
+            <button type="button" onClick={() => onSave(label.trim().slice(0, 30))} className="p-press flex-1 rounded-2xl bg-[var(--p-brand)] py-3 text-sm font-semibold text-white">
+              Aplicar
+            </button>
+          )}
+          <button type="button" onClick={onRemove} className="p-press whitespace-nowrap rounded-2xl px-4 py-3 text-sm font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">
+            Quitar {name.toLowerCase()}
+          </button>
+        </div>
+      }
+    >
+      {f.kind === "WALL" ? (
+        <p className="text-sm text-[var(--p-muted)]">Arrástrala para moverla y estírala desde la esquina.</p>
+      ) : (
+        <label className="block text-[13px] font-medium text-[var(--p-muted)]">
+          Texto
+          <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={30} placeholder={f.kind === "BAR" ? "Barra" : "Entrada, Cocina, Baños…"} className="mt-1 w-full rounded-xl border border-[var(--p-line)] px-3 py-2.5 text-sm outline-none focus:border-[var(--p-brand)]" />
+        </label>
+      )}
+      <p className="mt-3 text-xs text-[var(--p-muted)]">Los cambios se guardan con «Guardar plano».</p>
+    </Sheet>
   );
 }
 

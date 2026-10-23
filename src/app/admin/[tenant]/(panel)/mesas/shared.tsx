@@ -9,7 +9,8 @@ import { STORE_VARS } from "../storeVars";
 export type Shape = "SQUARE" | "ROUND";
 export type TableOpen = { orderId: string; orderNumber: number | null; guests: number | null; totalCents: number; openedAt: string; billRequested: boolean; waiter: string | null; lines: number };
 export type Table = { id: string; name: string; zone: string; seats: number; shape: Shape; posX: number | null; posY: number | null; open: TableOpen | null };
-export type MapData = { stores: { id: string; name: string }[]; storeId: string | null; canManage: boolean; tables: Table[] };
+export type Fixture = { id: string; kind: "BAR" | "WALL" | "LABEL"; x: number; y: number; w: number; h: number; label: string };
+export type MapData = { stores: { id: string; name: string }[]; storeId: string | null; canManage: boolean; tables: Table[]; fixtures: Record<string, Fixture[]> };
 
 export type CuentaLine = { id: string; name: string; quantity: number; totalCents: number; discountCents: number; modifiers: string[]; note: string | null };
 export type Round = { round: number; at: string; by: string | null; lines: CuentaLine[] };
