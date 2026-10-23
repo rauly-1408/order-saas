@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import ProductOptionsSheet, { type SheetProduct } from "@/app/pedir/[tenant]/ProductOptionsSheet";
 import ComboSheet, { type ComboProduct } from "@/app/pedir/[tenant]/ComboSheet";
 import { modifierLabels, type MenuModifierGroup, type OrderLineModifier } from "@/app/lib/menuOptions";
 import { comboChoicesKey, type ChoiceProduct, type ComboChoice, type ComboSlotDef } from "@/app/lib/combos";
+import type { HoyPayment, HoyResponse } from "@/app/api/admin/[tenant]/caja/hoy/route";
 
 // Caja: tomar un pedido en el mostrador o por teléfono, cobrarlo y mandarlo a
 // cocina. Tres pantallas en el ticket: pedido → cobro → confirmación, como en
@@ -23,6 +24,9 @@ const euros = (c: number) => (c / 100).toLocaleString("es-ES", { style: "currenc
 const parseEuros = (v: string) => Math.round(Number(v.replace(",", ".")) * 100);
 const MODE_LABEL: Record<Mode, string> = { TAKEAWAY: "Para llevar", DINE_IN: "Comer aquí", DELIVERY: "A domicilio" };
 const PAYMENT_LABEL: Record<Payment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", IN_STORE: "Pagar al recoger" };
+const HOY_PAYMENT_LABEL: Record<HoyPayment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
+const STATUS_LABEL: Record<string, string> = { CREATED: "Nuevo", PAID: "Nuevo", SENT_TO_POS: "Nuevo", ACCEPTED: "Preparando", PREPARING: "Preparando", READY: "Listo", DELIVERING: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
+const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
 // Importes rápidos para el efectivo: el justo y los billetes que lo cubren.
 function quickAmounts(totalCents: number): number[] {
@@ -74,6 +78,8 @@ export default function CajaClient({ tenant }: { tenant: string }) {
   const [step, setStep] = useState<Step>("order");
   const [done, setDone] = useState<{ orderNumber: number | null; totalCents: number; changeCents: number | null; payment: Payment } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false); // ticket en el móvil
+  const [hoy, setHoy] = useState<HoyResponse | null>(null);
+  const [hoyOpen, setHoyOpen] = useState(false);
   // Las hojas y la barra del móvil se pintan en .panel (fuera de .p-page): la
   // animación de entrada de la página encierra los elementos «fixed».
   const [portal, setPortal] = useState<HTMLElement | null>(null);
@@ -96,6 +102,20 @@ export default function CajaClient({ tenant }: { tenant: string }) {
       alive = false;
     };
   }, [tenant]);
+
+  // Resumen «Hoy en caja»: al entrar, tras cada venta y al abrirlo.
+  const loadHoy = useCallback(() => {
+    fetch(`/api/admin/${tenant}/caja/hoy`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setHoy(d as HoyResponse))
+      .catch(() => {});
+  }, [tenant]);
+  useEffect(() => {
+    loadHoy();
+  }, [loadHoy]);
+  useEffect(() => {
+    if (hoyOpen) loadHoy();
+  }, [hoyOpen, loadHoy]);
 
   // Productos simples de la carta: lo que se puede elegir dentro de un menú.
   const catalog = useMemo(() => new Map<string, ChoiceProduct>((categories ?? []).flatMap((c) => c.products.filter((p) => !p.isCombo).map((p) => [p.id, { id: p.id, name: p.name, modifierGroups: p.modifierGroups }]))), [categories]);
@@ -190,6 +210,7 @@ export default function CajaClient({ tenant }: { tenant: string }) {
       setDone({ orderNumber: json.orderNumber, totalCents: json.totalCents, changeCents: json.changeCents, payment });
       reset();
       setStep("done");
+      loadHoy();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo crear el pedido");
     } finally {
@@ -397,12 +418,25 @@ export default function CajaClient({ tenant }: { tenant: string }) {
       <div className="flex min-h-0 flex-1 flex-col px-4 pt-20 pb-28 lg:px-8 lg:pt-8 lg:pb-8">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Caja</h1>
-          <div className="relative min-w-0 flex-1 sm:max-w-sm">
+          <div className="relative order-last min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-auto sm:max-w-sm">
             <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--p-muted)]">
               <SearchIcon />
             </span>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="w-full rounded-full py-2.5 pl-9 pr-3 text-sm" />
           </div>
+          <button type="button" onClick={() => setHoyOpen(true)} className="p-press ml-auto flex items-center gap-2 sm:ml-0 rounded-full bg-[var(--p-surface)] px-4 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+            <span className="text-[var(--p-muted)]">Hoy</span>
+            {hoy ? (
+              <>
+                <span>
+                  {hoy.sales} {hoy.sales === 1 ? "venta" : "ventas"}
+                </span>
+                <span className="tabular-nums">{euros(hoy.totalCents)}</span>
+              </>
+            ) : (
+              <span className="text-[var(--p-muted)]">…</span>
+            )}
+          </button>
         </div>
         {error && !lines.length && step === "order" && <p className="mt-3 text-sm text-[var(--p-accent)]">{error}</p>}
         {categories && !q && (
@@ -466,6 +500,78 @@ export default function CajaClient({ tenant }: { tenant: string }) {
                 </button>
               )}
             </div>
+            {hoyOpen && (
+              <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label="Hoy en caja">
+                <button type="button" aria-label="Cerrar" onClick={() => setHoyOpen(false)} className="absolute inset-0 bg-black/40" />
+                <div className="relative flex max-h-[92vh] w-full flex-col overflow-y-auto rounded-t-[24px] bg-[var(--p-surface)] p-4 pb-[max(16px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-xl lg:rounded-[24px] lg:p-6">
+                  <div aria-hidden className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-full bg-black/15 lg:hidden" />
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-semibold">Hoy en caja</h2>
+                      <p className="text-xs text-[var(--p-muted)]">{hoy && hoy.day.charAt(0).toUpperCase() + hoy.day.slice(1)}</p>
+                    </div>
+                    <button type="button" onClick={() => setHoyOpen(false)} className="rounded-full px-3 py-1 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
+                      Cerrar
+                    </button>
+                  </div>
+                  {!hoy ? (
+                    <p className="py-8 text-center text-sm text-[var(--p-muted)]">Cargando…</p>
+                  ) : (
+                    <>
+                      <div className="mt-4 rounded-2xl bg-[var(--p-bg)] p-4">
+                        <p className="text-xs uppercase tracking-wide text-[var(--p-muted)]">Ventas de hoy</p>
+                        <p className="text-4xl font-semibold tabular-nums tracking-tight">{euros(hoy.totalCents)}</p>
+                        <p className="mt-1 text-sm text-[var(--p-muted)]">
+                          {hoy.sales} {hoy.sales === 1 ? "pedido" : "pedidos"}
+                          {hoy.cancelled > 0 && ` · ${hoy.cancelled} ${hoy.cancelled === 1 ? "cancelado" : "cancelados"}`}
+                        </p>
+                      </div>
+                      <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {(Object.keys(HOY_PAYMENT_LABEL) as HoyPayment[])
+                          .filter((k) => hoy.byPayment[k] > 0)
+                          .map((k) => (
+                            <li key={k} className="rounded-xl bg-black/[0.04] px-3 py-2.5">
+                              <p className="text-xs text-[var(--p-muted)]">{HOY_PAYMENT_LABEL[k]}</p>
+                              <p className="text-lg font-semibold tabular-nums">{euros(hoy.byPayment[k])}</p>
+                            </li>
+                          ))}
+                        {hoy.pendingCents > 0 && (
+                          <li className="rounded-xl bg-amber-50 px-3 py-2.5 text-amber-900">
+                            <p className="text-xs">Pendiente de cobrar</p>
+                            <p className="text-lg font-semibold tabular-nums">{euros(hoy.pendingCents)}</p>
+                          </li>
+                        )}
+                        {hoy.refundedCents > 0 && (
+                          <li className="rounded-xl bg-black/[0.04] px-3 py-2.5">
+                            <p className="text-xs text-[var(--p-muted)]">Devuelto</p>
+                            <p className="text-lg font-semibold tabular-nums">{euros(hoy.refundedCents)}</p>
+                          </li>
+                        )}
+                      </ul>
+                      <p className="mt-2 text-xs text-[var(--p-muted)]">El efectivo que debe haber en el cajón es la venta en efectivo más el fondo con el que abriste.</p>
+                      <ul className="mt-4 divide-y divide-[var(--p-line)]">
+                        {hoy.orders.length === 0 && <li className="py-8 text-center text-sm text-[var(--p-muted)]">Todavía no hay pedidos hoy.</li>}
+                        {hoy.orders.map((o) => (
+                          <li key={o.id} className={`flex items-center gap-3 py-2.5 ${o.status === "CANCELLED" ? "opacity-50" : ""}`}>
+                            <span className="w-12 shrink-0 text-xs tabular-nums text-[var(--p-muted)]">{hourOf(o.createdAt)}</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">
+                                #{o.orderNumber} {o.customerName}
+                              </p>
+                              <p className="truncate text-xs text-[var(--p-muted)]">
+                                {o.source === "ONLINE" ? "Online" : o.source === "PHONE" ? "Teléfono" : "Mostrador"} · {o.channel === "DELIVERY" ? "a domicilio" : o.dineIn ? "comer aquí" : "para llevar"} · {o.status === "CANCELLED" ? "cancelado" : o.paid ? HOY_PAYMENT_LABEL[o.paymentMethod].toLowerCase() : "sin cobrar"}
+                                {o.status !== "CANCELLED" && ` · ${STATUS_LABEL[o.status] ?? o.status}`}
+                              </p>
+                            </div>
+                            <span className={`text-sm font-semibold tabular-nums ${o.status === "CANCELLED" ? "line-through" : ""}`}>{euros(o.totalCents)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
             {optionsFor && (
               <ProductOptionsSheet
                 product={optionsFor as SheetProduct}
