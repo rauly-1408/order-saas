@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import OrderCard from "./OrderCard";
 import PaidWithChooser, { type PaidWith } from "./PaidWith";
 import {
+  cancelLabel,
   COLUMNS,
   dropTarget,
   nextAction,
@@ -434,10 +435,10 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                       )}
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          o.status === "DELIVERED" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+                          o.status === "DELIVERED" ? "bg-emerald-50 text-emerald-700" : o.cancelledBy === "CUSTOMER" ? "bg-amber-50 text-amber-800" : "bg-red-50 text-red-600"
                         }`}
                       >
-                        {o.status === "DELIVERED" ? "Entregado" : "Cancelado"}
+                        {o.status === "DELIVERED" ? "Entregado" : cancelLabel(o)}
                       </span>
                     </span>
                     {collectFor === o.id && (

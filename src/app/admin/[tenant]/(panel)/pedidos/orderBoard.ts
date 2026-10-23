@@ -34,6 +34,8 @@ export type Order = {
   courier?: CourierView | null; // repartidor externo (Glovo, modo prueba…)
   paymentMethod?: "IN_STORE" | "CARD" | "BIZUM" | "CASH" | "CARD_TERMINAL";
   source?: "ONLINE" | "COUNTER" | "PHONE"; // Caja: mostrador o teléfono
+  cancelledBy?: "RESTAURANT" | "CUSTOMER" | "SYSTEM" | null;
+  cancelReason?: "MISTAKE" | "ADDRESS_TIME" | "CHANGED_MIND" | null;
   dineIn?: boolean;
   paymentStatus?: "UNPAID" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
   tipCents?: number;
@@ -95,8 +97,9 @@ export function dropTarget(order: Order): DropKey | null {
   return COLUMNS.find((c) => c.statuses.includes(next.status))?.key ?? null;
 }
 
+// También en «Listos»: cliente que no viene a recoger (sin devolver el stock).
 export function canCancel(order: Order): boolean {
-  return ["CREATED", "ACCEPTED", "PREPARING"].includes(order.status);
+  return ["CREATED", "ACCEPTED", "PREPARING", "READY"].includes(order.status);
 }
 
 export type TimerTone = "ok" | "warn" | "late";
@@ -139,4 +142,11 @@ export const toEuros = (cents: number) =>
 
 // Etiquetas de la Caja para la tarjeta del pedido.
 export const SOURCE_LABEL: Record<string, string> = { COUNTER: "Mostrador", PHONE: "Teléfono" };
+export const CANCEL_REASON_LABEL: Record<string, string> = { MISTAKE: "se equivocó", ADDRESS_TIME: "dirección u hora incorrecta", CHANGED_MIND: "ya no lo quería" };
+// «Cancelado», «Cancelado por el cliente · se equivocó» o «Pago no completado».
+export function cancelLabel(order: Order): string {
+  if (order.cancelledBy === "CUSTOMER") return `Cancelado por el cliente${order.cancelReason ? ` · ${CANCEL_REASON_LABEL[order.cancelReason] ?? ""}` : ""}`;
+  if (order.cancelledBy === "SYSTEM") return "Pago no completado";
+  return "Cancelado";
+}
 export const PAYMENT_LABEL: Record<string, string> = { CASH: "efectivo", CARD_TERMINAL: "datáfono", BIZUM: "Bizum", CARD: "tarjeta online", IN_STORE: "al recoger" };

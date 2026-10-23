@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import type { OrderStatus, PaymentMethod } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
-import { returnOrderStock } from "@/app/lib/inventory";
 import { getSessionFromRequest } from "@/app/lib/auth";
-import { cancelCourier, courierAccount, requestCourier, toPublicCourier } from "@/app/lib/couriers";
-import { refundOrder } from "@/app/lib/gateways";
-import { restoreGiftCard } from "@/app/lib/giftCards";
+import { courierAccount, requestCourier, toPublicCourier } from "@/app/lib/couriers";
+import { cancelOrder } from "@/app/lib/cancelOrder";
 import { issueInvoiceSafe } from "@/app/lib/verifactu";
 
 export const runtime = "nodejs";
@@ -17,7 +15,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
       CREATED:    ["PREPARING", "ACCEPTED", "CANCELLED"],
       ACCEPTED:   ["PREPARING", "CANCELLED"],
       PREPARING:  ["READY", "CANCELLED"],
-      READY:      ["DELIVERING", "DELIVERED"],
+      READY:      ["DELIVERING", "DELIVERED", "CANCELLED"], // cancelar en Listos: el cliente no ha venido a recoger
       DELIVERING: ["DELIVERED"],
       DELIVERED:  [],
       CANCELLED:  [],
@@ -57,6 +55,8 @@ export async function PATCH(req: NextRequest) {
         // Solo apuntar el cobro (sin cambiar de estado).
         if (typeof newStatus !== "string") {
           if (order.status === "CANCELLED") return NextResponse.json({ error: "El pedido está cancelado" }, { status: 400 });
+          // Un pago online sin confirmar no se puede apuntar como cobrado en persona.
+          if (order.status === "AWAITING_PAYMENT") return NextResponse.json({ error: "Este pedido está pendiente de pago online" }, { status: 400 });
           if (order.paymentStatus === "PAID") return NextResponse.json({ error: "El pedido ya está cobrado" }, { status: 400 });
           const u = await prisma.order.update({ where: { id: orderId }, data: { paymentStatus: "PAID", paymentMethod: paidWith as PaymentMethod, paidAt: new Date() } });
           after(() => issueInvoiceSafe(u.id));
@@ -72,36 +72,30 @@ export async function PATCH(req: NextRequest) {
                                   );
               }
 
-        // Al cancelar se devuelve al stock lo que consumió el pedido (si lo hubo).
-        const updated = await prisma.$transaction(async (tx) => {
-          // Al entregar un pedido pendiente de cobro se apunta cómo ha pagado.
-          const collect = newStatus === "DELIVERED" && paidWith && order.paymentStatus !== "PAID" && order.paymentStatus !== "REFUNDED";
-          const u = await tx.order.update({
-            where: { id: orderId },
-            data: { status: newStatus as OrderStatus, ...(collect && { paymentStatus: "PAID", paymentMethod: paidWith as PaymentMethod, paidAt: new Date() }) }, // validado contra VALID_TRANSITIONS
-          });
-          if (newStatus === "CANCELLED") {
-            await returnOrderStock(tx, order.tenantId, orderId);
-            await restoreGiftCard(tx, order); // el saldo vuelve a la tarjeta regalo
-          }
-          return u;
+        // Cancelar: una sola función deshace stock, tarjeta regalo, repartidor,
+        // devolución por la pasarela y rectificativa (la misma que usa el cliente).
+        if (newStatus === "CANCELLED") {
+          const r = await cancelOrder(orderId, "RESTAURANT");
+          return NextResponse.json({ orderId: r.order.id, status: r.order.status, courier: toPublicCourier(r.courier), refundError: r.refundError });
+        }
+
+        // Al entregar un pedido pendiente de cobro se apunta cómo ha pagado.
+        const collect = newStatus === "DELIVERED" && paidWith && order.paymentStatus !== "PAID" && order.paymentStatus !== "REFUNDED";
+        const updated = await prisma.order.update({
+          where: { id: orderId },
+          data: { status: newStatus as OrderStatus, ...(collect && { paymentStatus: "PAID", paymentMethod: paidWith as PaymentMethod, paidAt: new Date() }) }, // validado contra VALID_TRANSITIONS
         });
 
-        // Repartidor externo: se pide al aceptar un pedido a domicilio (si está
-        // activado) y se cancela si se cancela el pedido.
+        // Repartidor externo: se pide al aceptar un pedido a domicilio (si está activado).
         let courier = null;
         if (order.channel === "DELIVERY" && (newStatus === "PREPARING" || newStatus === "ACCEPTED")) {
           const account = await courierAccount(order.tenantId);
           if (account?.impl && account.row.autoRequest) courier = await requestCourier(order.id);
-        } else if (newStatus === "CANCELLED") {
-          courier = await cancelCourier(order.id);
         }
 
-        // Pedido pagado online y cancelado: se devuelve el dinero por la pasarela.
-        const refundError = newStatus === "CANCELLED" ? await refundOrder(order.id) : null;
-        // VeriFactu: cobrado al entregar → factura; cancelado tras facturar → rectificativa.
+        // VeriFactu: cobrado al entregar → factura.
         if (newStatus === "DELIVERED" && paidWith) after(() => issueInvoiceSafe(order.id));
-        if (newStatus === "CANCELLED") after(() => issueInvoiceSafe(order.id, "R5"));
+        const refundError = null;
 
         return NextResponse.json({ orderId: updated.id, status: updated.status, courier: toPublicCourier(courier), refundError });
       } catch (err) {

@@ -87,7 +87,7 @@ export default async function ConfirmacionPage({
           <div className="p-rise" style={{ width: "72px", height: "72px", margin: "0 auto 18px", borderRadius: "999px", backgroundColor: cssVars["--brand-accent"], color: cssVars["--on-accent"], display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
           </div>
-          <h1 className="p-rise" style={{ ["--i" as string]: 1, fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as "none", fontSize: "40px", lineHeight: 1, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, marginBottom: "10px", color: cssVars["--brand-accent"] }}>{T.orderReceived}</h1>
+          <h1 className="p-rise" style={{ ["--i" as string]: 1, fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as "none", fontSize: "40px", lineHeight: 1, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, marginBottom: "10px", color: cssVars["--brand-accent"] }}>{order.status === "CANCELLED" ? T.cancelled : T.orderReceived}</h1>
           <p style={{ color: cssVars["--text-secondary"], fontSize: "14px", margin: "0" }}>
             {T.reference}
             <span style={{ color: cssVars["--brand-accent"], fontWeight: 700 }}>
@@ -110,6 +110,10 @@ export default async function ConfirmacionPage({
           initialCourier={customerCourier(order.courier)}
           initialReview={order.review}
           googleReviewUrl={parseOnline((tenantData?.branding as Record<string, unknown> | null)?.online).reviewsUrl}
+          scheduledFor={order.scheduledFor?.toISOString() ?? null}
+          cancelledBy={order.cancelledBy}
+          paidOnline={paidOnline}
+          restaurantPhone={biz.phone}
         />
 
         <div style={{ backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)", borderRadius: "18px", padding: "20px", marginBottom: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>

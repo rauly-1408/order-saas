@@ -4,18 +4,37 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { courierCustomerLabel } from "@/app/lib/couriers/labels";
 import { ui, type Lang } from "@/app/lib/i18n";
 import { FINAL_STATUSES, GOOGLE_REVIEW_MIN, statusNotice, trackingSteps, type TrackChannel } from "@/app/lib/tracking";
+import CancelOrder from "./CancelOrder";
 
 // Seguimiento en vivo del pedido (se actualiza solo), aviso en el móvil cuando
 // cambia de estado y valoración al entregarlo. Usa las CSS vars del theme.
 
 type Review = { rating: number; comment: string | null } | null;
 type Courier = { status: string; dropoffEta: string | null; trackingUrl: string | null } | null;
-type Props = { lang?: Lang; orderId: string; channel: TrackChannel; initialStatus: string; estimatedReadyAt: string | null; initialReview: Review; googleReviewUrl: string | null; initialCourier?: Courier };
+type CancelledBy = "RESTAURANT" | "CUSTOMER" | "SYSTEM" | null;
+type Props = {
+  lang?: Lang;
+  orderId: string;
+  channel: TrackChannel;
+  initialStatus: string;
+  estimatedReadyAt: string | null;
+  initialReview: Review;
+  googleReviewUrl: string | null;
+  initialCourier?: Courier;
+  scheduledFor?: string | null;
+  cancelledBy?: CancelledBy;
+  paidOnline?: boolean;
+  restaurantPhone?: string | null;
+};
 
 const POLL_MS = 10_000;
 
-export default function OrderTracker({ lang = "es", orderId, channel, initialStatus, estimatedReadyAt, initialReview, googleReviewUrl: initialGoogle, initialCourier = null }: Props) {
+export default function OrderTracker({ lang = "es", orderId, channel, initialStatus, estimatedReadyAt, initialReview, googleReviewUrl: initialGoogle, initialCourier = null, scheduledFor = null, cancelledBy: initialCancelledBy = null, paidOnline = false, restaurantPhone = null }: Props) {
   const [status, setStatus] = useState(initialStatus);
+  // Cancelar: lo dice el servidor (cookie de prueba + estado); se sabe tras la primera consulta.
+  const [canCancel, setCanCancel] = useState(false);
+  const [cancelledBy, setCancelledBy] = useState<CancelledBy>(initialCancelledBy);
+  const [tooLate, setTooLate] = useState("");
   const [courier, setCourier] = useState<Courier>(initialCourier);
   const [review, setReview] = useState<Review>(initialReview);
   const [googleUrl, setGoogleUrl] = useState(initialGoogle);
@@ -41,17 +60,20 @@ export default function OrderTracker({ lang = "es", orderId, channel, initialSta
   const [enabled, setEnabled] = useState(false);
   const notify = permission === "unsupported" ? "unsupported" : permission === "denied" ? "denied" : permission === "granted" && (enabled || stored) ? "on" : "off";
 
-  // Consulta el estado cada 10 s hasta que el pedido termina.
+  // Consulta el estado cada 10 s hasta que el pedido termina (y una vez al
+  // abrir, para saber si se puede cancelar).
   useEffect(() => {
     if (FINAL_STATUSES.includes(status)) return;
-    const timer = setInterval(async () => {
-      if (document.visibilityState === "hidden" && notify !== "on") return;
+    const tick = async (force = false) => {
+      if (!force && document.visibilityState === "hidden" && notify !== "on") return;
       try {
         const res = await fetch(`/api/track/${orderId}`, { cache: "no-store" });
         if (!res.ok) return;
         const d = await res.json();
         setGoogleUrl(d.googleReviewUrl ?? null);
         setCourier(d.courier ?? null);
+        setCanCancel(!!d.canCancel);
+        if (d.cancelledBy !== undefined) setCancelledBy(d.cancelledBy ?? null);
         if (d.review) setReview(d.review);
         if (d.status !== last.current) {
           last.current = d.status;
@@ -65,8 +87,13 @@ export default function OrderTracker({ lang = "es", orderId, channel, initialSta
           }
         }
       } catch {}
-    }, POLL_MS);
-    return () => clearInterval(timer);
+    };
+    const first = setTimeout(() => tick(true), 0);
+    const timer = setInterval(tick, POLL_MS);
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+    };
   }, [orderId, channel, status, notify, lang]);
 
   async function enableNotify() {
@@ -80,11 +107,14 @@ export default function OrderTracker({ lang = "es", orderId, channel, initialSta
     setEnabled(perm === "granted");
   }
 
+  const phoneHref = restaurantPhone ? `tel:${restaurantPhone.replace(/[\s-]/g, "")}` : null;
+
   if (status === "CANCELLED") {
+    const byCustomer = cancelledBy === "CUSTOMER";
     return (
-      <div className="mb-4 rounded-[18px] bg-[var(--surface-1)] p-5 text-center shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-        <p className="text-[15px] font-bold text-[var(--brand-secondary)]">{T.cancelled}</p>
-        <p className="mt-1 text-[13px] text-[var(--text-secondary)]">{T.cancelledHelp}</p>
+      <div className="mb-4 rounded-[18px] bg-[var(--surface-1)] p-5 text-center shadow-[0_1px_2px_rgba(0,0,0,0.05)]" role="status">
+        <p className="text-[15px] font-bold text-[var(--brand-secondary)]">{byCustomer ? T.cancelledByYou : T.cancelled}</p>
+        <p className="mt-1 text-[13px] text-[var(--text-secondary)]">{paidOnline ? T.cancelledRefund : T.cancelledHelp}</p>
       </div>
     );
   }
@@ -151,6 +181,33 @@ export default function OrderTracker({ lang = "es", orderId, channel, initialSta
               <button onClick={enableNotify} className="p-press rounded-full border border-[var(--brand-accent)] px-4 py-2 text-[13px] font-semibold text-[var(--brand-accent)]">
                 {T.notifyMe(channel === "DELIVERY" ? T.onTheWay : T.ready)}
               </button>
+            )}
+          </div>
+        )}
+        {/* Cancelar mientras se pueda; después, el teléfono del restaurante */}
+        {!delivered && canCancel && !tooLate && (
+          <CancelOrder
+            lang={lang}
+            orderId={orderId}
+            scheduled={!!scheduledFor}
+            onCancelled={() => {
+              last.current = "CANCELLED";
+              setCancelledBy("CUSTOMER");
+              setStatus("CANCELLED");
+            }}
+            onTooLate={(m) => {
+              setCanCancel(false);
+              setTooLate(m);
+            }}
+          />
+        )}
+        {!delivered && !canCancel && (tooLate || phoneHref) && (
+          <div className="mt-4 border-t border-[var(--border)] pt-3 text-[13px]">
+            <p className="text-[var(--text-secondary)]">{tooLate || T.anyProblem}</p>
+            {phoneHref && (
+              <a href={phoneHref} className="p-press mt-2 inline-block rounded-full border border-[var(--border)] px-4 py-2 text-[13px] font-semibold text-[var(--text-primary)] no-underline">
+                📞 {T.callRestaurant}
+              </a>
             )}
           </div>
         )}
