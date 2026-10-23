@@ -17,9 +17,12 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - El plano dibuja también la **barra**, las **paredes** y **textos** como «Entrada» o «Cocina».
   - Tiene siempre la misma proporción (4:3), como la pantalla del TPV. En el móvil se desplaza a los lados con el dedo, y las mesas mantienen un tamaño cómodo para tocarlas.
   - Una zona que aún no tiene plano se ve en cuadrícula.
-- **Abrir una mesa**: se toca una mesa libre, se eligen los comensales y se abre su cuenta.
-- **Nueva ronda**:
-  - Usa la carta de la Caja, con opciones, menús y una nota por línea.
+- **Abrir una mesa**: se toca una mesa libre, se eligen los comensales y «Abrir y tomar nota» lleva directamente a la ronda. Una mesa abierta sin pedir muestra una tarjeta grande de «Tomar nota».
+- **Nueva ronda**, pensada para pantalla táctil:
+  - Usa la carta de la Caja, con opciones y menús, con botones y productos grandes.
+  - En el ordenador o la tablet, el ticket de la ronda está siempre a la vista a la derecha: cantidad con botones grandes, papelera al quedar en 1 y nota por línea. En el móvil es una barra abajo que se despliega.
+  - **Nota para cocina** al elegir las opciones de un producto o de un menú, y en cada línea del ticket, con atajos de un toque («Sin cebolla», «Poco hecha», «Salsa aparte»…) y texto libre. Sale en la comanda con «>>».
+  - **Producto libre** (primera tarjeta de la carta): algo que no está en la carta, solo para esa cuenta. Tiene nombre, con ideas como «Chupito» o «Café», cantidad, precio y nota. **«Invita la casa»** lo deja a 0,00 € y escribe «Invita la casa» en la comanda y en el ticket. No descuenta stock. En la base de datos la línea lleva `productId = "LIBRE"`, y los informes la agrupan por nombre.
   - «Enviar a cocina» la añade a la cuenta e imprime su comanda («MESA 4 · Ronda 2», solo con lo nuevo).
   - El stock se descuenta en cada ronda.
 - **La cuenta**:

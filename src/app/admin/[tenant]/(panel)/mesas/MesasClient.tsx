@@ -212,6 +212,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
           onOpen={async (guests) => {
             const r = await post<{ orderId: string }>(api, { action: "open", tableId: opening.id, guests });
             setOpening(null);
+            setViewAction("round"); // directo a tomar nota
             setView(r.orderId);
           }}
         />
@@ -506,7 +507,7 @@ function OpenSheet({ table, onClose, onOpen }: { table: Table; onClose: () => vo
             }}
             className="p-press w-full rounded-2xl bg-[var(--p-brand)] py-3.5 text-base font-semibold text-white disabled:opacity-50"
           >
-            {busy ? "Abriendo…" : "Abrir mesa"}
+            {busy ? "Abriendo…" : "Abrir y tomar nota"}
           </button>
         </>
       }

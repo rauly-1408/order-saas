@@ -25,14 +25,19 @@ export type SheetProduct = {
 type Props = {
   product: SheetProduct;
   onClose: () => void;
-  onAdd: (line: { optionIds: string[]; modifiers: OrderLineModifier[]; unitPriceCents: number }) => void;
+  onAdd: (line: { optionIds: string[]; modifiers: OrderLineModifier[]; unitPriceCents: number; note?: string }) => void;
   lang?: Lang;
+  // Panel (Mesas y Caja): nota para cocina al pedir, con atajos de un toque.
+  withNote?: boolean;
 };
+
+export const NOTE_CHIPS = ["Sin cebolla", "Sin salsa", "Sin gluten", "Poco hecha", "Al punto", "Muy hecha", "Salsa aparte", "Para compartir"];
 
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "es" }: Props) {
+export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "es", withNote = false }: Props) {
+  const [note, setNote] = useState("");
   const T = ui(lang);
   const groups = product.modifierGroups;
   const [selection, setSelection] = useState<Record<string, string[]>>(() => initialSelection(groups));
@@ -76,7 +81,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
       setError(optionError(err, lang));
       return;
     }
-    onAdd({ optionIds: Object.values(selection).flat(), modifiers, unitPriceCents });
+    onAdd({ optionIds: Object.values(selection).flat(), modifiers, unitPriceCents, ...(withNote && note.trim() && { note: note.trim().slice(0, 120) }) });
   }
 
   return (
@@ -268,6 +273,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
         </div>
 
         <footer className="border-t border-[var(--border)] p-4">
+          {withNote && <NoteField note={note} setNote={setNote} />}
           {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
           <button
             onClick={handleAdd}
@@ -278,5 +284,33 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
         </footer>
       </div>
     </div>
+  );
+}
+
+// Nota para cocina (solo en el panel): atajos de un toque y texto libre.
+export function NoteField({ note, setNote }: { note: string; setNote: (fn: (n: string) => string) => void }) {
+  return (
+    <div className="mb-3">
+              <label className="text-[13px] font-semibold" htmlFor="opt-note">
+                Nota para cocina
+              </label>
+              <div className="mt-1.5 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+                {NOTE_CHIPS.map((c) => {
+                  const on = note.toLowerCase().includes(c.toLowerCase());
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setNote((n) => (on ? n.replace(new RegExp(`(,\\s*)?${c}`, "i"), "").replace(/^,\s*/, "") : n.trim() ? `${n.trim()}, ${c}` : c))}
+                      className={`shrink-0 rounded-full border px-3.5 py-2 text-[13px] font-medium ${on ? "border-[var(--brand-accent)] bg-[var(--brand-accent)] text-[var(--on-accent)]" : "border-[var(--border)]"}`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+              <input id="opt-note" value={note} onChange={(e) => setNote(() => e.target.value.slice(0, 120))} placeholder="Escribe lo que pida el cliente (sin tomate, extra de queso…)" className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-1)] px-4 py-3 text-[15px] outline-none focus:border-[var(--brand-accent)]" />
+            </div>
   );
 }

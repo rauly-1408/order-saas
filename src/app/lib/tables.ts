@@ -13,6 +13,8 @@ export class TableError extends Error {}
 export type PayMethod = "CASH" | "CARD_TERMINAL" | "BIZUM";
 export const PAY_METHODS: readonly PayMethod[] = ["CASH", "CARD_TERMINAL", "BIZUM"];
 export const MAX_GUESTS = 50;
+// Producto libre de una cuenta (no está en la carta): las líneas lo llevan como productId.
+export const CUSTOM_PRODUCT_ID = "LIBRE";
 export const MAX_TABLES_PER_STORE = 200;
 
 // ─── Cálculos puros (probados en lib/__tests__/tables.test.ts) ─────────────

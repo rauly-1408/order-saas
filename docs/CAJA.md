@@ -4,6 +4,7 @@ Panel → **Caja**. La usan el gerente y el rol «Pedidos». Sirve para que el r
 
 ## Qué hace el restaurante
 
+- **Nota para cocina al elegir** un producto con opciones o un menú: atajos de un toque y texto libre, que salen en la comanda (igual que en Mesas).
 Tres pantallas en el ticket, como en un TPV (Square, Shopify POS):
 
 1. **Pedido.** Toca categorías y productos (la misma carta que ve el cliente, con foto si la tiene). Los productos con opciones o los menús abren la misma hoja que en la tienda; los simples entran al primer toque y el azulejo muestra cuántos van. Arriba del ticket se elige **Para llevar / Comer aquí / A domicilio** (con dirección) y si llega por **Mostrador** o **Teléfono**. Cliente, cupón y nota para cocina van plegados en «＋ Cliente, cupón o nota». Con teléfono, el pedido suma sellos y entra en Clientes como un pedido online; sin teléfono queda como «Mostrador».
