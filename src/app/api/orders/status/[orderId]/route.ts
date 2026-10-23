@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { OrderStatus } from "@prisma/client";
+import type { OrderStatus, PaymentMethod } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { returnOrderStock } from "@/app/lib/inventory";
 import { getSessionFromRequest } from "@/app/lib/auth";
@@ -29,8 +29,13 @@ export async function PATCH(req: NextRequest) {
               // pathname: /api/orders/status/[orderId]
         const orderId = segments[segments.length - 1];
 
-        const { status: newStatus } = (await req.json()) as { status?: unknown };
-        if (typeof newStatus !== "string") {
+        // paidWith: cómo ha pagado el cliente un pedido «al recoger / al entregar».
+        // Va con status DELIVERED (se cobra al entregar) o solo, para apuntar el
+        // cobro de un pedido ya entregado que se quedó sin registrar.
+        const body = (await req.json().catch(() => ({}))) as { status?: unknown; paidWith?: unknown };
+        const newStatus = body.status;
+        const paidWith = (["CASH", "CARD_TERMINAL", "BIZUM"] as const).find((m) => m === body.paidWith) ?? null;
+        if (typeof newStatus !== "string" && !paidWith) {
           return NextResponse.json({ error: "Estado inválido" }, { status: 400 });
         }
 
@@ -48,6 +53,14 @@ export async function PATCH(req: NextRequest) {
           return NextResponse.json({ error: "Este pedido es de otro local" }, { status: 403 });
         }
 
+        // Solo apuntar el cobro (sin cambiar de estado).
+        if (typeof newStatus !== "string") {
+          if (order.status === "CANCELLED") return NextResponse.json({ error: "El pedido está cancelado" }, { status: 400 });
+          if (order.paymentStatus === "PAID") return NextResponse.json({ error: "El pedido ya está cobrado" }, { status: 400 });
+          const u = await prisma.order.update({ where: { id: orderId }, data: { paymentStatus: "PAID", paymentMethod: paidWith as PaymentMethod } });
+          return NextResponse.json({ orderId: u.id, status: u.status, courier: null, refundError: null });
+        }
+
         const allowed = VALID_TRANSITIONS[order.status] ?? [];
               const deliveringOnPickup = newStatus === "DELIVERING" && order.channel !== "DELIVERY";
               if (!allowed.includes(newStatus) || deliveringOnPickup) {
@@ -59,9 +72,11 @@ export async function PATCH(req: NextRequest) {
 
         // Al cancelar se devuelve al stock lo que consumió el pedido (si lo hubo).
         const updated = await prisma.$transaction(async (tx) => {
+          // Al entregar un pedido pendiente de cobro se apunta cómo ha pagado.
+          const collect = newStatus === "DELIVERED" && paidWith && order.paymentStatus !== "PAID" && order.paymentStatus !== "REFUNDED";
           const u = await tx.order.update({
             where: { id: orderId },
-            data: { status: newStatus as OrderStatus }, // validado contra VALID_TRANSITIONS
+            data: { status: newStatus as OrderStatus, ...(collect && { paymentStatus: "PAID", paymentMethod: paidWith as PaymentMethod }) }, // validado contra VALID_TRANSITIONS
           });
           if (newStatus === "CANCELLED") {
             await returnOrderStock(tx, order.tenantId, orderId);

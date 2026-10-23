@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+
+import PaidWithChooser, { type PaidWith } from "./PaidWith";
 import { discountLines } from "@/app/lib/promotions";
 import { scheduledLabel } from "@/app/lib/schedule";
 import { DEFAULT_TIMEZONE } from "@/app/lib/time";
@@ -31,7 +34,7 @@ type OrderCardProps = {
   estimates: Estimates;
   now: number;
   busy: boolean;
-  onStatus: (id: string, status: string) => void;
+  onStatus: (id: string, status: string, paidWith?: PaidWith) => void;
   courierEnabled?: boolean;
   onCourier?: (id: string, action: "request" | "cancel") => void;
 };
@@ -45,6 +48,9 @@ const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es
 
 export default function OrderCard({ order, estimates, now, busy, onStatus, courierEnabled = false, onCourier }: OrderCardProps) {
   const action = nextAction(order);
+  const [askPay, setAskPay] = useState(false);
+  // Entregar un pedido pendiente de cobro: primero preguntar cómo ha pagado.
+  const needsPay = action?.status === "DELIVERED" && order.paymentStatus !== "PAID" && order.paymentStatus !== "REFUNDED";
   const isNew = order.status === "CREATED" || order.status === "ACCEPTED";
   const tone = timerTone(order, estimates, now);
 
@@ -199,15 +205,25 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
         )}
       </div>
 
-      {action && (
+      {action && askPay && needsPay && (
+        <PaidWithChooser
+          busy={busy}
+          onCancel={() => setAskPay(false)}
+          onPick={(m) => {
+            setAskPay(false);
+            onStatus(order.id, action.status, m);
+          }}
+        />
+      )}
+      {action && !(askPay && needsPay) && (
         <button
-          onClick={() => onStatus(order.id, action.status)}
+          onClick={() => (needsPay ? setAskPay(true) : onStatus(order.id, action.status))}
           disabled={busy}
           className={`p-press mt-3 w-full rounded-full py-3 text-[15px] font-semibold disabled:opacity-50 ${
             isNew ? "bg-[var(--p-accent)] text-white hover:brightness-95" : "bg-[var(--p-brand)] text-white hover:bg-[var(--p-brand-strong)]"
           }`}
         >
-          {busy ? "…" : action.label}
+          {busy ? "…" : needsPay ? `${action.label} y cobrar` : action.label}
         </button>
       )}
     </article>

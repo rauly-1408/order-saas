@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import OrderCard from "./OrderCard";
+import PaidWithChooser, { type PaidWith } from "./PaidWith";
 import {
   COLUMNS,
   orderLabel,
@@ -120,14 +121,15 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
     if (next && (await unlockAudio())) playOrderChime();
   }
 
-  async function handleStatus(orderId: string, newStatus: string) {
+  // newStatus null = solo apuntar el cobro de un pedido ya entregado.
+  async function handleStatus(orderId: string, newStatus: string | null, paidWith?: PaidWith) {
     setUpdating(orderId);
     setError("");
     try {
       const res = await fetch(`/api/orders/status/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ ...(newStatus && { status: newStatus }), ...(paidWith && { paidWith }) }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; refundError?: string | null };
       await loadOrders();
@@ -164,6 +166,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
     return col ? orders.filter((o) => col.statuses.includes(o.status)) : [];
   };
 
+  const [collectFor, setCollectFor] = useState<string | null>(null); // pedido del historial al que apuntar el cobro
   const delivered = history.filter((o) => o.status === "DELIVERED").length;
   const cancelled = history.length - delivered;
 
@@ -313,13 +316,18 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
             ) : (
               <ul className="divide-y divide-[var(--p-line)] px-4 pb-2">
                 {history.map((o) => (
-                  <li key={o.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <li key={o.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2 text-sm">
                     <span className="min-w-0 truncate">
                       <span className="font-bold">{orderLabel(o)}</span>{" "}
                       <span className="text-[var(--p-muted)]">{o.customerName}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-3">
                       <span className="text-[var(--p-muted)]">{toEuros(o.totalCents)}</span>
+                      {o.status === "DELIVERED" && o.paymentStatus !== "PAID" && o.paymentStatus !== "REFUNDED" && (
+                        <button type="button" onClick={() => setCollectFor(collectFor === o.id ? null : o.id)} className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+                          Sin cobrar · apuntar
+                        </button>
+                      )}
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                           o.status === "DELIVERED" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
@@ -328,6 +336,20 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                         {o.status === "DELIVERED" ? "Entregado" : "Cancelado"}
                       </span>
                     </span>
+                    {collectFor === o.id && (
+                      <div className="basis-full">
+                        <PaidWithChooser
+                          compact
+                          title={`¿Cómo pagó el ${orderLabel(o)}?`}
+                          busy={updating === o.id}
+                          onCancel={() => setCollectFor(null)}
+                          onPick={(m) => {
+                            setCollectFor(null);
+                            handleStatus(o.id, null, m);
+                          }}
+                        />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
