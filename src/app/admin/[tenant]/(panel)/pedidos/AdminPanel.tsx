@@ -6,9 +6,12 @@ import OrderCard from "./OrderCard";
 import PaidWithChooser, { type PaidWith } from "./PaidWith";
 import {
   COLUMNS,
+  dropTarget,
+  nextAction,
   orderLabel,
   toEuros,
   type ColumnKey,
+  type DropKey,
   type Estimates,
   type Order,
 } from "./orderBoard";
@@ -50,6 +53,20 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
   // El sonido lo gestiona el aviso global (OrderAlerts); aquí solo el interruptor.
   const [soundOn, setSoundOn] = useState(true);
   const [repeatOn, setRepeatOn] = useState(true);
+
+  // Arrastrar tarjetas: solo con ratón y tablero en columnas (lg). En el móvil
+  // arrastrar choca con el scroll; ahí manda el botón de cada tarjeta.
+  const [canDrag, setCanDrag] = useState(false);
+  const [drag, setDrag] = useState<{ id: string; to: DropKey } | null>(null);
+  const [over, setOver] = useState<DropKey | null>(null);
+  const [payRequests, setPayRequests] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px) and (pointer: fine)");
+    const sync = () => setCanDrag(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   const prevIds = useRef<Set<string>>(new Set());
   // Distingue la primera carga de un panel vacío: el primer pedido nuevo sí
@@ -175,6 +192,41 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
     }
   }
 
+  // Soltar la tarjeta: la misma transición que el botón. Si hay que cobrar al
+  // entregar, la tarjeta pregunta cómo ha pagado en vez de cerrarse sin más.
+  function handleDrop(key: DropKey) {
+    const current = drag;
+    setDrag(null);
+    setOver(null);
+    if (!current || current.to !== key) return;
+    const order = orders.find((o) => o.id === current.id);
+    const action = order && nextAction(order);
+    if (!order || !action) return;
+    const needsPay = action.status === "DELIVERED" && order.paymentStatus !== "PAID" && order.paymentStatus !== "REFUNDED";
+    if (needsPay) setPayRequests((r) => ({ ...r, [order.id]: (r[order.id] ?? 0) + 1 }));
+    else handleStatus(order.id, action.status);
+  }
+  const dropProps = (key: DropKey) =>
+    canDrag
+      ? {
+          onDragOver: (e: React.DragEvent) => {
+            if (drag?.to !== key) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            if (over !== key) setOver(key);
+          },
+          onDragLeave: (e: React.DragEvent) => {
+            if (over === key && !e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(null);
+          },
+          onDrop: (e: React.DragEvent) => {
+            e.preventDefault();
+            handleDrop(key);
+          },
+        }
+      : {};
+  const dragged = drag ? orders.find((o) => o.id === drag.id) : null;
+  const dropLabel = dragged ? nextAction(dragged)?.label : null;
+
   const byColumn = (key: ColumnKey) => {
     const col = COLUMNS.find((c) => c.key === key);
     return col ? orders.filter((o) => col.statuses.includes(o.status)) : [];
@@ -286,8 +338,16 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
           <div className="grid gap-4 lg:grid-cols-4">
             {COLUMNS.map((col) => {
               const list = byColumn(col.key);
+              const isTarget = drag?.to === col.key;
+              const dimmed = !!drag && !isTarget;
               return (
-                <section key={col.key} className={tab === col.key ? "block" : "hidden lg:block"}>
+                <section
+                  key={col.key}
+                  {...dropProps(col.key)}
+                  className={`${tab === col.key ? "block" : "hidden lg:block"} rounded-2xl transition-[opacity,box-shadow,background-color] duration-150 ${
+                    dimmed ? "opacity-40" : ""
+                  } ${isTarget ? "-m-2 bg-[var(--p-brand)]/[0.06] p-2 ring-2 ring-dashed ring-[var(--p-brand)]/50" : ""} ${over === col.key ? "!bg-[var(--p-brand)]/[0.12] !ring-[var(--p-brand)]" : ""}`}
+                >
                   <h2
                     className={`mb-3 hidden items-center justify-between px-1 text-[15px] font-semibold lg:flex ${col.accent}`}
                   >
@@ -296,6 +356,11 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                     </span>
                     <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-black/[0.05] px-2 text-sm tabular-nums text-[var(--p-ink)]">{list.length}</span>
                   </h2>
+                  {isTarget && (
+                    <p className="mb-3 rounded-xl border border-dashed border-[var(--p-brand)]/50 bg-[var(--p-surface)] px-3 py-2 text-center text-sm font-semibold text-[var(--p-brand)]">
+                      Suelta aquí · {dropLabel}
+                    </p>
+                  )}
                   <div className="space-y-3">
                     {list.length === 0 ? (
                       <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 py-8 text-center text-sm text-[var(--p-faint)]">
@@ -314,6 +379,17 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                           onCourier={handleCourier}
                           printingEnabled={printingEnabled}
                           onPrint={handlePrint}
+                          draggable={canDrag && !!dropTarget(o)}
+                          dragging={drag?.id === o.id}
+                          onDragStart={(id) => {
+                            const to = dropTarget(o);
+                            if (to) setDrag({ id, to });
+                          }}
+                          onDragEnd={() => {
+                            setDrag(null);
+                            setOver(null);
+                          }}
+                          payRequest={payRequests[o.id] ?? 0}
                         />
                       ))
                     )}
@@ -322,6 +398,18 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
               );
             })}
           </div>
+
+          {/* Zona «Entregado»: barra fija abajo mientras se arrastra un pedido listo o en reparto (solo lg) */}
+          {drag?.to === "DONE" && (
+            <div
+              {...dropProps("DONE")}
+              className={`fixed inset-x-4 bottom-5 z-30 rounded-2xl border-2 border-dashed py-6 text-center text-[15px] font-semibold shadow-lg transition-colors lg:left-[calc(16rem+2.5rem)] lg:right-10 ${
+                over === "DONE" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-emerald-400/70 bg-emerald-50/90 text-emerald-700"
+              }`}
+            >
+              ✅ Suelta aquí · {dropLabel}
+            </div>
+          )}
 
           <details className="mt-8 rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <summary className="cursor-pointer px-5 py-4 text-[15px] font-semibold">
