@@ -73,6 +73,20 @@ enum OrderSource {
   PHONE // por teléfono
 }
 
+// Quién canceló el pedido. Ver docs/SEGUIMIENTO-Y-RESENAS.md
+enum CancelledBy {
+  RESTAURANT
+  CUSTOMER
+  SYSTEM // pago abandonado o fallido
+}
+
+// Motivo que elige el cliente al cancelar desde su página de seguimiento.
+enum CancelReason {
+  MISTAKE // me he equivocado
+  ADDRESS_TIME // dirección u hora incorrecta
+  CHANGED_MIND // ya no lo quiero
+}
+
 // Estado del cobro online. Los pedidos IN_STORE quedan en UNPAID (se cobran en el local).
 enum PaymentStatus {
   UNPAID
@@ -433,6 +447,8 @@ model Order {
   status  OrderStatus @default(CREATED)
   // Caja (ver docs/CAJA.md): origen, «para comer aquí», quién lo tomó y el efectivo entregado
   source           OrderSource @default(ONLINE)
+  cancelledBy      CancelledBy? // quién canceló (null si no está cancelado)
+  cancelReason     CancelReason? // motivo del cliente
   dineIn           Boolean     @default(false)
   createdByUserId  String?
   cashTenderedCents Int?

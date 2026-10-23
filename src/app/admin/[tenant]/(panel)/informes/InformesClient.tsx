@@ -197,7 +197,7 @@ function Kpis({ totals, previous }: { totals: Totals; previous: Totals }) {
     { label: "Ticket medio", value: eur(totals.avgTicketCents), cur: totals.avgTicketCents, prev: previous.avgTicketCents },
     { label: "Clientes nuevos", value: String(totals.newCustomers), cur: totals.newCustomers, prev: previous.newCustomers },
     { label: "Descuentos", value: eur(totals.discountCents), cur: totals.discountCents, prev: previous.discountCents, lowerIsBetter: true },
-    { label: "Cancelados", value: String(totals.cancelled), cur: totals.cancelled, prev: previous.cancelled, lowerIsBetter: true },
+    { label: totals.cancelledByCustomer > 0 ? `Cancelados · ${totals.cancelledByCustomer} por el cliente` : "Cancelados", value: String(totals.cancelled), cur: totals.cancelled, prev: previous.cancelled, lowerIsBetter: true },
   ];
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">

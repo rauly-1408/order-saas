@@ -114,7 +114,7 @@ export async function finalizePayment(orderId: string, outcome: PaymentOutcome):
       return paid;
     }
     await undoUnpaidOrder(tx, order);
-    return tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED", paymentStatus: "FAILED" } });
+    return tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED", paymentStatus: "FAILED", cancelledBy: "SYSTEM" } });
   });
 }
 

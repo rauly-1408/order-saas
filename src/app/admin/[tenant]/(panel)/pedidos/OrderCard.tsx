@@ -67,7 +67,8 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
   const tone = timerTone(order, estimates, now);
 
   function handleCancel() {
-    if (window.confirm(`¿Cancelar el pedido ${orderLabel(order)} de ${order.customerName}?`)) {
+    const extra = order.status === "READY" ? " Úsalo si no ha venido a recogerlo: la comida ya está hecha y no vuelve al stock." : "";
+    if (window.confirm(`¿Cancelar el pedido ${orderLabel(order)} de ${order.customerName}?${extra}`)) {
       onStatus(order.id, "CANCELLED");
     }
   }
