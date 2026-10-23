@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { upload } from "@vercel/blob/client";
 import { MAX_VIDEO_BYTES, VIDEO_TYPES, prettySize, type MediaItem, type MediaKind } from "@/app/lib/media";
 import { compressImage } from "./compressImage";
@@ -34,6 +35,16 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<Item | null>(null);
+  const [toDelete, setToDelete] = useState<Item[] | null>(null); // ventana «¿Borrar…?»
+  const [deleting, setDeleting] = useState(false);
+  const [toast, setToast] = useState("");
+  // Ventanas y avisos van en un portal en `.panel`: la animación de entrada de la
+  // página encierra los elementos `fixed` (ver docs/ARCHIVOS.md).
+  const portal = useSyncExternalStore(
+    () => () => {},
+    () => (document.querySelector(".panel") as HTMLElement | null) ?? document.body,
+    () => null
+  );
   const input = useRef<HTMLInputElement>(null);
   const isImage = kind === "IMAGE";
 
@@ -114,42 +125,41 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
     if (onPick && last && chosen.length === 1) onPick(last);
   }
 
-  async function remove(f: Item) {
-    const warn = f.usedBy?.length ? `\n\nSe usa en: ${f.usedBy.join(", ")}. Esos productos se quedarán sin foto.` : "";
-    if (!confirm(`¿Borrar «${f.name}»? No se puede deshacer.${warn}`)) return;
-    const res = await fetch(`${api}?id=${encodeURIComponent(f.id)}`, { method: "DELETE" });
-    if (!res.ok) return setError("No se pudo borrar el archivo");
-    setFiles((fs) => fs?.filter((x) => x.id !== f.id) ?? null);
-    setSelected((sel) => {
-      const n = new Set(sel);
-      n.delete(f.id);
-      return n;
-    });
-  }
-
-  // Borrar los seleccionados, uno a uno (la API borra de uno en uno).
-  async function removeSelected() {
+  // Borrar: primero la ventana «¿Borrar…?»; la API borra de uno en uno.
+  const remove = (f: Item) => setToDelete([f]);
+  const removeSelected = () => {
     const items = (files ?? []).filter((f) => selected.has(f.id));
-    if (!items.length) return;
-    const used = items.filter((f) => f.usedBy?.length);
-    const warn = used.length ? `\n\n${used.length === 1 ? "Uno se usa" : `${used.length} se usan`} en productos, que se quedarán sin foto.` : "";
-    if (!confirm(`¿Borrar ${items.length === 1 ? "este archivo" : `estos ${items.length} archivos`}? No se puede deshacer.${warn}`)) return;
+    if (items.length) setToDelete(items);
+  };
+  async function doDelete() {
+    if (!toDelete || deleting) return;
+    setDeleting(true);
     setError("");
     const failed: string[] = [];
-    for (const f of items) {
+    for (const f of toDelete) {
       const res = await fetch(`${api}?id=${encodeURIComponent(f.id)}`, { method: "DELETE" });
       if (!res.ok) failed.push(f.name);
     }
+    const okIds = new Set(toDelete.filter((f) => !failed.includes(f.name)).map((f) => f.id));
+    setFiles((fs) => fs?.filter((x) => !okIds.has(x.id)) ?? null);
+    setSelected((sel) => new Set([...sel].filter((id) => !okIds.has(id))));
     if (failed.length) setError(`No se pudo borrar: ${failed.join(", ")}`);
-    setSelected(new Set());
-    await load().catch(() => {});
+    else flash(okIds.size === 1 ? "Archivo borrado" : `${okIds.size} archivos borrados`);
+    setDeleting(false);
+    setToDelete(null);
+    setPreview(null);
   }
+  const flash = (text: string) => {
+    setToast(text);
+    setTimeout(() => setToast(""), 1800);
+  };
 
   async function copy(f: Item) {
     const url = f.url.startsWith("/") ? `${location.origin}${f.url}` : f.url;
     await navigator.clipboard?.writeText(url).catch(() => {});
     setCopied(f.id);
     setTimeout(() => setCopied(""), 1500);
+    flash("Enlace copiado");
   }
 
   if (!isImage && !videoEnabled) {
@@ -256,8 +266,8 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
           {selected.size > 0 && (
             <div className="flex flex-wrap items-center gap-3 border-b border-[var(--p-line)] bg-[var(--p-brand-soft)] px-4 py-2 text-sm">
               <span className="font-semibold">{selected.size} {selected.size === 1 ? "seleccionado" : "seleccionados"}</span>
-              <button type="button" onClick={removeSelected} className="p-press rounded-full bg-[var(--p-accent)] px-3 py-1 text-xs font-semibold text-white">
-                Borrar
+              <button type="button" onClick={removeSelected} className="p-press flex items-center gap-1.5 rounded-full bg-[var(--p-accent)] px-3 py-1 text-xs font-semibold text-white">
+                <TrashIcon /> Borrar
               </button>
               <button type="button" onClick={() => setSelected(new Set())} className="rounded-full px-3 py-1 text-xs font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
                 Quitar selección
@@ -356,11 +366,11 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
                     {/* En el móvil las acciones van en la vista previa (tocar el archivo) */}
                     <td className="hidden px-3 py-2 text-right align-middle sm:table-cell">
                       <div className="flex justify-end gap-1">
-                        <button type="button" onClick={() => copy(f)} className="p-press rounded-full border border-[var(--p-line)] px-2.5 py-1 text-[11px] font-medium whitespace-nowrap">
-                          {copied === f.id ? "✓ Copiado" : "Copiar enlace"}
+                        <button type="button" onClick={() => copy(f)} title={copied === f.id ? "Enlace copiado" : "Copiar enlace"} aria-label={`Copiar el enlace de ${f.name}`} className={`p-press flex h-8 w-8 items-center justify-center rounded-full ${copied === f.id ? "bg-emerald-50 text-emerald-700" : "text-[var(--p-muted)] hover:bg-black/[0.05] hover:text-[var(--p-ink)]"}`}>
+                          {copied === f.id ? <CheckIcon /> : <LinkIcon />}
                         </button>
-                        <button type="button" onClick={() => remove(f)} className="p-press rounded-full px-2.5 py-1 text-[11px] font-medium text-[var(--p-accent)]">
-                          Borrar
+                        <button type="button" onClick={() => remove(f)} title="Borrar" aria-label={`Borrar ${f.name}`} className="p-press flex h-8 w-8 items-center justify-center rounded-full text-[var(--p-muted)] hover:bg-[var(--p-accent-soft)] hover:text-[var(--p-accent)]">
+                          <TrashIcon />
                         </button>
                       </div>
                     </td>
@@ -387,6 +397,53 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
           </div>
         </div>
       )}
+      {portal &&
+        createPortal(
+          <>
+      {/* Ventana «¿Borrar…?»: nombre, en qué productos se usa y que no se puede deshacer */}
+      {toDelete && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-4 sm:items-center" role="alertdialog" aria-modal="true" aria-labelledby="borrar-titulo" onClick={() => !deleting && setToDelete(null)}>
+          <div className="w-full max-w-md rounded-[24px] bg-[var(--p-surface)] p-5 text-[var(--p-ink)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--p-accent-soft)] text-[var(--p-accent)]">
+                <TrashIcon size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 id="borrar-titulo" className="text-lg font-semibold">
+                  {toDelete.length === 1 ? `¿Borrar «${toDelete[0].name}»?` : `¿Borrar ${toDelete.length} archivos?`}
+                </h2>
+                <p className="mt-1 text-sm text-[var(--p-muted)]">
+                  {toDelete.length === 1 ? "Desaparecerá de tu biblioteca." : "Desaparecerán de tu biblioteca."} No se puede deshacer.
+                </p>
+                {(() => {
+                  const used = toDelete.filter((f) => f.usedBy?.length);
+                  if (!used.length) return null;
+                  const names = [...new Set(used.flatMap((f) => f.usedBy ?? []))];
+                  return (
+                    <p className="mt-3 rounded-xl bg-[var(--p-accent-soft)] px-3 py-2 text-sm text-[var(--p-accent)]">
+                      {used.length === 1 && toDelete.length === 1 ? "Esta imagen se usa" : `${used.length === 1 ? "Una de ellas se usa" : `${used.length} de ellas se usan`}`} en {names.length === 1 ? "el producto" : "los productos"} <b>{names.join(", ")}</b>, que {names.length === 1 ? "se quedará" : "se quedarán"} sin foto.
+                    </p>
+                  );
+                })()}
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setToDelete(null)} disabled={deleting} className="rounded-full border border-[var(--p-line)] px-4 py-2.5 text-sm font-medium disabled:opacity-50">
+                Cancelar
+              </button>
+              <button type="button" onClick={doDelete} disabled={deleting} className="p-press rounded-full bg-[var(--p-accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                {deleting ? "Borrando…" : toDelete.length === 1 ? "Sí, borrar" : `Sí, borrar ${toDelete.length}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Aviso breve: «Enlace copiado», «Archivo borrado» */}
+      {toast && (
+        <div role="status" className="p-rise pointer-events-none fixed inset-x-0 bottom-6 z-[70] flex justify-center">
+          <span className="rounded-full bg-[var(--p-ink)] px-4 py-2 text-sm font-medium text-white shadow-lg">{toast}</span>
+        </div>
+      )}
       {/* Vista previa a tamaño completo */}
       {preview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label={preview.name} onClick={() => setPreview(null)}>
@@ -401,19 +458,11 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
               <span className="min-w-0 flex-1 truncate font-medium" title={preview.name}>
                 {preview.name}
               </span>
-              <button type="button" onClick={() => copy(preview)} className="p-press rounded-full border border-[var(--p-line)] px-2.5 py-1 text-[11px] font-medium whitespace-nowrap">
-                {copied === preview.id ? "✓ Copiado" : "Copiar enlace"}
+              <button type="button" onClick={() => copy(preview)} className="p-press flex items-center gap-1.5 rounded-full border border-[var(--p-line)] px-2.5 py-1 text-[11px] font-medium whitespace-nowrap">
+                {copied === preview.id ? <CheckIcon /> : <LinkIcon />} {copied === preview.id ? "Copiado" : "Copiar enlace"}
               </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  const target = preview;
-                  setPreview(null);
-                  await remove(target);
-                }}
-                className="p-press rounded-full px-2.5 py-1 text-[11px] font-medium text-[var(--p-accent)]"
-              >
-                Borrar
+              <button type="button" onClick={() => remove(preview)} className="p-press flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">
+                <TrashIcon /> Borrar
               </button>
               <button type="button" onClick={() => setPreview(null)} className="rounded-full px-3 py-1 text-xs text-[var(--p-muted)] hover:bg-black/[0.05]">
                 Cerrar
@@ -422,6 +471,32 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
           </div>
         </div>
       )}
+          </>,
+          portal
+        )}
     </div>
+  );
+}
+
+function LinkIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+      <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+    </svg>
+  );
+}
+function TrashIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+function CheckIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
   );
 }
