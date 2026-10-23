@@ -323,7 +323,10 @@ function PlanEditor({ tables, fixtures, zone, storeId, api, onSaved, onTapTable,
   const [fx, setFx] = useState<Fixture[]>(fixtures);
   const [moved, setMoved] = useState(false);
   const dirty = moved || tables.some((t) => !pos[t.id]);
-  useEffect(() => onDirty(dirty), [dirty, onDirty]);
+  // Con llaves: un efecto solo puede devolver una función (en producción, otra cosa rompe la página).
+  useEffect(() => {
+    onDirty(dirty);
+  }, [dirty, onDirty]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [editFx, setEditFx] = useState<Fixture | null>(null);

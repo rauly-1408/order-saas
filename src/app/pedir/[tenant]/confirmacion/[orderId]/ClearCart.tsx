@@ -7,6 +7,8 @@ import { useCart } from "@/store/cart";
 // para volver a intentarlo).
 export default function ClearCart() {
   const clear = useCart((s) => s.clear);
-  useEffect(() => clear(), [clear]);
+  useEffect(() => {
+    clear();
+  }, [clear]);
   return null;
 }
