@@ -46,6 +46,7 @@ const COURIER_TONE: Record<string, string> = {
   CANCELLED: "bg-black/[0.04] text-[var(--p-muted)]",
   DELIVERED: "bg-emerald-50 text-emerald-700",
 };
+const SECONDARY = "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-black/[0.04] px-2 py-2 text-xs font-medium text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)] disabled:opacity-50";
 const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : null);
 
 export default function OrderCard({ order, estimates, now, busy, onStatus, courierEnabled = false, onCourier, printingEnabled = false, onPrint }: OrderCardProps) {
@@ -68,32 +69,33 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
         isNew ? "ring-2 ring-[var(--p-accent)]" : ""
       }`}
     >
-      <header className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-bold tracking-tight text-[var(--p-ink)]">{orderLabel(order)}</span>
-            <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[11px] font-medium text-[var(--p-muted)]">
-              {order.channel === "DELIVERY" ? "A domicilio" : order.dineIn ? "Comer aquí" : "Para recoger"}
-            </span>
-            {order.source && SOURCE_LABEL[order.source] && (
-              <span className="rounded-full bg-[var(--p-brand-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--p-brand)]">{SOURCE_LABEL[order.source]}</span>
-            )}
-          </div>
-
-          <div className="truncate font-semibold text-[var(--p-ink)]">{order.customerName}</div>
+      <header className="mb-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xl font-bold tracking-tight text-[var(--p-ink)]">{orderLabel(order)}</span>
+          <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold tabular-nums ${TONE_CLS[tone]}`}>{elapsedLabel(order.createdAt, now)}</span>
+        </div>
+        <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs font-medium text-[var(--p-muted)]">
+          <span className="whitespace-nowrap">{order.channel === "DELIVERY" ? "🛵 A domicilio" : order.dineIn ? "🍽 Comer aquí" : "🛍 Para recoger"}</span>
+          {order.source && SOURCE_LABEL[order.source] && (
+            <>
+              <span aria-hidden>·</span>
+              <span className="whitespace-nowrap">{SOURCE_LABEL[order.source]}</span>
+            </>
+          )}
+          {order.status === "DELIVERING" && (
+            <>
+              <span aria-hidden>·</span>
+              {/* updatedAt ≈ momento en que salió a reparto (último cambio de estado) */}
+              <span className="whitespace-nowrap text-sky-600">en reparto hace {elapsedLabel(order.updatedAt, now)}</span>
+            </>
+          )}
+        </p>
+        <div className="mt-2 truncate text-[15px] font-semibold text-[var(--p-ink)]">{order.customerName}</div>
+        {order.customerPhone && (
           <a href={`tel:${order.customerPhone}`} className="text-sm text-[var(--p-muted)] hover:text-[var(--p-brand-strong)]">
             {formatPhone(order.customerPhone)}
           </a>
-        </div>
-        <div className="shrink-0 text-right">
-          <span className={`rounded-full px-2 py-1 text-xs font-bold tabular-nums ${TONE_CLS[tone]}`}>
-            {elapsedLabel(order.createdAt, now)}
-          </span>
-          {/* updatedAt ≈ momento en que salió a reparto (último cambio de estado) */}
-          {order.status === "DELIVERING" && (
-            <div className="mt-1.5 text-[11px] text-sky-600">en reparto hace {elapsedLabel(order.updatedAt, now)}</div>
-          )}
-        </div>
+        )}
       </header>
 
       {/* Programado por el cliente: la hora manda sobre el "hace X min" */}
@@ -186,36 +188,15 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
         <p className="mb-2 rounded-xl bg-[var(--p-warm)] px-3 py-2 text-xs text-[var(--p-brand)]">Nota: {order.notes}</p>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="font-bold text-[var(--p-ink)]">{toEuros(order.totalCents)}</span>
-          {/* Cobro: pagado online o pendiente de cobrar en persona */}
-          {order.paymentStatus === "PAID" ? (
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">{order.paymentMethod && order.paymentMethod !== "CARD" ? `Pagado · ${PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}` : "💳 Pagado"}</span>
-          ) : order.paymentStatus === "REFUNDED" ? (
-            <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[11px] font-semibold text-[var(--p-muted)]">Devuelto</span>
-          ) : (
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">{order.channel === "DELIVERY" ? "Cobrar al entregar" : "Cobrar al recoger"}</span>
-          )}
-        </span>
-        {printingEnabled && onPrint && (
-          <span className="flex gap-1">
-            <button type="button" onClick={() => onPrint(order.id, "KITCHEN")} disabled={busy} className="rounded-lg px-2 py-1 text-xs font-medium text-[var(--p-faint)] hover:bg-black/[0.05] hover:text-[var(--p-ink)] disabled:opacity-50" title="Reimprimir la comanda de cocina">
-              🖨 Comanda
-            </button>
-            <button type="button" onClick={() => onPrint(order.id, "RECEIPT")} disabled={busy} className="rounded-lg px-2 py-1 text-xs font-medium text-[var(--p-faint)] hover:bg-black/[0.05] hover:text-[var(--p-ink)] disabled:opacity-50" title="Imprimir el ticket del cliente">
-              🖨 Ticket
-            </button>
-          </span>
-        )}
-        {canCancel(order) && (
-          <button
-            onClick={handleCancel}
-            disabled={busy}
-            className="rounded-lg px-2 py-1 text-xs font-medium text-[var(--p-faint)] hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-          >
-            Cancelar
-          </button>
+      <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--p-line)] pt-3">
+        <span className="text-lg font-bold tabular-nums text-[var(--p-ink)]">{toEuros(order.totalCents)}</span>
+        {/* Cobro: pagado (y cómo) o pendiente de cobrar en persona */}
+        {order.paymentStatus === "PAID" ? (
+          <span className="whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">✓ Pagado{order.paymentMethod ? ` · ${PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}` : ""}</span>
+        ) : order.paymentStatus === "REFUNDED" ? (
+          <span className="whitespace-nowrap rounded-full bg-black/[0.05] px-2.5 py-1 text-xs font-semibold text-[var(--p-muted)]">Devuelto</span>
+        ) : (
+          <span className="whitespace-nowrap rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">{order.channel === "DELIVERY" ? "Cobrar al entregar" : "Cobrar al recoger"}</span>
         )}
       </div>
 
@@ -240,6 +221,35 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
           {busy ? "…" : needsPay ? `${action.label} y cobrar` : action.label}
         </button>
       )}
+
+      {/* Acciones secundarias: discretas, en una sola fila y sin partirse */}
+      {((printingEnabled && onPrint) || canCancel(order)) && (
+        <div className="mt-2 flex gap-1.5">
+          {printingEnabled && onPrint && (
+            <>
+              <button type="button" onClick={() => onPrint(order.id, "KITCHEN")} disabled={busy} title="Reimprimir la comanda de cocina" className={SECONDARY}>
+                <PrinterIcon /> Comanda
+              </button>
+              <button type="button" onClick={() => onPrint(order.id, "RECEIPT")} disabled={busy} title="Imprimir el ticket del cliente" className={SECONDARY}>
+                <PrinterIcon /> Ticket
+              </button>
+            </>
+          )}
+          {canCancel(order) && (
+            <button type="button" onClick={handleCancel} disabled={busy} className={`${SECONDARY} hover:!bg-red-50 hover:!text-red-600`}>
+              Cancelar
+            </button>
+          )}
+        </div>
+      )}
     </article>
+  );
+}
+
+function PrinterIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M7 8V4h10v4M5 8h14a2 2 0 012 2v6h-4v4H7v-4H3v-6a2 2 0 012-2zM7 15h10" />
+    </svg>
   );
 }
