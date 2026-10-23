@@ -250,10 +250,30 @@ export default function CajaClient({ tenant }: { tenant: string }) {
 
       <ul className="mt-3 flex-1 divide-y divide-[var(--p-line)] overflow-y-auto">
         {lines.length === 0 && (
-          <li className="py-10 text-center text-sm text-[var(--p-muted)]">
-            El pedido está vacío.
-            <br />
-            Toca un producto para añadirlo.
+          <li className="py-3">
+            <p className="py-4 text-center text-sm text-[var(--p-muted)]">Toca un producto para empezar un pedido.</p>
+            {/* Entre pedido y pedido: lo recaudado hoy, sin tener que buscarlo. */}
+            {hoy && (
+              <button type="button" onClick={() => setHoyOpen(true)} className="p-press mt-2 w-full rounded-2xl bg-[var(--p-bg)] p-4 text-left">
+                <p className="text-xs uppercase tracking-wide text-[var(--p-muted)]">Recaudado hoy</p>
+                <p className="text-3xl font-semibold tabular-nums tracking-tight">{euros(hoy.totalCents - hoy.pendingCents)}</p>
+                <p className="mt-0.5 text-xs text-[var(--p-muted)]">
+                  {hoy.sales} {hoy.sales === 1 ? "pedido" : "pedidos"}
+                  {hoy.pendingCents > 0 && ` · ${euros(hoy.pendingCents)} pendiente de cobrar`}
+                </p>
+                <ul className="mt-3 flex flex-wrap gap-1.5">
+                  {(Object.keys(HOY_PAYMENT_LABEL) as HoyPayment[])
+                    .filter((k) => hoy.byPayment[k] > 0)
+                    .map((k) => (
+                      <li key={k} className="rounded-full bg-[var(--p-surface)] px-2.5 py-1 text-xs font-medium">
+                        {HOY_PAYMENT_LABEL[k]} <span className="tabular-nums">{euros(hoy.byPayment[k])}</span>
+                      </li>
+                    ))}
+                  {hoy.sales === 0 && <li className="text-xs text-[var(--p-muted)]">Todavía no hay ventas hoy.</li>}
+                </ul>
+                <p className="mt-3 text-xs font-semibold text-[var(--p-brand)]">Ver el detalle ›</p>
+              </button>
+            )}
           </li>
         )}
         {lines.map((l) => {
@@ -494,10 +514,21 @@ export default function CajaClient({ tenant }: { tenant: string }) {
                   </div>
                 </div>
               ) : (
-                <button type="button" onClick={() => setSheetOpen(true)} disabled={!lines.length} className="p-press mx-4 mb-4 flex w-[calc(100%-32px)] items-center justify-between rounded-full bg-[var(--p-brand)] px-5 py-4 text-base font-semibold text-white shadow-lg disabled:opacity-40">
-                  <span>{lines.length ? `Ver pedido · ${count}` : "Pedido vacío"}</span>
-                  <span className="tabular-nums">{euros(subtotal)}</span>
-                </button>
+                lines.length ? (
+                  <button type="button" onClick={() => setSheetOpen(true)} className="p-press mx-4 mb-4 flex w-[calc(100%-32px)] items-center justify-between rounded-full bg-[var(--p-brand)] px-5 py-4 text-base font-semibold text-white shadow-lg">
+                    <span>Ver pedido · {count}</span>
+                    <span className="tabular-nums">{euros(subtotal)}</span>
+                  </button>
+                ) : (
+                  // Sin pedido: la barra enseña lo recaudado hoy y abre el detalle.
+                  <button type="button" onClick={() => setHoyOpen(true)} className="p-press mx-4 mb-4 flex w-[calc(100%-32px)] items-center justify-between rounded-full bg-[var(--p-surface)] px-5 py-4 text-base font-semibold text-[var(--p-ink)] shadow-lg ring-1 ring-[var(--p-line)]">
+                    <span>
+                      Recaudado hoy
+                      {hoy && hoy.sales > 0 && <span className="ml-1.5 text-sm font-medium text-[var(--p-muted)]">· {hoy.sales} {hoy.sales === 1 ? "pedido" : "pedidos"}</span>}
+                    </span>
+                    <span className="tabular-nums">{hoy ? euros(hoy.totalCents - hoy.pendingCents) : "…"}</span>
+                  </button>
+                )
               )}
             </div>
             {hoyOpen && (
