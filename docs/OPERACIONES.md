@@ -69,7 +69,7 @@ Cada función de Vercel abre su propia conexión. Con la URL directa, en un pico
 ## 9. Migraciones en el despliegue
 
 - El build de Vercel ejecuta `scripts/migrate-on-vercel.mjs` antes de `next build`: **solo en el entorno «production»** aplica `prisma migrate deploy` contra Neon (por `DIRECT_URL`). En «preview» (ramas y PR) y en local no toca la base.
-- Si falta `DIRECT_URL` en Vercel, el build de producción **falla a propósito** con el aviso, en vez de publicar código sin sus columnas.
+- Si falta `DIRECT_URL` en Vercel, se usa `DATABASE_URL` siempre que sea una conexión directa (sin «-pooler» en el host). Si `DATABASE_URL` es la «pooled», el build de producción **falla a propósito** con el aviso, en vez de publicar código sin sus columnas.
 - Si una migración falla, el build falla y la versión anterior sigue publicada: arreglar la migración y volver a desplegar.
 - Por qué: el 23-10-2026 se publicó un cambio con migración sin aplicarla y el seguimiento y el panel dieron error 500 hasta ejecutarla a mano.
 - En local sigue igual: `npx prisma migrate deploy` a mano (ojo: el `.env` del proyecto apunta a Neon).
