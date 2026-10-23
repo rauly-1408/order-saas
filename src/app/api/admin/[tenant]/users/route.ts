@@ -44,7 +44,7 @@ async function list(tenantId: string, me: string) {
   const users = await prisma.user.findMany({
     where: { tenantId },
     orderBy: [{ role: "asc" }, { createdAt: "asc" }],
-    select: { id: true, email: true, name: true, role: true, active: true, storeId: true, lastLoginAt: true },
+    select: { id: true, email: true, name: true, role: true, active: true, storeId: true, seesTakings: true, lastLoginAt: true },
   });
   return users.map((u) => ({ ...u, me: u.id === me }));
 }
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ users: await list(c.tenantId, c.me), password, emailed });
 }
 
-// PATCH { id, role?, storeId?, active?, name?, resetPassword? }
+// PATCH { id, role?, storeId?, active?, name?, seesTakings?, resetPassword? }
 export async function PATCH(req: NextRequest) {
   const c = await ctx(req);
   if ("error" in c) return c.error;
@@ -103,6 +103,7 @@ export async function PATCH(req: NextRequest) {
       role,
       active,
       storeId,
+      ...(typeof b.seesTakings === "boolean" && { seesTakings: b.seesTakings }),
       ...(typeof b.name === "string" && { name: b.name.trim().slice(0, 80) || null }),
       ...(password && { password: await hashPassword(password) }),
     },

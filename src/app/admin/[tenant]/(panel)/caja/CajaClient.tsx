@@ -60,7 +60,9 @@ const STORE_VARS = {
   "--border-radius": "14px",
 } as React.CSSProperties;
 
-export default function CajaClient({ tenant }: { tenant: string }) {
+// canSeeTakings: permiso «Ve lo recaudado» (Configuración → Usuarios). Sin él no
+// se carga ni se muestra nada de lo recaudado; con él, el ojo lo tapa a la vista.
+export default function CajaClient({ tenant, canSeeTakings = false }: { tenant: string; canSeeTakings?: boolean }) {
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [error, setError] = useState("");
   const [cat, setCat] = useState("");
@@ -83,6 +85,21 @@ export default function CajaClient({ tenant }: { tenant: string }) {
   const [done, setDone] = useState<{ orderNumber: number | null; totalCents: number; changeCents: number | null; payment: Payment } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false); // ticket en el móvil
   const [hoy, setHoy] = useState<HoyResponse | null>(null);
+  const [hideTakings, setHideTakings] = useState(false); // ojo tachado: importes tapados
+  useEffect(() => {
+    try {
+      setHideTakings(localStorage.getItem("caja:hideTakings") === "1");
+    } catch {}
+  }, []);
+  function toggleHide() {
+    setHideTakings((v) => {
+      try {
+        localStorage.setItem("caja:hideTakings", v ? "0" : "1");
+      } catch {}
+      return !v;
+    });
+  }
+  const money = (c: number) => (hideTakings ? "••••" : euros(c));
   const [editing, setEditing] = useState<string | null>(null); // línea desplegada
   const [parked, setParked] = useState<Parked[]>([]);
   const [parkedOpen, setParkedOpen] = useState(false);
@@ -126,11 +143,12 @@ export default function CajaClient({ tenant }: { tenant: string }) {
 
   // Resumen «Hoy en caja»: al entrar, tras cada venta y al abrirlo.
   const loadHoy = useCallback(() => {
+    if (!canSeeTakings) return;
     fetch(`/api/admin/${tenant}/caja/hoy`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setHoy(d as HoyResponse))
       .catch(() => {});
-  }, [tenant]);
+  }, [tenant, canSeeTakings]);
   useEffect(() => {
     loadHoy();
   }, [loadHoy]);
@@ -309,26 +327,31 @@ export default function CajaClient({ tenant }: { tenant: string }) {
           <li className="py-3">
             <p className="py-4 text-center text-sm text-[var(--p-muted)]">Toca un producto para empezar un pedido.</p>
             {/* Entre pedido y pedido: lo recaudado hoy, sin tener que buscarlo. */}
-            {hoy && (
-              <button type="button" onClick={() => setHoyOpen(true)} className="p-press mt-2 w-full rounded-2xl bg-[var(--p-bg)] p-4 text-left">
-                <p className="text-xs uppercase tracking-wide text-[var(--p-muted)]">Recaudado hoy</p>
-                <p className="text-3xl font-semibold tabular-nums tracking-tight">{euros(hoy.totalCents - hoy.pendingCents)}</p>
-                <p className="mt-0.5 text-xs text-[var(--p-muted)]">
-                  {hoy.sales} {hoy.sales === 1 ? "pedido" : "pedidos"}
-                  {hoy.pendingCents > 0 && ` · ${euros(hoy.pendingCents)} pendiente de cobrar`}
-                </p>
-                <ul className="mt-3 flex flex-wrap gap-1.5">
-                  {(Object.keys(HOY_PAYMENT_LABEL) as HoyPayment[])
-                    .filter((k) => hoy.byPayment[k] > 0)
-                    .map((k) => (
-                      <li key={k} className="rounded-full bg-[var(--p-surface)] px-2.5 py-1 text-xs font-medium">
-                        {HOY_PAYMENT_LABEL[k]} <span className="tabular-nums">{euros(hoy.byPayment[k])}</span>
-                      </li>
-                    ))}
-                  {hoy.sales === 0 && <li className="text-xs text-[var(--p-muted)]">Todavía no hay ventas hoy.</li>}
-                </ul>
-                <p className="mt-3 text-xs font-semibold text-[var(--p-brand)]">Ver el detalle ›</p>
-              </button>
+            {canSeeTakings && hoy && (
+              <div className="relative mt-2">
+                <button type="button" onClick={() => setHoyOpen(true)} className="p-press w-full rounded-2xl bg-[var(--p-bg)] p-4 text-left">
+                  <p className="text-xs uppercase tracking-wide text-[var(--p-muted)]">Recaudado hoy</p>
+                  <p className="text-3xl font-semibold tabular-nums tracking-tight">{money(hoy.totalCents - hoy.pendingCents)}</p>
+                  <p className="mt-0.5 text-xs text-[var(--p-muted)]">
+                    {hoy.sales} {hoy.sales === 1 ? "pedido" : "pedidos"}
+                    {hoy.pendingCents > 0 && ` · ${money(hoy.pendingCents)} pendiente de cobrar`}
+                  </p>
+                  <ul className="mt-3 flex flex-wrap gap-1.5">
+                    {(Object.keys(HOY_PAYMENT_LABEL) as HoyPayment[])
+                      .filter((k) => hoy.byPayment[k] > 0)
+                      .map((k) => (
+                        <li key={k} className="rounded-full bg-[var(--p-surface)] px-2.5 py-1 text-xs font-medium">
+                          {HOY_PAYMENT_LABEL[k]} <span className="tabular-nums">{money(hoy.byPayment[k])}</span>
+                        </li>
+                      ))}
+                    {hoy.sales === 0 && <li className="text-xs text-[var(--p-muted)]">Todavía no hay ventas hoy.</li>}
+                  </ul>
+                  <p className="mt-3 text-xs font-semibold text-[var(--p-brand)]">Ver el detalle ›</p>
+                </button>
+                <button type="button" onClick={toggleHide} aria-pressed={hideTakings} aria-label={hideTakings ? "Mostrar importes" : "Ocultar importes"} title={hideTakings ? "Mostrar importes" : "Ocultar importes"} className="p-press absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--p-surface)] text-[var(--p-muted)] shadow-sm">
+                  <EyeIcon off={hideTakings} />
+                </button>
+              </div>
             )}
           </li>
         )}
@@ -555,19 +578,21 @@ export default function CajaClient({ tenant }: { tenant: string }) {
               En espera · {parked.length}
             </button>
           )}
-          <button type="button" onClick={() => setHoyOpen(true)} className={`p-press flex items-center gap-2 ${parked.length ? "" : "ml-auto"} sm:ml-0 rounded-full bg-[var(--p-surface)] px-4 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]`}>
-            <span className="text-[var(--p-muted)]">Hoy</span>
-            {hoy ? (
-              <>
-                <span>
-                  {hoy.sales} {hoy.sales === 1 ? "venta" : "ventas"}
-                </span>
-                <span className="tabular-nums">{euros(hoy.totalCents)}</span>
-              </>
-            ) : (
-              <span className="text-[var(--p-muted)]">…</span>
-            )}
-          </button>
+          {canSeeTakings && (
+            <button type="button" onClick={() => setHoyOpen(true)} className={`p-press flex items-center gap-2 ${parked.length ? "" : "ml-auto"} sm:ml-0 rounded-full bg-[var(--p-surface)] px-4 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]`}>
+              <span className="text-[var(--p-muted)]">Hoy</span>
+              {hoy ? (
+                <>
+                  <span>
+                    {hoy.sales} {hoy.sales === 1 ? "venta" : "ventas"}
+                  </span>
+                  <span className="tabular-nums">{money(hoy.totalCents)}</span>
+                </>
+              ) : (
+                <span className="text-[var(--p-muted)]">…</span>
+              )}
+            </button>
+          )}
         </div>
         {error && !lines.length && step === "order" && <p className="mt-3 text-sm text-[var(--p-accent)]">{error}</p>}
         {categories && !q && (
@@ -630,14 +655,19 @@ export default function CajaClient({ tenant }: { tenant: string }) {
                     <span>Ver pedido · {count}</span>
                     <span className="tabular-nums">{euros(subtotal)}</span>
                   </button>
-                ) : (
+                ) : canSeeTakings ? (
                   // Sin pedido: la barra enseña lo recaudado hoy y abre el detalle.
                   <button type="button" onClick={() => setHoyOpen(true)} className="p-press mx-4 mb-4 flex w-[calc(100%-32px)] items-center justify-between rounded-full bg-[var(--p-surface)] px-5 py-4 text-base font-semibold text-[var(--p-ink)] shadow-lg ring-1 ring-[var(--p-line)]">
                     <span>
                       Recaudado hoy
                       {hoy && hoy.sales > 0 && <span className="ml-1.5 text-sm font-medium text-[var(--p-muted)]">· {hoy.sales} {hoy.sales === 1 ? "pedido" : "pedidos"}</span>}
                     </span>
-                    <span className="tabular-nums">{hoy ? euros(hoy.totalCents - hoy.pendingCents) : "…"}</span>
+                    <span className="tabular-nums">{hoy ? money(hoy.totalCents - hoy.pendingCents) : "…"}</span>
+                  </button>
+                ) : (
+                  <button type="button" disabled className="mx-4 mb-4 flex w-[calc(100%-32px)] items-center justify-between rounded-full bg-[var(--p-brand)] px-5 py-4 text-base font-semibold text-white opacity-40 shadow-lg">
+                    <span>Pedido vacío</span>
+                    <span className="tabular-nums">{euros(0)}</span>
                   </button>
                 )
               )}
@@ -682,7 +712,7 @@ export default function CajaClient({ tenant }: { tenant: string }) {
                 </div>
               </div>
             )}
-            {hoyOpen && (
+            {hoyOpen && canSeeTakings && (
               <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label="Hoy en caja">
                 <button type="button" aria-label="Cerrar" onClick={() => setHoyOpen(false)} className="absolute inset-0 bg-black/40" />
                 <div className="relative flex max-h-[92vh] w-full flex-col overflow-y-auto rounded-t-[24px] bg-[var(--p-surface)] p-4 pb-[max(16px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-xl lg:rounded-[24px] lg:p-6">
@@ -782,6 +812,15 @@ export default function CajaClient({ tenant }: { tenant: string }) {
   );
 }
 
+function EyeIcon({ off }: { off: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+      {off && <path d="M4 4l16 16" />}
+    </svg>
+  );
+}
 function SearchIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

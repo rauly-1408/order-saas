@@ -107,6 +107,9 @@ model User {
   active   Boolean @default(true) // desactivado = no puede entrar (Configuración → Usuarios)
   // Solo para el rol «Pedidos»: limita a un local (null = todos los locales)
   storeId     String?
+  // Ve lo recaudado (Caja → «Hoy en caja»). Solo el administrador principal
+  // por defecto; se concede por usuario en Configuración → Usuarios.
+  seesTakings Boolean @default(false)
   lastLoginAt DateTime?
 
   tenantId String?

@@ -36,9 +36,9 @@ export async function clearSessionCookie(): Promise<void> {
 // empleado o cambiarle el permiso (Configuración → Usuarios) vale al momento.
 async function fresh(payload: SessionPayload | null): Promise<SessionPayload | null> {
   if (!payload) return null;
-  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { active: true, role: true, tenantId: true, storeId: true, email: true } });
+  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { active: true, role: true, tenantId: true, storeId: true, email: true, seesTakings: true } });
   if (!user || !user.active) return null;
-  return { ...payload, email: user.email, role: user.role, tenantId: user.tenantId, storeId: user.storeId };
+  return { ...payload, email: user.email, role: user.role, tenantId: user.tenantId, storeId: user.storeId, seesTakings: user.role === "SUPERADMIN" || user.seesTakings };
 }
 
 // Para Server Components / Server Actions.

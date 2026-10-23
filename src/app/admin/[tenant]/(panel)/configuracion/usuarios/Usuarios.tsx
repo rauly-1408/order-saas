@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ROLE_LABEL } from "@/app/lib/roles";
 import { Card, Msg, ghostBtn, input, primaryBtn, toast } from "../ui";
 
-type User = { id: string; email: string; name: string | null; role: string; active: boolean; storeId: string | null; lastLoginAt: string | null; me: boolean };
+type User = { id: string; email: string; name: string | null; role: string; active: boolean; storeId: string | null; seesTakings: boolean; lastLoginAt: string | null; me: boolean };
 type Store = { id: string; name: string };
 
 // Usuarios y permisos: Gerente (todo) o Pedidos (solo pedidos, de un local o de todos).
@@ -70,7 +70,7 @@ export default function Usuarios({ tenant }: { tenant: string }) {
         </div>
       )}
 
-      <Card title="Usuarios" description="Gerente: todo el panel. Pedidos: solo la pantalla de pedidos (ideal para cocina o encargados).">
+      <Card title="Usuarios" description="Gerente: todo el panel. Pedidos: solo pedidos y Caja (ideal para cocina o encargados). Lo recaudado del día solo lo ve quien tenga marcado «Ve lo recaudado».">
         {!users ? (
           <p className="text-sm text-[var(--p-muted)]">Cargando…</p>
         ) : (
@@ -85,6 +85,7 @@ export default function Usuarios({ tenant }: { tenant: string }) {
                   <p className="truncate text-xs text-[var(--p-muted)]">
                     {u.email} · {ROLE_LABEL[u.role] ?? u.role}
                     {u.role === "STORE_MANAGER" && stores.length > 1 ? ` · ${storeName(u.storeId)}` : ""}
+                    {u.seesTakings ? " · ve lo recaudado" : ""}
                     {u.lastLoginAt ? ` · última entrada ${new Date(u.lastLoginAt).toLocaleDateString("es-ES")}` : " · nunca ha entrado"}
                   </p>
                 </div>
@@ -116,6 +117,10 @@ export default function Usuarios({ tenant }: { tenant: string }) {
                         ))}
                       </select>
                     )}
+                    <label className={`flex items-center gap-1.5 rounded-full border border-[var(--p-line)] px-3 py-1.5 text-xs ${busy ? "opacity-50" : ""}`} title="Puede ver lo recaudado del día en la Caja">
+                      <input type="checkbox" checked={u.seesTakings} disabled={!!busy} onChange={(e) => call(`takings-${u.id}`, "PATCH", { id: u.id, seesTakings: e.target.checked })} className="accent-[var(--p-brand)]" />
+                      Ve lo recaudado
+                    </label>
                     <button type="button" disabled={!!busy} onClick={() => confirm(`¿Crear una contraseña nueva para ${u.email}?`) && call(`pw-${u.id}`, "PATCH", { id: u.id, resetPassword: true }, u.email)} className={`${ghostBtn} !px-3 !py-1.5 text-xs`}>
                       Nueva contraseña
                     </button>

@@ -144,6 +144,7 @@ async function main() {
         email: adminEmail,
         password: hashPassword(process.env.SEED_ADMIN_PASSWORD ?? "changeme123"),
         role: "TENANT_ADMIN",
+        seesTakings: true,
         tenantId: tenant.id,
       },
     });
