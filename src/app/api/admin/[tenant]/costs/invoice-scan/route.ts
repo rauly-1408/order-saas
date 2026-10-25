@@ -7,7 +7,7 @@ import { SCAN_MEDIA_TYPES, type ScanMediaType } from "@/app/lib/invoice";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 120; // leer un documento puede tardar 20-60 s
+export const maxDuration = 300; // leer un documento puede tardar 20-60 s (facturas largas, hasta 2-3 min)
 
 const DAILY_LIMIT = 20;
 const MAX_BASE64_CHARS = 5_500_000; // ≈ 4 MB de archivo (límite de Vercel: 4,5 MB por petición)
