@@ -22,7 +22,12 @@ export type Printer = {
   drawer: boolean; // abre el cajón al cobrar en efectivo
   copies: number; // copias de la comanda (1–3)
   storeId: string | null; // local donde está (null = imprime los pedidos de todos)
+  // Comandas: solo estas categorías de la carta (null = todo). «LIBRE» = productos libres.
+  // Ej.: cocina con la comida y barra con «Bebidas». Ver docs/IMPRESION.md
+  categories: string[] | null;
 };
+
+export const FREE_CATEGORY = "LIBRE";
 export type PrintingSettings = {
   agentToken: string | null;
   agentSeenAt: string | null;
@@ -72,7 +77,63 @@ export function parsePrinter(raw: unknown): Printer | null {
     drawer: r.drawer === true,
     copies,
     storeId: typeof r.storeId === "string" && /^[a-z0-9]{10,40}$/i.test(r.storeId) ? r.storeId : null,
+    categories: parseCategories(r.categories),
   };
+}
+
+function parseCategories(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const ids = [...new Set(raw.filter((x): x is string => typeof x === "string" && /^[a-z0-9_-]{1,40}$/i.test(x)))].slice(0, 100);
+  return ids.length ? ids : null; // ninguna marcada = todo
+}
+
+// ─── Comandas por categoría ────────────────────────────────────────────────
+type KitchenLine = { quantity: number; productName: string; productId: string; modifiers: unknown; note: string | null };
+type Mod = { groupCode?: string; option?: string };
+export type LineCategories = { byProduct: Map<string, string>; byName: Map<string, string> };
+
+// El producto de cada paso de un menú se guarda como «Nombre (detalles)». El
+// nombre también puede llevar paréntesis («Pionono casero (1 ud.)»): se prueba
+// el texto entero y sin el último paréntesis.
+const comboCandidates = (option: string) => [option.trim(), option.replace(/\s*\([^()]*\)\s*$/, "").trim()];
+const modsOf = (l: { modifiers: unknown }): Mod[] => (Array.isArray(l.modifiers) ? (l.modifiers as Mod[]) : []);
+
+// Categoría de cada producto de las líneas (y de lo elegido dentro de los menús).
+export async function lineCategories(tenantId: string, lines: { productId: string; modifiers: unknown }[]): Promise<LineCategories> {
+  const ids = [...new Set(lines.map((l) => l.productId).filter((id) => id !== FREE_CATEGORY))];
+  const names = [...new Set(lines.flatMap((l) => modsOf(l).filter((m) => m.groupCode === "COMBO" && m.option).flatMap((m) => comboCandidates(m.option!))))];
+  const [byId, byNameRows] = await Promise.all([
+    ids.length ? prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true, categoryId: true } }) : Promise.resolve([]),
+    names.length ? prisma.product.findMany({ where: { tenantId, name: { in: names } }, select: { name: true, categoryId: true } }) : Promise.resolve([]),
+  ]);
+  return { byProduct: new Map(byId.map((p) => [p.id, p.categoryId])), byName: new Map(byNameRows.map((p) => [p.name, p.categoryId])) };
+}
+
+// Lo que le toca a una impresora: las líneas de sus categorías. De un menú, los
+// pasos de sus categorías (la bebida del menú va a la barra; el mollete, a cocina).
+export function linesForPrinter<T extends KitchenLine>(lines: T[], p: Printer, cats: LineCategories): T[] {
+  if (!p.categories) return lines;
+  const mine = new Set(p.categories);
+  const out: T[] = [];
+  for (const l of lines) {
+    if (l.productId === FREE_CATEGORY) {
+      if (mine.has(FREE_CATEGORY)) out.push(l);
+      continue;
+    }
+    const cat = cats.byProduct.get(l.productId);
+    const steps = modsOf(l).filter((m) => m.groupCode === "COMBO" && m.option);
+    if (!steps.length) {
+      if (cat && mine.has(cat)) out.push(l);
+      continue;
+    }
+    // Menú: cada paso a la impresora de su categoría. Entero solo si la impresora
+    // tiene la categoría del menú y ninguna de las de sus pasos.
+    const stepCat = (option: string) => comboCandidates(option).map((n) => cats.byName.get(n)).find(Boolean) ?? "";
+    const picked = steps.filter((m) => mine.has(stepCat(m.option!)));
+    if (picked.length) out.push({ ...l, modifiers: picked });
+    else if (cat && mine.has(cat)) out.push(l);
+  }
+  return out;
 }
 
 export const newAgentToken = () => randomBytes(24).toString("base64url");
@@ -90,7 +151,7 @@ const isTable = (o: OrderForPrint) => o.source === "TABLE";
 
 // Comanda para cocina: grande y sin precios.
 // Mesas: `round` imprime solo esa ronda; `voided` imprime una anulación.
-export type KitchenOpts = { round?: number; voided?: { quantity: number; productName: string; modifiers: unknown; note: string | null }[] };
+export type KitchenOpts = { round?: number; voided?: KitchenLine[]; lines?: KitchenLine[] };
 export function renderKitchen(o: OrderForPrint, p: Printer, opts: KitchenOpts = {}): Uint8Array {
   const tz = tenantTimeZone(o.tenant.settings);
   const t = new Escpos({ width: p.width, codepage: p.codepage });
@@ -100,7 +161,7 @@ export function renderKitchen(o: OrderForPrint, p: Printer, opts: KitchenOpts = 
     else if (opts.round) t.bold(true).size(1, 2).line(`Ronda ${opts.round}`).size(1, 1).bold(false);
     t.line(`${hhmm(new Date(), tz)} · Cuenta nº ${o.orderNumber ?? "?"}${o.guests ? ` · ${o.guests} pax` : ""}`);
     t.align("left").rule("=");
-    const items = opts.voided ?? (opts.round ? o.items.filter((l) => l.round === opts.round) : o.items);
+    const items = opts.voided ?? opts.lines ?? (opts.round ? o.items.filter((l) => l.round === opts.round) : o.items);
     for (const l of items) {
       t.bold(true).size(1, 2).wrap(`${l.quantity}x ${l.productName}`).size(1, 1).bold(false);
       for (const m of modifierLabels(l.modifiers)) t.wrap(m, { indent: 3 });
@@ -119,7 +180,7 @@ export function renderKitchen(o: OrderForPrint, p: Printer, opts: KitchenOpts = 
   if (o.customerName && !["Mostrador", "Teléfono"].includes(o.customerName)) t.line(`Cliente: ${o.customerName}${o.customerPhone ? ` · ${o.customerPhone}` : ""}`);
   if (o.channel === "DELIVERY" && o.customerAddress) t.wrap(`Dirección: ${o.customerAddress}`);
   t.rule();
-  for (const l of o.items) {
+  for (const l of opts.lines ?? o.items) {
     t.bold(true).size(1, 2).wrap(`${l.quantity}x ${l.productName}`).size(1, 1).bold(false);
     for (const m of modifierLabels(l.modifiers)) t.wrap(m, { indent: 3 });
     if (l.note) t.bold(true).wrap(`>> ${l.note}`, { indent: 3 }).bold(false);
@@ -239,11 +300,15 @@ export async function enqueueOrderPrints(orderId: string, kinds: ("KITCHEN" | "R
   const cfg = readPrinting(o.tenant.settings);
   if (!cfg.agentToken || !cfg.printers.length) return 0;
   const jobs: Prisma.PrintJobCreateManyInput[] = [];
+  const cats = kinds.includes("KITCHEN") && cfg.printers.some((x) => x.categories) ? await lineCategories(o.tenantId, o.items) : null;
   for (const kind of kinds) {
     const role: PrinterRole = kind === "KITCHEN" ? "kitchen" : "receipt";
     // Cada pedido, a las impresoras de su local (o a las que no tienen local).
     for (const p of cfg.printers.filter((x) => x.roles.includes(role) && (!x.storeId || x.storeId === o.storeId))) {
-      const data = kind === "KITCHEN" ? renderKitchen(o, p) : renderReceipt(o, p, { drawer: !opts.reprint });
+      // Comanda: solo lo de las categorías de esta impresora (si no le toca nada, no se imprime).
+      const lines = kind === "KITCHEN" && cats ? linesForPrinter(o.items, p, cats) : null;
+      if (lines && !lines.length) continue;
+      const data = kind === "KITCHEN" ? renderKitchen(o, p, lines ? { lines } : {}) : renderReceipt(o, p, { drawer: !opts.reprint });
       const copies = kind === "KITCHEN" ? p.copies : 1;
       for (let i = 0; i < copies; i++) jobs.push({ tenantId: o.tenantId, orderId: o.id, kind: kind as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(data) });
     }
@@ -277,8 +342,12 @@ export async function enqueueTablePrint(orderId: string, what: { kind: "ROUND"; 
     if (!cfg.agentToken || !cfg.printers.length) return 0;
     const role: PrinterRole = what.kind === "BILL" ? "receipt" : "kitchen";
     const jobs: Prisma.PrintJobCreateManyInput[] = [];
+    const base = what.kind === "ROUND" ? o.items.filter((l) => l.round === what.round) : what.kind === "VOID" ? what.lines : [];
+    const cats = what.kind !== "BILL" && cfg.printers.some((x) => x.categories) ? await lineCategories(o.tenantId, base) : null;
     for (const p of cfg.printers.filter((x) => x.roles.includes(role) && (!x.storeId || x.storeId === o.storeId))) {
-      const data = what.kind === "BILL" ? renderReceipt(o, p, { drawer: false }) : renderKitchen(o, p, what.kind === "ROUND" ? { round: what.round } : { voided: what.lines });
+      const lines = what.kind !== "BILL" && cats ? linesForPrinter(base, p, cats) : base;
+      if (what.kind !== "BILL" && !lines.length) continue; // a esta impresora no le toca nada de la ronda
+      const data = what.kind === "BILL" ? renderReceipt(o, p, { drawer: false }) : renderKitchen(o, p, what.kind === "ROUND" ? { round: what.round, lines } : { voided: lines });
       const copies = what.kind === "BILL" ? 1 : p.copies;
       for (let i = 0; i < copies; i++) jobs.push({ tenantId: o.tenantId, orderId: o.id, kind: (what.kind === "BILL" ? "RECEIPT" : "KITCHEN") as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(data) });
     }

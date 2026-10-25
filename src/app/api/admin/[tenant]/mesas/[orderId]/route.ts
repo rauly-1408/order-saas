@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
         if (!manager) return NextResponse.json({ error: "Solo el gerente puede anular lo que ya se ha enviado a cocina" }, { status: 403 });
         if (typeof b.lineId !== "string") return NextResponse.json({ error: "Línea no válida" }, { status: 400 });
         const { line, totalCents } = await voidLine(tenant.id, order.id, b.lineId);
-        after(() => enqueueTablePrint(order.id, { kind: "VOID", lines: [{ quantity: line.quantity, productName: line.productName, modifiers: line.modifiers, note: line.note }] }));
+        after(() => enqueueTablePrint(order.id, { kind: "VOID", lines: [{ quantity: line.quantity, productName: line.productName, productId: line.productId, modifiers: line.modifiers, note: line.note }] }));
         return NextResponse.json({ totalCents });
       }
       case "bill": {

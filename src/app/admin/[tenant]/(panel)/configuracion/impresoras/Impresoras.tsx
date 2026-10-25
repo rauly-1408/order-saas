@@ -8,14 +8,14 @@ import { Card, Toggle, ghostBtn, input, primaryBtn, toast, useSaveBar } from "..
 // cada una, el agente que las conecta con la app y las últimas impresiones.
 // Ver docs/IMPRESION.md
 
-type Printer = { id: string; name: string; host: string; port: number; roles: ("kitchen" | "receipt")[]; width: 48 | 42 | 32; codepage: "cp858" | "ascii"; drawer: boolean; copies: number; storeId: string | null };
+type Printer = { id: string; name: string; host: string; port: number; roles: ("kitchen" | "receipt")[]; width: 48 | 42 | 32; codepage: "cp858" | "ascii"; drawer: boolean; copies: number; storeId: string | null; categories: string[] | null };
 type Job = { id: string; kind: string; status: string; printerId: string; error: string | null; createdAt: string; printedAt: string | null; orderId: string | null };
-type Data = { stores?: { id: string; name: string }[]; agentToken: string | null; agentSeenAt: string | null; agentOnline: boolean; autoKitchen: boolean; autoReceipt: boolean; printers: Printer[]; pending: number; recent: Job[] };
+type Data = { stores?: { id: string; name: string }[]; categories?: { id: string; name: string }[]; agentToken: string | null; agentSeenAt: string | null; agentOnline: boolean; autoKitchen: boolean; autoReceipt: boolean; printers: Printer[]; pending: number; recent: Job[] };
 type Form = { printers: Printer[]; autoKitchen: boolean; autoReceipt: boolean };
 
 const KIND: Record<string, string> = { KITCHEN: "Comanda", RECEIPT: "Ticket", TEST: "Prueba", CLOSING: "Cierre de caja" };
 const STATUS: Record<string, string> = { PENDING: "Pendiente", PRINTED: "Impreso", FAILED: "Fallido" };
-const newPrinter = (): Printer => ({ id: Math.random().toString(36).slice(2, 10), name: "", host: "", port: 9100, roles: ["kitchen", "receipt"], width: 48, codepage: "cp858", drawer: false, copies: 1, storeId: null });
+const newPrinter = (): Printer => ({ id: Math.random().toString(36).slice(2, 10), name: "", host: "", port: 9100, roles: ["kitchen", "receipt"], width: 48, codepage: "cp858", drawer: false, copies: 1, storeId: null, categories: null });
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
 export default function Impresoras({ tenant }: { tenant: string }) {
@@ -188,6 +188,37 @@ export default function Impresoras({ tenant }: { tenant: string }) {
                   </button>
                 ))}
               </div>
+              {p.roles.includes("kitchen") && (data.categories?.length ?? 0) > 0 && (
+                <div className="mt-3 rounded-xl bg-black/[0.03] p-3">
+                  <p className="text-sm font-medium">Qué comandas imprime</p>
+                  <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Qué comandas imprime">
+                    <button type="button" role="radio" aria-checked={!p.categories} onClick={() => patch(i, { categories: null })} className={`rounded-full px-3.5 py-2 text-sm font-semibold ${!p.categories ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] ring-1 ring-[var(--p-line)]"}`}>
+                      Todo
+                    </button>
+                    <button type="button" role="radio" aria-checked={!!p.categories} onClick={() => patch(i, { categories: p.categories ?? [] })} className={`rounded-full px-3.5 py-2 text-sm font-semibold ${p.categories ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] ring-1 ring-[var(--p-line)]"}`}>
+                      Solo algunas categorías
+                    </button>
+                  </div>
+                  {p.categories && (
+                    <>
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {[...(data.categories ?? []), { id: "LIBRE", name: "Productos libres" }].map((c) => {
+                          const on = p.categories!.includes(c.id);
+                          return (
+                            <button key={c.id} type="button" aria-pressed={on} onClick={() => patch(i, { categories: on ? p.categories!.filter((x) => x !== c.id) : [...p.categories!, c.id] })} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${on ? "bg-[var(--p-brand)] text-white" : "bg-[var(--p-surface)] ring-1 ring-[var(--p-line)]"}`}>
+                              {on ? "✓ " : ""}
+                              {c.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-2 text-xs text-[var(--p-muted)]">
+                        {p.categories.length ? "De un menú, a esta impresora solo le llega lo de sus categorías (la bebida del menú a la barra, el mollete a cocina)." : "Marca al menos una. Sin ninguna marcada imprime todo."}
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
               <div className="mt-3 grid gap-3 sm:grid-cols-4">
                 <label className="text-sm">
                   Papel
