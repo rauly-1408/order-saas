@@ -90,7 +90,14 @@ function parseCategories(raw: unknown): string[] | null {
 // ─── Comandas por categoría ────────────────────────────────────────────────
 type KitchenLine = { quantity: number; productName: string; productId: string; modifiers: unknown; note: string | null };
 type Mod = { groupCode?: string; option?: string };
-export type LineCategories = { byProduct: Map<string, string>; byName: Map<string, string> };
+// covered: categorías que tiene alguna impresora de comandas (null si alguna lo imprime todo).
+// Lo que no tiene impresora (una categoría nueva, un producto sin categoría) sale en todas: mejor repetido que perdido.
+export type LineCategories = { byProduct: Map<string, string>; byName: Map<string, string>; covered?: Set<string> | null };
+
+export function coverage(printers: Printer[]): Set<string> | null {
+  if (printers.some((p) => !p.categories)) return null;
+  return new Set(printers.flatMap((p) => p.categories ?? []));
+}
 
 // El producto de cada paso de un menú se guarda como «Nombre (detalles)». El
 // nombre también puede llevar paréntesis («Pionono casero (1 ud.)»): se prueba
@@ -114,24 +121,26 @@ export async function lineCategories(tenantId: string, lines: { productId: strin
 export function linesForPrinter<T extends KitchenLine>(lines: T[], p: Printer, cats: LineCategories): T[] {
   if (!p.categories) return lines;
   const mine = new Set(p.categories);
+  const orphan = (c: string) => cats.covered != null && !cats.covered.has(c);
+  const takes = (c: string) => mine.has(c) || orphan(c);
   const out: T[] = [];
   for (const l of lines) {
     if (l.productId === FREE_CATEGORY) {
-      if (mine.has(FREE_CATEGORY)) out.push(l);
+      if (takes(FREE_CATEGORY)) out.push(l);
       continue;
     }
-    const cat = cats.byProduct.get(l.productId);
+    const cat = cats.byProduct.get(l.productId) ?? "";
     const steps = modsOf(l).filter((m) => m.groupCode === "COMBO" && m.option);
     if (!steps.length) {
-      if (cat && mine.has(cat)) out.push(l);
+      if (takes(cat)) out.push(l);
       continue;
     }
     // Menú: cada paso a la impresora de su categoría. Entero solo si la impresora
     // tiene la categoría del menú y ninguna de las de sus pasos.
     const stepCat = (option: string) => comboCandidates(option).map((n) => cats.byName.get(n)).find(Boolean) ?? "";
-    const picked = steps.filter((m) => mine.has(stepCat(m.option!)));
+    const picked = steps.filter((m) => takes(stepCat(m.option!)));
     if (picked.length) out.push({ ...l, modifiers: picked });
-    else if (cat && mine.has(cat)) out.push(l);
+    else if (mine.has(cat) || (orphan(cat) && steps.every((m) => orphan(stepCat(m.option!))))) out.push(l);
   }
   return out;
 }
@@ -301,6 +310,7 @@ export async function enqueueOrderPrints(orderId: string, kinds: ("KITCHEN" | "R
   if (!cfg.agentToken || !cfg.printers.length) return 0;
   const jobs: Prisma.PrintJobCreateManyInput[] = [];
   const cats = kinds.includes("KITCHEN") && cfg.printers.some((x) => x.categories) ? await lineCategories(o.tenantId, o.items) : null;
+  if (cats) cats.covered = coverage(cfg.printers.filter((x) => x.roles.includes("kitchen") && (!x.storeId || x.storeId === o.storeId)));
   for (const kind of kinds) {
     const role: PrinterRole = kind === "KITCHEN" ? "kitchen" : "receipt";
     // Cada pedido, a las impresoras de su local (o a las que no tienen local).
@@ -344,6 +354,7 @@ export async function enqueueTablePrint(orderId: string, what: { kind: "ROUND"; 
     const jobs: Prisma.PrintJobCreateManyInput[] = [];
     const base = what.kind === "ROUND" ? o.items.filter((l) => l.round === what.round) : what.kind === "VOID" ? what.lines : [];
     const cats = what.kind !== "BILL" && cfg.printers.some((x) => x.categories) ? await lineCategories(o.tenantId, base) : null;
+    if (cats) cats.covered = coverage(cfg.printers.filter((x) => x.roles.includes("kitchen") && (!x.storeId || x.storeId === o.storeId)));
     for (const p of cfg.printers.filter((x) => x.roles.includes(role) && (!x.storeId || x.storeId === o.storeId))) {
       const lines = what.kind !== "BILL" && cats ? linesForPrinter(base, p, cats) : base;
       if (what.kind !== "BILL" && !lines.length) continue; // a esta impresora no le toca nada de la ronda

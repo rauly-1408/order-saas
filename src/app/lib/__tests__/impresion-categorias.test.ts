@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { linesForPrinter, parsePrinter, FREE_CATEGORY, type LineCategories, type Printer } from "../printing";
+import { coverage, linesForPrinter, parsePrinter, FREE_CATEGORY, type LineCategories, type Printer } from "../printing";
 
 const printer = (categories: string[] | null): Printer => ({ ...(parsePrinter({ host: "192.168.1.31", roles: ["kitchen"] }) as Printer), categories });
 const cats: LineCategories = {
@@ -62,5 +62,22 @@ describe("Impresión · comandas por categoría", () => {
   });
   it("ninguna categoría marcada equivale a todo", () => {
     expect(parsePrinter({ host: "192.168.1.31", roles: ["kitchen"], categories: [] })?.categories).toBeNull();
+  });
+  it("lo que no tiene impresora sale en todas (categoría nueva o sin marcar)", () => {
+    const bar = printer(["bebidas"]);
+    const kitchen = printer(["molletes"]);
+    const c = { ...cats, covered: coverage([bar, kitchen]) };
+    // Chupito (libre) y Menú (categoría «menus») no los tiene nadie: van a las dos.
+    const names = (p: Printer) => linesForPrinter(lines, p, c).map((l) => l.productName);
+    expect(names(bar)).toContain("Chupito");
+    expect(names(kitchen)).toContain("Chupito");
+    // Del menú, la tarta (postres, sin impresora) va a las dos; la bebida solo a la barra.
+    const menuBar = linesForPrinter(lines, bar, c).find((l) => l.productName === "Menú mollete")!;
+    expect((menuBar.modifiers as { option: string }[]).map((m) => m.option)).toEqual(["Coca-Cola", "Tarta"]);
+    const menuKitchen = linesForPrinter(lines, kitchen, c).find((l) => l.productName === "Menú mollete")!;
+    expect((menuKitchen.modifiers as { option: string }[]).map((m) => m.option)).toEqual(["Genil (Pan tradicional)", "Tarta"]);
+  });
+  it("si alguna impresora lo imprime todo, no hay nada sin impresora", () => {
+    expect(coverage([printer(null), printer(["bebidas"])])).toBeNull();
   });
 });
