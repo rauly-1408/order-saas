@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import type { Prisma } from "@prisma/client";
-import { cleanText } from "@/app/lib/text";
 import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { canManageTenant } from "@/app/lib/roles";
 import { modifierLabels } from "@/app/lib/menuOptions";
-import { invalidLine, priceOrderItems, type OrderLineInput } from "@/app/lib/orderPricing";
+import { once, requestIdOf } from "@/app/lib/idempotency";
+import { prepareRound, type CustomInput } from "@/app/lib/tableRound";
+import type { OrderLineInput } from "@/app/lib/orderPricing";
 import { enqueueTablePrint, printTablePayment } from "@/app/lib/printing";
 import { issueInvoiceSafe } from "@/app/lib/verifactu";
 import { cancelOrder } from "@/app/lib/cancelOrder";
-import { CUSTOM_PRODUCT_ID, PAY_METHODS, TableError, addRound, moveTable, payTable, requestBill, voidLine, type PayMethod } from "@/app/lib/tables";
+import { PAY_METHODS, TableError, addRound, moveTable, payTable, requestBill, voidLine, type PayMethod } from "@/app/lib/tables";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -92,7 +92,8 @@ export async function GET(req: NextRequest) {
 type Body = {
   action?: "round" | "void" | "bill" | "pay" | "move" | "cancel";
   items?: OrderLineInput[];
-  custom?: { name?: unknown; quantity?: unknown; priceCents?: unknown; note?: unknown; free?: unknown }[];
+  custom?: CustomInput[];
+  requestId?: string; // ronda guardada sin conexión: no se duplica al reenviarla
   lineId?: string;
   method?: string;
   cashTenderedCents?: number;
@@ -109,26 +110,14 @@ export async function POST(req: NextRequest) {
     const manager = canManageTenant(session.role);
 
     switch (b.action) {
-      case "round": {
-        const items = Array.isArray(b.items) ? b.items : [];
-        // Productos libres: solo para esta cuenta (un chupito, una invitación…), sin carta ni stock.
-        const custom = Array.isArray(b.custom) ? b.custom.slice(0, 20) : [];
-        const customLines: Prisma.OrderLineCreateWithoutOrderInput[] = [];
-        for (const c of custom) {
-          const name = cleanText(c?.name, 60);
-          const quantity = Number(c?.quantity);
-          const price = c?.free === true ? 0 : Number(c?.priceCents);
-          if (!name || !Number.isInteger(quantity) || quantity < 1 || quantity > 50 || !Number.isInteger(price) || price < 0 || price > 99_999) return NextResponse.json({ error: "Revisa el producto libre: nombre, cantidad y precio" }, { status: 400 });
-          const note = [c?.free === true ? "Invita la casa" : "", cleanText(c?.note, 120)].filter(Boolean).join(" · ") || null;
-          customLines.push({ productId: CUSTOM_PRODUCT_ID, productName: name, quantity, basePriceCents: price, totalCents: price * quantity, modifiers: [], note, discountCents: 0 });
-        }
-        if ((!items.length && !customLines.length) || items.length > 60 || items.some(invalidLine)) return NextResponse.json({ error: "Añade algo a la ronda" }, { status: 400 });
-        const priced = items.length ? await priceOrderItems(tenant.id, items, { allowDiscount: manager }) : { linesCreate: [], consumption: [] };
-        if ("error" in priced) return NextResponse.json({ error: priced.error }, { status: 400 });
-        const r = await addRound(tenant.id, order.id, [...priced.linesCreate, ...customLines], tenant.addons.includes("COSTS") ? priced.consumption : [], session.userId);
-        after(() => enqueueTablePrint(order.id, { kind: "ROUND", round: r.round }));
-        return NextResponse.json(r);
-      }
+      case "round":
+        return await once(tenant.id, requestIdOf(b.requestId), async () => {
+          const prepared = await prepareRound(tenant.id, b, manager);
+          if ("error" in prepared) return NextResponse.json({ error: prepared.error }, { status: 400 });
+          const r = await addRound(tenant.id, order.id, prepared.lines, tenant.addons.includes("COSTS") ? prepared.consumption : [], session.userId);
+          after(() => enqueueTablePrint(order.id, { kind: "ROUND", round: r.round }));
+          return NextResponse.json(r);
+        });
       case "void": {
         if (!manager) return NextResponse.json({ error: "Solo el gerente puede anular lo que ya se ha enviado a cocina" }, { status: 403 });
         if (typeof b.lineId !== "string") return NextResponse.json({ error: "Línea no válida" }, { status: 400 });

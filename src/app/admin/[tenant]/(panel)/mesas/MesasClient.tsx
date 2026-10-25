@@ -3,6 +3,8 @@
 import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CuentaView from "./CuentaView";
+import RoundComposer from "./RoundComposer";
+import { OUTBOX_SENT, saveLocal } from "../outbox";
 import SalaView from "./SalaView";
 import { Sheet, Stepper, post, type Fixture, type MapData, type Shape, type Table } from "./shared";
 
@@ -32,6 +34,8 @@ export default function MesasClient({ tenant }: { tenant: string }) {
   const [storeId, setStoreId] = useState<string | null>(null);
   const [zone, setZone] = useState<string>("");
   const [view, setView] = useState<string | null>(null); // cuenta abierta (orderId)
+  const [viewName, setViewName] = useState("");
+  const [offlineOpen, setOfflineOpen] = useState<{ table: Table; guests: number } | null>(null); // abrir mesa sin conexión
   const [viewAction, setViewAction] = useState<"round" | "pay" | undefined>(undefined);
   const [notice, setNotice] = useState("");
   const [opening, setOpening] = useState<Table | null>(null);
@@ -70,6 +74,21 @@ export default function MesasClient({ tenant }: { tenant: string }) {
     };
   }, [load, view, editing]);
 
+  // Al enviarse lo guardado sin conexión, el plano se pone al día.
+  useEffect(() => {
+    const onSent = () => void load();
+    window.addEventListener(OUTBOX_SENT, onSent);
+    return () => window.removeEventListener(OUTBOX_SENT, onSent);
+  }, [load]);
+
+  // La carta se guarda en el aparato al entrar, para poder tomar nota si luego se cae internet.
+  useEffect(() => {
+    fetch(`/api/menu/${tenant}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && saveLocal(`menu:${tenant}`, d.categories ?? []))
+      .catch(() => {});
+  }, [tenant]);
+
   const zones = useMemo(() => [...new Set((data?.tables ?? []).map((t) => t.zone))], [data]);
   const currentZone = zones.includes(zone) ? zone : (zones[0] ?? "");
   const inZone = useMemo(() => (data?.tables ?? []).filter((t) => t.zone === currentZone), [data, currentZone]);
@@ -81,10 +100,15 @@ export default function MesasClient({ tenant }: { tenant: string }) {
         key={view}
         tenant={tenant}
         orderId={view}
+        tableName={viewName}
         initialAction={viewAction}
-        onBack={() => {
+        onBack={(opts) => {
           setView(null);
           setViewAction(undefined);
+          if (opts?.notice) {
+            setNotice(opts.notice);
+            setTimeout(() => setNotice(""), 6000);
+          }
           load();
         }}
       />
@@ -199,6 +223,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
                   return;
                 }
                 setViewAction(a === "view" ? undefined : a);
+                setViewName(t.name);
                 setView(t.open.orderId);
               }}
             />
@@ -211,10 +236,35 @@ export default function MesasClient({ tenant }: { tenant: string }) {
           table={opening}
           onClose={() => setOpening(null)}
           onOpen={async (guests) => {
-            const r = await post<{ orderId: string }>(api, { action: "open", tableId: opening.id, guests });
+            let r: { orderId: string };
+            try {
+              r = await post<{ orderId: string }>(api, { action: "open", tableId: opening.id, guests });
+            } catch (e) {
+              // Sin conexión: se toma nota igual; la mesa se abre al enviar la ronda.
+              if (!(e instanceof TypeError)) throw e;
+              setOfflineOpen({ table: opening, guests });
+              setOpening(null);
+              return;
+            }
             setOpening(null);
+            setViewName(opening.name);
             setViewAction("round"); // directo a tomar nota
             setView(r.orderId);
+          }}
+        />
+      )}
+      {offlineOpen && (
+        <RoundComposer
+          tenant={tenant}
+          orderId={null}
+          opening={{ tableId: offlineOpen.table.id, guests: offlineOpen.guests }}
+          tableName={offlineOpen.table.name}
+          onClose={() => setOfflineOpen(null)}
+          onSent={(round) => {
+            setNotice(round == null ? `Sin conexión: mesa ${offlineOpen.table.name} guardada. Se abrirá y la ronda saldrá en cocina en cuanto vuelva internet` : `Mesa ${offlineOpen.table.name} abierta · ronda ${round} enviada a cocina`);
+            setTimeout(() => setNotice(""), 6000);
+            setOfflineOpen(null);
+            load();
           }}
         />
       )}

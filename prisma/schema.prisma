@@ -1282,3 +1282,15 @@ model Invoice {
   @@unique([orderId, invoiceType])
   @@index([tenantId, createdAt])
 }
+
+// Envíos ya atendidos (rondas y ventas guardadas sin conexión). Si el mismo
+// envío llega dos veces, se devuelve la respuesta guardada y no se duplica.
+// Ver docs/SIN-CONEXION.md
+model ClientRequest {
+  id        String   @id // lo genera el aparato (uuid)
+  tenantId  String
+  response  Json?    // null mientras se está atendiendo
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}
