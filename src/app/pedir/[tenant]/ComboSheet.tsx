@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSheetDrag } from "./useSheetDrag";
 import { NoteField } from "./ProductOptionsSheet";
 import { initialSelection, type MenuModifierGroup, type OrderLineModifier } from "@/app/lib/menuOptions";
 import { optionError, ui, type Lang } from "@/app/lib/i18n";
@@ -24,6 +25,7 @@ type Props = {
 const euros = (cents: number) => (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
 export default function ComboSheet({ combo, catalog, onClose, onAdd, lang = "es", withNote = false }: Props) {
+  const { setPanel, setBackdrop, onPointerDown: dragDown, onPointerMove: dragMove, onPointerUp: dragUp, onPointerCancel: dragCancel } = useSheetDrag(onClose);
   const [note, setNote] = useState("");
   const T = ui(lang);
   // Solo se ofrecen los productos que hoy están disponibles en la carta.
@@ -94,9 +96,11 @@ export default function ComboSheet({ combo, catalog, onClose, onAdd, lang = "es"
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={combo.name}>
-      <button aria-label={T.close} onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-      <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden p-rise rounded-t-[28px] bg-[var(--surface-0)] text-[var(--text-primary)] shadow-2xl sm:rounded-[28px]">
-        <header className="flex items-start gap-3 border-b border-[var(--border)] p-5">
+      <button ref={setBackdrop} aria-label={T.close} onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+      <div ref={setPanel} className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden p-rise rounded-t-[28px] bg-[var(--surface-0)] text-[var(--text-primary)] shadow-2xl will-change-transform sm:rounded-[28px]">
+        {/* Se agarra por aquí para cerrarla deslizando hacia abajo (móvil) */}
+        <header onPointerDown={dragDown} onPointerMove={dragMove} onPointerUp={dragUp} onPointerCancel={dragCancel} className="relative flex touch-none items-start gap-3 border-b border-[var(--border)] p-5 pt-7 sm:touch-auto sm:pt-5">
+          <span aria-hidden className="absolute left-1/2 top-2.5 h-1.5 w-10 -translate-x-1/2 rounded-full bg-[var(--text-secondary)] opacity-30 sm:hidden" />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--brand-secondary)]">{T.menuLabel(euros(combo.basePriceCents))}</p>
             <h2 className="text-lg font-bold">{combo.name}</h2>

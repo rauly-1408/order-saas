@@ -173,11 +173,11 @@ export function ProductCard({
         <span className="text-[18px] font-bold tabular-nums text-[var(--brand-secondary)]">{euros(priceCents)}</span>
         {simple && qty > 0 ? (
           <div className="flex items-center gap-2">
-            <button onClick={onDec} aria-label={T.removeOne(name)} className="p-press flex h-10 w-10 items-center justify-center rounded-full border-2 border-[var(--brand-accent)] text-xl font-bold text-[var(--brand-accent)]">
+            <button onClick={onDec} aria-label={T.removeOne(name)} className="p-press flex h-11 w-11 items-center justify-center rounded-full border-2 border-[var(--brand-accent)] text-xl font-bold text-[var(--brand-accent)]">
               −
             </button>
             <span className="min-w-5 text-center text-[16px] font-bold tabular-nums">{qty}</span>
-            <button onClick={onInc} aria-label={T.addAnother(name)} className="p-press flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-accent)] text-xl font-bold text-[var(--on-accent)]">
+            <button onClick={onInc} aria-label={T.addAnother(name)} className="p-press flex h-11 w-11 items-center justify-center rounded-full bg-[var(--brand-accent)] text-xl font-bold text-[var(--on-accent)]">
               +
             </button>
           </div>
@@ -185,7 +185,7 @@ export function ProductCard({
           <button
             onClick={onAdd}
             aria-label={T.addX(name)}
-            className="p-press flex h-11 items-center gap-1.5 rounded-full bg-[var(--brand-accent)] pr-4 pl-3 text-[15px] font-bold text-[var(--on-accent)] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.5)] transition-transform group-hover:scale-105"
+            className="p-press flex h-11 items-center gap-1.5 rounded-full bg-[var(--brand-accent)] pr-4 pl-3 text-[15px] font-bold text-[var(--on-accent)] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.5)] transition-transform [@media(hover:hover)]:group-hover:scale-105"
           >
             <span className="text-xl leading-none">+</span> {T.add}
           </button>

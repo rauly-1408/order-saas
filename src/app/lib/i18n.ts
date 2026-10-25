@@ -87,6 +87,8 @@ const es = {
   // barra del pedido
   items: (n: number) => `${n} ${n === 1 ? "artículo" : "artículos"}`,
   clear: "Vaciar",
+  clearOrder: "Vaciar pedido",
+  addMore: "Añadir más",
   viewOrder: "Ver pedido →",
   // hojas de opciones / combo
   close: "Cerrar",
@@ -318,6 +320,8 @@ const en: UiText = {
   menuSteps: "Meal steps",
   items: (n: number) => `${n} ${n === 1 ? "item" : "items"}`,
   clear: "Clear",
+  clearOrder: "Clear order",
+  addMore: "Add more",
   viewOrder: "View order →",
   close: "Close",
   required: "Required",

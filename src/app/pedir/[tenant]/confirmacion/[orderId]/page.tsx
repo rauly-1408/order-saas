@@ -84,8 +84,11 @@ export default async function ConfirmacionPage({
       <main style={{ maxWidth: "560px", margin: "0 auto", padding: "32px 16px 60px" }}>
 
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div className="p-rise" style={{ width: "72px", height: "72px", margin: "0 auto 18px", borderRadius: "999px", backgroundColor: cssVars["--brand-accent"], color: cssVars["--on-accent"], display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+          {/* Cancelado: una X en el color de aviso, no la marca de «hecho» */}
+          <div className="p-rise" style={{ width: "72px", height: "72px", margin: "0 auto 18px", borderRadius: "999px", backgroundColor: order.status === "CANCELLED" ? cssVars["--brand-secondary"] : cssVars["--brand-accent"], color: order.status === "CANCELLED" ? "var(--on-secondary)" : cssVars["--on-accent"], display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              {order.status === "CANCELLED" ? <path d="M7 7l10 10M17 7L7 17" /> : <path d="M5 12.5l4.5 4.5L19 7.5" />}
+            </svg>
           </div>
           <h1 className="p-rise" style={{ ["--i" as string]: 1, fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as "none", fontSize: "40px", lineHeight: 1, fontWeight: cssVars["--heading-case"] === "uppercase" ? 400 : 700, marginBottom: "10px", color: cssVars["--brand-accent"] }}>{order.status === "CANCELLED" ? T.cancelled : T.orderReceived}</h1>
           <p style={{ color: cssVars["--text-secondary"], fontSize: "14px", margin: "0" }}>
@@ -138,7 +141,7 @@ export default async function ConfirmacionPage({
               <span style={{ fontWeight: 600, textAlign: "right", maxWidth: "65%" }}>
                 {pickupAddress}
                 <br />
-                <a href={mapsHref} target="_blank" rel="noopener noreferrer" style={{ fontSize: "13px", fontWeight: 600, color: cssVars["--brand-accent"] }}>
+                <a href={mapsHref} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "12px 0 8px", fontSize: "14px", fontWeight: 600, color: cssVars["--brand-accent"] }}>
                   {T.howToGet} →
                 </a>
               </span>

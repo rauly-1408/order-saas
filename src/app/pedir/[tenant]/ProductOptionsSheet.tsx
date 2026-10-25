@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSheetDrag } from "./useSheetDrag";
 import {
   initialSelection,
   selectionToModifiers,
@@ -37,6 +38,7 @@ const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
 export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "es", withNote = false }: Props) {
+  const { setPanel, setBackdrop, onPointerDown: dragDown, onPointerMove: dragMove, onPointerUp: dragUp, onPointerCancel: dragCancel } = useSheetDrag(onClose);
   const [note, setNote] = useState("");
   const T = ui(lang);
   const groups = product.modifierGroups;
@@ -86,10 +88,12 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={product.name}>
-      <button aria-label={T.close} onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+      <button ref={setBackdrop} aria-label={T.close} onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
 
-      <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden p-rise rounded-t-[28px] bg-[var(--surface-0)] text-[var(--text-primary)] shadow-2xl sm:rounded-[28px]">
-        <header className="flex items-start gap-3 border-b border-[var(--border)] p-5">
+      <div ref={setPanel} className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden p-rise rounded-t-[28px] bg-[var(--surface-0)] text-[var(--text-primary)] shadow-2xl will-change-transform sm:rounded-[28px]">
+        {/* Se agarra por aquí para cerrarla deslizando hacia abajo (móvil) */}
+        <header onPointerDown={dragDown} onPointerMove={dragMove} onPointerUp={dragUp} onPointerCancel={dragCancel} className="relative flex touch-none items-start gap-3 border-b border-[var(--border)] p-5 pt-7 sm:touch-auto sm:pt-5">
+          <span aria-hidden className="absolute left-1/2 top-2.5 h-1.5 w-10 -translate-x-1/2 rounded-full bg-[var(--text-secondary)] opacity-30 sm:hidden" />
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-bold">{product.name}</h2>
             {product.description && (

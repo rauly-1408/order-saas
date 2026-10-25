@@ -80,7 +80,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
     rememberStore(id);
     router.refresh();
   }
-  const { items, addItem, inc, dec, remove, clear } = useCart();
+  const { items, addItem, inc, dec, remove } = useCart();
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   // Producto cuyo selector de opciones (pan, guarnición, extras) está abierto.
   const [optionsFor, setOptionsFor] = useState<MenuProduct | null>(null);
@@ -256,7 +256,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                     key={l}
                     onClick={() => l !== lang && setLang(l)}
                     aria-pressed={l === lang}
-                    className="p-press rounded-full px-2.5 py-1 uppercase"
+                    className="p-press flex h-9 min-w-10 items-center justify-center rounded-full px-2.5 uppercase"
                     style={l === lang ? { backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)" } : { color: cssVars["--on-header"] }}
                   >
                     {l}
@@ -267,7 +267,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
             <a
               href={`/pedir/${tenant}/checkout`}
               aria-label={`${T.viewOrder}: ${T.items(totalItems)}`}
-              className="p-press relative flex h-10 items-center gap-2 rounded-full px-4 text-[14px] font-bold no-underline"
+              className="p-press relative flex h-11 items-center gap-2 rounded-full px-4 text-[14px] font-bold no-underline"
               style={{ backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)" }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -291,9 +291,9 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           <div aria-hidden className="s-kenburns absolute inset-0" style={{ backgroundImage: `url("${t.heroImageUrl}")`, backgroundSize: "cover", backgroundPosition: "center" }} />
         )}
         <div aria-hidden className="absolute inset-0" style={{ background: t.heroImageUrl ? "linear-gradient(90deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.1) 100%)" : "radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--bg-base) 18%, transparent) 0, transparent 45%)" }} />
-        <div className={`${wrap} relative flex min-h-[380px] flex-col justify-end py-12 sm:min-h-[520px] sm:py-20`}>
+        <div className={`${wrap} relative flex min-h-[300px] flex-col justify-end py-9 sm:min-h-[520px] sm:py-20`}>
           <p className="s-up text-[13px] font-semibold uppercase tracking-[0.14em] opacity-85" style={{ ["--i" as any]: 0 }}>{deliveryLabel}</p>
-          <h1 className="s-up mt-3 max-w-3xl text-[56px] sm:text-[104px]" style={{ ...heading, ["--i" as any]: 1, color: t.heroImageUrl ? "#ffffff" : cssVars["--bg-base"] }}>
+          <h1 className="s-up mt-3 max-w-3xl text-[48px] sm:text-[104px]" style={{ ...heading, ["--i" as any]: 1, color: t.heroImageUrl ? "#ffffff" : cssVars["--bg-base"] }}>
             {tenantName}
           </h1>
           <p className="s-up mt-4 max-w-md text-[16px] opacity-90" style={{ ["--i" as any]: 2 }}>{T.tagline}</p>
@@ -324,10 +324,10 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                 onClick={() => scrollToCategory(cat.slug)}
                 aria-current={isActive ? "true" : undefined}
                 // Al pasar el ratón se tiñe con el color de la marca (en móvil no hay hover).
-                className={`p-press shrink-0 rounded-full border px-4 py-2 text-[14px] transition-colors duration-300 ${
+                className={`p-press shrink-0 rounded-full border px-4 py-2.5 text-[14px] transition-colors duration-300 ${
                   isActive
                     ? "border-transparent bg-[var(--brand-accent)] font-bold text-[var(--on-accent)]"
-                    : "border-[var(--border)] bg-transparent font-medium text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:bg-[color-mix(in_srgb,var(--brand-accent)_10%,transparent)] hover:text-[var(--brand-accent)]"
+                    : "border-[var(--border)] bg-transparent font-medium text-[var(--text-secondary)] [@media(hover:hover)]:hover:border-[var(--brand-accent)] [@media(hover:hover)]:hover:bg-[color-mix(in_srgb,var(--brand-accent)_10%,transparent)] [@media(hover:hover)]:hover:text-[var(--brand-accent)]"
                 }`}
               >
                 {cat.name}
@@ -456,19 +456,23 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           }}
         />
       )}
-      {/* Barra flotante del pedido */}
+      {/* Barra flotante del pedido: toda la barra lleva al pedido (blanco fácil
+          para el pulgar). «Vaciar» está en el pedido, no aquí, para no tocarlo sin querer. */}
       {totalItems > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(12px+env(safe-area-inset-bottom))] sm:px-6">
-          <div className="s-up mx-auto flex max-w-xl items-center gap-3 rounded-full p-2 pl-5 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.55)]" style={{ backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)" }}>
-            <div className="min-w-0 flex-1">
-              <div key={bump} className={`text-[16px] font-bold tabular-nums ${bump ? "s-bump inline-block" : ""}`}>{euros(totalCents)}</div>
-              <div className="text-[12px] opacity-80">{T.items(totalItems)}</div>
-            </div>
-            <button onClick={() => window.confirm(T.confirmClear) && clear()} className="p-press shrink-0 rounded-full px-3 py-2 text-[13px] opacity-80 hover:opacity-100">{T.clear}</button>
-            <a href={`/pedir/${tenant}/checkout`} className="p-press shrink-0 rounded-full px-6 py-3 text-[15px] font-bold no-underline" style={{ backgroundColor: cssVars["--bg-base"], color: cssVars["--brand-accent"] }}>
-              {T.viewOrder}
-            </a>
-          </div>
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(12px+env(safe-area-inset-bottom))] sm:px-6">
+          <a
+            href={`/pedir/${tenant}/checkout`}
+            className="s-up p-press pointer-events-auto mx-auto flex min-h-[60px] max-w-xl items-center gap-3 rounded-full p-2 pl-2 no-underline shadow-[0_18px_40px_-14px_rgba(0,0,0,0.55)]"
+            style={{ backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)" }}
+          >
+            <span key={bump} className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-full px-2 text-[16px] font-bold tabular-nums ${bump ? "s-bump" : ""}`} style={{ backgroundColor: "color-mix(in srgb, var(--on-accent) 16%, transparent)" }}>
+              {totalItems}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[16px] font-bold">{T.viewOrder.replace(/\s*→$/, "")}</span>
+            <span className="shrink-0 rounded-full px-5 py-3 text-[16px] font-bold tabular-nums" style={{ backgroundColor: cssVars["--bg-base"], color: cssVars["--brand-accent"] }}>
+              {euros(totalCents)} →
+            </span>
+          </a>
         </div>
       )}
     </div>
