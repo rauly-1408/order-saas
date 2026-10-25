@@ -2,6 +2,7 @@
 
 import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useState } from "react";
+import Reparto from "./Reparto";
 import { Card, Toggle, ghostBtn, input, primaryBtn, toast, useSaveBar } from "../ui";
 
 // Configuración → Impresoras: impresoras de tickets del local, qué imprime
@@ -188,37 +189,6 @@ export default function Impresoras({ tenant }: { tenant: string }) {
                   </button>
                 ))}
               </div>
-              {p.roles.includes("kitchen") && (data.categories?.length ?? 0) > 0 && (
-                <div className="mt-3 rounded-xl bg-black/[0.03] p-3">
-                  <p className="text-sm font-medium">Qué comandas imprime</p>
-                  <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Qué comandas imprime">
-                    <button type="button" role="radio" aria-checked={!p.categories} onClick={() => patch(i, { categories: null })} className={`rounded-full px-3.5 py-2 text-sm font-semibold ${!p.categories ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] ring-1 ring-[var(--p-line)]"}`}>
-                      Todo
-                    </button>
-                    <button type="button" role="radio" aria-checked={!!p.categories} onClick={() => patch(i, { categories: p.categories ?? [] })} className={`rounded-full px-3.5 py-2 text-sm font-semibold ${p.categories ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] ring-1 ring-[var(--p-line)]"}`}>
-                      Solo algunas categorías
-                    </button>
-                  </div>
-                  {p.categories && (
-                    <>
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {[...(data.categories ?? []), { id: "LIBRE", name: "Productos libres" }].map((c) => {
-                          const on = p.categories!.includes(c.id);
-                          return (
-                            <button key={c.id} type="button" aria-pressed={on} onClick={() => patch(i, { categories: on ? p.categories!.filter((x) => x !== c.id) : [...p.categories!, c.id] })} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${on ? "bg-[var(--p-brand)] text-white" : "bg-[var(--p-surface)] ring-1 ring-[var(--p-line)]"}`}>
-                              {on ? "✓ " : ""}
-                              {c.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <p className="mt-2 text-xs text-[var(--p-muted)]">
-                        {p.categories.length ? "De un menú, a esta impresora solo le llega lo de sus categorías (la bebida del menú a la barra, el mollete a cocina)." : "Marca al menos una. Sin ninguna marcada imprime todo."}
-                      </p>
-                    </>
-                  )}
-                </div>
-              )}
               <div className="mt-3 grid gap-3 sm:grid-cols-4">
                 <label className="text-sm">
                   Papel
@@ -264,6 +234,8 @@ export default function Impresoras({ tenant }: { tenant: string }) {
           </button>
         )}
       </Card>
+
+      {(data.categories?.length ?? 0) > 0 && <Reparto printers={form.printers} categories={data.categories!} onChange={(printers) => setEdits({ ...form, printers })} />}
 
       <Card title="Qué se imprime solo" description="Además, en Pedidos puedes reimprimir la comanda o el ticket de cualquier pedido.">
         <Toggle checked={form.autoKitchen} onChange={(v) => setEdits({ ...form, autoKitchen: v })} label="Comanda a cocina al entrar un pedido" hint="Online (ya pagado o al recoger) y de la Caja." />
