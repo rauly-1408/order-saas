@@ -178,13 +178,13 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
         </div>
       )}
 
-      {form ? null : data.ingredients.length === 0 ? (
+      {form ? null : data.ingredients.filter((i) => !i.isPrep).length === 0 ? (
         <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center text-sm text-[var(--p-muted)]">
           Añade los ingredientes que compras con su precio para calcular el coste de tus platos.
         </p>
       ) : (
         <ul className="divide-y divide-[var(--p-line)] rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          {data.ingredients.map((i) => (
+          {data.ingredients.filter((i) => !i.isPrep).map((i) => (
             <li key={i.id}>
                 <div
                   role="button"

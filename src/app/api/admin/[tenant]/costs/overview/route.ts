@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const [suppliers, ingredients, categories, orders, movements, purchaseOrders, priceChanges, tenantInfo] = await Promise.all([
     prisma.supplier.findMany({ where: { tenantId }, orderBy: { name: "asc" } }),
-    prisma.ingredient.findMany({ where: { tenantId }, orderBy: { name: "asc" } }),
+    prisma.ingredient.findMany({ where: { tenantId }, orderBy: { name: "asc" }, include: { prepLines: { orderBy: { sortOrder: "asc" }, select: { ingredientId: true, quantity: true } } } }),
     prisma.category.findMany({
       where: { tenantId },
       orderBy: { sortOrder: "asc" },

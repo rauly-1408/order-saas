@@ -30,6 +30,11 @@ export type Ingredient = CostIngredient & {
   trackStock: boolean;
   stockQty: number;
   minStock: number | null;
+  // Elaboración (salsa, caldo…): packSize = lo que rinde el lote y packPriceCents = su coste.
+  isPrep: boolean;
+  prepExtras: { label: string; cents: number }[];
+  prepNotes: string | null;
+  prepLines: RecipeLine[];
 };
 
 export type RecipeLine = { ingredientId: string; quantity: number };
