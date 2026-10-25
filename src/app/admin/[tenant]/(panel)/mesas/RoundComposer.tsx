@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import ProductOptionsSheet, { NOTE_CHIPS, type SheetProduct } from "@/app/pedir/[tenant]/ProductOptionsSheet";
@@ -119,8 +120,8 @@ export default function RoundComposer({ tenant, orderId, tableName, onClose, onS
     }
   }
 
-  function close() {
-    if (lines.length && !window.confirm("¿Salir sin enviar la ronda? Se perderá lo que has marcado.")) return;
+  async function close() {
+    if (lines.length && !(await ask("¿Salir sin enviar la ronda? Se perderá lo que has marcado."))) return;
     onClose();
   }
 
@@ -255,7 +256,7 @@ export default function RoundComposer({ tenant, orderId, tableName, onClose, onS
           <p className="mb-3 flex items-center justify-between text-base font-semibold">
             Ronda · Mesa {tableName}
             {lines.length > 0 && (
-              <button type="button" onClick={() => window.confirm("¿Vaciar la ronda?") && setLines([])} className="rounded-full px-3 py-1.5 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
+              <button type="button" onClick={async () => (await ask("¿Vaciar la ronda?")) && setLines([])} className="rounded-full px-3 py-1.5 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
                 Vaciar
               </button>
             )}

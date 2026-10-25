@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import ImagePicker from "../archivos/ImagePicker";
@@ -160,7 +161,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
 
   async function remove() {
     const p = editing?.product;
-    if (!p || !confirm(`¿Eliminar «${p.name}» de la carta? No se puede deshacer.`)) return;
+    if (!p || !(await ask(`¿Eliminar «${p.name}» de la carta? No se puede deshacer.`))) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/${tenant}/products/${p.id}`, { method: "DELETE" });

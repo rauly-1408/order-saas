@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useState } from "react";
 
 import PaidWithChooser, { type PaidWith } from "./PaidWith";
@@ -66,9 +67,9 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
   const isNew = order.status === "CREATED" || order.status === "ACCEPTED";
   const tone = timerTone(order, estimates, now);
 
-  function handleCancel() {
+  async function handleCancel() {
     const extra = order.status === "READY" ? " Úsalo si no ha venido a recogerlo: la comida ya está hecha y no vuelve al stock." : "";
-    if (window.confirm(`¿Cancelar el pedido ${orderLabel(order)} de ${order.customerName}?${extra}`)) {
+    if ((await ask(`¿Cancelar el pedido ${orderLabel(order)} de ${order.customerName}?${extra}`))) {
       onStatus(order.id, "CANCELLED");
     }
   }
@@ -176,7 +177,7 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
             )}
             {onCourier && courierCanCancel(order.courier.status) && (
               <button
-                onClick={() => window.confirm("¿Cancelar el repartidor? El pedido sigue activo.") && onCourier(order.id, "cancel")}
+                onClick={async () => (await ask("¿Cancelar el repartidor? El pedido sigue activo.")) && onCourier(order.id, "cancel")}
                 disabled={busy}
                 className="underline disabled:opacity-50"
               >

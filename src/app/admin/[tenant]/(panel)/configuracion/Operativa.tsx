@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { toast, useSaveBar } from "./ui";
 import { DAY_KEYS, DAY_LABEL, type DayKey, type TimeRange, type WeeklyHours } from "@/app/lib/storeStatus";
@@ -192,7 +193,7 @@ function Zonas({ api, zones, onSaved }: { api: string; zones: Zone[]; onSaved: (
   }
 
   async function remove(z: Zone) {
-    if (!window.confirm(`¿Borrar la zona "${z.name}"?`)) return;
+    if (!(await ask(`¿Borrar la zona "${z.name}"?`))) return;
     await fetch(`${api}/zones/${z.id}`, { method: "DELETE" });
     await onSaved();
   }

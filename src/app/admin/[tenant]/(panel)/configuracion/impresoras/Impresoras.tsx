@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { Card, Toggle, ghostBtn, input, primaryBtn, toast, useSaveBar } from "../ui";
 
@@ -112,7 +113,7 @@ export default function Impresoras({ tenant }: { tenant: string }) {
               >
                 Copiar
               </button>
-              <button type="button" disabled={busy === "token"} onClick={() => confirm("¿Crear un token nuevo? El anterior dejará de funcionar y habrá que cambiarlo en el programa del local.") && action({ action: "newToken" }, "token", "Token nuevo creado")} className={`${ghostBtn} !px-3 !py-1.5 text-xs`}>
+              <button type="button" disabled={busy === "token"} onClick={async () => (await ask("¿Crear un token nuevo? El anterior dejará de funcionar y habrá que cambiarlo en el programa del local.")) && action({ action: "newToken" }, "token", "Token nuevo creado")} className={`${ghostBtn} !px-3 !py-1.5 text-xs`}>
                 Nuevo token
               </button>
             </div>

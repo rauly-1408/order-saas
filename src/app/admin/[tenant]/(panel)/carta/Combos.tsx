@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { readPanelCache, writePanelCache } from "../panelCache";
 
@@ -99,7 +100,7 @@ export default function Combos({ tenant }: { tenant: string }) {
   }
 
   async function remove() {
-    if (!form?.id || !confirm(`¿Borrar el menú «${form.name}»? Los pedidos ya hechos no cambian.`)) return;
+    if (!form?.id || !(await ask(`¿Borrar el menú «${form.name}»? Los pedidos ya hechos no cambian.`))) return;
     const res = await fetch(`${api}/${form.id}`, { method: "DELETE" });
     if (res.ok) {
       await reload();

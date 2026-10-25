@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useState } from "react";
 import { DAY_SHORT, deliveryDateText, deliverySummary, nextDeliveryOffset } from "@/app/lib/purchasing";
 import type { Overview, Supplier, SupplierOrderMethod } from "./types";
@@ -100,7 +101,7 @@ export default function Proveedores({ data, api, onSaved }: { data: Overview; ap
   }
 
   async function remove(s: Supplier) {
-    if (!window.confirm(`¿Borrar "${s.name}"? Sus ingredientes se quedarán sin proveedor.`)) return;
+    if (!(await ask(`¿Borrar "${s.name}"? Sus ingredientes se quedarán sin proveedor.`))) return;
     const res = await fetch(`${api}/suppliers/${s.id}`, { method: "DELETE" });
     if (res.ok) {
       await onSaved();

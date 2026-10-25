@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useState } from "react";
 import { unitCostCents } from "@/app/lib/costs";
 import { ALLERGENS, UNIT_LABEL, euros, type BaseUnit, type Ingredient, type Overview } from "./types";
@@ -74,7 +75,7 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
   }
 
   async function remove(i: Ingredient) {
-    if (!window.confirm(`¿Borrar "${i.name}"? Se quitará de todos los escandallos.`)) return;
+    if (!(await ask(`¿Borrar "${i.name}"? Se quitará de todos los escandallos.`))) return;
     const res = await fetch(`${api}/ingredients/${i.id}`, { method: "DELETE" });
     if (res.ok) {
       await onSaved();

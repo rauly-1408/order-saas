@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useMemo, useState } from "react";
 import { foodCostHealth, margin, suggestedGrossPriceCents, type Health } from "@/app/lib/costs";
 import { euros, linesCost, typicalPlate, type Ingredient, type Overview } from "./types";
@@ -21,7 +22,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
   // (con opciones por defecto), así que al precio base se le restan sus suplementos.
   async function applyPrice(r: { id: string; name: string; priceCents: number; suggested: number; defaultsDelta: number; basePriceCents: number }) {
     const newBase = r.suggested - r.defaultsDelta;
-    if (!window.confirm(`¿Cambiar el precio de ${r.name} en la carta de ${euros(r.basePriceCents)} a ${euros(newBase)}?`)) return;
+    if (!(await ask(`¿Cambiar el precio de ${r.name} en la carta de ${euros(r.basePriceCents)} a ${euros(newBase)}?`))) return;
     setApplying(r.id);
     const productsApi = api.replace(/\/costs$/, "/products");
     await fetch(`${productsApi}/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ basePriceCents: newBase }) });

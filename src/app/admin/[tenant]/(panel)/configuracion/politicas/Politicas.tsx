@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useEffect, useState } from "react";
 import { LEGAL_DOCS } from "@/app/lib/business";
 import { readPolicies } from "@/app/lib/storePolicies";
@@ -83,7 +84,7 @@ export default function Politicas({ tenant }: { tenant: string }) {
                 <p className="mt-1 text-[11px] text-[var(--p-muted)]">«## Título» crea un apartado. Deja una línea en blanco entre párrafos.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {templates[d.slug] && (
-                    <button type="button" onClick={() => confirm("¿Volver al modelo? Se pierden tus cambios en este texto.") && setText(d.slug, templates[d.slug])} className={`${ghostBtn} text-xs`}>
+                    <button type="button" onClick={async () => (await ask("¿Volver al modelo? Se pierden tus cambios en este texto.")) && setText(d.slug, templates[d.slug])} className={`${ghostBtn} text-xs`}>
                       Volver al modelo
                     </button>
                   )}

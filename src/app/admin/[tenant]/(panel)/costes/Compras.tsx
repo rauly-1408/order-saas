@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useMemo, useState } from "react";
 import { deliveryDateText, deliverySummary, mailtoLink, priceChangePct, suggestedOrderQty, supplierMessage, supplierWhatsapp, whatsappLink } from "@/app/lib/purchasing";
 import { nextDeliveryText } from "./Proveedores";
@@ -367,7 +368,7 @@ function PurchaseRow({
               ))}
             {po.status === "DRAFT" && <button onClick={() => act({ action: "send" })} className="rounded-lg border border-[var(--p-line)] px-2.5 py-1 text-xs">Marcar enviado</button>}
             <button onClick={() => setReceiving(!receiving)} className="p-press rounded-full bg-[var(--p-brand)] px-2.5 py-1 text-xs font-semibold text-white">Recibir</button>
-            <button onClick={() => window.confirm(`¿Cancelar el pedido nº ${po.number}?`) && act({ action: "cancel" })} className="rounded-lg px-2.5 py-1 text-xs text-[var(--p-faint)] hover:text-red-500">Cancelar</button>
+            <button onClick={async () => (await ask(`¿Cancelar el pedido nº ${po.number}?`)) && act({ action: "cancel" })} className="rounded-lg px-2.5 py-1 text-xs text-[var(--p-faint)] hover:text-red-500">Cancelar</button>
           </div>
         )}
       </div>
