@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Overview } from "./types";
 import { readPanelCache, writePanelCache } from "../panelCache";
 import Rentabilidad from "./Rentabilidad";
+import Elaboraciones from "./Elaboraciones";
 import Escandallos from "./Escandallos";
 import Ingredientes from "./Ingredientes";
 import Proveedores from "./Proveedores";
@@ -15,6 +16,7 @@ const TABS = [
   { key: "inventario", label: "Inventario" },
   { key: "compras", label: "Compras" },
   { key: "escandallos", label: "Escandallos" },
+  { key: "elaboraciones", label: "Elaboraciones" },
   { key: "ingredientes", label: "Ingredientes" },
   { key: "proveedores", label: "Proveedores" },
 ] as const;
@@ -120,6 +122,8 @@ export default function CostesClient({ tenant }: { tenant: string }) {
         <Inventario data={data} api={api} onSaved={reload} onGoToIngredients={() => setTab("ingredientes")} />
       ) : tab === "escandallos" ? (
         <Escandallos data={data} api={api} onSaved={reload} onGoToIngredients={() => setTab("ingredientes")} />
+      ) : tab === "elaboraciones" ? (
+        <Elaboraciones data={data} api={api} onSaved={reload} onGoToIngredients={() => setTab("ingredientes")} />
       ) : tab === "ingredientes" ? (
         <Ingredientes data={data} api={api} onSaved={reload} />
       ) : (

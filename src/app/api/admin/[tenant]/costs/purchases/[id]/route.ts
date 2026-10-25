@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recalcPreps } from "@/app/lib/preps";
 import { prisma } from "@/app/lib/prisma";
 import { costsTenant, lastSegment } from "@/app/lib/costsApi";
 import { applyStockDeltas } from "@/app/lib/inventory";
@@ -82,6 +83,7 @@ export async function PATCH(req: NextRequest) {
         await applyStockDeltas(tx, tenantId, deltas, "RECEIPT", { note: `Pedido a proveedor nº ${order.number}` });
       }
       await tx.purchaseOrder.update({ where: { id: order.id }, data: { status: "RECEIVED", receivedAt: new Date() } });
+      await recalcPreps(tx, tenantId); // por si cambió algún precio
     });
     return NextResponse.json({ ok: true });
   }

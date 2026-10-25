@@ -6,6 +6,7 @@ import { normalizeAllergens } from "@/app/lib/costs";
 import { applyStockDeltas } from "@/app/lib/inventory";
 import { recordPriceChange } from "@/app/lib/purchasing";
 import { sanitizeInvoiceRecord } from "@/app/lib/invoice";
+import { recalcPreps } from "@/app/lib/preps";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -157,5 +158,6 @@ export async function POST(req: NextRequest) {
     }
   });
 
+  if (priceChanges) await recalcPreps(prisma, tenantId);
   return NextResponse.json({ ok: true, invoiceSaved: !!invoice, totalCents: invoice?.totalCents ?? null, vatCents: invoice?.vatCents ?? null, stockLines: lines.filter((l) => l.quantity > 0).length, priceChanges, created, supplierCreated });
 }
