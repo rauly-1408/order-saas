@@ -75,15 +75,41 @@ nav { scrollbar-width: none; }
 .p-lift {
   transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.p-lift:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 22px 44px -22px rgba(0, 0, 0, 0.28);
+/* Solo con ratón: en el móvil un hover se queda «pegado» después de tocar */
+@media (hover: hover) {
+  .p-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 22px 44px -22px rgba(0, 0, 0, 0.28);
+  }
 }
 .p-press {
   transition: transform 0.18s ease, background-color 0.25s ease, color 0.25s ease, opacity 0.25s ease;
 }
 .p-press:active {
   transform: scale(0.97);
+  transition-duration: 0.08s; /* el hundido llega en cuanto se toca */
+}
+
+/* Táctil: sin el destello gris de iOS, sin zoom por doble toque en botones y
+   enlaces (un «+» pulsado rápido suma dos, no amplía la página) y campos de
+   16 px como mínimo (con menos, Safari de iPhone amplía la página al escribir). */
+button,
+a,
+[role="button"],
+[role="radio"],
+[role="checkbox"],
+[role="switch"],
+label,
+summary {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
 }
 /* Fondo de cuadros para ver la transparencia de los logos (Personalización) */
 .p-checker {

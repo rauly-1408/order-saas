@@ -315,7 +315,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
 
       {/* HEADER */}
       <header className="p-glass" style={{ position: "sticky", top: 0, zIndex: 50, ["--p-surface" as any]: cssVars["--surface-0"], borderBottom: `1px solid ${cssVars["--border"]}`, height: "56px", display: "flex", alignItems: "center", padding: "0 20px", gap: "14px" }}>
-        <a href={`/pedir/${tenant}`} style={{ color: cssVars["--brand-accent"], fontSize: "22px", textDecoration: "none", lineHeight: "1" }}>←</a>
+        <a href={`/pedir/${tenant}`} aria-label={T.backToMenu} className="p-press" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "44px", height: "44px", marginLeft: "-10px", borderRadius: "999px", color: cssVars["--brand-accent"], fontSize: "24px", textDecoration: "none", lineHeight: "1" }}>←</a>
         <span style={{ fontWeight: 600, fontSize: "16px" }}>{T.confirmOrder}</span>
         {storeName && <span className="ml-auto truncate text-[13px]" style={{ color: cssVars["--text-secondary"] }}>📍 {storeName}</span>}
       </header>
@@ -339,9 +339,9 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                       </div>
                     )}
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px" }}>
-                      <button type="button" aria-label={T.removeOne(item.name)} onClick={() => dec(item.id)} style={{ width: "26px", height: "26px", borderRadius: "50%", border: `1px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 700, fontSize: "15px", cursor: "pointer", lineHeight: 1 }}>−</button>
-                      <span style={{ fontWeight: 700, fontSize: "14px", minWidth: "14px", textAlign: "center" }}>{item.quantity}</span>
-                      <button type="button" aria-label={T.addAnother(item.name)} onClick={() => inc(item.id)} style={{ width: "26px", height: "26px", borderRadius: "50%", border: "none", backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)", fontWeight: 700, fontSize: "15px", cursor: "pointer", lineHeight: 1 }}>+</button>
+                      <button type="button" aria-label={T.removeOne(item.name)} onClick={() => dec(item.id)} className="p-press" style={{ width: "40px", height: "40px", borderRadius: "50%", border: `2px solid ${cssVars["--brand-accent"]}`, backgroundColor: "transparent", color: cssVars["--brand-accent"], fontWeight: 700, fontSize: "18px", cursor: "pointer", lineHeight: 1 }}>−</button>
+                      <span style={{ fontWeight: 700, fontSize: "16px", minWidth: "20px", textAlign: "center" }}>{item.quantity}</span>
+                      <button type="button" aria-label={T.addAnother(item.name)} onClick={() => inc(item.id)} className="p-press" style={{ width: "40px", height: "40px", borderRadius: "50%", border: "none", backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)", fontWeight: 700, fontSize: "18px", cursor: "pointer", lineHeight: 1 }}>+</button>
                     </div>
                   </div>
                   <span style={{ fontSize: "14px", fontWeight: 600, color: cssVars["--text-primary"], flexShrink: 0 }}>
@@ -349,6 +349,14 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                   </span>
                 </div>
               ))}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px" }}>
+              <a href={`/pedir/${tenant}`} className="p-press" style={{ display: "inline-flex", alignItems: "center", minHeight: "44px", color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", textDecoration: "none" }}>
+                + {T.addMore}
+              </a>
+              <button type="button" onClick={() => window.confirm(T.confirmClear) && clear()} className="p-press" style={{ minHeight: "44px", padding: "0 4px", background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer" }}>
+                {T.clearOrder}
+              </button>
             </div>
 
             {/* TOTALES */}
@@ -588,7 +596,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           {checkout.tips.enabled && (
             <div>
               <div style={labelStyle}>{T.tipTitle}</div>
-              <div role="radiogroup" aria-label={T.tipTitle} style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <div role="radiogroup" aria-label={T.tipTitle} style={{ display: "grid", gridTemplateColumns: `repeat(${checkout.tips.percents.length + 1}, minmax(0, 1fr))`, gap: "6px" }}>
                 {[0, ...checkout.tips.percents].map((pct) => (
                   <button
                     key={pct}
@@ -597,7 +605,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                     aria-checked={tipPct === pct}
                     onClick={() => setTipPct(pct)}
                     className="p-press"
-                    style={{ flex: "1 1 0", minWidth: "64px", padding: "10px", borderRadius: "12px", border: `2px solid ${tipPct === pct ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: tipPct === pct ? `${cssVars["--brand-accent"]}15` : "transparent", color: tipPct === pct ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: tipPct === pct ? 700 : 500, fontSize: "14px", cursor: "pointer" }}
+                    style={{ minHeight: "48px", padding: "6px 2px", borderRadius: "12px", border: `2px solid ${tipPct === pct ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: tipPct === pct ? `${cssVars["--brand-accent"]}15` : "transparent", color: tipPct === pct ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: tipPct === pct ? 700 : 500, fontSize: "14px", cursor: "pointer" }}
                   >
                     {pct === 0 ? T.noTip : `${pct} %`}
                   </button>
@@ -696,7 +704,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
 
               </>
             ) : (
-              <button type="button" onClick={() => setExtrasOpen(true)} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", textDecoration: "underline", textUnderlineOffset: "3px", cursor: "pointer" }}>
+              <button type="button" onClick={() => setExtrasOpen(true)} style={{ alignSelf: "flex-start", minHeight: "44px", background: "none", border: "none", padding: "0 2px", color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", textDecoration: "underline", textUnderlineOffset: "3px", cursor: "pointer" }}>
                 {couponsEnabled && giftCardsEnabled ? T.haveCodeOrGift : couponsEnabled ? T.haveCode : T.haveGift}
               </button>
             )
@@ -739,14 +747,17 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
             </div>
           )}
 
-          {/* SUBMIT */}
+          {/* SUBMIT: siempre a la vista abajo mientras se rellena el formulario */}
+          <div style={{ position: "sticky", bottom: 0, zIndex: 20, margin: "0 -16px", padding: "12px 16px calc(12px + env(safe-area-inset-bottom))", background: `linear-gradient(to bottom, transparent, ${cssVars["--bg-base"]} 28%)` }}>
           <button
             type="submit"
+            className="p-press"
             disabled={loading || blocked || belowMinimum || outOfZone}
-            style={{ width: "100%", padding: "16px", borderRadius: "999px", border: "none", backgroundColor: loading || blocked || belowMinimum || outOfZone ? cssVars["--border"] : cssVars["--brand-accent"], color: loading || blocked || belowMinimum || outOfZone ? cssVars["--text-secondary"] : "var(--on-accent)", fontWeight: 600, fontSize: "16px", cursor: loading || blocked || belowMinimum || outOfZone ? "not-allowed" : "pointer", letterSpacing: "0.3px" }}
+            style={{ width: "100%", minHeight: "56px", padding: "16px", borderRadius: "999px", border: "none", boxShadow: "0 14px 30px -14px rgba(0,0,0,0.45)", backgroundColor: loading || blocked || belowMinimum || outOfZone ? cssVars["--border"] : cssVars["--brand-accent"], color: loading || blocked || belowMinimum || outOfZone ? cssVars["--text-secondary"] : "var(--on-accent)", fontWeight: 600, fontSize: "16px", cursor: loading || blocked || belowMinimum || outOfZone ? "not-allowed" : "pointer", letterSpacing: "0.3px" }}
           >
             {loading ? (payMethod === "IN_STORE" ? T.sending : T.goingToPay) : blocked ? T.notAccepting : payMethod !== "IN_STORE" ? T.payNow(euros(total)) : chosenSlot ? T.scheduleOrder(euros(total)) : T.confirmOrderTotal(euros(total))}
           </button>
+          </div>
 
           {/* Sellos: debajo del botón para que al escribir el teléfono no lo empuje. Con cookie del cliente se ven los suyos; sin ella, la genérica (stamps null). */}
               {perks?.loyalty && perksFor && (

@@ -43,7 +43,8 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
   const schedule = hours && DAY_KEYS.some((d) => hours[d].length) ? groupedHours(hours, lang) : null;
   const year = new Date().getFullYear();
   const colTitle = "mb-3 text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]";
-  const link = "text-[14px] text-[var(--text-primary)] no-underline hover:text-[var(--brand-accent)] hover:underline";
+  // inline-block con py-2: blanco de toque cómodo (unos 40 px) sin separar más la lista
+  const link = "-my-2 inline-block py-2 text-[14px] text-[var(--text-primary)] no-underline hover:text-[var(--brand-accent)] hover:underline";
 
   return (
     <footer className="mt-16 border-t border-[var(--border)] bg-[var(--surface-0)]" aria-label={T.restaurantInfo}>
@@ -62,7 +63,7 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
           {socials.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
               {socials.map((f) => (
-                <a key={f.key} href={online![f.key]!} target="_blank" rel="noopener noreferrer" className="p-press rounded-full border border-[var(--border)] px-3.5 py-1.5 text-[13px] font-semibold text-[var(--text-primary)] no-underline hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]">
+                <a key={f.key} href={online![f.key]!} target="_blank" rel="noopener noreferrer" className="p-press rounded-full border border-[var(--border)] px-4 py-2.5 text-[13px] font-semibold text-[var(--text-primary)] no-underline hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]">
                   {f.key === "reviewsUrl" ? T.reviews : f.label}
                 </a>
               ))}

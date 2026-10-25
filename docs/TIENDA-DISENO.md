@@ -32,3 +32,17 @@
 
 - `MenuClient.tsx`: estructura. `StoreCards.tsx`: `PromoTile`, `ComboCard` y `ProductCard`. `StampCard.tsx`: tarjeta de sellos.
 - Animaciones: clases `s-*` en `globals.css`.
+
+## Táctil (revisión del 2026-10-25)
+
+Comprobado en el móvil con la pantalla táctil simulada.
+
+- **Respuesta al dedo**: `TouchFeedback` (layout raíz) escucha `touchstart` para que Safari de iPhone aplique `:active`. Los botones (`p-press`) se hunden en cuanto se tocan.
+- **Sin zoom involuntario**: `touch-action: manipulation` en botones y enlaces, para que un «+» pulsado rápido sume dos en vez de ampliar. Sin el destello gris de iOS. Los campos tienen al menos 16 px en pantallas táctiles, porque con menos Safari amplía la página al escribir (el pago tenía 15 px).
+- **Hover solo con ratón**: `@media (hover: hover)`, para que no se queden «pegados» después de tocar.
+- **Zonas de toque de 44 px o casi**: «−» y «+» de las tarjetas y del pago, categorías, ES/EN, la cesta de la cabecera, «Volver», «¿Tienes un cupón?», «Cómo llegar» y los enlaces del pie.
+- **Barra de la cesta**: la barra entera lleva al pedido, con el número de productos, «Ver pedido» y el total. «Vaciar» ya no está en la barra, donde se tocaba sin querer: pasa al pago como «Vaciar pedido», junto a «+ Añadir más».
+- **Hojas de opciones y menús** (`useSheetDrag`): en el móvil se cierran deslizando hacia abajo desde la cabecera, donde hay un tirador. La hoja sigue al dedo 1:1, resiste si se tira hacia arriba y, al soltar, proyecta la inercia del dedo (la misma deceleración que el scroll de iOS) para decidir si se cierra o vuelve. Se respeta «reducir movimiento».
+- **Pago**: el botón de pagar va siempre a la vista abajo mientras se rellena el formulario, y las propinas caben en una sola fila.
+- **Portada** más baja en el móvil, para que la carta empiece antes.
+- **Confirmación**: un pedido cancelado muestra una X en el color de aviso, no la marca de «hecho».
