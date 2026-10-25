@@ -41,6 +41,7 @@ enum StockMovementType {
   RECEIPT // entrada de mercancía
   COUNT // recuento físico: la diferencia con el stock teórico (merma/descuadre)
   WASTE // merma declarada (caducado, roto, error…)
+  PRODUCTION // lote de una elaboración: salen sus ingredientes y entra la elaboración
 }
 
 // Pedido a proveedor (módulo Costes, fase 3).
@@ -874,6 +875,15 @@ model Ingredient {
   stockQty   Float   @default(0) // stock teórico en unidad base
   minStock   Float? // aviso de stock bajo
 
+  // Elaboración (salsa, caldo, pico de gallo…): su coste sale de su receta.
+  // packSize = lo que rinde el lote y packPriceCents = lo que cuesta el lote
+  // (ingredientes + otros costes); se recalculan solos (lib/preps.ts).
+  isPrep      Boolean    @default(false)
+  prepExtras  Json       @default("[]") // otros costes del lote: [{ label, cents }] (mano de obra, horno, envases, maquila…)
+  prepNotes   String? // elaboración, tiempos, temperaturas…
+  prepLines   PrepLine[] @relation("PrepOf")
+  usedInPreps PrepLine[] @relation("PrepComponent")
+
   recipeLines    RecipeLine[]
   stockMovements StockMovement[]
   purchaseLines  PurchaseOrderLine[]
@@ -1355,4 +1365,19 @@ model CollaboratorPayout {
   note           String?
 
   @@unique([collaboratorId, month])
+}
+
+// Receta de una elaboración: ingredientes (o elaboraciones) y cantidades de un lote.
+model PrepLine {
+  id           String     @id @default(cuid())
+  tenantId     String
+  prepId       String
+  prep         Ingredient @relation("PrepOf", fields: [prepId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient   Ingredient @relation("PrepComponent", fields: [ingredientId], references: [id], onDelete: Cascade)
+  quantity     Float // en la unidad base del ingrediente, para el lote de referencia
+  sortOrder    Int        @default(0)
+
+  @@index([prepId])
+  @@index([ingredientId])
 }
