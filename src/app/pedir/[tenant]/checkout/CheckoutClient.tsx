@@ -9,6 +9,7 @@ import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import { formatModifier } from "@/app/lib/menuOptions";
 import { couponDiscount } from "@/app/lib/retention";
+import { captureCollabFromUrl, checkCollab, saveCollab, type Collab } from "../collab";
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
 import type { PublicPerks } from "@/app/lib/perks";
@@ -97,6 +98,15 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   // Cupón y tarjeta regalo plegados salvo que ya haya uno aplicado o un error que enseñar.
   const showExtras = extrasOpen || !!coupon || !!gift || !!couponError || !!giftError;
   const [couponLoading, setCouponLoading] = useState(false);
+  // Colaborador (RRPP, hotel…): del enlace ?c= o escrito en el campo de código.
+  const [collab, setCollab] = useState<Collab | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void captureCollabFromUrl(tenant).then((c) => alive && setCollab(c));
+    return () => {
+      alive = false;
+    };
+  }, [tenant]);
   const [perkState, setPerkState] = useState<PerkState | null>(null);
   // Sin reparto propio: "A domicilio" muestra las plataformas en vez de un formulario.
   const [showPartners, setShowPartners] = useState(false);
@@ -198,9 +208,23 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
     setCouponLoading(true);
     setCouponError("");
     try {
+      // Sin cupones, o si no es un cupón: puede ser el código de un colaborador.
+      const asCollab = async () => {
+        const c = await checkCollab(tenant, code);
+        if (!c) return false;
+        saveCollab(tenant, c);
+        setCollab(c);
+        setCouponInput("");
+        return true;
+      };
+      if (!couponsEnabled) {
+        if (!(await asCollab())) setCouponError(T.codeNotFound);
+        return;
+      }
       const res = await fetch(`/api/coupons/${tenant}?code=${encodeURIComponent(code)}&subtotal=${subtotal}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (res.status === 404 && (await asCollab())) return;
         setCoupon(null);
         setCouponError(data.error ?? T.couponError);
         return;
@@ -266,6 +290,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           storeId: storeId ?? undefined,
           tipPercent: tipPct || undefined,
           giftCardCode: gift?.code,
+          collaboratorCode: collab?.code,
           // Solo qué se pide: el servidor pone nombres y precios desde la carta.
           items: items.map((item) => ({
             productId: item.productId,
@@ -616,13 +641,26 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           )}
 
           {/* CUPÓN Y TARJETA REGALO: plegados en un enlace (casi nadie tiene código) */}
-          {(couponsEnabled || giftCardsEnabled) && (
+          {/* Código de colaborador ya puesto (por su enlace o escrito) */}
+          {collab && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 16px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+              <div style={{ minWidth: 0, fontSize: "14px" }}>
+                {T.collabApplied} <span style={{ fontWeight: 700, letterSpacing: "0.04em" }}>{collab.code}</span>
+              </div>
+              <button type="button" onClick={() => { saveCollab(tenant, null); setCollab(null); }} style={{ background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer", flexShrink: 0, minHeight: "44px" }}>
+                {T.remove}
+              </button>
+            </div>
+          )}
+
+          {/* CUPÓN, CÓDIGO Y TARJETA REGALO: plegados en un enlace (casi nadie tiene código) */}
+          {(couponsEnabled || giftCardsEnabled || !collab) && (
             showExtras ? (
               <>
-          {/* CUPÓN */}
-          {couponsEnabled && (
+          {/* CUPÓN (o código de colaborador) */}
+          {(couponsEnabled || !collab) && (
             <div>
-              <div style={labelStyle}>{T.couponTitle}</div>
+              <div style={labelStyle}>{couponsEnabled ? T.couponTitle : T.codeTitle}</div>
               {coupon ? (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 16px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
                   <div style={{ minWidth: 0 }}>
@@ -706,7 +744,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
               </>
             ) : (
               <button type="button" onClick={() => setExtrasOpen(true)} style={{ alignSelf: "flex-start", minHeight: "44px", background: "none", border: "none", padding: "0 2px", color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", textDecoration: "underline", textUnderlineOffset: "3px", cursor: "pointer" }}>
-                {couponsEnabled && giftCardsEnabled ? T.haveCodeOrGift : couponsEnabled ? T.haveCode : T.haveGift}
+                {couponsEnabled && giftCardsEnabled ? T.haveCodeOrGift : couponsEnabled ? T.haveCode : giftCardsEnabled ? T.haveCodeOrGift : T.haveAnyCode}
               </button>
             )
           )}

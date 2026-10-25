@@ -35,7 +35,7 @@ export async function proxy(req: NextRequest) {
   const host = (req.headers.get("host") ?? "").split(":")[0].toLowerCase();
 
   // 1) Dominio propio: todo lo que no sea tienda, API ni panel abre la tienda.
-  if (host && !isPlatformHost(host) && !/^\/(pedir|api|admin|pwa)(\/|$)/.test(pathname)) {
+  if (host && !isPlatformHost(host) && !/^\/(pedir|api|admin|pwa|colaborador)(\/|$)/.test(pathname)) {
     const slug = await slugForDomain(req, host);
     if (slug) {
       const url = req.nextUrl.clone();
