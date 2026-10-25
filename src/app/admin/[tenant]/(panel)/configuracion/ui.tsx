@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import { ask } from "@/app/lib/dialog";
 
 // Piezas comunes de los apartados de Configuración (estilo Shopify: tarjetas
 // blancas con título, explicación y botón de guardar).
@@ -107,6 +109,7 @@ export function SaveBarHost() {
   const dirty = pending.length > 0;
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ text: string; ok: boolean; id: number } | null>(null);
+  const router = useRouter();
 
   // Avisos flotantes (se van solos).
   useEffect(() => {
@@ -120,17 +123,21 @@ export function SaveBarHost() {
     return () => clearTimeout(t);
   }, [note]);
 
-  // Con cambios sin guardar: aviso al cerrar la pestaña o al irse a otro apartado.
+  // Con cambios sin guardar: aviso al irse a otro apartado (el de cerrar la
+  // pestaña lo pone el navegador y no se puede cambiar).
   useEffect(() => {
     if (!dirty) return;
     const beforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    // Enlaces del panel: se para la navegación y se pregunta con el aviso propio.
     const onClick = (e: MouseEvent) => {
       const a = (e.target as HTMLElement).closest("a[href]");
-      if (!a || a.getAttribute("target") === "_blank") return;
-      if (!confirm("Tienes cambios sin guardar. ¿Salir sin guardarlos?")) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      if (!a || a.getAttribute("target") === "_blank" || e.metaKey || e.ctrlKey) return;
+      const href = a.getAttribute("href") ?? "";
+      e.preventDefault();
+      e.stopPropagation();
+      void ask("Tienes cambios sin guardar. ¿Salir sin guardarlos?").then((ok) => {
+        if (ok) router.push(href);
+      });
     };
     window.addEventListener("beforeunload", beforeUnload);
     document.addEventListener("click", onClick, true);
@@ -138,7 +145,7 @@ export function SaveBarHost() {
       window.removeEventListener("beforeunload", beforeUnload);
       document.removeEventListener("click", onClick, true);
     };
-  }, [dirty]);
+  }, [dirty, router]);
 
   async function saveAll() {
     setBusy(true);

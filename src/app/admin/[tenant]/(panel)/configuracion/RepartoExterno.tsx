@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { toast, useSaveBar } from "./ui";
 
@@ -79,8 +80,8 @@ export default function RepartoExterno({ tenant }: { tenant: string }) {
       return true;
     },
   });
-  const generate = () => {
-    if (view?.publicKeyPem && !confirm("¿Generar claves nuevas? Tendrás que enviar la nueva clave pública a Glovo.")) return;
+  const generate = async () => {
+    if (view?.publicKeyPem && !(await ask("¿Generar claves nuevas? Tendrás que enviar la nueva clave pública a Glovo."))) return;
     send("keys", { method: "POST", body: JSON.stringify({ action: "generateKeys" }) }, (json) => {
       load({ ...(json as unknown as View) });
       return "Claves generadas. Envía la clave pública a Glovo.";

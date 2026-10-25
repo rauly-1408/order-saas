@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { SEGMENT_LABEL, type Segment } from "@/app/lib/retention";
 import { card, ghostBtn } from "./types";
@@ -69,7 +70,7 @@ export default function CampanaDetalle({ api, id, onBack }: { api: string; id: s
   }
 
   async function cancel() {
-    if (!window.confirm("¿Anular la campaña? Los mensajes que aún no has enviado se descartan.")) return;
+    if (!(await ask("¿Anular la campaña? Los mensajes que aún no has enviado se descartan."))) return;
     const res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "CANCELLED" }) });
     if (res.ok) await load();
   }

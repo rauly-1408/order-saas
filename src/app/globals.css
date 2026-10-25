@@ -282,3 +282,12 @@ summary {
     animation: none;
   }
 }
+
+/* Avisos propios (lib/dialog.tsx): el fondo aparece y la tarjeta sube */
+@keyframes p-dialog-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes p-dialog-rise { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+.p-dialog-fade { animation: p-dialog-fade 0.18s ease-out both; }
+.p-dialog-rise { animation: p-dialog-rise 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .p-dialog-rise { animation: p-dialog-fade 0.15s ease-out both; }
+}

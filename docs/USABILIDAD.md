@@ -52,3 +52,16 @@ Recorrido de las tarjetas del panel (Inicio, Pedidos, Caja, Informes, Clientes, 
 | 8 | Clientes | «Sin permiso» se leía como un permiso de usuario | Arreglado: «No quiere ofertas», con explicación al pasar el ratón |
 
 Sin cambios: tarjetas de pedido (rediseñadas en la PR #83), Caja, «Haz tuya tu tienda», Informes, Archivos, Configuración y tienda, que ya siguen la regla.
+
+## Avisos propios y conexión (2026-10-25)
+
+- **Nada de avisos del navegador.** Todas las confirmaciones del panel y de la tienda usan `ask()` de `lib/dialog.tsx` en vez de `window.confirm`. Eran 28, en borrar, cancelar, anular, vaciar, salir sin guardar, crear tokens o contraseñas y cerrar la caja o una mesa.
+  - Es una tarjeta centrada en el ordenador y una hoja desde abajo en el móvil, con botones de 48 px.
+  - Toma los colores del panel o de la tienda según desde dónde se abra.
+  - El texto se parte solo: la pregunta (desde «¿») es el título y lo demás, la explicación.
+  - El botón lleva el verbo de la pregunta («Borrar», «Sí, cancelar», «Salir sin guardar»…) y es rojo si la acción borra o deshace algo. En ese caso, el foco va a «Cancelar», para que un Intro despistado no confirme.
+  - Escape o tocar fuera cancela.
+- **Quedan dos del navegador**, porque no se pueden cambiar:
+  - El aviso al cerrar la pestaña o recargar con cambios sin guardar (`beforeunload`).
+  - La ventana de «Instalar la app».
+- **Errores de conexión en español.** `NetworkStatus` (layout raíz) traduce los fallos de red del navegador («Failed to fetch», «Load failed») a «No se ha podido conectar con el servidor…» o «Sin conexión a internet…». Mientras no hay internet, se muestra arriba «Sin conexión a internet: los cambios no se guardarán hasta que vuelva».

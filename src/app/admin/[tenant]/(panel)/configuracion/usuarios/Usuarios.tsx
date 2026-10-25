@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useEffect, useState } from "react";
 import { ROLE_LABEL } from "@/app/lib/roles";
 import { Card, Msg, ghostBtn, input, primaryBtn, toast } from "../ui";
@@ -121,7 +122,7 @@ export default function Usuarios({ tenant }: { tenant: string }) {
                       <input type="checkbox" checked={u.seesTakings} disabled={!!busy} onChange={(e) => call(`takings-${u.id}`, "PATCH", { id: u.id, seesTakings: e.target.checked })} className="accent-[var(--p-brand)]" />
                       Ve lo recaudado
                     </label>
-                    <button type="button" disabled={!!busy} onClick={() => confirm(`¿Crear una contraseña nueva para ${u.email}?`) && call(`pw-${u.id}`, "PATCH", { id: u.id, resetPassword: true }, u.email)} className={`${ghostBtn} !px-3 !py-1.5 text-xs`}>
+                    <button type="button" disabled={!!busy} onClick={async () => (await ask(`¿Crear una contraseña nueva para ${u.email}?`)) && call(`pw-${u.id}`, "PATCH", { id: u.id, resetPassword: true }, u.email)} className={`${ghostBtn} !px-3 !py-1.5 text-xs`}>
                       Nueva contraseña
                     </button>
                     <button type="button" disabled={!!busy} onClick={() => call(`act-${u.id}`, "PATCH", { id: u.id, active: !u.active })} className={`${ghostBtn} !px-3 !py-1.5 text-xs`}>

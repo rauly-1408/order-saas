@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
+import { ask } from "@/app/lib/dialog";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -354,7 +355,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
               <a href={`/pedir/${tenant}`} className="p-press" style={{ display: "inline-flex", alignItems: "center", minHeight: "44px", color: cssVars["--brand-accent"], fontWeight: 600, fontSize: "14px", textDecoration: "none" }}>
                 + {T.addMore}
               </a>
-              <button type="button" onClick={() => window.confirm(T.confirmClear) && clear()} className="p-press" style={{ minHeight: "44px", padding: "0 4px", background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer" }}>
+              <button type="button" onClick={async () => (await ask(T.confirmClear, { confirm: T.clearOrder, cancel: lang === "en" ? "Cancel" : "Cancelar", danger: true })) && clear()} className="p-press" style={{ minHeight: "44px", padding: "0 4px", background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer" }}>
                 {T.clearOrder}
               </button>
             </div>

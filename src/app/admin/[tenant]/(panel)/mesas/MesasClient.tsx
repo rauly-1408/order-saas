@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CuentaView from "./CuentaView";
 import SalaView from "./SalaView";
@@ -109,8 +110,8 @@ export default function MesasClient({ tenant }: { tenant: string }) {
             </select>
           )}
           {data?.canManage && data.tables.length > 0 && (
-            <button type="button" onClick={() => {
-                if (editing && planDirty.current && !window.confirm("Hay cambios en el plano sin guardar. ¿Salir sin guardarlos?")) return;
+            <button type="button" onClick={async () => {
+                if (editing && planDirty.current && !(await ask("Hay cambios en el plano sin guardar. ¿Salir sin guardarlos?"))) return;
                 planDirty.current = false;
                 setEditing((v) => !v);
               }} className={`p-press rounded-full px-4 py-2 text-sm font-semibold ${editing ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
@@ -150,8 +151,8 @@ export default function MesasClient({ tenant }: { tenant: string }) {
               {zones.map((z) => {
                 const n = (data.tables ?? []).filter((t) => t.zone === z && t.open).length;
                 return (
-                  <button key={z} type="button" onClick={() => {
-                    if (editing && planDirty.current && !window.confirm("Hay cambios en el plano sin guardar. ¿Cambiar de zona sin guardarlos?")) return;
+                  <button key={z} type="button" onClick={async () => {
+                    if (editing && planDirty.current && !(await ask("Hay cambios en el plano sin guardar. ¿Cambiar de zona sin guardarlos?", { confirm: "Cambiar sin guardar", danger: true }))) return;
                     planDirty.current = false;
                     setZone(z);
                   }} aria-pressed={z === currentZone} className={`p-press shrink-0 rounded-full px-4 py-1.5 text-sm font-medium ${z === currentZone ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"}`}>
@@ -649,7 +650,7 @@ function EditSheet({ table, zones, onClose, onSave, onRemove }: { table: Table; 
             <button type="button" disabled={busy || !name.trim()} onClick={() => run(() => onSave({ name: name.trim(), zone: zone.trim() || table.zone, seats, shape }))} className="p-press flex-1 rounded-2xl bg-[var(--p-brand)] py-3 text-sm font-semibold text-white disabled:opacity-50">
               Guardar
             </button>
-            <button type="button" disabled={busy} onClick={() => window.confirm(`¿Quitar la mesa ${table.name}?`) && run(onRemove)} className="p-press whitespace-nowrap rounded-2xl px-4 py-3 text-sm font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">
+            <button type="button" disabled={busy} onClick={async () => (await ask(`¿Quitar la mesa ${table.name}?`)) && run(onRemove)} className="p-press whitespace-nowrap rounded-2xl px-4 py-3 text-sm font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">
               Quitar mesa
             </button>
           </div>

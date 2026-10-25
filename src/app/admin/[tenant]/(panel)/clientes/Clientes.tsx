@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useMemo, useState } from "react";
 import { daysSince, SEGMENT_LABEL, type Segment } from "@/app/lib/retention";
 import { card, euros, SEGMENT_STYLE, type CustomerRow, type Overview } from "./types";
@@ -49,7 +50,7 @@ export default function Clientes({
   }, [data.customers, filter, query]);
 
   async function optOut(c: CustomerRow) {
-    if (!window.confirm(`¿Dar de baja a ${c.name ?? c.phone}? Dejará de recibir campañas.`)) return;
+    if (!(await ask(`¿Dar de baja a ${c.name ?? c.phone}? Dejará de recibir campañas.`))) return;
     setBusy(c.id);
     setError("");
     try {

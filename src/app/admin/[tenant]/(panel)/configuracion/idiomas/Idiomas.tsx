@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { readPanelCache, writePanelCache } from "../../panelCache";
 import { Card, Toggle, ghostBtn, input, toast, useSaveBar } from "../ui";
@@ -158,7 +159,7 @@ export default function Idiomas({ tenant }: { tenant: string }) {
               <button
                 type="button"
                 disabled={translating}
-                onClick={() => confirm("¿Volver a traducir toda la carta? Se pierden tus correcciones.") && translate("all")}
+                onClick={async () => (await ask("¿Volver a traducir toda la carta? Se pierden tus correcciones.", { confirm: "Traducir de nuevo", danger: true })) && translate("all")}
                 className={`${ghostBtn} text-xs`}
               >
                 Rehacer toda la traducción

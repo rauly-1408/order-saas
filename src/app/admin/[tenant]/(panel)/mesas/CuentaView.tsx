@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { STORE_VARS } from "../storeVars";
@@ -84,13 +85,13 @@ export default function CuentaView({ tenant, orderId, onBack, initialAction }: {
   }
 
   async function voidLine(l: CuentaLine) {
-    if (!window.confirm(`¿Anular ${l.quantity}× ${l.name}? Se imprime en cocina «ANULADO · NO PREPARAR».`)) return;
+    if (!(await ask(`¿Anular ${l.quantity}× ${l.name}? Se imprime en cocina «ANULADO · NO PREPARAR».`))) return;
     await act({ action: "void", lineId: l.id }, "Línea anulada");
   }
 
   async function closeEmpty() {
     const has = (data?.rounds.length ?? 0) > 0;
-    if (!window.confirm(has ? "¿Cerrar la mesa sin cobrar? Lo consumido no se cobrará (el stock vuelve)." : "¿Cerrar la mesa? No tiene nada pedido.")) return;
+    if (!(await ask(has ? "¿Cerrar la mesa sin cobrar? Lo consumido no se cobrará (el stock vuelve)." : "¿Cerrar la mesa? No tiene nada pedido.", { confirm: has ? "Cerrar sin cobrar" : "Cerrar la mesa", danger: has }))) return;
     const r = await act({ action: "cancel" });
     if (r) onBack({ closed: true });
   }

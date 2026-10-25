@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useEffect, useState } from "react";
 
 // Hoja «Caja»: abrir con un fondo, apuntar entradas y salidas de efectivo y
@@ -100,7 +101,7 @@ export default function CashSessionSheet({ tenant, state, onState, onClose }: { 
   async function closeCash() {
     const c = parseEuros(amount);
     if (c == null) return setError("Escribe el efectivo que has contado (puede ser 0).");
-    if (!confirm(`¿Cerrar la caja con ${euros(c)} contados en el cajón?`)) return;
+    if (!(await ask(`¿Cerrar la caja con ${euros(c)} contados en el cajón?`, { confirm: "Cerrar la caja" }))) return;
     const r = await post({ action: "close", countedCents: c, notes });
     if (r?.closed) {
       setClosed(r.closed);

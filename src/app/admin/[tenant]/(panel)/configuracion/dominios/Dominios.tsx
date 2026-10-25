@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/app/lib/dialog";
 import { useEffect, useState } from "react";
 import { Card, Msg, ghostBtn, input, primaryBtn, toast } from "../ui";
 
@@ -68,7 +69,7 @@ export default function Dominios({ tenant }: { tenant: string }) {
                   <button type="button" disabled={!!busy} onClick={() => send("check", "GET", undefined, "?check=1")} className={`${ghostBtn} !px-3 !py-1.5 text-xs`}>
                     {busy === "check" ? "Comprobando…" : "Comprobar"}
                   </button>
-                  <button type="button" disabled={!!busy} onClick={() => confirm(`¿Quitar ${d.host}?`) && send("del", "DELETE", { domain: d.host })} className={`${ghostBtn} !px-3 !py-1.5 text-xs`}>
+                  <button type="button" disabled={!!busy} onClick={async () => (await ask(`¿Quitar ${d.host}?`)) && send("del", "DELETE", { domain: d.host })} className={`${ghostBtn} !px-3 !py-1.5 text-xs`}>
                     Quitar
                   </button>
                 </div>
