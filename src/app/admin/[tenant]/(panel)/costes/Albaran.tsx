@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { lineMismatch, type ScanResult } from "@/app/lib/invoice";
+import { invoiceCheck, lineMismatch, lineVatCents, type LineKind, type ScanResult } from "@/app/lib/invoice";
 import { priceChangePct } from "@/app/lib/purchasing";
 import { UNIT_LABEL, euros, type BaseUnit, type Overview } from "./types";
 
@@ -16,6 +16,12 @@ const NEW = "__new__"; // valor del select para «crear nuevo»
 type NewIng = { name: string; baseUnit: BaseUnit; packSize: string; price: string; allergens: string[] };
 type Row = {
   description: string;
+  kind: LineKind; // EXPENSE: limpieza, bolsas… cuenta en la factura pero no entra al stock
+  docQuantity: number | null; // tal cual en la factura
+  docUnit: string | null;
+  unitPrice: number | null; // € sin IVA
+  vatPct: number | null;
+  lineTotalWithVatCents: number | null;
   ingredientId: string;
   newIng: NewIng | null; // ingrediente nuevo que se creará (solo si no hay ingredientId)
   quantity: string;
@@ -27,6 +33,8 @@ type Row = {
 
 const toEurosInput = (cents: number | null) => (cents == null ? "" : (cents / 100).toFixed(2).replace(".", ","));
 const parseNum = (v: string) => Number(v.replace(",", "."));
+const num = (n: number, max = 4) => n.toLocaleString("es-ES", { maximumFractionDigits: max });
+const pctText = (p: number) => `${num(p, 1)} %`;
 
 // Reduce la foto en el propio móvil y la devuelve en base64 (JPEG).
 async function imageToBase64(file: File): Promise<string> {
@@ -56,7 +64,7 @@ async function fileToBase64(file: File): Promise<string> {
   return btoa(bin);
 }
 
-export default function Albaran({ data, api, onSaved }: { data: Overview; api: string; onSaved: () => Promise<void> }) {
+export default function Albaran({ data, api, onSaved, onInvoice }: { data: Overview; api: string; onSaved: () => Promise<void>; onInvoice?: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<"idle" | "reading" | "review" | "applying">("idle");
   const [error, setError] = useState("");
@@ -92,6 +100,12 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
       setRows(
         result.lines.map((l) => ({
           description: l.description,
+          kind: l.kind,
+          docQuantity: l.docQuantity,
+          docUnit: l.docUnit,
+          unitPrice: l.unitPrice,
+          vatPct: l.vatPct,
+          lineTotalWithVatCents: l.lineTotalWithVatCents,
           ingredientId: l.ingredientId ?? "",
           newIng: l.newIngredient
             ? { name: l.newIngredient.name, baseUnit: l.newIngredient.baseUnit, packSize: String(l.newIngredient.packSize).replace(".", ","), price: toEurosInput(l.newIngredient.packPriceCents), allergens: l.newIngredient.allergens }
@@ -100,7 +114,7 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
           price: toEurosInput(l.packPriceCents),
           lineTotalCents: l.lineTotalCents,
           note: l.note,
-          include: (!!l.ingredientId || !!l.newIngredient) && l.quantity != null,
+          include: l.kind === "INGREDIENT" && (!!l.ingredientId || !!l.newIngredient) && l.quantity != null,
         }))
       );
       setStage("review");
@@ -113,7 +127,7 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
   }
 
   const newIngOk = (n: NewIng | null) => !!n && n.name.trim() !== "" && parseNum(n.packSize) > 0 && n.price.trim() !== "" && parseNum(n.price) >= 0;
-  const ready = rows.filter((r) => r.include && (r.ingredientId || newIngOk(r.newIng)) && parseNum(r.quantity) >= 0 && r.quantity.trim() !== "");
+  const ready = rows.filter((r) => r.kind === "INGREDIENT" && r.include && (r.ingredientId || newIngOk(r.newIng)) && parseNum(r.quantity) >= 0 && r.quantity.trim() !== "");
   const includedTotal = ready.reduce((acc, r) => {
     const ing = ingredients.get(r.ingredientId);
     const packSize = ing ? ing.packSize : parseNum(r.newIng!.packSize);
@@ -121,6 +135,8 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
     return price >= 0 && packSize > 0 ? acc + (parseNum(r.quantity) / packSize) * price * 100 : acc;
   }, 0);
   const toCreate = ready.filter((r) => !r.ingredientId).length;
+  const check = scan ? invoiceCheck({ totalCents: scan.totalCents, totalWithVatCents: scan.totalWithVatCents, lines: rows }) : null;
+  const expenseCount = rows.filter((r) => r.kind === "EXPENSE").length;
 
   async function apply() {
     setStage("applying");
@@ -133,6 +149,28 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
           supplierId: supplierId && supplierId !== NEW ? supplierId : null,
           newSupplierName: supplierId === NEW ? scan?.supplierName ?? null : null,
           documentNumber: docNumber || null,
+          // La factura entera, tal cual, para guardarla con su IVA.
+          invoice: scan && {
+            supplierName: scan.supplierName,
+            supplierTaxId: scan.supplierTaxId,
+            number: docNumber || scan.documentNumber,
+            date: scan.documentDate,
+            baseCents: scan.totalCents,
+            vatCents: scan.vatCents,
+            totalCents: scan.totalWithVatCents,
+            vatBreakdown: scan.vatBreakdown,
+            lines: rows.map((r) => ({
+              description: r.description,
+              kind: r.kind,
+              docQuantity: r.docQuantity,
+              docUnit: r.docUnit,
+              unitPrice: r.unitPrice,
+              vatPct: r.vatPct,
+              lineTotalCents: r.lineTotalCents,
+              lineTotalWithVatCents: r.lineTotalWithVatCents,
+              ingredientId: r.kind === "INGREDIENT" && r.include ? r.ingredientId || null : null,
+            })),
+          },
           lines: ready.map((r) =>
             r.ingredientId
               ? { ingredientId: r.ingredientId, quantity: parseNum(r.quantity), packPriceCents: r.price.trim() ? Math.round(parseNum(r.price) * 100) : null }
@@ -147,11 +185,13 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "No se pudo aplicar el albarán");
       await onSaved();
+      onInvoice?.();
       setDone(
-        `Albarán aplicado: ${json.stockLines} ${json.stockLines === 1 ? "entrada" : "entradas"} de stock` +
+        (json.invoiceSaved && json.totalCents != null ? `Factura guardada: ${euros(json.totalCents)}${json.vatCents != null ? ` (IVA ${euros(json.vatCents)})` : ""}. ` : "") +
+        (json.stockLines || json.created || json.priceChanges ? `${json.stockLines} ${json.stockLines === 1 ? "línea" : "líneas"} al stock` +
           (json.created ? `, ${json.created} ${json.created === 1 ? "ingrediente nuevo" : "ingredientes nuevos"}` : "") +
           (json.priceChanges ? ` y ${json.priceChanges} ${json.priceChanges === 1 ? "precio actualizado" : "precios actualizados"}` : "") +
-          (json.supplierCreated ? ". Proveedor dado de alta." : ".")
+          (json.supplierCreated ? ". Proveedor dado de alta." : ".") : json.supplierCreated ? "Proveedor dado de alta." : "")
       );
       setScan(null);
       setRows([]);
@@ -196,7 +236,7 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
       {(stage === "review" || stage === "applying") && scan && (
         <div>
           <div className="flex items-start justify-between gap-2">
-            <h2 className="text-[17px] font-semibold">Revisa el albarán</h2>
+            <h2 className="text-[17px] font-semibold">Revisa la factura</h2>
             <button onClick={() => { setStage("idle"); setScan(null); }} className="rounded-full px-3 py-1 text-sm text-[var(--p-muted)] hover:bg-black/[0.04]">
               Descartar
             </button>
@@ -215,13 +255,46 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
               </select>
             </label>
             <label className="block text-[13px] font-medium text-[var(--p-muted)]">
-              Nº de albarán
+              Nº de factura o albarán
               <input value={docNumber} onChange={(e) => setDocNumber(e.target.value)} className="mt-1 block w-full rounded-lg px-3 py-2 text-sm text-[var(--p-ink)]" />
             </label>
             <div className="text-[13px] font-medium text-[var(--p-muted)]">
               Fecha
               <p className="mt-1 py-2 text-sm text-[var(--p-ink)]">{scan.documentDate ? new Date(scan.documentDate).toLocaleDateString("es-ES") : "—"}</p>
             </div>
+          </div>
+
+          {/* La factura como la ve la gestoría: base, IVA por tipo y total, y si las líneas cuadran. */}
+          <div className="mt-4 rounded-xl bg-black/[0.03] p-3">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-[11px] font-medium text-[var(--p-muted)]">Base (sin IVA)</p>
+                <p className="text-base font-semibold tabular-nums">{scan.totalCents != null ? euros(scan.totalCents) : "—"}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-[var(--p-muted)]">IVA</p>
+                <p className="text-base font-semibold tabular-nums">{scan.vatCents != null ? euros(scan.vatCents) : "—"}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-[var(--p-muted)]">Total factura</p>
+                <p className="text-base font-semibold tabular-nums">{scan.totalWithVatCents != null ? euros(scan.totalWithVatCents) : "—"}</p>
+              </div>
+            </div>
+            {scan.vatBreakdown.length > 0 && (
+              <p className="mt-2 text-center text-xs text-[var(--p-muted)] tabular-nums">
+                {scan.vatBreakdown.map((v) => `IVA ${pctText(v.pct)}: ${euros(v.vatCents)} de ${euros(v.baseCents)}`).join(" · ")}
+              </p>
+            )}
+            {check && (
+              <p className={`mt-2 rounded-lg px-3 py-2 text-center text-xs font-semibold ${check.ok ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
+                {check.ok
+                  ? `✓ Las ${rows.length} líneas suman lo mismo que la factura`
+                  : check.diffCents != null
+                    ? `Las líneas no cuadran con el total: ${check.diffCents > 0 ? "faltan" : "sobran"} ${euros(Math.abs(check.diffCents))}. Revisa si falta alguna línea o un descuento.`
+                    : "No he podido comprobar el total. Revisa las líneas."}
+              </p>
+            )}
+            {expenseCount > 0 && <p className="mt-2 text-center text-xs text-[var(--p-muted)]">{expenseCount} {expenseCount === 1 ? "línea es un gasto" : "líneas son gastos"} (limpieza, bolsas…): cuentan en la factura pero no entran al stock.</p>}
           </div>
 
           <ul className="mt-4 space-y-3">
@@ -232,13 +305,34 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
               const mismatch = ing ? lineMismatch({ quantity: parseNum(r.quantity), packPriceCents: Math.round(price * 100), lineTotalCents: r.lineTotalCents }, ing.packSize) : false;
               return (
                 <li key={i} className={`rounded-xl border p-3 ${r.include ? "border-[var(--p-brand)]/30 bg-[var(--p-brand-soft)]/40" : "border-[var(--p-line)]"}`}>
-                  <label className="flex items-start gap-2">
-                    <input type="checkbox" checked={r.include} onChange={(e) => update(i, { include: e.target.checked })} className="mt-1 h-4 w-4 accent-[var(--p-brand)]" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium">{r.description}</span>
-                      {r.lineTotalCents != null && <span className="text-xs text-[var(--p-muted)]">Importe en el albarán: {euros(r.lineTotalCents)}</span>}
-                    </span>
-                  </label>
+                  <div className="flex items-start gap-2">
+                    {r.kind === "INGREDIENT" ? (
+                      <input type="checkbox" checked={r.include} onChange={(e) => update(i, { include: e.target.checked })} aria-label={`Meter «${r.description}» en el stock`} className="mt-1 h-4 w-4 shrink-0 accent-[var(--p-brand)]" />
+                    ) : (
+                      <span className="mt-0.5 shrink-0 rounded-full bg-black/[0.06] px-2 py-0.5 text-[11px] font-semibold text-[var(--p-muted)]">Gasto</span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{r.description}</p>
+                      {/* Lo que pone la factura, sin convertir: así se reconoce lo comprado. */}
+                      <p className="text-xs text-[var(--p-muted)] tabular-nums">
+                        {r.docQuantity != null && <>{num(r.docQuantity, 3)} {r.docUnit ?? "ud."}</>}
+                        {r.unitPrice != null && <> × {num(r.unitPrice)} €</>}
+                        {r.lineTotalCents != null && <> = {euros(r.lineTotalCents)}</>}
+                        {r.vatPct != null && <> + IVA {pctText(r.vatPct)}{lineVatCents(r) != null && <> ({euros(lineVatCents(r)!)})</>}</>}
+                        {r.lineTotalWithVatCents != null && <> · <span className="font-semibold text-[var(--p-ink)]">{euros(r.lineTotalWithVatCents)}</span></>}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => update(i, r.kind === "EXPENSE" ? { kind: "INGREDIENT", include: false } : { kind: "EXPENSE", include: false })}
+                      className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--p-brand)] hover:bg-[var(--p-brand-soft)]"
+                    >
+                      {r.kind === "EXPENSE" ? "Es un ingrediente" : "No es ingrediente"}
+                    </button>
+                  </div>
+                  {r.kind === "EXPENSE" && <p className="mt-1 text-xs text-[var(--p-muted)]">Cuenta en la factura y en el IVA, pero no entra al stock.</p>}
+                  {r.kind === "INGREDIENT" && (
+                  <>
                   <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_9rem_9rem] sm:items-end">
                     <select
                       value={r.ingredientId || (r.newIng ? NEW : "")}
@@ -256,7 +350,7 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
                       ))}
                     </select>
                     <label className="block text-[11px] font-medium text-[var(--p-muted)]">
-                      Cantidad recibida
+                      Entra al stock
                       <span className="mt-0.5 flex items-center gap-1">
                         <input inputMode="decimal" value={r.quantity} onChange={(e) => update(i, { quantity: e.target.value })} className="w-full min-w-0 rounded-lg px-2 py-2 text-sm text-[var(--p-ink)]" />
                         <span className="w-6 text-xs">{ing ? UNIT_LABEL[ing.baseUnit] : r.newIng ? UNIT_LABEL[r.newIng.baseUnit] : ""}</span>
@@ -313,6 +407,8 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
                       )}
                     </p>
                   )}
+                  </>
+                  )}
                   {mismatch && <p className="mt-1 text-xs text-amber-700">La cantidad × precio no cuadra con el importe del albarán. Revísalo.</p>}
                   {r.note && <p className="mt-1 text-xs text-amber-700">{r.note}</p>}
                 </li>
@@ -322,12 +418,11 @@ export default function Albaran({ data, api, onSaved }: { data: Overview; api: s
 
           <div className="mt-4 flex flex-col gap-3 border-t border-[var(--p-line)] pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-[var(--p-muted)]">
-              {ready.length} {ready.length === 1 ? "línea marcada" : "líneas marcadas"}
-              {toCreate > 0 && <> ({toCreate} {toCreate === 1 ? "ingrediente nuevo" : "ingredientes nuevos"})</>} · {euros(Math.round(includedTotal))}
-              {scan.totalCents != null && <> · total del albarán {euros(scan.totalCents)} (sin IVA)</>}
+              Al stock: {ready.length} {ready.length === 1 ? "línea" : "líneas"}
+              {toCreate > 0 && <> ({toCreate} {toCreate === 1 ? "ingrediente nuevo" : "ingredientes nuevos"})</>} · {euros(Math.round(includedTotal))} sin IVA
             </p>
-            <button onClick={apply} disabled={stage === "applying" || ready.length === 0} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-              {stage === "applying" ? "Aplicando…" : "Aplicar: entrada de stock y precios"}
+            <button onClick={apply} disabled={stage === "applying" || rows.length === 0} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              {stage === "applying" ? "Guardando…" : ready.length ? "Guardar factura y meter en stock" : "Guardar factura"}
             </button>
           </div>
         </div>

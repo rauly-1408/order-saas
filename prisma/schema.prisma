@@ -1294,3 +1294,25 @@ model ClientRequest {
 
   @@index([tenantId, createdAt])
 }
+
+// Facturas y albaranes de proveedor leídos con IA (Costes → Compras), tal cual:
+// líneas con sus unidades, precio, IVA e importe; base, IVA por tipo y total.
+// Ver docs/MODULO-COSTES.md
+model SupplierInvoice {
+  id            String    @id @default(cuid())
+  tenantId      String
+  supplierId    String?
+  supplierName  String
+  supplierTaxId String?
+  number        String?
+  date          DateTime?
+  baseCents     Int // base imponible (sin IVA)
+  vatCents      Int // cuota de IVA (IVA soportado)
+  totalCents    Int // total pagado
+  expenseCents  Int       @default(0) // base de lo que no es ingrediente (limpieza, bolsas…)
+  vatBreakdown  Json // [{ pct, baseCents, vatCents }]
+  lines         Json // [{ description, kind, docQuantity, docUnit, unitPrice, vatPct, lineTotalCents, lineTotalWithVatCents, ingredientId }]
+  createdAt     DateTime  @default(now())
+
+  @@index([tenantId, date])
+}

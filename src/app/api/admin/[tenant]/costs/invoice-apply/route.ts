@@ -5,6 +5,7 @@ import { costsTenant } from "@/app/lib/costsApi";
 import { normalizeAllergens } from "@/app/lib/costs";
 import { applyStockDeltas } from "@/app/lib/inventory";
 import { recordPriceChange } from "@/app/lib/purchasing";
+import { sanitizeInvoiceRecord } from "@/app/lib/invoice";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,10 +16,13 @@ type NewIngredient = { name: string; baseUnit: BaseUnit; packSize: number; packP
 type Line = { ingredientId: string | null; newIngredient: NewIngredient | null; quantity: number; packPriceCents: number | null };
 
 // POST { supplierId?, newSupplierName?, documentNumber?,
-//        lines: [{ ingredientId?, newIngredient?, quantity, packPriceCents? }] }
+//        lines: [{ ingredientId?, newIngredient?, quantity, packPriceCents? }],
+//        invoice?: { supplierName, supplierTaxId, number, date, baseCents, vatCents, totalCents, vatBreakdown, lines } }
 // Aplica un albarán ya revisado: da de alta los ingredientes nuevos (y el
 // proveedor si no existía), entrada de stock (RECEIPT) y, si cambió el precio
-// de un formato, actualiza el ingrediente y lo deja en el historial.
+// de un formato, actualiza el ingrediente y lo deja en el historial. Con
+// `invoice`, guarda además la factura tal cual (unidades, IVA y total) como
+// gasto; la misma factura (proveedor + nº) no se aplica dos veces.
 export async function POST(req: NextRequest) {
   const ctx = await costsTenant(req);
   if ("error" in ctx) return ctx.error;
@@ -49,7 +53,21 @@ export async function POST(req: NextRequest) {
     }
     lines.push({ ingredientId, newIngredient, quantity, packPriceCents: price });
   }
-  if (!lines.length) return NextResponse.json({ error: "No hay líneas que aplicar" }, { status: 400 });
+  const invoice = sanitizeInvoiceRecord(b.invoice, typeof b.newSupplierName === "string" ? b.newSupplierName : null);
+  if (!lines.length && !invoice) return NextResponse.json({ error: "No hay líneas que aplicar" }, { status: 400 });
+  if (invoice?.number) {
+    const dup = await prisma.supplierInvoice.findFirst({
+      where: {
+        tenantId,
+        number: invoice.number,
+        OR: [{ supplierName: { equals: invoice.supplierName, mode: "insensitive" } }, ...(typeof b.supplierId === "string" && b.supplierId ? [{ supplierId: b.supplierId }] : [])],
+      },
+      select: { createdAt: true },
+    });
+    if (dup) {
+      return NextResponse.json({ error: `Esta factura ya se registró el ${dup.createdAt.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })}. No se ha aplicado otra vez para no duplicar el stock.` }, { status: 409 });
+    }
+  }
 
   const existingIds = [...new Set(lines.flatMap((l) => (l.ingredientId ? [l.ingredientId] : [])))];
   const ingredients = await prisma.ingredient.findMany({
@@ -117,7 +135,27 @@ export async function POST(req: NextRequest) {
       await tx.ingredient.updateMany({ where: { id: { in: [...deltas.keys()] }, tenantId }, data: { trackStock: true } });
       await applyStockDeltas(tx, tenantId, deltas, "RECEIPT", { note });
     }
+
+    // 3) La factura, tal cual, como gasto (con su IVA).
+    if (invoice) {
+      await tx.supplierInvoice.create({
+        data: {
+          tenantId,
+          supplierId: supplier?.id ?? null,
+          supplierName: supplier?.name ?? invoice.supplierName,
+          supplierTaxId: invoice.supplierTaxId,
+          number: invoice.number ?? docNumber,
+          date: invoice.date,
+          baseCents: invoice.baseCents,
+          vatCents: invoice.vatCents,
+          totalCents: invoice.totalCents,
+          expenseCents: invoice.expenseCents,
+          vatBreakdown: invoice.vatBreakdown,
+          lines: invoice.lines,
+        },
+      });
+    }
   });
 
-  return NextResponse.json({ ok: true, stockLines: lines.filter((l) => l.quantity > 0).length, priceChanges, created, supplierCreated });
+  return NextResponse.json({ ok: true, invoiceSaved: !!invoice, totalCents: invoice?.totalCents ?? null, vatCents: invoice?.vatCents ?? null, stockLines: lines.filter((l) => l.quantity > 0).length, priceChanges, created, supplierCreated });
 }
