@@ -9,6 +9,7 @@ import { comboChoicesKey, type ChoiceProduct, type ComboChoice, type ComboSlotDe
 import type { HoyPayment, HoyResponse } from "@/app/api/admin/[tenant]/caja/hoy/route";
 import CashSessionSheet, { type CashState } from "./CashSessionSheet";
 import { STORE_VARS } from "../storeVars";
+import { OUTBOX_SENT, loadLocal, saveLocal, sendOrQueue } from "../outbox";
 
 // Caja: tomar un pedido en el mostrador o por teléfono, cobrarlo y mandarlo a
 // cocina. Tres pantallas en el ticket: pedido → cobro → confirmación, como en
@@ -68,7 +69,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const [tendered, setTendered] = useState("");
   const [sending, setSending] = useState(false);
   const [step, setStep] = useState<Step>("order");
-  const [done, setDone] = useState<{ orderNumber: number | null; totalCents: number; changeCents: number | null; payment: Payment; invoiceNumber?: string | null } | null>(null);
+  const [done, setDone] = useState<{ orderNumber: number | null; totalCents: number; changeCents: number | null; payment: Payment; invoiceNumber?: string | null; queued?: boolean } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false); // ticket en el móvil
   const [hoy, setHoy] = useState<HoyResponse | null>(null);
   const [hideTakings, setHideTakings] = useState(false); // ojo tachado: importes tapados
@@ -130,10 +131,18 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
       .then((d) => {
         if (!alive) return;
         const cats = (d.categories ?? []) as Category[];
+        saveLocal(`menu:${tenant}`, cats); // para vender sin conexión
         setCategories(cats);
         setCat(cats[0]?.slug ?? "");
       })
-      .catch((e) => alive && setError(e instanceof Error ? e.message : "No se pudo cargar la carta"));
+      .catch((e) => {
+        if (!alive) return;
+        const saved = loadLocal<Category[]>(`menu:${tenant}`);
+        if (saved) {
+          setCategories(saved);
+          setCat(saved[0]?.slug ?? "");
+        } else setError(e instanceof Error ? e.message : "No se pudo cargar la carta");
+      });
     return () => {
       alive = false;
     };
@@ -153,6 +162,11 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   useEffect(() => {
     if (hoyOpen) loadHoy();
   }, [hoyOpen, loadHoy]);
+  // Ventas guardadas sin conexión ya enviadas: «Hoy en caja» al día.
+  useEffect(() => {
+    window.addEventListener(OUTBOX_SENT, loadHoy);
+    return () => window.removeEventListener(OUTBOX_SENT, loadHoy);
+  }, [loadHoy]);
 
   // Productos simples de la carta: lo que se puede elegir dentro de un menú.
   const catalog = useMemo(() => new Map<string, ChoiceProduct>((categories ?? []).flatMap((c) => c.products.filter((p) => !p.isCombo).map((p) => [p.id, { id: p.id, name: p.name, modifierGroups: p.modifierGroups }]))), [categories]);
@@ -261,10 +275,9 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     setSending(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/${tenant}/caja`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const sent = await sendOrQueue<{ orderNumber: number | null; totalCents: number; changeCents: number | null; invoiceNumber?: string | null }>(
+        `/api/admin/${tenant}/caja`,
+        {
           items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity, optionIds: l.optionIds, ...(l.comboChoices && { comboChoices: l.comboChoices }), ...(l.note && { note: l.note }), ...(l.discountCents && { discountCents: l.discountCents }) })),
           source,
           channel: mode === "DELIVERY" ? "DELIVERY" : "TAKEAWAY",
@@ -276,11 +289,11 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           couponCode: coupon,
           paymentMethod: payment,
           ...(tenderedCents != null && { cashTenderedCents: tenderedCents }),
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error ?? "No se pudo crear el pedido");
-      setDone({ orderNumber: json.orderNumber, totalCents: json.totalCents, changeCents: json.changeCents, payment, invoiceNumber: json.invoiceNumber ?? null });
+        },
+        `Caja · ${count} ${count === 1 ? "producto" : "productos"} · ${euros(subtotal)}`
+      );
+      if (sent.queued) setDone({ orderNumber: null, totalCents: subtotal, changeCents: change, payment, queued: true });
+      else setDone({ orderNumber: sent.data.orderNumber, totalCents: sent.data.totalCents, changeCents: sent.data.changeCents, payment, invoiceNumber: sent.data.invoiceNumber ?? null });
       reset();
       setStep("done");
       loadHoy();
@@ -542,9 +555,25 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   // ── Pantalla 3: hecho ───────────────────────────────────────────────────
   const doneView = done && (
     <div className="flex h-full flex-col items-center justify-center text-center" role="status">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl text-emerald-700">✓</div>
-      <p className="mt-4 text-sm text-[var(--p-muted)]">Enviado a cocina</p>
-      <p className="text-3xl font-semibold">Pedido nº {done.orderNumber}</p>
+      {done.queued ? (
+        <>
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-700" aria-hidden>
+            <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+          </div>
+          <p className="mt-4 text-sm text-[var(--p-muted)]">Sin conexión</p>
+          <p className="text-3xl font-semibold">Pedido guardado</p>
+          <p className="mt-1 max-w-xs text-sm text-[var(--p-muted)]">Saldrá en cocina y tendrá número en cuanto vuelva internet. No cierres esta página.</p>
+        </>
+      ) : (
+        <>
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl text-emerald-700">✓</div>
+          <p className="mt-4 text-sm text-[var(--p-muted)]">Enviado a cocina</p>
+          <p className="text-3xl font-semibold">Pedido nº {done.orderNumber}</p>
+        </>
+      )}
       {done.invoiceNumber && <p className="mt-1 text-xs text-[var(--p-muted)]">Factura simplificada {done.invoiceNumber}</p>}
       {done.changeCents != null && done.changeCents > 0 ? (
         <div className="mt-6 w-full rounded-2xl bg-emerald-50 px-4 py-5 text-emerald-800">

@@ -7,6 +7,7 @@ import { Anton, Inter } from "next/font/google";
 import { panelBrand, panelCssVars } from "@/app/lib/panelTheme";
 import AdminSidebar from "./AdminSidebar";
 import OrderAlerts from "./OrderAlerts";
+import OutboxBar from "./OutboxBar";
 
 // Texto: tipografía del sistema de Apple (SF) con Inter como respaldo fuera de
 // Apple. Titulares de marca: condensada en mayúsculas, como la carta impresa.
@@ -66,6 +67,7 @@ export default async function AdminLayout({
         <div className="p-page mx-auto max-w-6xl">{children}</div>
       </main>
       <OrderAlerts tenant={tenant} />
+      <OutboxBar />
     </div>
   );
 }

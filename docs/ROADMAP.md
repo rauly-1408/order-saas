@@ -219,6 +219,7 @@ Cuando el volumen lo justifique, evaluar un módulo de facturación compatible c
 | 2026-10-18 | Pagos online como Shopify: cada restaurante conecta su pasarela (Redsys con Bizum, Stripe o modo prueba); comisión del 3 % apuntada y facturada aparte (ver PAGOS.md). Configuración pasa abajo en la barra lateral, por apartados | Sustituye a Stripe Connect: en España casi todos los restaurantes tienen ya TPV del banco (Redsys) y quieren elegir. El dinero va directo al restaurante (merchant of record) |
 | 2026-10-17 | Repartidor externo: Glovo On-Demand y modo prueba; se pide al aceptar el pedido, y el panel y el cliente siguen el viaje (ver REPARTO-EXTERNO.md) | Estafetén no tendrá motos propias. Pedir en nuestra tienda y contratar solo el viaje evita la comisión del 25-35 % y conserva el cliente. Cada restaurante firma con Glovo y el cliente paga el envío fijo de su zona |
 | 2026-10-16 | Seguimiento en vivo del pedido, aviso en el navegador y reseñas propias con salto a Google para 4-5★ (ver SEGUIMIENTO-Y-RESENAS.md) | Sin cuentas externas: mejora la experiencia y la nota en Google ya. El aviso por WhatsApp llegará con la Business API |
+| 2026-10-25 | Impresión por categoría (barra y cocina) y modo sin conexión en Mesas y Caja: cola en el aparato, reenvío automático sin duplicados (`ClientRequest`) y plan B con router 4G (ver IMPRESION.md y SIN-CONEXION.md) | Un sábado lleno no puede pararse por la wifi, y en sala la bebida debe salir en la barra y la comida en cocina |
 
 ---
 

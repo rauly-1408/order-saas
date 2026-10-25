@@ -43,6 +43,8 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - Si se sale del editor o se cambia de zona con cambios sin guardar, avisa.
   - **Tocar una mesa** para cambiarle el nombre, la zona, las plazas o la forma, o quitarla. Si tiene historial se desactiva en vez de borrarse.
 
+**Sin conexión.** Si se cae internet se sigue abriendo mesas y mandando rondas: se guardan en el aparato y salen en cocina solas al volver, sin duplicarse. Ver `docs/SIN-CONEXION.md`.
+
 ## Reglas
 
 - **Una cuenta abierta por mesa.** Si dos camareros abren la misma mesa a la vez, el segundo ve «La mesa 4 ya está abierta». Lo frenan un índice único en la base de datos (`Order_open_table_key`) y la comprobación previa.
@@ -79,6 +81,5 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
 
 - Juntar mesas y pasar parte de una cuenta a otra mesa.
 - Propinas por camarero y un informe por camarero.
-- Pantalla de cocina en lugar de papel, e impresora de bebidas por categoría.
+- Pantalla de cocina en lugar de papel.
 - Reservas.
-- Modo sin conexión: un servicio lleno no puede depender de la wifi, así que de momento conviene un router 4G de respaldo.

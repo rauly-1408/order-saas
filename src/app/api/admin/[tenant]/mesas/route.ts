@@ -1,11 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { canManageTenant } from "@/app/lib/roles";
 import { listStores, storeForSession } from "@/app/lib/stores";
 import { cleanText } from "@/app/lib/text";
-import { MAX_TABLES_PER_STORE, TableError, openTable, tableNames } from "@/app/lib/tables";
+import { MAX_TABLES_PER_STORE, TableError, addRound, openTable, tableNames } from "@/app/lib/tables";
+import { once, requestIdOf } from "@/app/lib/idempotency";
+import { prepareRound, type RoundInput } from "@/app/lib/tableRound";
+import { enqueueTablePrint } from "@/app/lib/printing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 async function context(req: NextRequest) {
   const slug = new URL(req.url).pathname.split("/").at(-2) ?? "";
-  const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true, settings: true } });
+  const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true, settings: true, addons: true } });
   if (!tenant) return { error: NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 }) };
   const session = await getSessionFromRequest(req);
   if (!session) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }) };
@@ -137,6 +140,8 @@ type Body = {
   to?: number;
   seats?: number;
   name?: string;
+  round?: RoundInput; // abrir y enviar la primera ronda a la vez (mesa abierta sin conexión)
+  requestId?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -152,8 +157,32 @@ export async function POST(req: NextRequest) {
       if (!table || table.tenantId !== tenant.id) return NextResponse.json({ error: "Mesa no encontrada" }, { status: 404 });
       if (session.storeId && session.storeId !== table.storeId) return NextResponse.json({ error: "Esa mesa es de otro local" }, { status: 403 });
       const currency = ((tenant.settings as Record<string, unknown>)?.currency as string) ?? "EUR";
-      const order = await openTable(tenant.id, b.tableId, Number(b.guests) || 1, session.userId, currency);
-      return NextResponse.json({ orderId: order.id, orderNumber: order.orderNumber });
+      const round = b.round;
+      if (!round) {
+        const order = await openTable(tenant.id, b.tableId, Number(b.guests) || 1, session.userId, currency);
+        return NextResponse.json({ orderId: order.id, orderNumber: order.orderNumber });
+      }
+      const tableId = b.tableId;
+      return await once(tenant.id, requestIdOf(b.requestId), async () => {
+        const prepared = await prepareRound(tenant.id, round, canManageTenant(session.role));
+        if ("error" in prepared) return NextResponse.json({ error: prepared.error }, { status: 400 });
+        // Si otro camarero la abrió mientras no había conexión, la ronda se suma a esa cuenta.
+        const openOrder = () => prisma.order.findFirst({ where: { tableId, status: "OPEN" }, select: { id: true, orderNumber: true } });
+        let order = await openOrder();
+        if (!order) {
+          try {
+            order = await openTable(tenant.id, tableId, Number(b.guests) || 1, session.userId, currency);
+          } catch (err) {
+            if (!(err instanceof TableError)) throw err;
+            order = await openOrder();
+            if (!order) throw err;
+          }
+        }
+        const r = await addRound(tenant.id, order.id, prepared.lines, tenant.addons.includes("COSTS") ? prepared.consumption : [], session.userId);
+        const orderId = order.id;
+        after(() => enqueueTablePrint(orderId, { kind: "ROUND", round: r.round }));
+        return NextResponse.json({ orderId, orderNumber: order.orderNumber, round: r.round });
+      });
     }
 
     // Configurar las mesas: solo quien gestiona el restaurante.

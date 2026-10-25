@@ -17,6 +17,7 @@ function friendly(): string {
 
 export default function NetworkStatus() {
   const [offline, setOffline] = useState(false);
+  const [panel, setPanel] = useState(false); // en el panel hay cola sin conexión (Mesas y Caja)
 
   useEffect(() => {
     const original = window.fetch as Fetch;
@@ -33,7 +34,10 @@ export default function NetworkStatus() {
       wrapped.__friendly = true;
       window.fetch = wrapped;
     }
-    const sync = () => setOffline(navigator.onLine === false);
+    const sync = () => {
+      setOffline(navigator.onLine === false);
+      setPanel(Boolean(document.querySelector(".panel")));
+    };
     sync();
     window.addEventListener("online", sync);
     window.addEventListener("offline", sync);
@@ -46,8 +50,8 @@ export default function NetworkStatus() {
   if (!offline) return null;
   return (
     <div role="status" className="pointer-events-none fixed inset-x-0 top-0 z-[999] flex justify-center px-3 pt-[max(8px,env(safe-area-inset-top))]">
-      <span className="rounded-full bg-[#1d1d1f] px-4 py-2 text-sm font-semibold text-white shadow-lg">
-        ⚠︎ Sin conexión a internet: los cambios no se guardarán hasta que vuelva
+      <span className="max-w-xl rounded-full bg-[#1d1d1f] px-4 py-2 text-center text-[13px] font-semibold text-white shadow-lg sm:text-sm">
+        {panel ? "⚠︎ Sin conexión · rondas y ventas se guardan" : "⚠︎ Sin conexión a internet: los cambios no se guardarán hasta que vuelva"}
       </span>
     </div>
   );

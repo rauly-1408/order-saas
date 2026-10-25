@@ -20,7 +20,7 @@ function quickAmounts(total: number): number[] {
   return [...out].filter((n) => n >= total).sort((a, b) => a - b).slice(0, 4);
 }
 
-export default function CuentaView({ tenant, orderId, onBack, initialAction }: { tenant: string; orderId: string; onBack: (opts?: { closed?: boolean }) => void; initialAction?: "round" | "pay" }) {
+export default function CuentaView({ tenant, orderId, tableName, onBack, initialAction }: { tenant: string; orderId: string; tableName: string; onBack: (opts?: { closed?: boolean; notice?: string }) => void; initialAction?: "round" | "pay" }) {
   const api = `/api/admin/${tenant}/mesas/${orderId}`;
   const [data, setData] = useState<Cuenta | null>(null);
   const [error, setError] = useState("");
@@ -102,12 +102,27 @@ export default function CuentaView({ tenant, orderId, onBack, initialAction }: {
         {error ? (
           <>
             <p className="text-[var(--p-accent)]">{error}</p>
-            <button type="button" onClick={() => onBack()} className="mt-4 rounded-full bg-[var(--p-ink)] px-4 py-2 text-sm font-semibold text-white">
-              Volver a mesas
-            </button>
+            {/* Sin conexión no se ve la cuenta, pero se puede seguir tomando nota. */}
+            <div className="mx-auto mt-5 flex max-w-xs flex-col gap-2">
+              <button type="button" onClick={() => setComposing(true)} className="p-press rounded-2xl bg-[var(--p-brand)] px-5 py-4 text-base font-semibold text-white">
+                Nueva ronda en mesa {tableName}
+              </button>
+              <button type="button" onClick={() => onBack()} className="rounded-full bg-[var(--p-ink)] px-4 py-2.5 text-sm font-semibold text-white">
+                Volver a mesas
+              </button>
+            </div>
           </>
         ) : (
           "Cargando la mesa…"
+        )}
+        {composing && (
+          <RoundComposer
+            tenant={tenant}
+            orderId={orderId}
+            tableName={tableName}
+            onClose={() => setComposing(false)}
+            onSent={(round) => onBack({ notice: round == null ? "Sin conexión: la ronda se ha guardado y saldrá en cocina en cuanto vuelva internet" : `Ronda ${round} enviada a cocina` })}
+          />
         )}
       </div>
     );
@@ -247,7 +262,7 @@ export default function CuentaView({ tenant, orderId, onBack, initialAction }: {
           onClose={() => setComposing(false)}
           onSent={(round) => {
             setComposing(false);
-            flash(`Ronda ${round} enviada a cocina`);
+            flash(round == null ? "Sin conexión: la ronda se ha guardado y saldrá en cocina en cuanto vuelva internet" : `Ronda ${round} enviada a cocina`);
             load();
           }}
         />

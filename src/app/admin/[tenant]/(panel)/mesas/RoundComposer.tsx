@@ -8,7 +8,8 @@ import ComboSheet, { type ComboProduct } from "@/app/pedir/[tenant]/ComboSheet";
 import { modifierLabels, type MenuModifierGroup, type OrderLineModifier } from "@/app/lib/menuOptions";
 import { comboChoicesKey, type ChoiceProduct, type ComboChoice, type ComboSlotDef } from "@/app/lib/combos";
 import { STORE_VARS } from "../storeVars";
-import { Sheet, Stepper, euros, parseEuros, post, usePortal } from "./shared";
+import { Sheet, Stepper, euros, parseEuros, usePortal } from "./shared";
+import { loadLocal, saveLocal, sendOrQueue } from "../outbox";
 
 // Tomar una ronda, pensado para pantalla táctil: la carta a la izquierda (o
 // arriba en el móvil) y el ticket de la ronda siempre a la vista a la derecha
@@ -35,7 +36,9 @@ type Line = {
 // La carta se carga una vez por visita a Mesas (no cambia en mitad del servicio).
 let menuCache: { tenant: string; cats: Category[] } | null = null;
 
-export default function RoundComposer({ tenant, orderId, tableName, onClose, onSent }: { tenant: string; orderId: string; tableName: string; onClose: () => void; onSent: (round: number) => void }) {
+// orderId null + opening: mesa abierta sin conexión (se abre y se manda la ronda a la vez).
+// onSent(null): sin conexión, la ronda queda guardada y se enviará sola.
+export default function RoundComposer({ tenant, orderId, opening, tableName, onClose, onSent }: { tenant: string; orderId: string | null; opening?: { tableId: string; guests: number }; tableName: string; onClose: () => void; onSent: (round: number | null) => void }) {
   const portal = usePortal();
   const [categories, setCategories] = useState<Category[] | null>(menuCache?.tenant === tenant ? menuCache.cats : null);
   const [cat, setCat] = useState(categories?.[0]?.slug ?? "");
@@ -57,12 +60,20 @@ export default function RoundComposer({ tenant, orderId, tableName, onClose, onS
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("No se pudo cargar la carta"))))
       .then((d) => {
         if (!alive) return;
+        saveLocal(`menu:${tenant}`, d.categories ?? []); // para tomar nota sin conexión
         const cats = ((d.categories ?? []) as Category[]).filter((c) => c.products.length > 0); // sin categorías vacías
         menuCache = { tenant, cats };
         setCategories(cats);
         setCat(cats[0]?.slug ?? "");
       })
-      .catch((e) => alive && setError(e instanceof Error ? e.message : "No se pudo cargar la carta"));
+      .catch((e) => {
+        if (!alive) return;
+        const saved = loadLocal<Category[]>(`menu:${tenant}`)?.filter((c) => c.products.length > 0);
+        if (saved) {
+          setCategories(saved);
+          setCat(saved[0]?.slug ?? "");
+        } else setError(e instanceof Error ? e.message : "No se pudo cargar la carta");
+      });
     return () => {
       alive = false;
     };
@@ -108,12 +119,15 @@ export default function RoundComposer({ tenant, orderId, tableName, onClose, onS
     try {
       const menu = lines.filter((l) => l.productId);
       const custom = lines.filter((l) => !l.productId);
-      const r = await post<{ round: number }>(`/api/admin/${tenant}/mesas/${orderId}`, {
-        action: "round",
+      const round = {
         items: menu.map((l) => ({ productId: l.productId, quantity: l.quantity, optionIds: l.optionIds, ...(l.comboChoices && { comboChoices: l.comboChoices }), ...(l.note.trim() && { note: l.note.trim() }) })),
         custom: custom.map((l) => ({ name: l.name, quantity: l.quantity, priceCents: l.unitPriceCents, free: Boolean(l.free), note: l.note.trim() })),
-      });
-      onSent(r.round);
+      };
+      const label = `Mesa ${tableName} · ronda de ${count} ${count === 1 ? "producto" : "productos"}`;
+      const r = orderId
+        ? await sendOrQueue<{ round: number }>(`/api/admin/${tenant}/mesas/${orderId}`, { action: "round", ...round }, label)
+        : await sendOrQueue<{ round: number }>(`/api/admin/${tenant}/mesas`, { action: "open", tableId: opening?.tableId, guests: opening?.guests ?? 1, round }, label);
+      onSent(r.queued ? null : r.data.round);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo enviar la ronda");
       setSending(false);
