@@ -63,6 +63,15 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
+  // Colaborador (la RRPP que llama para su gente): se lleva su %. Ver docs/COLABORADORES.md
+  const [collabCode, setCollabCode] = useState("");
+  const [collabs, setCollabs] = useState<{ name: string; place: string | null; code: string }[]>([]);
+  useEffect(() => {
+    fetch(`/api/admin/${tenant}/colaboradores?lite=1`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setCollabs(d.collaborators ?? []))
+      .catch(() => {});
+  }, [tenant]);
   const [coupon, setCoupon] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [payment, setPayment] = useState<Payment>("CASH");
@@ -183,7 +192,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const tenderedCents = payment === "CASH" && tendered.trim() ? parseEuros(tendered) : null;
   const change = tenderedCents != null && tenderedCents >= subtotal ? tenderedCents - subtotal : null;
   const missing = tenderedCents != null && tenderedCents < subtotal ? subtotal - tenderedCents : null;
-  const detailsSummary = [name, phone, coupon && `cupón ${coupon.toUpperCase()}`, notes && `nota: ${notes}`].filter(Boolean).join(" · ");
+  const detailsSummary = [name, phone, coupon && `cupón ${coupon.toUpperCase()}`, collabCode && `de ${collabs.find((c) => c.code === collabCode)?.name ?? collabCode}`, notes && `nota: ${notes}`].filter(Boolean).join(" · ");
   const canConfirm = lines.length > 0 && !sending && (mode !== "DELIVERY" || address.trim().length > 0) && (payment !== "CASH" || tenderedCents == null || tenderedCents >= subtotal);
 
   function add(product: Product, extra: { optionIds: string[]; comboChoices?: ComboChoice[]; modifiers: OrderLineModifier[]; unitPriceCents: number; note?: string }) {
@@ -248,6 +257,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     setAddress("");
     setNotes("");
     setCoupon("");
+    setCollabCode("");
     setTendered("");
     setMode("TAKEAWAY");
     setPayment("CASH");
@@ -287,6 +297,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           customerAddress: address,
           notes,
           couponCode: coupon,
+          ...(collabCode && { collaboratorCode: collabCode }),
           paymentMethod: payment,
           ...(tenderedCents != null && { cashTenderedCents: tenderedCents }),
         },
@@ -444,7 +455,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
 
       <div className="mt-2 border-t border-[var(--p-line)] pt-3">
         <button type="button" onClick={() => setDetailsOpen((v) => !v)} aria-expanded={detailsOpen} className="flex w-full items-center justify-between rounded-lg py-1.5 text-left text-sm hover:bg-black/[0.03]">
-          <span className={detailsSummary ? "truncate font-medium" : "text-[var(--p-muted)]"}>{detailsSummary || "＋ Cliente, cupón o nota para cocina"}</span>
+          <span className={detailsSummary ? "truncate font-medium" : "text-[var(--p-muted)]"}>{detailsSummary || collabs.length ? "＋ Cliente, cupón, colaborador o nota" : "＋ Cliente, cupón o nota para cocina"}</span>
           <span className="ml-2 shrink-0 text-xs text-[var(--p-muted)]">{detailsOpen ? "Ocultar" : "Editar"}</span>
         </button>
         {detailsOpen && (
@@ -453,6 +464,17 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono (suma sellos)" inputMode="tel" aria-label="Teléfono del cliente" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />
             <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Cupón" aria-label="Cupón" className="min-w-0 rounded-lg px-3 py-2.5 text-sm uppercase" />
             <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Nota para cocina" aria-label="Notas" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />
+            {collabs.length > 0 && (
+              <select value={collabCode} onChange={(e) => setCollabCode(e.target.value)} aria-label="Colaborador" className="col-span-2 min-w-0 rounded-lg px-3 py-2.5 text-sm">
+                <option value="">Sin colaborador</option>
+                {collabs.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    De {c.name}
+                    {c.place ? ` (${c.place})` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         )}
         <div className="mt-3 flex items-baseline justify-between">

@@ -8,7 +8,7 @@ import InstallApp from "./InstallApp";
 // Barra lateral del panel: translúcida con desenfoque (estilo Apple), iconos de
 // línea y el elemento activo con el color de la marca del restaurante (--p-brand).
 
-type IconName = "home" | "orders" | "cash" | "tables" | "users" | "menu" | "costs" | "chart" | "brush" | "gear" | "files" | "external" | "logout";
+type IconName = "home" | "orders" | "cash" | "tables" | "users" | "partners" | "menu" | "costs" | "chart" | "brush" | "gear" | "files" | "external" | "logout";
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, React.ReactNode> = {
@@ -40,6 +40,14 @@ function Icon({ name }: { name: IconName }) {
         <circle cx="9" cy="8" r="3.5" />
         <path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" />
         <path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.4c1.9.8 3 2.8 3 5.6" />
+      </>
+    ),
+    // Colaboradores: dos manos (trato)
+    partners: (
+      <>
+        <path d="M3 11l4-4 4 2 3-2 4 1 3 3" />
+        <path d="M7 7l-4 4 6 6 2-2M14 7l5 5-6 6-2-2" />
+        <path d="M9 13l2 2M11 11l2 2" />
       </>
     ),
     menu: (
@@ -101,6 +109,7 @@ function buildNav(tenant: string): NavItem[] {
     { label: "Mesas", href: `${base}/mesas`, icon: "tables" },
     { label: "Informes", href: `${base}/informes`, icon: "chart", managerOnly: true, takingsOnly: true },
     { label: "Clientes", href: `${base}/clientes`, icon: "users", managerOnly: true },
+    { label: "Colaboradores", href: `${base}/colaboradores`, icon: "partners", managerOnly: true },
     { label: "Carta", href: `${base}/carta`, icon: "menu", managerOnly: true },
     { label: "Costes", href: `${base}/costes`, icon: "costs", managerOnly: true },
     { label: "Archivos", href: `${base}/archivos`, icon: "files", managerOnly: true },

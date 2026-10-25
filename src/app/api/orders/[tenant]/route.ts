@@ -23,6 +23,7 @@ import { bestPromotion, rewardDiscount } from "@/app/lib/promotions";
 import { couponDiscount, couponProblem, normalizeCode } from "@/app/lib/retention";
 import { MAX_QTY_PER_LINE, priceOrderItems, type OrderLineInput } from "@/app/lib/orderPricing";
 import { CouponError, createOrderWithNumber } from "@/app/lib/createOrder";
+import { collaboratorByCode, commissionCents } from "@/app/lib/collaborators";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,7 @@ type OrderBody = {
   storeId?: string; // sucursales: local elegido por el cliente
   tipPercent?: number; // propina (Configuración → Pantalla de pago)
   giftCardCode?: string; // tarjeta regalo
+  collaboratorCode?: string; // código de un colaborador (RRPP, hotel…): se lleva su %
   items: OrderLineInput[];
 };
 
@@ -248,6 +250,8 @@ export async function POST(req: NextRequest) {
       giftCard = { id: found.card.id, cents: Math.min(found.card.balanceCents, subtotalCents + feesCents - discountCents + tip) };
     }
     const totalCents = subtotalCents + feesCents - discountCents + tip - (giftCard?.cents ?? 0);
+    // Colaborador: un código que no existe no impide el pedido, simplemente no cuenta.
+    const collab = body.collaboratorCode ? await collaboratorByCode(tenant.id, body.collaboratorCode) : null;
     const settings = tenant.settings as Record<string, unknown>;
     const currency = (settings?.currency as string) ?? "EUR";
 
@@ -281,6 +285,7 @@ export async function POST(req: NextRequest) {
           payment: totalCents === 0 && giftCard ? { method: "IN_STORE", provider: null, paid: true } : payment,
           tipCents: tip,
           giftCard,
+          collaborator: collab && { id: collab.id, commissionCents: commissionCents(subtotalCents - discountCents, collab.commissionPct) },
           retention: tenant.addons.includes("RETENTION"),
           lines: linesCreate,
           // Inventario (módulo Costes): solo si el restaurante lo tiene contratado

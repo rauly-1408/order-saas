@@ -459,6 +459,10 @@ model Order {
   cancelReason      CancelReason? // motivo del cliente
   dineIn            Boolean       @default(false)
   createdByUserId   String?
+  // Colaborador (RRPP, encargado de hotel, pub…) que trajo el pedido con su código; se lleva commissionCents.
+  collaboratorId    String?
+  collaborator      Collaborator? @relation(fields: [collaboratorId], references: [id], onDelete: SetNull)
+  commissionCents   Int           @default(0)
   // Mesas: la mesa, los comensales y cuándo se imprimió la cuenta (pidiendo la cuenta)
   tableId           String?
   table             DiningTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
@@ -1325,6 +1329,42 @@ model SupplierInvoice {
   createdAt     DateTime  @default(now())
 
   @@index([tenantId, date])
+}
+
+// Colaboradores: gente que trae pedidos con su código (RRPP de una discoteca,
+// encargado de un hotel o un B&B…) y se lleva un % de lo que piden. Se les paga
+// en efectivo cada mes. Ver docs/COLABORADORES.md
+model Collaborator {
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String
+  place         String? // dónde trabaja: «Pub La Charca», «Hotel Alhambra»…
+  phone         String?
+  code          String // lo que escribe el cliente o va en su enlace (MAYÚSCULAS)
+  commissionPct Float    @default(10)
+  token         String   @unique // su página privada: /colaborador/[token]
+  active        Boolean  @default(true)
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  orders  Order[]
+  payouts CollaboratorPayout[]
+
+  @@unique([tenantId, code])
+}
+
+// Pago de un mes a un colaborador (en efectivo, normalmente el día 1).
+model CollaboratorPayout {
+  id             String       @id @default(cuid())
+  tenantId       String
+  collaboratorId String
+  collaborator   Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  month          String // AAAA-MM
+  amountCents    Int
+  paidAt         DateTime     @default(now())
+  note           String?
+
+  @@unique([collaboratorId, month])
 }
 
 // Receta de una elaboración: ingredientes (o elaboraciones) y cantidades de un lote.

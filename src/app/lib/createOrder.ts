@@ -37,6 +37,8 @@ export type CreateOrderInput = {
   dineIn?: boolean;
   createdByUserId?: string | null;
   cashTenderedCents?: number | null;
+  // Colaborador que trajo el pedido (su código) y lo que se lleva. Ver docs/COLABORADORES.md
+  collaborator?: { id: string; commissionCents: number } | null;
   tipCents: number;
   giftCard: { id: string; cents: number } | null;
   retention: boolean;
@@ -141,6 +143,8 @@ export async function createOrderWithNumber(input: CreateOrderInput) {
         dineIn: input.dineIn ?? false,
         createdByUserId: input.createdByUserId ?? null,
         cashTenderedCents: input.cashTenderedCents ?? null,
+        collaboratorId: input.collaborator?.id ?? null,
+        commissionCents: input.collaborator?.commissionCents ?? 0,
         // Pago online: espera a que la pasarela lo confirme (no llega a la cocina).
         // Cobrado en caja (paid) o «pagar al recoger»: a cocina directamente.
         status: input.payment.method === "IN_STORE" || input.payment.paid ? "CREATED" : "AWAITING_PAYMENT",

@@ -12,6 +12,7 @@ import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import ProductOptionsSheet from "./ProductOptionsSheet";
 import ComboSheet from "./ComboSheet";
 import StampCard from "./StampCard";
+import { captureCollabFromUrl } from "./collab";
 import { ComboCard, ProductCard, PromoTile } from "./StoreCards";
 import StoreFooter from "./StoreFooter";
 import MenuCarousel from "./MenuCarousel";
@@ -108,6 +109,11 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
     : settings?.takeawayEnabled
     ? deliveryPartners.length ? T.pickupPlatforms : T.pickupOnly
     : T.onlineOrders;
+
+  // Enlace de un colaborador (?c=CODIGO): se recuerda para el pedido.
+  useEffect(() => {
+    void captureCollabFromUrl(tenant);
+  }, [tenant]);
 
   useEffect(() => {
     const observers: IntersectionObserver[] = [];
