@@ -21,11 +21,21 @@ pedido → PrintJob (PENDING) → agente (GET /api/print/jobs) → impresora:910
 
 Este ticket es la base de la factura simplificada de VeriFactu (entrega 6): le faltarán la numeración legal, la huella encadenada y el QR.
 
+## Comandas por categoría (barra y cocina)
+
+Cada impresora de comandas puede imprimir **todo** (por defecto) o **solo algunas categorías** de la carta («Qué comandas imprime» en Configuración → Impresoras). Ejemplo: la de la barra con «Bebidas» y la de cocina con el resto.
+
+- Si una comanda no tiene nada de sus categorías, esa impresora no imprime nada.
+- Los **menús** se reparten por pasos: la bebida del menú sale en la barra y el bocadillo en cocina, cada uno con el nombre del menú delante. Si la impresora tiene marcada la categoría del propio menú y ninguno de sus pasos, le llega el menú entero.
+- Los **productos libres** de las mesas (los que crea el camarero) solo salen en las impresoras que marquen «Productos libres».
+- Vale igual para pedidos de la tienda, de la Caja, rondas de mesa y anulaciones.
+- Un producto sin categoría o de una categoría que no marca ninguna impresora no sale en las que filtran; deja al menos una en «Todo» si no quieres que se pierda nada.
+
 ## Técnica
 
 - `lib/escpos.ts`: generador de bytes ESC/POS (init, alineación, negrita, tamaño ×2, filas a dos columnas, ajuste de línea, corte, cajón). Codifica a CP858 a mano (acentos, ñ, €); en modo `ascii` quita acentos y escribe EUR.
 - `lib/printing.ts`: `readPrinting(settings)` y `parsePrinter`, `renderKitchen`, `renderReceipt`, `renderTest`, `enqueueOrderPrints(orderId, kinds)`, `printOnNewOrder(orderId)` (se llama con `after()` en la tienda, la Caja y al confirmar un pago online), `enqueueTest`.
-- `settings.printing`: `{ agentToken, agentSeenAt, autoKitchen, autoReceipt, printers: [{ id, name, host, port, roles, width, codepage, drawer, copies }] }`. El token se crea al guardar la primera vez; «Nuevo token» invalida el anterior.
+- `settings.printing`: `{ agentToken, agentSeenAt, autoKitchen, autoReceipt, printers: [{ id, name, host, port, roles, width, codepage, drawer, copies, categories }] }`; `categories` es `null` (todo) o una lista de ids de categoría, con `"LIBRE"` para los productos libres. `lineCategories` y `linesForPrinter` (en `lib/printing.ts`) deciden qué líneas van a cada impresora. El token se crea al guardar la primera vez; «Nuevo token» invalida el anterior.
 - Modelo `PrintJob` (migración `20261023170000_print_jobs`): `kind` KITCHEN | RECEIPT | TEST, impresora (`printerId`, `host`, `port`), `data` (bytes), `status` PENDING | PRINTED | FAILED, `attempts` (hasta 5), `error`.
 - `GET /api/print/jobs` (Bearer token; busca el restaurante por `settings.printing.agentToken`): antes de servir, marca como FAILED los pendientes de pedidos cancelados («Pedido cancelado») y los de más de 2 horas («Caducado»), para que al encender el agente no salgan comandas viejas; luego hasta 20 pendientes, en base64; actualiza `agentSeenAt` como mucho una vez por minuto. `POST /api/print/jobs { id, ok, error }`: marca impreso o suma un intento (al quinto, FAILED).
 - `GET/PUT/POST /api/admin/[tenant]/printers` (gerente): configuración, estado y últimos 8 trabajos; `POST { action: "test" | "newToken" }`.
@@ -47,6 +57,5 @@ Con una impresora simulada y con la impresora real 10POS de Estafetén (192.168.
 
 ## Pendiente
 
-- Impresora de bebidas / barra por categoría (hoy todas las comandas van a todas las impresoras de comandas).
 - Reimprimir desde «Hoy en caja».
 - Empaquetar el agente como `.exe` para no tener que instalar Node.

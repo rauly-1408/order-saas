@@ -30,7 +30,9 @@ async function payload(tenantId: string, settings: unknown) {
   ]);
   const seen = cfg.agentSeenAt ? Date.parse(cfg.agentSeenAt) : 0;
   const stores = (await listStores(tenantId)).map((s) => ({ id: s.id, name: s.name }));
-  return { ...cfg, agentOnline: Date.now() - seen < 3 * 60_000, pending, recent, stores };
+  // Categorías de la carta para repartir las comandas (cocina / barra)
+  const categories = await prisma.category.findMany({ where: { tenantId }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true } });
+  return { ...cfg, agentOnline: Date.now() - seen < 3 * 60_000, pending, recent, stores, categories };
 }
 
 export async function GET(req: NextRequest) {
