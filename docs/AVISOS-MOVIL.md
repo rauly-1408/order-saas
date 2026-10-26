@@ -11,6 +11,9 @@ Avisos que llegan al móvil aunque la app esté cerrada. Hecho el 2026-10-27 (ra
 - Dueño: en Costes → Inventario, tarjeta «Avisos en este móvil» → Activar (sale si hay algún mínimo puesto). Cada móvil u ordenador se activa por separado.
 - **iPhone**: solo funciona con la app añadida a la pantalla de inicio (iOS 16.4 o posterior); si no, se explica cómo hacerlo. Android y ordenador: directo desde el navegador.
 
+## Requisito: SESSION_SECRET largo
+El cifrado de las claves (`lib/secretBox.ts`, el mismo que guarda las claves de pasarelas de pago y del repartidor) exige un `SESSION_SECRET` de **32 caracteres o más**. Con uno más corto, `/api/push/key` responde `reason: "session-secret"`. El 27-10-2026 producción tenía uno de entre 16 y 31: se cambió en Vercel (Settings → Environment Variables) por uno de 64 (`openssl rand -hex 32`) y se publicó de nuevo. Al cambiarlo, todo el mundo tiene que volver a entrar en el panel.
+
 ## Técnico
 - `public/sw.js`: service worker solo para avisos (sin caché). El proxy no lo reescribe en dominios propios.
 - Claves VAPID: se generan solas la primera vez y se guardan cifradas con `SESSION_SECRET` en `AppSecret` (no hay que configurar nada en Vercel). Si existen `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY` en el entorno, se usan esas.
