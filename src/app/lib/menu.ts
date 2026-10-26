@@ -1,5 +1,6 @@
 import { prisma } from "@/app/lib/prisma";
 import { cachedMenuCategories } from "@/app/lib/menuCache";
+import { cachedUnitsSold, pickBestSellers } from "@/app/lib/bestSellers";
 import { getTenantTheme, getTenantSettings } from "@/app/lib/tenantConfig";
 import type { MenuModifierGroup } from "@/app/lib/menuOptions";
 import { ALLERGENS } from "@/app/lib/costs";
@@ -46,6 +47,8 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
 
   // Categorías, productos y opciones: en caché por restaurante (ver menuCache.ts).
   const categories = await cachedMenuCategories(tenant.id);
+  // «Lo más pedido» de cada categoría (ventas de los últimos 30 días).
+  const bestSellers = pickBestSellers(categories, await cachedUnitsSold(tenant.id).catch(() => ({})));
 
   // Aplana ProductModifierGroup -> MenuModifierGroup (con la opción por defecto del
   // producto) y pone cada texto en el idioma del cliente (o el original si falta).
@@ -59,6 +62,7 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
       name: tr(pTr, lang, "name", product.name),
       description: tr(pTr, lang, "description", product.description ?? ""),
       allergens: allergens(recipeLines),
+      bestSeller: bestSellers.has(product.id),
       comboSlots: comboSlots.map(({ translations: sTr, ...s }) => ({ ...s, name: tr(sTr, lang, "name", s.name) })),
       modifierGroups: modifierGroups.map(
         ({ group: { translations: gTr, options, ...group }, defaultOptionId }): MenuModifierGroup => ({

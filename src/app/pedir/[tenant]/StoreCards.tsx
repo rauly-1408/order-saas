@@ -134,6 +134,7 @@ export function ProductCard({
   onInc,
   onDec,
   lang = "es",
+  badge = null,
 }: {
   name: string;
   description: string;
@@ -141,6 +142,8 @@ export function ProductCard({
   imageUrl?: string | null;
   allergens?: string[];
   qty: number;
+  // «Recomendado» (lo marca el restaurante) o «Lo más pedido» (sale solo de las ventas).
+  badge?: "featured" | "bestseller" | null;
   simple: boolean; // sin opciones: se puede sumar/restar aquí mismo
   onAdd: () => void;
   onInc: () => void;
@@ -159,12 +162,14 @@ export function ProductCard({
           <img src={imageUrl} alt={name} className="aspect-[4/3] w-full object-cover transition-transform duration-700 group-hover:scale-105" />
         </div>
       )}
+      {badge && imageUrl && <ProductBadge kind={badge} lang={lang} className="absolute left-3 top-3" />}
       {qty > 0 && (
         <span className="absolute right-3 top-3 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[13px] font-bold" style={{ backgroundColor: "var(--brand-accent)", color: "var(--on-accent)" }}>
           {qty}
         </span>
       )}
       <div className="flex flex-1 flex-col px-5 pt-5">
+        {badge && !imageUrl && <ProductBadge kind={badge} lang={lang} className="mb-2 self-start" />}
         <h3 className="pr-8 text-[17px] font-bold leading-snug tracking-[-0.01em] text-[var(--text-primary)]">{name}</h3>
         {description && <p className="mt-1.5 line-clamp-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">{description}</p>}
         {allergens && allergens.length > 0 && <p className="mt-2 text-[11px] text-[var(--text-secondary)]">{T.allergens}: {allergens.join(", ")}</p>}
@@ -192,5 +197,18 @@ export function ProductCard({
         )}
       </div>
     </article>
+  );
+}
+
+// Etiqueta de la tarjeta: «★ Recomendado» en el color de la marca o «Lo más pedido».
+function ProductBadge({ kind, lang, className = "" }: { kind: "featured" | "bestseller"; lang: Lang; className?: string }) {
+  const T = ui(lang);
+  return (
+    <span
+      className={`${className} inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide shadow-[0_4px_12px_-6px_rgba(0,0,0,0.45)]`}
+      style={kind === "featured" ? { backgroundColor: "var(--brand-accent)", color: "var(--on-accent)" } : { backgroundColor: "var(--surface-1)", color: "var(--brand-secondary)", boxShadow: "inset 0 0 0 1.5px var(--brand-secondary)" }}
+    >
+      {kind === "featured" ? <><span aria-hidden>★</span> {T.badgeFeatured}</> : T.badgeBestSeller}
+    </span>
   );
 }
