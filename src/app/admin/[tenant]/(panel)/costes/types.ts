@@ -115,7 +115,11 @@ export type PriceChange = {
 
 export type BatchYield = { perBatch: number; count: number; min: number; max: number };
 
+export type PeriodSum = { orders: number; items: number; revenueNetCents: number; marginCents: number; complete: boolean };
+
 export type Overview = {
+  costSettings: import("@/app/lib/pricing").CostSettings;
+  period: { last30: PeriodSum; month: PeriodSum & { daysElapsed: number; daysInMonth: number } };
   yields: Record<string, BatchYield | null>;
   restaurantName: string;
   aiEnabled: boolean;

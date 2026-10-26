@@ -11,6 +11,7 @@ import Ingredientes from "./Ingredientes";
 import Proveedores from "./Proveedores";
 import Inventario from "./Inventario";
 import Compras from "./Compras";
+import { SaveBarHost } from "../configuracion/ui";
 
 const TABS = [
   { key: "rentabilidad", label: "Rentabilidad" },
@@ -101,6 +102,7 @@ export default function CostesClient({ tenant }: { tenant: string }) {
 
   return (
     <div className="text-[var(--p-ink)]">
+      <SaveBarHost />
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Costes y margen</h1>
       <p className="mt-1 text-sm text-[var(--p-muted)]">Escandallos, ingredientes y lo que ganas en cada plato</p>
 

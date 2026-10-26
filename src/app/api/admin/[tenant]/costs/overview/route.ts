@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { aiConfigured } from "@/app/lib/anthropic";
 import { prisma } from "@/app/lib/prisma";
 import { averageYield } from "@/app/lib/stockReport";
+import { costSettingsOf, withPrepMarkup } from "@/app/lib/pricing";
+import { DEFAULT_TIMEZONE } from "@/app/lib/time";
+import { monthOf, monthStart } from "@/app/lib/collaborators";
 import { costsTenant } from "@/app/lib/costsApi";
 import { netOfVat, recipeCostCents, unitCostCents, type CostIngredient } from "@/app/lib/costs";
 import { consumableQty, orderKindOf } from "@/app/lib/inventory";
@@ -10,6 +13,20 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const RECENT_ORDERS = 30;
+
+// Lo necesario de cada pedido para calcular su margen real.
+const ORDER_SELECT = {
+  id: true,
+  orderNumber: true,
+  createdAt: true,
+  customerName: true,
+  channel: true,
+  dineIn: true,
+  totalCents: true,
+  feesCents: true,
+  applicationFeeCents: true,
+  items: { select: { productId: true, productName: true, quantity: true, totalCents: true, modifiers: true } },
+} as const;
 
 // GET: todo lo que necesita la pantalla de Costes (ingredientes, proveedores,
 // carta con escandallos) + margen real de los últimos pedidos.
@@ -67,18 +84,7 @@ export async function GET(req: NextRequest) {
       where: { tenantId, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } },
       orderBy: { createdAt: "desc" },
       take: RECENT_ORDERS,
-      select: {
-        id: true,
-        orderNumber: true,
-        createdAt: true,
-        customerName: true,
-        channel: true,
-        dineIn: true,
-        totalCents: true,
-        feesCents: true,
-        applicationFeeCents: true,
-        items: { select: { productId: true, productName: true, quantity: true, totalCents: true, modifiers: true } },
-      },
+      select: ORDER_SELECT,
     }),
     prisma.stockMovement.findMany({
       where: { tenantId },
@@ -93,11 +99,13 @@ export async function GET(req: NextRequest) {
       include: { lines: { select: { id: true, ingredientId: true, quantity: true, packPriceCents: true, receivedQuantity: true } } },
     }),
     prisma.ingredientPriceChange.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: 30 }),
-    prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, settings: true } }),
   ]);
 
   // ── Margen real de pedidos ─────────────────────────────────────────
-  const ingById = new Map<string, CostIngredient>(ingredients.map((i) => [i.id, i]));
+  // Las elaboraciones cuestan al local lo del obrador más su recargo (si lo hay).
+  const costSettings = costSettingsOf(tenantInfo?.settings);
+  const ingById = new Map<string, CostIngredient>(withPrepMarkup(ingredients, costSettings.prepMarkupPct).map((i) => [i.id, i]));
   const costOf = (lines: { ingredientId: string; quantity: number }[]) =>
     recipeCostCents(lines.flatMap((l) => (ingById.has(l.ingredientId) ? [{ quantity: l.quantity, ingredient: ingById.get(l.ingredientId)! }] : [])));
 
@@ -132,7 +140,8 @@ export async function GET(req: NextRequest) {
     }
     return perOrder.reduce((a, i) => a + consumableQty(i, kind, units) * unitCostCents(i), 0);
   };
-  const orderMargins = orders.map((o) => {
+  type MarginOrder = (typeof orders)[number];
+  const marginOf = (o: MarginOrder) => {
     let foodCost = 0;
     let complete = true;
     for (const item of o.items) {
@@ -163,7 +172,34 @@ export async function GET(req: NextRequest) {
       marginCents: Math.round(revenueNet - foodCost - consumablesOf(o.channel, o.dineIn, o.items) - o.applicationFeeCents),
       complete,
     };
+  };
+  const orderMargins = orders.map(marginOf);
+
+  // Lo que se gana (margen sin gastos fijos) en los últimos 30 días y en el mes:
+  // base del punto de equilibrio.
+  const now = new Date();
+  const month = monthOf(now, DEFAULT_TIMEZONE);
+  const monthFrom = monthStart(month, DEFAULT_TIMEZONE);
+  const from30 = new Date(now.getTime() - 30 * 86_400_000);
+  const periodOrders = await prisma.order.findMany({
+    where: { tenantId, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] }, createdAt: { gte: monthFrom < from30 ? monthFrom : from30 } },
+    select: ORDER_SELECT,
   });
+  const sum = (list: MarginOrder[]) => {
+    const ms = list.map(marginOf);
+    return {
+      orders: list.length,
+      items: list.reduce((a, o) => a + o.items.reduce((b, i) => b + i.quantity, 0), 0),
+      revenueNetCents: ms.reduce((a, m) => a + m.revenueNetCents, 0),
+      marginCents: ms.reduce((a, m) => a + m.marginCents, 0),
+      complete: ms.every((m) => m.complete),
+    };
+  };
+  const [y, mo] = month.split("-").map(Number);
+  const period = {
+    last30: sum(periodOrders.filter((o) => o.createdAt >= from30)),
+    month: { ...sum(periodOrders.filter((o) => o.createdAt >= monthFrom)), daysElapsed: Math.floor((now.getTime() - monthFrom.getTime()) / 86_400_000) + 1, daysInMonth: new Date(Date.UTC(y, mo, 0)).getUTCDate() },
+  };
 
   // Lo que rinden de verdad las elaboraciones: media de sus últimos 10 lotes.
   const batches = await prisma.stockMovement.findMany({
@@ -182,6 +218,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     yields,
+    costSettings,
+    period,
     restaurantName: tenantInfo?.name ?? "",
     aiEnabled: aiConfigured(),
     suppliers,
