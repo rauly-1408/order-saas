@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CollaboratorDashboard } from "@/app/lib/collaboratorDashboard";
+import { disablePush, enablePush, pushState, type PushState } from "@/app/lib/pushClient";
 
 // La app del colaborador al momento: se refresca sola cada pocos segundos
 // mientras está abierta y avisa (y vibra) cuando entra un pedido con su código.
@@ -24,6 +25,23 @@ export default function ColaboradorLive({ token, initial, link, qrSvg }: { token
   const [standalone, setStandalone] = useState(true);
   const [ios, setIos] = useState(false);
   const known = useRef(new Set(initial.orders.map((o) => o.id)));
+  // Avisos con la app cerrada (cada venta con su código).
+  const [push, setPush] = useState<PushState | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
+  useEffect(() => {
+    pushState().then(setPush).catch(() => setPush("unsupported"));
+  }, []);
+  async function togglePush() {
+    setPushBusy(true);
+    try {
+      setPush(push === "on" ? await disablePush(`/api/colaborador/${token}/push`) : await enablePush(`/api/colaborador/${token}/push`));
+    } catch {
+      setToast("No se pudieron activar los avisos. Inténtalo otra vez.");
+      setTimeout(() => setToast(null), 5000);
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   // Refresco al momento: cada 15 s con la pantalla visible y al volver a ella.
   useEffect(() => {
@@ -146,15 +164,42 @@ export default function ColaboradorLive({ token, initial, link, qrSvg }: { token
           </section>
         )}
 
+        {push && push !== "unsupported" && (
+          <section className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="font-semibold">Avisos de cada venta</p>
+            {push === "on" ? (
+              <>
+                <p className="mt-1 text-sm text-[#6e6e73]">Te avisamos en el móvil con cada pedido que traigas, aunque tengas la app cerrada.</p>
+                <button onClick={togglePush} disabled={pushBusy} className="mt-2 text-sm font-semibold text-[#6e6e73] underline disabled:opacity-50">
+                  Desactivar avisos
+                </button>
+              </>
+            ) : push === "ios-install" ? (
+              <p className="mt-1 text-sm text-[#6e6e73]">En iPhone, primero añade la app a tu pantalla de inicio (arriba te explicamos cómo) y ábrela desde ahí.</p>
+            ) : push === "denied" ? (
+              <p className="mt-1 text-sm text-[#6e6e73]">Tienes los avisos bloqueados para esta página. Actívalos en los ajustes del navegador.</p>
+            ) : (
+              <button onClick={togglePush} disabled={pushBusy} className="mt-3 w-full rounded-full bg-emerald-600 py-3 text-sm font-semibold text-white disabled:opacity-50">
+                {pushBusy ? "Activando…" : "Avisarme de cada venta"}
+              </button>
+            )}
+          </section>
+        )}
+
         <section className="rounded-2xl bg-white p-5 text-center shadow-sm">
           <p className="text-sm text-[#6e6e73]">Tu código</p>
           <p className="text-3xl font-bold tracking-widest">{data.code}</p>
           <div className="mx-auto mt-3 w-[220px]" dangerouslySetInnerHTML={{ __html: qrSvg }} />
           <p className="mt-2 break-all text-xs text-[#6e6e73]">{link}</p>
           <p className="mt-2 text-sm">Quien pide desde este enlace o este QR, o escribe tu código al pagar, cuenta para ti.</p>
-          <a href={share} target="_blank" rel="noopener noreferrer" className="mt-4 inline-block rounded-full bg-[#25d366] px-5 py-3 text-sm font-semibold text-white">
-            Compartir por WhatsApp
-          </a>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <a href={share} target="_blank" rel="noopener noreferrer" className="inline-block rounded-full bg-[#25d366] px-5 py-3 text-sm font-semibold text-white">
+              Compartir por WhatsApp
+            </a>
+            <a href={`/colaborador/${token}/tarjetas`} className="inline-block rounded-full bg-black/[0.06] px-5 py-3 text-sm font-semibold">
+              Imprimir tarjetas
+            </a>
+          </div>
         </section>
 
         <section className="rounded-2xl bg-white p-5 shadow-sm">

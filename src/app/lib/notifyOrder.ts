@@ -7,6 +7,7 @@ import { dailySummaryEmail, emailConfigured, newOrderEmail, sendEmail } from "@/
 import { modifierLabels } from "@/app/lib/menuOptions";
 import { scheduledLabel } from "@/app/lib/schedule";
 import { startOfTodayIn, tenantTimeZone } from "@/app/lib/time";
+import { notifyCollaboratorSale } from "@/app/lib/push";
 
 export type NotificationPrefs = { newOrderEmail: boolean; dailySummaryEmail: boolean };
 
@@ -21,7 +22,9 @@ function appOrigin(): string {
 }
 
 // Pedido nuevo (ya pagado si era online). Nunca lanza: un fallo del email no toca el pedido.
+// También avisa al móvil del colaborador si el pedido trae su código.
 export async function notifyNewOrder(orderId: string): Promise<void> {
+  await notifyCollaboratorSale(orderId);
   if (!emailConfigured()) return;
   try {
     const order = await prisma.order.findUnique({

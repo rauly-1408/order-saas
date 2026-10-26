@@ -1,6 +1,8 @@
 // Inventario del módulo Costes (fase 2): consumo de stock por pedido, movimientos
 // y agotado automático de platos/opciones. Se ejecuta dentro de transacciones de
 // Prisma para que pedido y stock nunca queden a medias.
+import { after } from "next/server";
+import { notifyLowStock } from "@/app/lib/push";
 import type { Prisma, StockMovementType } from "@prisma/client";
 import { revalidateMenu } from "@/app/lib/menuCache";
 import { unitCostCents } from "@/app/lib/costs";
@@ -72,14 +74,19 @@ export async function applyStockDeltas(
   opts: { orderId?: string; note?: string; batch?: { ingredientId: string; factor: number } } = {}
 ): Promise<void> {
   const ids: string[] = [];
+  const crossed: { name: string; stockQty: number; minStock: number; baseUnit: string }[] = [];
   for (const [ingredientId, delta] of deltas) {
     if (delta === 0) continue;
     const ing = await tx.ingredient.update({
       where: { id: ingredientId },
       data: { stockQty: { increment: delta } },
-      select: { stockQty: true, packSize: true, packPriceCents: true, wastePct: true, tenantId: true },
+      select: { stockQty: true, packSize: true, packPriceCents: true, wastePct: true, tenantId: true, name: true, baseUnit: true, trackStock: true, minStock: true, isActive: true },
     });
     if (ing.tenantId !== tenantId) throw new Error("Ingrediente de otro restaurante");
+    // Acaba de bajar del mínimo con este movimiento: aviso al móvil del dueño.
+    if (ing.trackStock && ing.isActive && ing.minStock != null && ing.stockQty - delta > ing.minStock && ing.stockQty <= ing.minStock) {
+      crossed.push({ name: ing.name, stockQty: ing.stockQty, minStock: ing.minStock, baseUnit: ing.baseUnit });
+    }
     await tx.stockMovement.create({
       data: {
         tenantId,
@@ -96,6 +103,13 @@ export async function applyStockDeltas(
     ids.push(ingredientId);
   }
   if (ids.length) await refreshStockOuts(tx, tenantId, ids);
+  if (crossed.length) {
+    try {
+      after(() => notifyLowStock(tenantId, crossed));
+    } catch {
+      /* fuera de una petición (scripts, tests): sin aviso */
+    }
+  }
 }
 
 // Un plato/opción está agotado si algún ingrediente CONTROLADO de su receta no

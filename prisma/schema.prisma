@@ -1401,3 +1401,36 @@ model PrepLine {
   @@index([prepId])
   @@index([ingredientId])
 }
+
+// ─────────────────────────────────────────────
+//  AVISOS EN EL MÓVIL (Web Push)
+//  Cada dispositivo que acepta avisos: el panel del dueño (stock bajo) o la app
+//  del colaborador (ventas nuevas). Ver docs/AVISOS-MOVIL.md
+// ─────────────────────────────────────────────
+enum PushAudience {
+  PANEL
+  COLLABORATOR
+}
+
+model PushSubscription {
+  id             String       @id @default(cuid())
+  tenantId       String
+  audience       PushAudience
+  userId         String? // panel: quién lo activó
+  collaboratorId String? // app del colaborador
+  endpoint       String       @unique
+  p256dh         String
+  auth           String
+  createdAt      DateTime     @default(now())
+
+  @@index([tenantId, audience])
+  @@index([collaboratorId])
+}
+
+// Claves de la plataforma generadas por la propia app (p. ej. las de Web Push),
+// cifradas con SESSION_SECRET (lib/secretBox.ts). Así no hay que configurar nada.
+model AppSecret {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+}

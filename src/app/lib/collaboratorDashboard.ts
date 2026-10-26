@@ -55,3 +55,12 @@ export async function collaboratorDashboard(token: string): Promise<Collaborator
     orders: orders.filter((o) => o.createdAt >= startCurrent).map((o) => ({ id: o.id, at: o.createdAt.toISOString(), number: o.orderNumber, totalCents: o.totalCents, earnedCents: o.commissionCents })),
   };
 }
+
+// Lo justo para las tarjetas VIP (el enlace secreto es la llave).
+export async function collaboratorByToken(token: string) {
+  if (!/^[\w-]{10,64}$/.test(token)) return null;
+  const c = await prisma.collaborator.findUnique({ where: { token }, select: { code: true, name: true, tenantId: true } });
+  if (!c) return null;
+  const t = await prisma.tenant.findUniqueOrThrow({ where: { id: c.tenantId }, select: { slug: true, name: true } });
+  return { code: c.code, name: c.name, tenantId: c.tenantId, tenantSlug: t.slug, tenantName: t.name };
+}
