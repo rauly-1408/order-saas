@@ -66,7 +66,7 @@ export default async function AdminLayout({
       <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-20 pb-12 lg:px-10 lg:pt-10">
         <div className="p-page mx-auto max-w-6xl">{children}</div>
       </main>
-      <OrderAlerts tenant={tenant} />
+      <OrderAlerts tenant={tenant} canManage={canManageTenant(session.role)} />
       <OutboxBar />
     </div>
   );

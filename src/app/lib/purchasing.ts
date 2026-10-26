@@ -6,14 +6,16 @@ import { unitCostCents } from "@/app/lib/costs";
 
 type Tx = Prisma.TransactionClient;
 
-export type StockInfo = { trackStock: boolean; stockQty: number; minStock: number | null; packSize: number };
+export type StockInfo = { trackStock: boolean; stockQty: number; minStock: number | null; parStock?: number | null; packSize: number };
 
-// Cantidad sugerida para reponer: llevar el stock al doble del mínimo, en
-// formatos completos (no se compra media caja). 0 si no hace falta.
+// Cantidad sugerida para reponer: al bajar del mínimo, llevar el stock a su
+// «stock normal» (o al doble del mínimo si no lo tiene), en formatos completos
+// (no se compra media caja). 0 si no hace falta.
 export function suggestedOrderQty(i: StockInfo): number {
   if (!i.trackStock || i.minStock == null || !(i.packSize > 0)) return 0;
   if (i.stockQty > i.minStock) return 0;
-  const need = i.minStock * 2 - i.stockQty;
+  const target = i.parStock != null && i.parStock > i.minStock ? i.parStock : i.minStock * 2;
+  const need = target - i.stockQty;
   if (need <= 0) return 0;
   return Math.ceil(need / i.packSize - 1e-9) * i.packSize;
 }

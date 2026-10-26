@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 
 // GET /api/orders/[tenant]/pending → pedidos nuevos sin aceptar (para el aviso
 // sonoro del panel) y pedidos que el cliente ha cancelado en los últimos minutos
-// (aviso distinto, para que cocina no lo prepare). Ligera: solo lo necesario.
+// (aviso distinto, para que cocina no lo prepare), y los ingredientes que han
+// bajado de su mínimo (aviso de stock). Ligera: solo lo necesario.
 export async function GET(req: NextRequest) {
   const parts = new URL(req.url).pathname.split("/");
   const slug = parts[parts.length - 2];
@@ -29,5 +30,11 @@ export async function GET(req: NextRequest) {
     orderBy: { updatedAt: "desc" },
     select: { id: true, orderNumber: true, customerName: true, totalCents: true, channel: true, cancelReason: true },
   });
-  return NextResponse.json({ pending, cancelled });
+  const lowStock = await prisma.ingredient.findMany({
+    where: { tenantId: tenant.id, isActive: true, trackStock: true, minStock: { not: null }, stockQty: { lte: prisma.ingredient.fields.minStock } },
+    orderBy: { name: "asc" },
+    take: 50,
+    select: { id: true, name: true, stockQty: true, minStock: true, baseUnit: true },
+  });
+  return NextResponse.json({ pending, cancelled, lowStock });
 }

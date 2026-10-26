@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { aiConfigured } from "@/app/lib/anthropic";
 import { prisma } from "@/app/lib/prisma";
+import { averageYield } from "@/app/lib/stockReport";
 import { costsTenant } from "@/app/lib/costsApi";
 import { netOfVat, recipeCostCents, unitCostCents, type CostIngredient } from "@/app/lib/costs";
 import { consumableQty, orderKindOf } from "@/app/lib/inventory";
@@ -164,7 +165,23 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  // Lo que rinden de verdad las elaboraciones: media de sus últimos 10 lotes.
+  const batches = await prisma.stockMovement.findMany({
+    where: { tenantId, type: "PRODUCTION", batchFactor: { not: null }, quantity: { gt: 0 } },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    select: { ingredientId: true, quantity: true, batchFactor: true },
+  });
+  const byPrep = new Map<string, { quantity: number; batchFactor: number | null }[]>();
+  for (const b of batches) {
+    const list = byPrep.get(b.ingredientId) ?? [];
+    if (list.length < 10) list.push(b);
+    byPrep.set(b.ingredientId, list);
+  }
+  const yields = Object.fromEntries([...byPrep].map(([id, list]) => [id, averageYield(list)]));
+
   return NextResponse.json({
+    yields,
     restaurantName: tenantInfo?.name ?? "",
     aiEnabled: aiConfigured(),
     suppliers,

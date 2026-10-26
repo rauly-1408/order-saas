@@ -175,6 +175,7 @@ function Editor({
   const [portion, setPortion] = useState("130");
   const [batch, setBatch] = useState("");
   const [batchMsg, setBatchMsg] = useState("");
+  const [actual, setActual] = useState("");
   const base = BASE_OF[form.yieldShown];
   const yieldBase = num(form.yieldQty) * FACTOR[form.yieldShown];
   const choices = data.ingredients.filter((i) => i.id !== form.id).sort((a, b) => Number(a.isPrep) - Number(b.isPrep) || a.name.localeCompare(b.name, "es"));
@@ -228,14 +229,18 @@ function Editor({
 
   // «He hecho un lote»: cuánto de lo principal (kg de carne) o cuántas veces la receta.
   const factor = main ? num(batch) / mainKg : num(batch);
+  // Lo que ha salido de verdad (opcional): entra eso al stock y cuenta para la media.
+  const actualBase = actual.trim() ? toBase(actual, form.yieldShown, base) : 0;
+  const avg = form.id ? data.yields?.[form.id] : null;
   async function produce() {
     if (!form.id || !(factor > 0)) return;
-    const made = toShown(yieldBase * factor, base);
+    const made = toShown(actualBase > 0 ? actualBase : yieldBase * factor, base);
     if (!(await ask(`¿Registrar un lote de ${form.name}? Entran ${made.qty} ${made.shown} al stock y salen sus ingredientes.`, { confirm: "Registrar lote" }))) return;
-    const res = await fetch(`${api}/preps/${form.id}/produce`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ factor }) });
+    const res = await fetch(`${api}/preps/${form.id}/produce`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ factor, made: actualBase > 0 ? actualBase : null }) });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) return setBatchMsg(json.error ?? "No se pudo registrar");
     setBatch("");
+    setActual("");
     setBatchMsg(`Lote registrado: +${made.qty} ${made.shown} de ${form.name}.${json.untracked ? ` ${json.untracked} ${json.untracked === 1 ? "ingrediente no se ha descontado" : "ingredientes no se han descontado"} porque no controlas su stock (actívalo en Inventario).` : ""}`);
     await onSaved();
   }
@@ -402,14 +407,35 @@ function Editor({
             <span className="text-sm text-[var(--p-muted)]">{main ? `kg de ${main.ing!.name.toLowerCase()}` : "veces la receta"}</span>
             {factor > 0 && yieldBase > 0 && (
               <span className="text-sm">
-                → salen <span className="font-semibold">{toShown(yieldBase * factor, base).qty} {toShown(yieldBase * factor, base).shown}</span>
+                → deberían salir <span className="font-semibold">{toShown(yieldBase * factor, base).qty} {toShown(yieldBase * factor, base).shown}</span>
               </span>
             )}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-sm text-[var(--p-muted)]">Ha salido de verdad</span>
+            <input inputMode="decimal" value={actual} onChange={(e) => setActual(e.target.value)} placeholder="Opcional" aria-label="Lo que ha salido de verdad" className="w-24 rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm outline-none focus:border-[var(--p-brand)]" />
+            <span className="text-sm text-[var(--p-muted)]">{form.yieldShown}</span>
             <button onClick={produce} disabled={!(factor > 0)} className="p-press rounded-full bg-[var(--p-ink)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
               Registrar lote
             </button>
           </div>
           {batchMsg && <p className="mt-2 text-sm text-emerald-700">{batchMsg}</p>}
+          {avg && yieldBase > 0 && (
+            <div className="mt-3 rounded-lg bg-[var(--p-bg)] p-3 text-sm">
+              <p>
+                De media rinde <span className="font-semibold">{toShown(avg.perBatch, base).qty} {toShown(avg.perBatch, base).shown}</span> por receta{" "}
+                <span className="text-[var(--p-muted)]">
+                  ({avg.count === 1 ? "1 lote" : `últimos ${avg.count} lotes`}
+                  {avg.count > 1 && `, entre ${toShown(avg.min, base).qty} y ${toShown(avg.max, base).qty} ${toShown(avg.max, base).shown}`}). En la receta pone {toShown(yieldBase, base).qty} {toShown(yieldBase, base).shown}.
+                </span>
+              </p>
+              {Math.abs(avg.perBatch - yieldBase) / yieldBase > 0.01 && (
+                <button onClick={() => set({ yieldQty: toShown(avg.perBatch, base).qty, yieldShown: toShown(avg.perBatch, base).shown })} className="mt-2 rounded-lg border border-[var(--p-line)] bg-white px-2.5 py-1 text-xs font-semibold hover:bg-[var(--p-surface)]">
+                  Usar la media (y luego Guardar)
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
