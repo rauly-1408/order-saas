@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { unitCostCents } from "@/app/lib/costs";
-import { UNIT_LABEL, euros, linesCost, type Ingredient, type Overview, type Product, type RecipeLine } from "./types";
+import { UNIT_LABEL, euros, linesCost, typicalPlate, type Ingredient, type Overview, type Product, type RecipeLine } from "./types";
+import { netOfVat } from "@/app/lib/costs";
 
 type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToIngredients: () => void };
 
@@ -98,6 +99,7 @@ function ProductRecipes({
         ingredients={ingredients}
         onSave={(lines) => saveRecipe(api, { productId: product.id, lines }, onSaved)}
       />
+      <PlateTotal product={product} ingredients={ingredients} />
 
       {product.modifierGroups.map((g) => (
         <section key={g.group.code} className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
@@ -250,5 +252,37 @@ function RecipeEditor({
         </span>
       </div>
     </div>
+  );
+}
+
+// El plato tal como sale de cocina: receta base + la opción por defecto de cada
+// grupo obligatorio (el pan, la guarnición). El mismo cálculo que Rentabilidad.
+function PlateTotal({ product, ingredients }: { product: Product; ingredients: Map<string, Ingredient> }) {
+  const plate = typicalPlate(product);
+  if (!product.recipeLines.length) return null;
+  const groupOf = new Map(product.modifierGroups.flatMap((g) => g.group.options.map((o) => [o.id, g.group.name] as const)));
+  const rows = [
+    { label: "Receta base", cents: linesCost(product.recipeLines, ingredients), missing: false },
+    ...plate.defaults.map((o) => ({ label: `${groupOf.get(o.id) ?? "Opción"}: ${o.name}`, cents: linesCost(o.recipeLines, ingredients), missing: o.recipeLines.length === 0 })),
+  ];
+  const total = rows.reduce((a, r) => a + r.cents, 0);
+  return (
+    <section className="rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="font-bold">Plato completo</h3>
+        <span className="text-xl font-bold tabular-nums">{euros(total)}</span>
+      </div>
+      <ul className="mt-2 space-y-1 text-sm">
+        {rows.map((r) => (
+          <li key={r.label} className="flex justify-between gap-3 tabular-nums">
+            <span className="min-w-0 text-[var(--p-muted)]">{r.label}</span>
+            <span className={r.missing ? "text-amber-700" : ""}>{r.missing ? "sin escandallo" : euros(r.cents)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 border-t border-[var(--p-line)] pt-2 text-xs text-[var(--p-muted)] tabular-nums">
+        Precio en carta {euros(plate.priceCents)} con IVA · {euros(netOfVat(plate.priceCents))} sin IVA
+      </p>
+    </section>
   );
 }
