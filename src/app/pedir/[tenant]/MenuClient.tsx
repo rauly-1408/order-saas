@@ -31,6 +31,7 @@ type MenuProduct = {
   basePriceCents: number;
   imageUrl?: string | null;
   isFeatured?: boolean;
+  bestSeller?: boolean; // el más vendido de su categoría (últimos 30 días)
   modifierGroups: MenuModifierGroup[];
   allergens?: string[];
   isCombo?: boolean;
@@ -169,6 +170,28 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
   const initials = tenantName.slice(0, 2).toUpperCase();
   const upper = cssVars["--heading-case"] === "uppercase";
   const heading = { fontFamily: cssVars["--font-heading"], textTransform: cssVars["--heading-case"] as any, fontWeight: upper ? 400 : 800, lineHeight: 0.95 };
+  // Favoritos arriba de la carta: los marcados como Destacado (sin menús), hasta 6.
+  const favorites = categories.flatMap((c) => c.products).filter((p) => p.isFeatured && !p.isCombo).slice(0, 6);
+  const productCard = (product: MenuProduct, badge: "featured" | "bestseller" | null) => {
+    const qty = getQty(product.id);
+    const lineId = getLineId(product.id);
+    return (
+      <ProductCard
+        lang={lang}
+        name={product.name}
+        description={product.description}
+        priceCents={product.basePriceCents}
+        imageUrl={product.imageUrl}
+        allergens={product.allergens}
+        qty={qty}
+        simple={product.modifierGroups.length === 0}
+        badge={badge}
+        onAdd={() => handleAdd(product)}
+        onInc={() => { if (lineId) { inc(lineId); bumpCart(); } }}
+        onDec={() => { if (!lineId) return; if (qty === 1) remove(lineId); else dec(lineId); }}
+      />
+    );
+  };
   const visiblePromos = (perks?.promotions ?? []).filter((p) => settings?.deliveryEnabled || (p.channel !== "DELIVERY" && p.kind !== "FREE_DELIVERY"));
   const canSchedule = !!store?.slots && (store.slots.TAKEAWAY.length > 0 || store.slots.DELIVERY.length > 0);
   const firstSlug = categories[0]?.slug;
@@ -362,6 +385,20 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           </section>
         )}
 
+        {/* Nuestros favoritos: los que el restaurante marca como Destacado (hasta 6), en fila deslizante */}
+        {favorites.length > 0 && (
+          <section className="mb-14" aria-label={T.favorites}>
+            <h2 data-reveal className="mb-5 text-[34px] sm:text-[44px]" style={{ ...heading, color: cssVars["--heading-color"] }}>{T.favorites}</h2>
+            <div className="s-row -mx-4 flex items-stretch gap-4 overflow-x-auto px-4 pb-2 sm:-mx-8 sm:px-8">
+              {favorites.map((product, i) => (
+                <div key={product.id} data-reveal className="w-[78vw] max-w-[320px] shrink-0 sm:w-[300px]" style={{ ["--i" as any]: Math.min(i, 6) }}>
+                  {productCard(product, "featured")}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Promociones y tarjeta de sellos: fila deslizante de tarjetas de color */}
         {perks && (visiblePromos.length > 0 || perks.loyalty) && (
           <section className="mb-14" aria-label={T.promotions}>
@@ -393,7 +430,6 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
               <Wrap carousel={combos} perView={t.menusPerRow} lang={lang}>
                 {cat.products.map((product, i) => {
                   const qty = getQty(product.id);
-                  const lineId = getLineId(product.id);
                   return (
                     <div key={product.id} data-reveal className="h-full" style={{ ["--i" as any]: Math.min(i, 6) }}>
                       {product.isCombo ? (
@@ -409,19 +445,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                           upperHeadings={upper}
                         />
                       ) : (
-                        <ProductCard
-                          lang={lang}
-                          name={product.name}
-                          description={product.description}
-                          priceCents={product.basePriceCents}
-                          imageUrl={product.imageUrl}
-                          allergens={product.allergens}
-                          qty={qty}
-                          simple={product.modifierGroups.length === 0}
-                          onAdd={() => handleAdd(product)}
-                          onInc={() => { if (lineId) { inc(lineId); bumpCart(); } }}
-                          onDec={() => { if (!lineId) return; if (qty === 1) remove(lineId); else dec(lineId); }}
-                        />
+                        productCard(product, product.isFeatured ? "featured" : product.bestSeller ? "bestseller" : null)
                       )}
                     </div>
                   );

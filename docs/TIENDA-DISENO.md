@@ -20,6 +20,15 @@
 9. **Pie** con el nombre y las redes.
 10. **Barra flotante del pedido** con el total y «Ver pedido →».
 
+## Destacados (2026-10-26)
+
+Como en Uber Eats, Glovo o Just Eat, con el estilo de la tienda:
+- **Nuestros favoritos**: fila deslizante arriba de la carta (antes de Promociones) con los productos marcados como **Destacado** en la Carta (hasta 6, sin menús), con foto grande y botón «Añadir». Si no hay ninguno, no sale.
+- Etiqueta **«★ Recomendado»** (color de la marca) en esas tarjetas y en su sitio dentro de la categoría: el plato no se mueve.
+- Etiqueta automática **«Lo más pedido»** (borde y texto en el color de los precios): el producto que más unidades ha vendido en los últimos 30 días **en cada categoría**, con un mínimo de 5 (`lib/bestSellers.ts`, se recalcula cada hora). Si un plato es Destacado, se ve «Recomendado».
+- En inglés: «Our favourites», «Recommended», «Most ordered».
+- Consejo para el restaurante: destacar platos con foto.
+
 ## Animaciones
 
 - Entrada escalonada del titular de la portada y zoom lento de la foto.
