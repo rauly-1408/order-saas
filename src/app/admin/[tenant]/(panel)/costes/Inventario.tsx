@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { unitCostCents } from "@/app/lib/costs";
 import InformeStock from "./InformeStock";
+import AvisosMovil from "../AvisosMovil";
 import { UNIT_LABEL, euros, formatQty, type Ingredient, type MovementType, type Overview } from "./types";
 
 type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToIngredients: () => void };
@@ -58,6 +59,7 @@ export default function Inventario({ data, api, onSaved, onGoToIngredients }: Pr
 
   return (
     <div className="space-y-6">
+      {tracked.some((i) => i.minStock != null) && <AvisosMovil tenant={api.split("/")[3]} />}
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat label="Valor del stock" value={euros(stockValue)} sub={`${tracked.length} ingredientes controlados`} />
         <Stat label="Avisos" value={String(low.length)} sub={low.length ? low.map((i) => i.name).join(", ") : "Todo en orden"} tone={low.length ? "warn" : "ok"} />

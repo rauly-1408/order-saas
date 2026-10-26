@@ -25,6 +25,10 @@ Su página privada es una **app que se instala** en el móvil («Mis ventas», c
 - Arriba: lo ganado este mes, cuántos pedidos y por cuánto ha traído, su %, y una barra **frente al mes pasado** («¡Ya has superado lo del mes pasado!»).
 - Con la app cerrada no llegan avisos (haría falta notificación push).
 
+## Avisos y tarjetas VIP (2026-10-27)
+- **Avisos de cada venta** con la app cerrada: en su app, «Avisarme de cada venta» (ver `docs/AVISOS-MOVIL.md`).
+- **Tarjetas VIP para imprimir** (`/colaborador/[token]/tarjetas`): tamaño tarjeta de visita (85 × 55 mm), 10 por folio A4, con el logo del restaurante, «Pide online con mi código», el código y el QR de la tienda con su código. Se abre desde su app («Imprimir tarjetas») o desde el panel (Colaboradores → «Tarjetas VIP para imprimir»).
+
 ## Técnica
 
 - Modelos `Collaborator` (código único por restaurante, `commissionPct`, `token` de la página privada) y `CollaboratorPayout` (un pago por colaborador y mes, AAAA-MM). `Order.collaboratorId` y `Order.commissionCents` (se calcula al crear el pedido). Migración `20261025220000_collaborators`.

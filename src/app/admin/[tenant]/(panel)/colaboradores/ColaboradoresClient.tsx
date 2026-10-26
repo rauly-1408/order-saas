@@ -307,6 +307,9 @@ export default function ColaboradoresClient({ tenant }: { tenant: string }) {
                 <a href={privateLink(c)} target="_blank" rel="noopener noreferrer" className="rounded-full bg-black/[0.05] px-3.5 py-2 text-xs font-semibold">
                   Ver su página (QR)
                 </a>
+                <a href={`${privateLink(c)}/tarjetas`} target="_blank" rel="noopener noreferrer" className="rounded-full bg-black/[0.05] px-3.5 py-2 text-xs font-semibold">
+                  Tarjetas VIP para imprimir
+                </a>
                 <button onClick={() => setForm({ id: c.id, name: c.name, place: c.place ?? "", phone: c.phone ?? "", code: c.code, commissionPct: String(c.commissionPct).replace(".", ","), notes: c.notes ?? "" })} className="rounded-full bg-black/[0.05] px-3.5 py-2 text-xs font-semibold">
                   Editar
                 </button>
