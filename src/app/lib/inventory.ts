@@ -69,7 +69,7 @@ export async function applyStockDeltas(
   tenantId: string,
   deltas: Map<string, number>,
   type: StockMovementType,
-  opts: { orderId?: string; note?: string } = {}
+  opts: { orderId?: string; note?: string; batch?: { ingredientId: string; factor: number } } = {}
 ): Promise<void> {
   const ids: string[] = [];
   for (const [ingredientId, delta] of deltas) {
@@ -90,6 +90,7 @@ export async function applyStockDeltas(
         valueCents: Math.round(delta * unitCostCents(ing)),
         orderId: opts.orderId ?? null,
         note: opts.note ?? null,
+        batchFactor: opts.batch?.ingredientId === ingredientId ? opts.batch.factor : null,
       },
     });
     ids.push(ingredientId);

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { unitCostCents } from "@/app/lib/costs";
+import InformeStock from "./InformeStock";
 import { UNIT_LABEL, euros, formatQty, type Ingredient, type MovementType, type Overview } from "./types";
 
 type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToIngredients: () => void };
@@ -21,7 +22,7 @@ const ACTION_TEXT: Record<Action["type"], { title: string; label: string; button
   RECEIPT: { title: "Entrada de mercancía", label: "Cantidad que entra", button: "Registrar entrada" },
   COUNT: { title: "Recuento", label: "Cantidad que hay ahora (contada)", button: "Guardar recuento" },
   WASTE: { title: "Merma", label: "Cantidad perdida", button: "Registrar merma" },
-  MIN: { title: "Stock mínimo", label: "Avisar cuando quede menos de", button: "Guardar mínimo" },
+  MIN: { title: "Mínimo y stock normal", label: "Avisar cuando quede menos de", button: "Guardar" },
   USE: { title: "He gastado", label: "Cantidad gastada", button: "Registrar" },
 };
 
@@ -103,6 +104,7 @@ export default function Inventario({ data, api, onSaved, onGoToIngredients }: Pr
                           <>
                             Hay <span className="font-semibold text-[var(--p-ink)]">{formatQty(i.stockQty, i.baseUnit)}</span> ({euros(Math.max(i.stockQty, 0) * unitCostCents(i))})
                             {i.minStock != null && ` · mínimo ${formatQty(i.minStock, i.baseUnit)}`}
+                            {i.parStock != null && ` · normal ${formatQty(i.parStock, i.baseUnit)}`}
                           </>
                         ) : (
                           "No se descuenta con los pedidos"
@@ -117,7 +119,7 @@ export default function Inventario({ data, api, onSaved, onGoToIngredients }: Pr
                       ))}
                       {i.trackStock && (
                         <button onClick={() => setAction(open && action?.type === "MIN" ? null : { ingredient: i, type: "MIN" })} className="rounded-lg border border-[var(--p-line)] px-2.5 py-1 text-xs text-[var(--p-muted)] hover:bg-[var(--p-bg)]">
-                          Mínimo
+                          Mínimo y normal
                         </button>
                       )}
                       {i.trackStock && (
@@ -134,6 +136,8 @@ export default function Inventario({ data, api, onSaved, onGoToIngredients }: Pr
           </ul>
         </section>
       )}
+
+      {tracked.length > 0 && <InformeStock data={data} api={api} />}
 
       <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <h2 className="px-5 pt-4 pb-1 text-[17px] font-semibold">Últimos movimientos</h2>
@@ -175,6 +179,7 @@ export default function Inventario({ data, api, onSaved, onGoToIngredients }: Pr
 export function ActionForm({ action, api, onDone, onCancel }: { action: Action; api: string; onDone: () => Promise<void>; onCancel: () => void }) {
   const { ingredient: i, type } = action;
   const [qty, setQty] = useState(type === "MIN" && i.minStock != null ? String(i.minStock) : "");
+  const [par, setPar] = useState(i.parStock != null ? String(i.parStock) : "");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -182,12 +187,18 @@ export function ActionForm({ action, api, onDone, onCancel }: { action: Action; 
   const n = Number(qty.replace(",", "."));
   const diff = type === "COUNT" && qty !== "" && Number.isFinite(n) ? n - i.stockQty : null;
 
+  const p = Number(par.replace(",", "."));
+
   async function submit() {
+    if (type === "MIN" && qty !== "" && par !== "" && p <= n) {
+      setError("El stock normal tiene que ser mayor que el mínimo");
+      return;
+    }
     setSaving(true);
     setError("");
     const res =
       type === "MIN"
-        ? await fetch(`${api}/stock/${i.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ minStock: qty === "" ? null : n }) })
+        ? await fetch(`${api}/stock/${i.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ minStock: qty === "" ? null : n, parStock: par === "" ? null : p }) })
         : await fetch(`${api}/stock`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ingredientId: i.id, type, quantity: n, note }) });
     setSaving(false);
     if (!res.ok) {
@@ -206,6 +217,12 @@ export function ActionForm({ action, api, onDone, onCancel }: { action: Action; 
           {text.label} ({UNIT_LABEL[i.baseUnit]})
           <input autoFocus inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} className="mt-1 w-full rounded-lg border border-[var(--p-line)] bg-white px-3 py-2 text-sm text-[var(--p-ink)]" />
         </label>
+        {type === "MIN" && (
+          <label className="text-xs text-[var(--p-muted)]">
+            Stock normal: reponer hasta ({UNIT_LABEL[i.baseUnit]})
+            <input inputMode="decimal" value={par} onChange={(e) => setPar(e.target.value)} placeholder="Opcional" className="mt-1 w-full rounded-lg border border-[var(--p-line)] bg-white px-3 py-2 text-sm text-[var(--p-ink)]" />
+          </label>
+        )}
         {type !== "MIN" && (
           <label className="text-xs text-[var(--p-muted)]">
             Nota (opcional)
@@ -213,6 +230,7 @@ export function ActionForm({ action, api, onDone, onCancel }: { action: Action; 
           </label>
         )}
       </div>
+      {type === "MIN" && <p className="mt-2 text-xs text-[var(--p-muted)]">Al bajar del mínimo te avisamos y en Compras se sugiere pedir hasta el stock normal (si no lo pones, hasta el doble del mínimo).</p>}
       {diff != null && i.trackStock && (
         <p className={`mt-2 text-xs ${diff < 0 ? "text-red-600" : "text-[var(--p-muted)]"}`}>
           Diferencia con el stock teórico: {diff > 0 ? "+" : ""}

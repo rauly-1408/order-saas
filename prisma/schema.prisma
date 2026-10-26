@@ -881,6 +881,7 @@ model Ingredient {
   trackStock Boolean @default(false)
   stockQty   Float   @default(0) // stock teórico en unidad base
   minStock   Float? // aviso de stock bajo
+  parStock   Float? // stock normal: la sugerencia de compra repone hasta aquí
 
   // Consumibles (packaging, limpieza, papel…): su apartado, y lo que se gasta
   // solo con cada pedido (p. ej. 1 bolsa por pedido a domicilio). Ver docs/MODULO-COSTES.md
@@ -950,6 +951,9 @@ model StockMovement {
 
   orderId String?
   note    String?
+
+  // Lote de una elaboración: veces la receta (para la media de lo que rinde de verdad)
+  batchFactor Float?
 
   createdAt DateTime @default(now())
 

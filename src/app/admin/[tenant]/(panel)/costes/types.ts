@@ -30,6 +30,7 @@ export type Ingredient = CostIngredient & {
   trackStock: boolean;
   stockQty: number;
   minStock: number | null;
+  parStock: number | null;
   // Elaboración (salsa, caldo…): packSize = lo que rinde el lote y packPriceCents = su coste.
   isPrep: boolean;
   // Consumible (packaging, limpieza…): apartado propio y gasto por pedido.
@@ -112,7 +113,10 @@ export type PriceChange = {
   createdAt: string;
 };
 
+export type BatchYield = { perBatch: number; count: number; min: number; max: number };
+
 export type Overview = {
+  yields: Record<string, BatchYield | null>;
   restaurantName: string;
   aiEnabled: boolean;
   purchaseOrders: PurchaseOrder[];

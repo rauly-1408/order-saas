@@ -53,7 +53,7 @@ export default function Compras({ data, api, onSaved }: Props) {
       <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <h2 className="px-5 pt-4 pb-1 text-[17px] font-semibold">Hay que pedir</h2>
         <p className="px-4 pt-2 text-xs text-[var(--p-muted)]">
-          Ingredientes controlados por debajo de su mínimo. Se sugiere reponer hasta el doble del mínimo, en formatos completos.
+          Ingredientes controlados por debajo de su mínimo. Se sugiere reponer hasta su stock normal (o el doble del mínimo si no lo tiene), en formatos completos.
         </p>
         {suggestions.bySupplier.size === 0 && suggestions.orphans.length === 0 ? (
           <p className="px-4 py-5 text-sm text-[var(--p-muted)]">Nada por debajo del mínimo. Configura mínimos en la pestaña Inventario.</p>

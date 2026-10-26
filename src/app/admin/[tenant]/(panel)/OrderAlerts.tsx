@@ -11,14 +11,43 @@ import { CANCEL_REASON_LABEL } from "./pedidos/orderBoard";
 //   «Repetir hasta aceptar» (por defecto), cada ~8 s mientras haya pedidos sin aceptar;
 // - muestra un aviso flotante con enlace a Pedidos;
 // - el sonido se desbloquea solo con el primer toque/clic/tecla en el panel.
+// - al dueño, aviso de stock cuando un ingrediente baja de su mínimo (una vez al
+//   día por ingrediente; vuelve a salir si baja otro).
 
 type Pending = { id: string; orderNumber: number | null; customerName: string; totalCents: number; channel: string };
 type Cancelled = Pending & { cancelReason: string | null };
+type LowStock = { id: string; name: string; stockQty: number; minStock: number; baseUnit: "KG" | "G" | "L" | "ML" | "UNIT" };
+
+const UNIT: Record<LowStock["baseUnit"], string> = { KG: "kg", G: "g", L: "l", ML: "ml", UNIT: "ud" };
+function qty(q: number, unit: LowStock["baseUnit"]): string {
+  const n = (v: number) => v.toLocaleString("es-ES", { maximumFractionDigits: 2 });
+  if (unit === "G" && Math.abs(q) >= 1000) return `${n(q / 1000)} kg`;
+  if (unit === "ML" && Math.abs(q) >= 1000) return `${n(q / 1000)} l`;
+  return `${n(q)} ${UNIT[unit]}`;
+}
+
+// Avisos de stock ya vistos hoy (por ingrediente), para no repetirlos en cada consulta.
+const today = () => new Date().toLocaleDateString("sv-SE");
+function seenStock(tenant: string): Set<string> {
+  try {
+    const v = JSON.parse(localStorage.getItem(`stock-alert:${tenant}`) ?? "null") as { day: string; ids: string[] } | null;
+    return new Set(v?.day === today() ? v.ids : []);
+  } catch {
+    return new Set();
+  }
+}
+function markStockSeen(tenant: string, ids: string[]) {
+  try {
+    localStorage.setItem(`stock-alert:${tenant}`, JSON.stringify({ day: today(), ids: [...new Set([...seenStock(tenant), ...ids])] }));
+  } catch {
+    /* sin almacenamiento: el aviso volverá a salir */
+  }
+}
 
 const POLL_MS = 8_000;
 const euros = (c: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(c / 100);
 
-export default function OrderAlerts({ tenant }: { tenant: string }) {
+export default function OrderAlerts({ tenant, canManage }: { tenant: string; canManage: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const onOrdersPage = pathname.startsWith(`/admin/${tenant}/pedidos`);
@@ -30,6 +59,7 @@ export default function OrderAlerts({ tenant }: { tenant: string }) {
   const [enabled, setEnabled] = useState(true);
   const [unlocked, setUnlocked] = useState(false);
   const known = useRef<Set<string> | null>(null);
+  const [stockToast, setStockToast] = useState<LowStock[]>([]);
 
   // Preferencia guardada + desbloqueo del audio con la primera interacción.
   useEffect(() => {
@@ -59,7 +89,17 @@ export default function OrderAlerts({ tenant }: { tenant: string }) {
         return;
       }
       if (!res.ok) return;
-      const { pending: list, cancelled = [] } = (await res.json()) as { pending: Pending[]; cancelled?: Cancelled[] };
+      const { pending: list, cancelled = [], lowStock = [] } = (await res.json()) as { pending: Pending[]; cancelled?: Cancelled[]; lowStock?: LowStock[] };
+      if (canManage) {
+        const seen = seenStock(tenant);
+        const fresh = lowStock.filter((i) => !seen.has(i.id));
+        // Se mantiene el aviso abierto con lo que siga bajo (y lo nuevo que entre).
+        setStockToast((prev) => {
+          const still = prev.filter((p) => lowStock.some((l) => l.id === p.id));
+          const add = fresh.filter((f) => !still.some((p) => p.id === f.id));
+          return add.length || still.length !== prev.length ? [...still, ...add] : prev;
+        });
+      }
       // Cancelaciones del cliente: solo las que aparezcan después de la primera carga.
       const freshCancelled = knownCancelled.current ? cancelled.filter((c) => !knownCancelled.current!.has(c.id)) : [];
       if (freshCancelled.length) {
@@ -84,7 +124,7 @@ export default function OrderAlerts({ tenant }: { tenant: string }) {
     } catch {
       /* sin conexión: se reintenta en el siguiente ciclo */
     }
-  }, [tenant, router]);
+  }, [tenant, router, canManage]);
 
   useEffect(() => {
     const first = setTimeout(poll, 0); // primera consulta nada más montar
@@ -111,7 +151,14 @@ export default function OrderAlerts({ tenant }: { tenant: string }) {
   const visibleToast = toast && pending.some((p) => p.id === toast.id) && !onOrdersPage ? toast : null;
   const needsTap = enabled && !unlocked && pending.length > 0;
 
-  if (!visibleToast && !needsTap && !cancelToast) return null;
+  const onStockPage = pathname.startsWith(`/admin/${tenant}/costes`);
+  const showStock = stockToast.length > 0 && !onStockPage;
+  const closeStock = () => {
+    markStockSeen(tenant, stockToast.map((i) => i.id));
+    setStockToast([]);
+  };
+
+  if (!visibleToast && !needsTap && !cancelToast && !showStock) return null;
   return (
     <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[60] flex flex-col items-end gap-2 sm:inset-x-auto sm:right-5 sm:bottom-5">
       {needsTap && (
@@ -137,6 +184,33 @@ export default function OrderAlerts({ tenant }: { tenant: string }) {
           <button type="button" onClick={() => setCancelToast(null)} aria-label="Cerrar" className="p-press shrink-0 rounded-full bg-white/20 px-3 py-1.5 text-sm font-semibold">
             OK
           </button>
+        </div>
+      )}
+      {showStock && (
+        <div role="status" className="p-rise pointer-events-auto w-full rounded-2xl bg-[var(--p-surface)] p-4 text-[var(--p-ink)] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.35)] ring-1 ring-amber-200 sm:w-80">
+          <p className="flex items-center gap-2 font-semibold">
+            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
+            {stockToast.length === 1 ? "Un ingrediente bajo mínimo" : `${stockToast.length} ingredientes bajo mínimo`}
+          </p>
+          <ul className="mt-1.5 space-y-0.5 text-sm">
+            {stockToast.slice(0, 4).map((i) => (
+              <li key={i.id} className="truncate">
+                <span className="font-medium">{i.name}</span>{" "}
+                <span className="text-[var(--p-muted)]">
+                  · {i.stockQty <= 0 ? "agotado" : `quedan ${qty(i.stockQty, i.baseUnit)}`} (mínimo {qty(i.minStock, i.baseUnit)})
+                </span>
+              </li>
+            ))}
+            {stockToast.length > 4 && <li className="text-[var(--p-muted)]">y {stockToast.length - 4} más</li>}
+          </ul>
+          <div className="mt-3 flex gap-2">
+            <Link href={`/admin/${tenant}/costes?tab=compras`} onClick={closeStock} className="p-press rounded-full bg-[var(--p-brand)] px-3 py-1.5 text-sm font-semibold text-white">
+              Ver qué pedir
+            </Link>
+            <button type="button" onClick={closeStock} className="p-press rounded-full px-3 py-1.5 text-sm font-semibold text-[var(--p-muted)] hover:bg-[var(--p-bg)]">
+              Más tarde
+            </button>
+          </div>
         </div>
       )}
       {visibleToast && (

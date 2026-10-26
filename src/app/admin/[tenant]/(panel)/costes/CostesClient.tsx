@@ -93,6 +93,12 @@ export default function CostesClient({ tenant }: { tenant: string }) {
     reload();
   }, [reload]);
 
+  // Enlace directo a una pestaña (p. ej. el aviso de stock → ?tab=compras).
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t && TABS.some((x) => x.key === t)) setTab(t as TabKey);
+  }, []);
+
   return (
     <div className="text-[var(--p-ink)]">
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Costes y margen</h1>
