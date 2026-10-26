@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { unitCostCents } from "@/app/lib/costs";
 import { UNIT_LABEL, euros, linesCost, typicalPlate, type Ingredient, type Overview, type Product, type RecipeLine } from "./types";
 import { netOfVat } from "@/app/lib/costs";
+import { dishVerdict, withPrepMarkup, type CostSettings } from "@/app/lib/pricing";
 
 type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToIngredients: () => void };
 
@@ -67,7 +68,7 @@ export default function Escandallos({ data, api, onSaved, onGoToIngredients }: P
             Elige un plato para escandallarlo.
           </div>
         ) : (
-          <ProductRecipes key={selected.id} product={selected} ingredients={ingredients} api={api} onSaved={onSaved} onBack={() => setSelectedId(null)} />
+          <ProductRecipes key={selected.id} product={selected} ingredients={ingredients} settings={data.costSettings} api={api} onSaved={onSaved} onBack={() => setSelectedId(null)} />
         )}
       </div>
     </div>
@@ -77,12 +78,14 @@ export default function Escandallos({ data, api, onSaved, onGoToIngredients }: P
 function ProductRecipes({
   product,
   ingredients,
+  settings,
   api,
   onSaved,
   onBack,
 }: {
   product: Product;
   ingredients: Map<string, Ingredient>;
+  settings: CostSettings;
   api: string;
   onSaved: () => Promise<void>;
   onBack: () => void;
@@ -99,7 +102,7 @@ function ProductRecipes({
         ingredients={ingredients}
         onSave={(lines) => saveRecipe(api, { productId: product.id, lines }, onSaved)}
       />
-      <PlateTotal product={product} ingredients={ingredients} />
+      <PlateTotal product={product} ingredients={ingredients} settings={settings} />
 
       {product.modifierGroups.map((g) => (
         <section key={g.group.code} className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
@@ -257,7 +260,9 @@ function RecipeEditor({
 
 // El plato tal como sale de cocina: receta base + la opción por defecto de cada
 // grupo obligatorio (el pan, la guarnición). El mismo cálculo que Rentabilidad.
-function PlateTotal({ product, ingredients }: { product: Product; ingredients: Map<string, Ingredient> }) {
+function PlateTotal({ product, ingredients: raw, settings }: { product: Product; ingredients: Map<string, Ingredient>; settings: CostSettings }) {
+  // Mismo coste que en Rentabilidad: las elaboraciones con el recargo del obrador.
+  const ingredients = settings.prepMarkupPct > 0 ? new Map(withPrepMarkup([...raw.values()], settings.prepMarkupPct).map((i) => [i.id, i])) : raw;
   const plate = typicalPlate(product);
   if (!product.recipeLines.length) return null;
   const groupOf = new Map(product.modifierGroups.flatMap((g) => g.group.options.map((o) => [o.id, g.group.name] as const)));
@@ -266,6 +271,13 @@ function PlateTotal({ product, ingredients }: { product: Product; ingredients: M
     ...plate.defaults.map((o) => ({ label: `${groupOf.get(o.id) ?? "Opción"}: ${o.name}`, cents: linesCost(o.recipeLines, ingredients), missing: o.recipeLines.length === 0 })),
   ];
   const total = rows.reduce((a, r) => a + r.cents, 0);
+  const v = dishVerdict(total, plate.priceCents, settings);
+  const goal =
+    settings.priceMode === "MARKUP"
+      ? { label: `Recargo ${Math.round(v.markupPct ?? 0)} %`, target: `tu objetivo ${settings.markupPct} %` }
+      : settings.priceMode === "MARGIN"
+        ? { label: `Margen ${Math.round(v.marginPct ?? 0)} %`, target: `tu objetivo ${settings.targetMarginPct} %` }
+        : { label: `Food cost ${Math.round(v.foodCostPct ?? 0)} %`, target: `tu objetivo ${settings.targetFoodCostPct} %` };
   return (
     <section className="rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <div className="flex items-baseline justify-between gap-3">
@@ -283,6 +295,13 @@ function PlateTotal({ product, ingredients }: { product: Product; ingredients: M
       <p className="mt-2 border-t border-[var(--p-line)] pt-2 text-xs text-[var(--p-muted)] tabular-nums">
         Precio en carta {euros(plate.priceCents)} con IVA · {euros(netOfVat(plate.priceCents))} sin IVA
       </p>
+      {v.meets != null && (
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          Te quedan <span className="font-semibold tabular-nums">{euros(v.profitCents)}</span> por plato
+          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${v.meets ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{goal.label}</span>
+          <span className="text-xs text-[var(--p-muted)]">{goal.target}</span>
+        </p>
+      )}
     </section>
   );
 }
