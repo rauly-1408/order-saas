@@ -16,7 +16,7 @@ function CostesUpsell() {
   const items = [
     ["Escandallos", "Coste exacto de cada plato, incluido el pan, la guarnición y cada extra."],
     ["Margen real", "Lo que ganas en cada pedido, descontando ingredientes y comisiones."],
-    ["Precio sugerido", "El precio que necesitas para alcanzar tu margen objetivo."],
+    ["Tu objetivo", "Recargo, food cost o margen, como lo calcules tú: qué platos llegan y cuáles no."],
     ["Alérgenos", "Los 14 alérgenos obligatorios, ligados a tus ingredientes."],
   ];
   return (
