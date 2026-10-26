@@ -5,6 +5,7 @@ import type { Overview } from "./types";
 import { readPanelCache, writePanelCache } from "../panelCache";
 import Rentabilidad from "./Rentabilidad";
 import Elaboraciones from "./Elaboraciones";
+import Consumibles from "./Consumibles";
 import Escandallos from "./Escandallos";
 import Ingredientes from "./Ingredientes";
 import Proveedores from "./Proveedores";
@@ -18,6 +19,7 @@ const TABS = [
   { key: "escandallos", label: "Escandallos" },
   { key: "elaboraciones", label: "Elaboraciones" },
   { key: "ingredientes", label: "Ingredientes" },
+  { key: "consumibles", label: "Consumibles" },
   { key: "proveedores", label: "Proveedores" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
@@ -124,6 +126,8 @@ export default function CostesClient({ tenant }: { tenant: string }) {
         <Escandallos data={data} api={api} onSaved={reload} onGoToIngredients={() => setTab("ingredientes")} />
       ) : tab === "elaboraciones" ? (
         <Elaboraciones data={data} api={api} onSaved={reload} onGoToIngredients={() => setTab("ingredientes")} />
+      ) : tab === "consumibles" ? (
+        <Consumibles data={data} api={api} onSaved={reload} />
       ) : tab === "ingredientes" ? (
         <Ingredientes data={data} api={api} onSaved={reload} />
       ) : (

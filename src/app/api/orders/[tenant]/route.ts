@@ -290,6 +290,7 @@ export async function POST(req: NextRequest) {
           lines: linesCreate,
           // Inventario (módulo Costes): solo si el restaurante lo tiene contratado
           consumption: tenant.addons.includes("COSTS") ? consumption : [],
+            costs: tenant.addons.includes("COSTS"),
         });
         break;
       } catch (err) {

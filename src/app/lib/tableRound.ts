@@ -10,7 +10,8 @@ import { CUSTOM_PRODUCT_ID } from "./tables";
 
 export type CustomInput = { name?: unknown; quantity?: unknown; priceCents?: unknown; note?: unknown; free?: unknown };
 export type RoundInput = { items?: OrderLineInput[]; custom?: CustomInput[] };
-export type PreparedRound = { lines: Prisma.OrderLineCreateWithoutOrderInput[]; consumption: ConsumptionItem[] };
+// takeaway: lo que se pide para llevar desde la mesa (gasta su packaging).
+export type PreparedRound = { lines: Prisma.OrderLineCreateWithoutOrderInput[]; consumption: ConsumptionItem[]; takeaway: { productId: string; quantity: number }[] };
 
 export async function prepareRound(tenantId: string, b: RoundInput, allowDiscount: boolean): Promise<PreparedRound | { error: string }> {
   const items = Array.isArray(b.items) ? b.items : [];
@@ -27,5 +28,6 @@ export async function prepareRound(tenantId: string, b: RoundInput, allowDiscoun
   if ((!items.length && !customLines.length) || items.length > 60 || items.some(invalidLine)) return { error: "Añade algo a la ronda" };
   const priced = items.length ? await priceOrderItems(tenantId, items, { allowDiscount }) : { linesCreate: [], consumption: [] };
   if ("error" in priced) return { error: priced.error };
-  return { lines: [...priced.linesCreate, ...customLines], consumption: priced.consumption };
+  const takeaway = items.filter((i) => i.takeaway === true).map((i) => ({ productId: i.productId, quantity: i.quantity }));
+  return { lines: [...priced.linesCreate, ...customLines], consumption: priced.consumption, takeaway };
 }

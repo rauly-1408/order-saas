@@ -18,6 +18,7 @@ export type OrderLineInput = {
   comboChoices?: ComboChoice[]; // solo para combos: lo elegido en cada hueco
   note?: string; // nota de la línea para cocina («sin cebolla»)
   discountCents?: number; // descuento manual de la línea: solo la Caja (allowDiscount)
+  takeaway?: boolean; // mesa: esta línea es para llevar (sale «PARA LLEVAR» en la comanda y gasta packaging)
 };
 
 export const MAX_LINE_NOTE = 120;
@@ -25,7 +26,7 @@ export const MAX_LINE_NOTE = 120;
 // Nota de la línea (cualquier canal) y descuento manual (solo si allowDiscount,
 // es decir, personal del restaurante en la Caja); nunca deja la línea en negativo.
 function withLineExtras(line: Prisma.OrderLineCreateWithoutOrderInput, item: OrderLineInput, opts: { allowDiscount?: boolean }): Prisma.OrderLineCreateWithoutOrderInput {
-  const note = cleanText(item.note, MAX_LINE_NOTE) || null;
+  const note = [item.takeaway === true ? "PARA LLEVAR" : "", cleanText(item.note, MAX_LINE_NOTE)].filter(Boolean).join(" · ") || null;
   const total = line.totalCents ?? 0;
   const discountCents = opts.allowDiscount && Number.isInteger(item.discountCents) ? Math.min(Math.max(item.discountCents as number, 0), total) : 0;
   return { ...line, note, discountCents, totalCents: total - discountCents };
@@ -48,6 +49,7 @@ export function invalidLine(item: unknown): boolean {
   const badIds = (arr: unknown) => !Array.isArray(arr) || arr.some((id) => typeof id !== "string");
   return (
     (i.note !== undefined && typeof i.note !== "string") ||
+    (i.takeaway !== undefined && typeof i.takeaway !== "boolean") ||
     (i.discountCents !== undefined && (!Number.isInteger(i.discountCents) || (i.discountCents as number) < 0)) ||
     typeof i.productId !== "string" ||
     !Number.isInteger(i.quantity) ||

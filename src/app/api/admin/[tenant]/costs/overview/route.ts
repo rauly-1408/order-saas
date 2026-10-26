@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { aiConfigured } from "@/app/lib/anthropic";
 import { prisma } from "@/app/lib/prisma";
 import { costsTenant } from "@/app/lib/costsApi";
-import { netOfVat, recipeCostCents, type CostIngredient } from "@/app/lib/costs";
+import { netOfVat, recipeCostCents, unitCostCents, type CostIngredient } from "@/app/lib/costs";
+import { consumableQty, orderKindOf } from "@/app/lib/inventory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,6 +71,8 @@ export async function GET(req: NextRequest) {
         orderNumber: true,
         createdAt: true,
         customerName: true,
+        channel: true,
+        dineIn: true,
         totalCents: true,
         feesCents: true,
         applicationFeeCents: true,
@@ -116,6 +119,18 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Consumibles que se gastan con cada pedido (bolsa, servilletas…), según el tipo de pedido.
+  const perOrder = ingredients.filter((i) => i.kind === "CONSUMABLE" && ((i.perOrderQty ?? 0) > 0 || (i.perItemQty ?? 0) > 0));
+  const categoryOf = new Map(categories.flatMap((c) => c.products.map((p) => [p.id, c.id] as const)));
+  const consumablesOf = (channel: string, dineIn: boolean, items: { productId: string; quantity: number }[]) => {
+    const kind = orderKindOf(channel, dineIn);
+    const units = new Map<string, number>();
+    for (const it of items) {
+      const cat = categoryOf.get(it.productId);
+      if (cat) units.set(cat, (units.get(cat) ?? 0) + it.quantity);
+    }
+    return perOrder.reduce((a, i) => a + consumableQty(i, kind, units) * unitCostCents(i), 0);
+  };
   const orderMargins = orders.map((o) => {
     let foodCost = 0;
     let complete = true;
@@ -142,8 +157,9 @@ export async function GET(req: NextRequest) {
       customerName: o.customerName,
       revenueNetCents: Math.round(revenueNet),
       foodCostCents: Math.round(foodCost),
+      consumablesCents: Math.round(consumablesOf(o.channel, o.dineIn, o.items)),
       platformFeeCents: o.applicationFeeCents,
-      marginCents: Math.round(revenueNet - foodCost - o.applicationFeeCents),
+      marginCents: Math.round(revenueNet - foodCost - consumablesOf(o.channel, o.dineIn, o.items) - o.applicationFeeCents),
       complete,
     };
   });

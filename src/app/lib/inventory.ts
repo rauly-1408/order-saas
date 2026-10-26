@@ -4,6 +4,8 @@
 import type { Prisma, StockMovementType } from "@prisma/client";
 import { revalidateMenu } from "@/app/lib/menuCache";
 import { unitCostCents } from "@/app/lib/costs";
+import { consumableQty, type OrderKind } from "@/app/lib/consumables";
+export { appliesTo, consumableQty, orderKindOf, type ConsumableRule, type OrderKind } from "@/app/lib/consumables";
 
 type Tx = Prisma.TransactionClient;
 
@@ -33,6 +35,31 @@ export async function orderConsumption(tx: Tx, tenantId: string, items: Consumpt
     }
   }
   return consumption;
+}
+
+// Consumibles que se gastan solos con cada pedido (bolsa, servilletas…), según
+// el tipo de pedido: DELIVERY, TAKEAWAY (para llevar) o HERE (comer aquí).
+// Solo los que se controlan en Inventario. Ver docs/MODULO-COSTES.md
+export async function perOrderConsumables(tx: Tx, tenantId: string, kind: OrderKind, lines: { productId: string; quantity: number }[]): Promise<Map<string, number>> {
+  const list = await tx.ingredient.findMany({
+    where: { tenantId, kind: "CONSUMABLE", trackStock: true, OR: [{ perOrderQty: { gt: 0 } }, { perItemQty: { gt: 0 } }] },
+    select: { id: true, perOrderQty: true, perOrderChannels: true, perItemQty: true, perItemCategoryIds: true },
+  });
+  if (!list.length) return new Map();
+  const ids = [...new Set(lines.map((l) => l.productId))];
+  const products = await tx.product.findMany({ where: { tenantId, id: { in: ids } }, select: { id: true, categoryId: true } });
+  const catOf = new Map(products.map((p) => [p.id, p.categoryId]));
+  const unitsByCategory = new Map<string, number>();
+  for (const l of lines) {
+    const cat = catOf.get(l.productId);
+    if (cat) unitsByCategory.set(cat, (unitsByCategory.get(cat) ?? 0) + l.quantity);
+  }
+  const out = new Map<string, number>();
+  for (const c of list) {
+    const q = consumableQty(c, kind, unitsByCategory);
+    if (q > 0) out.set(c.id, q);
+  }
+  return out;
 }
 
 // Aplica variaciones de stock (con signo), registra cada movimiento con su valor

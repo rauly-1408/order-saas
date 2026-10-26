@@ -150,6 +150,7 @@ export async function POST(req: NextRequest) {
             retention: tenant.addons.includes("RETENTION"),
             lines: linesCreate,
             consumption: tenant.addons.includes("COSTS") ? consumption : [],
+            costs: tenant.addons.includes("COSTS"),
             source,
             dineIn,
             createdByUserId: session.userId,

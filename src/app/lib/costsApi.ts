@@ -96,7 +96,17 @@ export type IngredientInput = {
   wastePct: number;
   allergens: string[];
   supplierId: string | null;
+  // Consumibles (solo si llegan; un cliente antiguo no los borra)
+  kind?: "FOOD" | "CONSUMABLE";
+  category?: string | null;
+  perOrderQty?: number | null;
+  perOrderChannels?: string[];
+  perItemQty?: number | null;
+  perItemCategoryIds?: string[];
 };
+
+export const CONSUMABLE_CATEGORIES = ["Packaging", "Limpieza", "Papel y servilletas", "Impresora", "Otros"] as const;
+export const ORDER_CHANNELS = ["DELIVERY", "TAKEAWAY", "HERE"] as const;
 
 export function parseIngredient(body: unknown): IngredientInput | string {
   const b = (body ?? {}) as Record<string, unknown>;
@@ -110,7 +120,22 @@ export function parseIngredient(body: unknown): IngredientInput | string {
   if (!Number.isInteger(packPriceCents) || packPriceCents < 0) return "Precio no válido";
   if (!(wastePct >= 0 && wastePct < 100)) return "La merma debe estar entre 0 y 99 %";
   const allergens = Array.isArray(b.allergens) ? normalizeAllergens(b.allergens.filter((a): a is string => typeof a === "string")) : [];
-  return { name, baseUnit: b.baseUnit as IngredientInput["baseUnit"], packSize, packPriceCents, wastePct, allergens, supplierId: trimOrNull(b.supplierId) };
+  const out: IngredientInput = { name, baseUnit: b.baseUnit as IngredientInput["baseUnit"], packSize, packPriceCents, wastePct, allergens, supplierId: trimOrNull(b.supplierId) };
+  if (b.kind === "FOOD" || b.kind === "CONSUMABLE") out.kind = b.kind;
+  if ("category" in b) out.category = CONSUMABLE_CATEGORIES.find((c) => c === b.category) ?? null;
+  if ("perOrderQty" in b) {
+    const q = b.perOrderQty == null || b.perOrderQty === "" ? null : Number(b.perOrderQty);
+    if (q != null && !(q > 0 && q <= 1000)) return "La cantidad por pedido no es válida";
+    out.perOrderQty = q;
+  }
+  if ("perItemQty" in b) {
+    const q = b.perItemQty == null || b.perItemQty === "" ? null : Number(b.perItemQty);
+    if (q != null && !(q > 0 && q <= 1000)) return "La cantidad por producto no es válida";
+    out.perItemQty = q;
+  }
+  if (Array.isArray(b.perItemCategoryIds)) out.perItemCategoryIds = b.perItemCategoryIds.filter((x): x is string => typeof x === "string").slice(0, 50);
+  if (Array.isArray(b.perOrderChannels)) out.perOrderChannels = ORDER_CHANNELS.filter((c) => (b.perOrderChannels as unknown[]).includes(c));
+  return out;
 }
 
 // Un nombre repetido (índice único tenant+name) llega como P2002.

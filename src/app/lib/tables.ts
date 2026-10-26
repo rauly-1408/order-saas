@@ -4,7 +4,7 @@
 // cobro de la Caja. Ver docs/MESAS.md
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
-import { applyStockDeltas, orderConsumption, type ConsumptionItem } from "@/app/lib/inventory";
+import { applyStockDeltas, orderConsumption, type ConsumptionItem, perOrderConsumables } from "@/app/lib/inventory";
 
 type Tx = Prisma.TransactionClient;
 
@@ -130,16 +130,18 @@ export async function addRound(
   orderId: string,
   lines: Prisma.OrderLineCreateWithoutOrderInput[],
   consumption: ConsumptionItem[],
-  userId: string
+  userId: string,
+  takeaway: { productId: string; quantity: number }[] = [] // líneas para llevar: su packaging (módulo Costes)
 ): Promise<{ round: number; totalCents: number }> {
   return prisma.$transaction(async (tx) => {
     await lockOpen(tx, orderId, tenantId);
     const last = await tx.orderLine.aggregate({ where: { orderId }, _max: { round: true } });
     const round = (last._max.round ?? 0) + 1;
     for (const l of lines) await tx.orderLine.create({ data: { ...l, round, addedByUserId: userId, order: { connect: { id: orderId } } } });
-    if (consumption.length) {
-      const used = await orderConsumption(tx, tenantId, consumption);
-      await applyStockDeltas(tx, tenantId, new Map([...used].map(([id, q]) => [id, -q])), "ORDER", { orderId, note: `Ronda ${round}` });
+    if (consumption.length || takeaway.length) {
+      const used = consumption.length ? await orderConsumption(tx, tenantId, consumption) : new Map<string, number>();
+      if (takeaway.length) for (const [id, q] of await perOrderConsumables(tx, tenantId, "TAKEAWAY", takeaway)) used.set(id, (used.get(id) ?? 0) + q);
+      if (used.size) await applyStockDeltas(tx, tenantId, new Map([...used].map(([id, q]) => [id, -q])), "ORDER", { orderId, note: `Ronda ${round}` });
     }
     const totalCents = await recompute(tx, orderId);
     return { round, totalCents };
