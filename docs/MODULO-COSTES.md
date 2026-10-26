@@ -141,6 +141,8 @@ Ventaja de venta: **Tavola cobra 75 €/mes por conectarse al TPV**; nosotros ya
 
 ## 📝 Pantalla (revisión 2026-10-24)
 
+- **Plato completo** (2026-10-26): en Escandallos, debajo de la receta base, el coste del plato tal como sale de cocina: receta base + la opción por defecto de cada grupo obligatorio (pan, guarnición), con el precio en carta con y sin IVA. Es el mismo cálculo que Rentabilidad. El pan va en cada opción de pan (en Estafetén, «Mollete» a 1 € en todos).
+
 - **Primeros pasos**: arriba de Costes, una guía con el orden recomendado (proveedores → ingredientes con precio → escandallos → control de stock). Cada paso lleva a su pestaña, el siguiente pendiente va resaltado y la guía desaparece cuando están los cuatro.
 - **Inventario vacío**: botón «Ir a ingredientes», igual que en Escandallos.
 - **Proveedores e Ingredientes**: cada fila se toca para editarla (como la Carta). Mientras se edita se oculta la lista y la pantalla va al formulario. «Borrar» está dentro de la edición.
