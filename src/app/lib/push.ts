@@ -25,7 +25,10 @@ export async function vapidKeys(): Promise<Keys> {
   if (!keys.publicKey || !keys.privateKey) {
     const fresh = webpush.generateVAPIDKeys();
     // Si dos peticiones las generan a la vez, gana la primera y la otra la relee.
-    await prisma.appSecret.create({ data: { key: "vapid", value: seal({ publicKey: fresh.publicKey, privateKey: fresh.privateKey }, "vapid") } }).catch(() => null);
+    const value = seal({ publicKey: fresh.publicKey, privateKey: fresh.privateKey }, "vapid");
+    await prisma.appSecret.create({ data: { key: "vapid", value } }).catch((err: { code?: string }) => {
+      if (err?.code !== "P2002") throw err; // P2002: otra petición ya las creó
+    });
     const saved = await prisma.appSecret.findUniqueOrThrow({ where: { key: "vapid" } });
     keys = unseal(saved.value, "vapid") as Partial<Keys>;
   }
