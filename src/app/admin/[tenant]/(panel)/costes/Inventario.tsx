@@ -5,7 +5,7 @@ import { unitCostCents } from "@/app/lib/costs";
 import { UNIT_LABEL, euros, formatQty, type Ingredient, type MovementType, type Overview } from "./types";
 
 type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToIngredients: () => void };
-type Action = { ingredient: Ingredient; type: "RECEIPT" | "COUNT" | "WASTE" | "MIN" };
+export type Action = { ingredient: Ingredient; type: "RECEIPT" | "COUNT" | "WASTE" | "MIN" | "USE" };
 
 const MOVE_LABEL: Record<MovementType, string> = {
   ORDER: "Pedido",
@@ -13,6 +13,8 @@ const MOVE_LABEL: Record<MovementType, string> = {
   RECEIPT: "Entrada",
   COUNT: "Recuento",
   WASTE: "Merma",
+  PRODUCTION: "Lote",
+  USE: "Gastado",
 };
 
 const ACTION_TEXT: Record<Action["type"], { title: string; label: string; button: string }> = {
@@ -20,6 +22,7 @@ const ACTION_TEXT: Record<Action["type"], { title: string; label: string; button
   COUNT: { title: "Recuento", label: "Cantidad que hay ahora (contada)", button: "Guardar recuento" },
   WASTE: { title: "Merma", label: "Cantidad perdida", button: "Registrar merma" },
   MIN: { title: "Stock mínimo", label: "Avisar cuando quede menos de", button: "Guardar mínimo" },
+  USE: { title: "He gastado", label: "Cantidad gastada", button: "Registrar" },
 };
 
 function status(i: Ingredient): { label: string; cls: string; rank: number } {
@@ -169,7 +172,7 @@ export default function Inventario({ data, api, onSaved, onGoToIngredients }: Pr
   );
 }
 
-function ActionForm({ action, api, onDone, onCancel }: { action: Action; api: string; onDone: () => Promise<void>; onCancel: () => void }) {
+export function ActionForm({ action, api, onDone, onCancel }: { action: Action; api: string; onDone: () => Promise<void>; onCancel: () => void }) {
   const { ingredient: i, type } = action;
   const [qty, setQty] = useState(type === "MIN" && i.minStock != null ? String(i.minStock) : "");
   const [note, setNote] = useState("");
@@ -206,7 +209,7 @@ function ActionForm({ action, api, onDone, onCancel }: { action: Action; api: st
         {type !== "MIN" && (
           <label className="text-xs text-[var(--p-muted)]">
             Nota (opcional)
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={type === "WASTE" ? "Caducado, se cayó…" : "Albarán, proveedor…"} className="mt-1 w-full rounded-lg border border-[var(--p-line)] bg-white px-3 py-2 text-sm text-[var(--p-ink)]" />
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={type === "WASTE" ? "Caducado, se cayó…" : type === "USE" ? "Limpieza del fin de semana…" : "Albarán, proveedor…"} className="mt-1 w-full rounded-lg border border-[var(--p-line)] bg-white px-3 py-2 text-sm text-[var(--p-ink)]" />
           </label>
         )}
       </div>

@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
             if (!order) throw err;
           }
         }
-        const r = await addRound(tenant.id, order.id, prepared.lines, tenant.addons.includes("COSTS") ? prepared.consumption : [], session.userId);
+        const r = await addRound(tenant.id, order.id, prepared.lines, tenant.addons.includes("COSTS") ? prepared.consumption : [], session.userId, tenant.addons.includes("COSTS") ? prepared.takeaway : []);
         const orderId = order.id;
         after(() => enqueueTablePrint(orderId, { kind: "ROUND", round: r.round }));
         return NextResponse.json({ orderId, orderNumber: order.orderNumber, round: r.round });

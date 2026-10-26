@@ -32,6 +32,13 @@ export type Ingredient = CostIngredient & {
   minStock: number | null;
   // Elaboración (salsa, caldo…): packSize = lo que rinde el lote y packPriceCents = su coste.
   isPrep: boolean;
+  // Consumible (packaging, limpieza…): apartado propio y gasto por pedido.
+  kind: "FOOD" | "CONSUMABLE";
+  category: string | null;
+  perOrderQty: number | null;
+  perOrderChannels: string[];
+  perItemQty: number | null;
+  perItemCategoryIds: string[];
   prepExtras: { label: string; cents: number }[];
   prepNotes: string | null;
   prepLines: RecipeLine[];
@@ -59,12 +66,13 @@ export type OrderMargin = {
   customerName: string;
   revenueNetCents: number;
   foodCostCents: number;
+  consumablesCents: number;
   platformFeeCents: number;
   marginCents: number;
   complete: boolean;
 };
 
-export type MovementType = "ORDER" | "ORDER_CANCEL" | "RECEIPT" | "COUNT" | "WASTE";
+export type MovementType = "ORDER" | "ORDER_CANCEL" | "RECEIPT" | "COUNT" | "WASTE" | "PRODUCTION" | "USE";
 
 export type Movement = {
   id: string;

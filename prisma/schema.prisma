@@ -42,6 +42,13 @@ enum StockMovementType {
   COUNT // recuento físico: la diferencia con el stock teórico (merma/descuadre)
   WASTE // merma declarada (caducado, roto, error…)
   PRODUCTION // lote de una elaboración: salen sus ingredientes y entra la elaboración
+  USE // consumible gastado a mano («He gastado»: una garrafa de friegasuelos…)
+}
+
+// Comida (va en recetas) o consumible (packaging, limpieza, papel, bobinas…).
+enum IngredientKind {
+  FOOD
+  CONSUMABLE
 }
 
 // Pedido a proveedor (módulo Costes, fase 3).
@@ -874,6 +881,15 @@ model Ingredient {
   trackStock Boolean @default(false)
   stockQty   Float   @default(0) // stock teórico en unidad base
   minStock   Float? // aviso de stock bajo
+
+  // Consumibles (packaging, limpieza, papel…): su apartado, y lo que se gasta
+  // solo con cada pedido (p. ej. 1 bolsa por pedido a domicilio). Ver docs/MODULO-COSTES.md
+  kind               IngredientKind @default(FOOD)
+  category           String? // Packaging, Limpieza, Papel y servilletas, Impresora, Otros
+  perOrderQty        Float? // cantidad por pedido (en la unidad base)
+  perOrderChannels   String[]       @default([]) // DELIVERY, TAKEAWAY, HERE (comer aquí); vacío = todos
+  perItemQty         Float? // además, por cada producto vendido de estas categorías (caja y envoltorio por mollete)
+  perItemCategoryIds String[]       @default([])
 
   // Elaboración (salsa, caldo, pico de gallo…): su coste sale de su receta.
   // packSize = lo que rinde el lote y packPriceCents = lo que cuesta el lote

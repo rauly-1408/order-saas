@@ -214,7 +214,7 @@ function RecipeEditor({
               >
                 <option value="">Ingrediente…</option>
                 {all.map((i) => (
-                  <option key={i.id} value={i.id}>{i.name}{i.isPrep ? " · elaboración" : ""}</option>
+                  <option key={i.id} value={i.id}>{i.name}{i.isPrep ? " · elaboración" : i.kind === "CONSUMABLE" ? " · consumible" : ""}</option>
                 ))}
               </select>
               <div className="flex items-center gap-1">

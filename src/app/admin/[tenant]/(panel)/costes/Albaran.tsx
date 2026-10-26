@@ -29,7 +29,14 @@ type Row = {
   lineTotalCents: number | null;
   note: string | null;
   include: boolean;
+  // Línea de gasto (bolsas, limpieza…) que se mete en Consumibles: el consumible o uno nuevo.
+  consumableId: string; // "" = gasto sin stock; NEW = nuevo
 };
+
+// Tipo de consumible probable por el texto de la factura.
+const guessCategory = (d: string) =>
+  /bolsa|caja|envase|envolt|film|aluminio|vaso|tapa|cubierto|pajita/i.test(d) ? "Packaging" : /amoniac|friegasuel|deterg|lej[ií]a|suaviz|limp|lavavaj|bayeta|estropajo|desengras/i.test(d) ? "Limpieza" : /papel|higi[eé]nic|servillet|rollo|secaman/i.test(d) ? "Papel y servilletas" : /bobina|ticket|t[eé]rmic/i.test(d) ? "Impresora" : "Otros";
+const titleCase = (d: string) => d.charAt(0).toUpperCase() + d.slice(1).toLowerCase();
 
 const toEurosInput = (cents: number | null) => (cents == null ? "" : (cents / 100).toFixed(2).replace(".", ","));
 const parseNum = (v: string) => Number(v.replace(",", "."));
@@ -115,6 +122,7 @@ export default function Albaran({ data, api, onSaved, onInvoice }: { data: Overv
           lineTotalCents: l.lineTotalCents,
           note: l.note,
           include: l.kind === "INGREDIENT" && (!!l.ingredientId || !!l.newIngredient) && l.quantity != null,
+          consumableId: "",
         }))
       );
       setStage("review");
@@ -128,6 +136,8 @@ export default function Albaran({ data, api, onSaved, onInvoice }: { data: Overv
 
   const newIngOk = (n: NewIng | null) => !!n && n.name.trim() !== "" && parseNum(n.packSize) > 0 && n.price.trim() !== "" && parseNum(n.price) >= 0;
   const ready = rows.filter((r) => r.kind === "INGREDIENT" && r.include && (r.ingredientId || newIngOk(r.newIng)) && parseNum(r.quantity) >= 0 && r.quantity.trim() !== "");
+  const consumables = data.ingredients.filter((i) => i.kind === "CONSUMABLE");
+  const toConsumables = rows.filter((r) => r.kind === "EXPENSE" && r.consumableId && parseNum(r.quantity) > 0);
   const includedTotal = ready.reduce((acc, r) => {
     const ing = ingredients.get(r.ingredientId);
     const packSize = ing ? ing.packSize : parseNum(r.newIng!.packSize);
@@ -171,7 +181,17 @@ export default function Albaran({ data, api, onSaved, onInvoice }: { data: Overv
               ingredientId: r.kind === "INGREDIENT" && r.include ? r.ingredientId || null : null,
             })),
           },
-          lines: ready.map((r) =>
+          lines: [
+            ...toConsumables.map((r) =>
+              r.consumableId !== NEW
+                ? { ingredientId: r.consumableId, quantity: parseNum(r.quantity), packPriceCents: null }
+                : {
+                    newIngredient: { name: titleCase(r.description).slice(0, 80), baseUnit: "UNIT", packSize: 1, packPriceCents: Math.round((r.unitPrice ?? 0) * 100), allergens: [], kind: "CONSUMABLE", category: guessCategory(r.description) },
+                    quantity: parseNum(r.quantity),
+                    packPriceCents: null,
+                  }
+            ),
+            ...ready.map((r) =>
             r.ingredientId
               ? { ingredientId: r.ingredientId, quantity: parseNum(r.quantity), packPriceCents: r.price.trim() ? Math.round(parseNum(r.price) * 100) : null }
               : {
@@ -180,6 +200,7 @@ export default function Albaran({ data, api, onSaved, onInvoice }: { data: Overv
                   packPriceCents: null,
                 }
           ),
+          ],
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -330,7 +351,29 @@ export default function Albaran({ data, api, onSaved, onInvoice }: { data: Overv
                       {r.kind === "EXPENSE" ? "Es un ingrediente" : "No es ingrediente"}
                     </button>
                   </div>
-                  {r.kind === "EXPENSE" && <p className="mt-1 text-xs text-[var(--p-muted)]">Cuenta en la factura y en el IVA, pero no entra al stock.</p>}
+                  {r.kind === "EXPENSE" && (
+                    <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_9rem] sm:items-end">
+                      <select
+                        value={r.consumableId}
+                        onChange={(e) => update(i, { consumableId: e.target.value, quantity: r.quantity.trim() ? r.quantity : String(r.docQuantity ?? 1).replace(".", ",") })}
+                        aria-label={`Consumible para «${r.description}»`}
+                        className="min-w-0 rounded-lg px-2 py-2 text-sm"
+                      >
+                        <option value="">Gasto: no entra al stock</option>
+                        <option value={NEW}>➕ Nuevo consumible «{titleCase(r.description).slice(0, 40)}» ({guessCategory(r.description)})</option>
+                        {consumables.map((x) => (
+                          <option key={x.id} value={x.id}>Consumibles: {x.name}</option>
+                        ))}
+                      </select>
+                      {r.consumableId && (
+                        <label className="block text-[11px] font-medium text-[var(--p-muted)]">
+                          Entra al stock
+                          <input inputMode="decimal" value={r.quantity} onChange={(e) => update(i, { quantity: e.target.value })} className="mt-0.5 w-full min-w-0 rounded-lg px-2 py-2 text-sm text-[var(--p-ink)]" />
+                        </label>
+                      )}
+                      {!r.consumableId && <p className="text-xs text-[var(--p-muted)] sm:col-span-2">Cuenta en la factura y en el IVA. Si es packaging, limpieza o papel, mételo en Consumibles para llevar su stock.</p>}
+                    </div>
+                  )}
                   {r.kind === "INGREDIENT" && (
                   <>
                   <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_9rem_9rem] sm:items-end">
@@ -422,7 +465,7 @@ export default function Albaran({ data, api, onSaved, onInvoice }: { data: Overv
               {toCreate > 0 && <> ({toCreate} {toCreate === 1 ? "ingrediente nuevo" : "ingredientes nuevos"})</>} · {euros(Math.round(includedTotal))} sin IVA
             </p>
             <button onClick={apply} disabled={stage === "applying" || rows.length === 0} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-              {stage === "applying" ? "Guardando…" : ready.length ? "Guardar factura y meter en stock" : "Guardar factura"}
+              {stage === "applying" ? "Guardando…" : ready.length || toConsumables.length ? "Guardar factura y meter en stock" : "Guardar factura"}
             </button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
-import { applyStockDeltas, orderConsumption, type ConsumptionItem } from "@/app/lib/inventory";
+import { applyStockDeltas, orderConsumption, type ConsumptionItem, orderKindOf, perOrderConsumables } from "@/app/lib/inventory";
 import { computeSegment, normalizePhone, withinAttribution, ATTRIBUTION_DAYS } from "@/app/lib/retention";
 
 // Crea el pedido con su número correlativo dentro de una transacción: CRM,
@@ -44,6 +44,7 @@ export type CreateOrderInput = {
   retention: boolean;
   lines: Prisma.OrderLineCreateWithoutOrderInput[];
   consumption: ConsumptionItem[];
+  costs?: boolean; // módulo Costes: también se gastan los consumibles por pedido
 };
 
 export async function createOrderWithNumber(input: CreateOrderInput) {
@@ -198,10 +199,12 @@ export async function createOrderWithNumber(input: CreateOrderInput) {
     }
 
     // Descuento de stock en la misma transacción: si falla, no hay pedido.
-    if (input.consumption.length) {
-      const used = await orderConsumption(tx, input.tenantId, input.consumption);
+    if (input.consumption.length || input.costs) {
+      const used = input.consumption.length ? await orderConsumption(tx, input.tenantId, input.consumption) : new Map<string, number>();
+      // Consumibles por pedido (bolsa, servilletas…)
+      if (input.costs) for (const [id, qty] of await perOrderConsumables(tx, input.tenantId, orderKindOf(input.channel, input.dineIn ?? false), input.lines.map((l) => ({ productId: l.productId, quantity: l.quantity ?? 1 })))) used.set(id, (used.get(id) ?? 0) + qty);
       const deltas = new Map([...used].map(([id, qty]) => [id, -qty]));
-      await applyStockDeltas(tx, input.tenantId, deltas, "ORDER", { orderId: order.id });
+      if (deltas.size) await applyStockDeltas(tx, input.tenantId, deltas, "ORDER", { orderId: order.id });
     }
 
     return order;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { BaseUnit } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
-import { costsTenant } from "@/app/lib/costsApi";
+import { CONSUMABLE_CATEGORIES, costsTenant } from "@/app/lib/costsApi";
 import { normalizeAllergens } from "@/app/lib/costs";
 import { applyStockDeltas } from "@/app/lib/inventory";
 import { recordPriceChange } from "@/app/lib/purchasing";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 const BASE_UNITS: BaseUnit[] = ["KG", "G", "L", "ML", "UNIT"];
 
-type NewIngredient = { name: string; baseUnit: BaseUnit; packSize: number; packPriceCents: number; allergens: string[] };
+type NewIngredient = { name: string; baseUnit: BaseUnit; packSize: number; packPriceCents: number; allergens: string[]; consumable?: { category: string } };
 type Line = { ingredientId: string | null; newIngredient: NewIngredient | null; quantity: number; packPriceCents: number | null };
 
 // POST { supplierId?, newSupplierName?, documentNumber?,
@@ -51,6 +51,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Ingrediente nuevo incompleto: nombre, unidad, formato y precio son obligatorios` }, { status: 400 });
       }
       newIngredient = { name, baseUnit, packSize, packPriceCents, allergens: normalizeAllergens(Array.isArray(n?.allergens) ? n!.allergens.map(String) : []) };
+      // Consumible (bolsas, limpieza, papel…) que llega en la factura como gasto.
+      if (n?.kind === "CONSUMABLE") newIngredient.consumable = { category: CONSUMABLE_CATEGORIES.find((c) => c === n.category) ?? "Otros" };
     }
     lines.push({ ingredientId, newIngredient, quantity, packPriceCents: price });
   }
@@ -108,7 +110,7 @@ export async function POST(req: NextRequest) {
         continue;
       }
       const ing = await tx.ingredient.create({
-        data: { tenantId, name: n.name, baseUnit: n.baseUnit, packSize: n.packSize, packPriceCents: n.packPriceCents, allergens: n.allergens, supplierId: supplier?.id ?? null, trackStock: true },
+        data: { tenantId, name: n.name, baseUnit: n.baseUnit, packSize: n.packSize, packPriceCents: n.packPriceCents, allergens: n.allergens, supplierId: supplier?.id ?? null, trackStock: true, ...(n.consumable && { kind: "CONSUMABLE" as const, category: n.consumable.category }) },
         select: { id: true, packSize: true, packPriceCents: true },
       });
       created++;

@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
         return await once(tenant.id, requestIdOf(b.requestId), async () => {
           const prepared = await prepareRound(tenant.id, b, manager);
           if ("error" in prepared) return NextResponse.json({ error: prepared.error }, { status: 400 });
-          const r = await addRound(tenant.id, order.id, prepared.lines, tenant.addons.includes("COSTS") ? prepared.consumption : [], session.userId);
+          const r = await addRound(tenant.id, order.id, prepared.lines, tenant.addons.includes("COSTS") ? prepared.consumption : [], session.userId, tenant.addons.includes("COSTS") ? prepared.takeaway : []);
           after(() => enqueueTablePrint(order.id, { kind: "ROUND", round: r.round }));
           return NextResponse.json(r);
         });

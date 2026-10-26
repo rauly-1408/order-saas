@@ -31,6 +31,7 @@ type Line = {
   modifiers: OrderLineModifier[];
   note: string;
   free?: boolean; // invita la casa
+  takeaway?: boolean; // para llevar desde la mesa: «PARA LLEVAR» en la comanda y gasta su packaging
 };
 
 // La carta se carga una vez por visita a Mesas (no cambia en mitad del servicio).
@@ -120,7 +121,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
       const menu = lines.filter((l) => l.productId);
       const custom = lines.filter((l) => !l.productId);
       const round = {
-        items: menu.map((l) => ({ productId: l.productId, quantity: l.quantity, optionIds: l.optionIds, ...(l.comboChoices && { comboChoices: l.comboChoices }), ...(l.note.trim() && { note: l.note.trim() }) })),
+        items: menu.map((l) => ({ productId: l.productId, quantity: l.quantity, optionIds: l.optionIds, ...(l.comboChoices && { comboChoices: l.comboChoices }), ...(l.note.trim() && { note: l.note.trim() }), ...(l.takeaway && { takeaway: true }) })),
         custom: custom.map((l) => ({ name: l.name, quantity: l.quantity, priceCents: l.unitPriceCents, free: Boolean(l.free), note: l.note.trim() })),
       };
       const label = `Mesa ${tableName} · ronda de ${count} ${count === 1 ? "producto" : "productos"}`;
@@ -178,10 +179,24 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
                     ✎ {l.note}
                   </button>
                 )}
-                {!l.note && !noteOpen && (
-                  <button type="button" onClick={() => setNoteFor(`${l.key}-${i}`)} className="mt-2 rounded-full px-3 py-2 text-sm font-semibold text-[var(--p-brand)] hover:bg-[var(--p-brand-soft)]">
-                    + Nota para cocina
-                  </button>
+                {!noteOpen && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {!l.note && (
+                      <button type="button" onClick={() => setNoteFor(`${l.key}-${i}`)} className="rounded-full px-3 py-2 text-sm font-semibold text-[var(--p-brand)] hover:bg-[var(--p-brand-soft)]">
+                        + Nota para cocina
+                      </button>
+                    )}
+                    {l.productId && (
+                      <button
+                        type="button"
+                        aria-pressed={!!l.takeaway}
+                        onClick={() => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, takeaway: !x.takeaway } : x)))}
+                        className={`p-press rounded-full px-3 py-2 text-sm font-semibold ${l.takeaway ? "bg-[var(--p-ink)] text-white" : "border border-[var(--p-line)] bg-[var(--p-surface)] text-[var(--p-ink)]"}`}
+                      >
+                        {l.takeaway ? "✓ Para llevar" : "Para llevar"}
+                      </button>
+                    )}
+                  </div>
                 )}
                 {noteOpen && (
                   <div className="mt-2">
