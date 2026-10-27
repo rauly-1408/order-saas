@@ -323,6 +323,7 @@ model Product {
   isActive     Boolean @default(true)
   isAvailable  Boolean @default(true) // NUEVO: agotado temporal
   isFeatured   Boolean @default(false) // NUEVO: destacado en la carta
+  dietTags     String[] @default([]) // sellos de dieta: VEGAN, VEGETARIAN (ver lib/diet.ts)
   hasModifiers Boolean @default(false)
   stockOut     Boolean @default(false) // agotado automático por falta de ingrediente (módulo Costes)
 

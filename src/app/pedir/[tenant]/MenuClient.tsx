@@ -17,6 +17,7 @@ import { ComboCard, ProductCard, PromoTile } from "./StoreCards";
 import StoreFooter from "./StoreFooter";
 import MenuCarousel from "./MenuCarousel";
 import SwipeRow from "./SwipeRow";
+import type { DietTag } from "@/app/lib/diet";
 import type { BusinessInfo } from "@/app/lib/business";
 import type { WeeklyHours } from "@/app/lib/storeStatus";
 import { useRouter } from "next/navigation";
@@ -35,6 +36,7 @@ type MenuProduct = {
   bestSeller?: boolean; // el más vendido de su categoría (últimos 30 días)
   modifierGroups: MenuModifierGroup[];
   allergens?: string[];
+  dietTags?: DietTag[];
   isCombo?: boolean;
   comboSlots?: ComboSlotDef[];
 };
@@ -216,6 +218,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         priceCents={product.basePriceCents}
         imageUrl={product.imageUrl}
         allergens={product.allergens}
+        dietTags={product.dietTags}
         qty={qty}
         simple={product.modifierGroups.length === 0}
         badge={badge}

@@ -10,6 +10,8 @@ import {
   type OrderLineModifier,
 } from "@/app/lib/menuOptions";
 import { optionError, ui, type Lang } from "@/app/lib/i18n";
+import type { DietTag } from "@/app/lib/diet";
+import DietBadges from "./DietBadges";
 
 // Hoja inferior para elegir pan, guarnición y extras antes de añadir al carrito.
 // Usa las CSS vars del theme del tenant (definidas en el contenedor de MenuClient).
@@ -22,6 +24,7 @@ export type SheetProduct = {
   modifierGroups: MenuModifierGroup[];
   allergens?: string[];
   imageUrl?: string | null;
+  dietTags?: DietTag[];
 };
 
 type Props = {
@@ -128,6 +131,16 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
           <div className="min-w-0 flex-1">
             <h2 className="text-[20px] font-bold leading-tight tracking-[-0.01em] [text-wrap:balance]">{product.name}</h2>
             <p className="mt-1 text-[17px] font-bold tabular-nums text-[var(--brand-secondary)]">{euros(product.basePriceCents)}</p>
+            {product.dietTags && product.dietTags.length > 0 && (
+              <p className="mt-2 flex flex-wrap gap-1.5">
+                {product.dietTags.map((tag) => (
+                  <span key={tag} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] py-0.5 pr-2.5 pl-0.5 text-[12px] font-semibold">
+                    <DietBadges tags={[tag]} lang={lang} size={20} decorative />
+                    {tag === "VEGAN" ? T.vegan : T.vegetarian}
+                  </span>
+                ))}
+              </p>
+            )}
             {product.description && (
               <p className="mt-2 text-[14px] leading-relaxed text-[var(--text-secondary)] [text-wrap:pretty]">{product.description}</p>
             )}

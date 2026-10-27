@@ -1,6 +1,8 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import DietBadges from "./DietBadges";
+import type { DietTag } from "@/app/lib/diet";
 import { promotionConditions, type PromotionRule } from "@/app/lib/promotions";
 import type { ComboSlotDef } from "@/app/lib/combos";
 import { ui, type Lang } from "@/app/lib/i18n";
@@ -128,6 +130,7 @@ export function ProductCard({
   priceCents,
   imageUrl,
   allergens,
+  dietTags = [],
   qty,
   simple,
   onAdd,
@@ -142,6 +145,7 @@ export function ProductCard({
   priceCents: number;
   imageUrl?: string | null;
   allergens?: string[];
+  dietTags?: DietTag[];
   qty: number;
   // «Recomendado» (lo marca el restaurante) o «Lo más pedido» (sale solo de las ventas).
   badge?: "featured" | "bestseller" | null;
@@ -163,10 +167,13 @@ export function ProductCard({
           Desde tableta: tarjeta con la foto arriba. */}
       <button type="button" onClick={onOpen} aria-label={T.seeDetails(name)} className="flex flex-1 flex-row-reverse items-start text-left outline-offset-[-3px] sm:flex-col sm:items-stretch">
       {imageUrl && (
-        <div className="m-3 ml-0 w-28 shrink-0 overflow-hidden rounded-xl sm:m-0 sm:w-full sm:rounded-none">
+        <div className="relative m-3 ml-0 w-28 shrink-0 overflow-hidden rounded-xl sm:m-0 sm:w-full sm:rounded-none">
           {/* Cuadrada: las fotos de producto suelen serlo y así se ven enteras, sin recortar el bocadillo. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageUrl} alt={name} loading="lazy" className="aspect-square w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+          {/* Sellos de dieta sobre la foto: arriba a la izquierda en el móvil (lejos del «+»);
+              desde tableta, abajo, porque arriba va «Recomendado» */}
+          <DietBadges tags={dietTags} lang={lang} size={24} className="absolute top-1.5 left-1.5 sm:top-auto sm:bottom-2 sm:left-2 sm:[&>svg]:h-7 sm:[&>svg]:w-7" />
         </div>
       )}
       {/* Sin foto: un recuadro con la inicial, para que la rejilla quede pareja */}
@@ -190,6 +197,7 @@ export function ProductCard({
       {/* Los ingredientes se leen de un vistazo: hasta 4 líneas en el móvil y 3 en la tarjeta */}
       <div className="flex min-w-0 flex-1 flex-col p-3 pb-0 sm:px-4 sm:pt-3.5">
         {badge && <ProductBadge kind={badge} lang={lang} className="mb-1.5 self-start sm:hidden" />}
+        {!imageUrl && dietTags.length > 0 && <DietBadges tags={dietTags} lang={lang} size={22} className="mb-1.5" />}
         <h3 className="line-clamp-2 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--text-primary)] [text-wrap:balance]">{name}</h3>
         {description && <p className="mt-1 line-clamp-4 text-[13px] leading-snug text-[var(--text-secondary)] sm:line-clamp-3">{description}</p>}
         {allergens && allergens.length > 0 && <p className="mt-1 line-clamp-1 text-[11px] text-[var(--text-secondary)]">{T.allergens}: {allergens.join(", ")}</p>}

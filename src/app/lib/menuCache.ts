@@ -28,6 +28,7 @@ function queryCategories(tenantId: string) {
           basePriceCents: true,
           imageUrl: true,
           isFeatured: true,
+          dietTags: true,
           hasModifiers: true,
           // Combos: huecos y productos elegibles (el cliente solo ve los disponibles).
           isCombo: true,
