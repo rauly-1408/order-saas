@@ -9,7 +9,8 @@ import type { OrderLineInput } from "@/app/lib/orderPricing";
 import { enqueueTablePrint, printTablePayment } from "@/app/lib/printing";
 import { issueInvoiceSafe } from "@/app/lib/verifactu";
 import { cancelOrder } from "@/app/lib/cancelOrder";
-import { PAY_METHODS, TableError, addRound, moveTable, payTable, requestBill, voidLine, type PayMethod } from "@/app/lib/tables";
+import { notifyCollaboratorSale } from "@/app/lib/push";
+import { PAY_METHODS, TableError, addRound, moveTable, payTable, requestBill, setTableCollaborator, voidLine, type PayMethod } from "@/app/lib/tables";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +44,12 @@ export async function GET(req: NextRequest) {
     const { tenant, session } = ctx;
     const o = await prisma.order.findUnique({
       where: { id: ctx.order.id },
-      include: { items: { orderBy: { createdAt: "asc" } }, table: { select: { id: true, name: true, zone: true } }, invoices: { select: { numSerie: true, invoiceType: true } } },
+      include: {
+        items: { orderBy: { createdAt: "asc" } },
+        table: { select: { id: true, name: true, zone: true } },
+        invoices: { select: { numSerie: true, invoiceType: true } },
+        collaborator: { select: { name: true, code: true, discountPct: true } },
+      },
     });
     if (!o || !o.table) return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     // Lo ya cobrado por separado de esta cuenta.
@@ -75,6 +81,9 @@ export async function GET(req: NextRequest) {
         openedAt: o.createdAt,
         billRequestedAt: o.billRequestedAt,
         totalCents: o.totalCents,
+        subtotalCents: o.subtotalCents,
+        collaboratorDiscountCents: o.collaboratorDiscountCents,
+        collaborator: o.collaborator,
         waiter: nameOf(o.createdByUserId ? users.get(o.createdByUserId) : undefined),
         invoiceNumber: o.invoices.find((i) => i.invoiceType === "F2")?.numSerie ?? null,
       },
@@ -90,7 +99,8 @@ export async function GET(req: NextRequest) {
 }
 
 type Body = {
-  action?: "round" | "void" | "bill" | "pay" | "move" | "cancel";
+  action?: "round" | "void" | "bill" | "pay" | "move" | "cancel" | "collab";
+  code?: string;
   items?: OrderLineInput[];
   custom?: CustomInput[];
   requestId?: string; // ronda guardada sin conexión: no se duplica al reenviarla
@@ -140,8 +150,13 @@ export async function POST(req: NextRequest) {
         const r = await payTable(tenant.id, order.id, { method, cashTenderedCents: cash, units, userId: session.userId });
         // VeriFactu: la factura simplificada al cobrar (antes de responder, para enseñar el número).
         const invoice = await issueInvoiceSafe(r.paidOrderId);
-        after(() => printTablePayment(r.paidOrderId));
+        after(() => Promise.all([printTablePayment(r.paidOrderId), notifyCollaboratorSale(r.paidOrderId)]));
         return NextResponse.json({ ...r, invoiceNumber: invoice?.numSerie ?? null, changeCents: cash != null ? cash - r.totalCents : null });
+      }
+      case "collab": {
+        // Vienen de parte de un colaborador (guía, hotel…): su descuento a la cuenta.
+        const r = await setTableCollaborator(tenant.id, order.id, typeof b.code === "string" ? b.code.slice(0, 30) : "");
+        return NextResponse.json(r);
       }
       case "move": {
         if (typeof b.tableId !== "string") return NextResponse.json({ error: "Elige la mesa" }, { status: 400 });

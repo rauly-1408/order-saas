@@ -1,5 +1,6 @@
 "use client";
 
+import { collaboratorDiscountCents } from "@/app/lib/collaboratorDiscount";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import ProductOptionsSheet, { type SheetProduct } from "@/app/pedir/[tenant]/ProductOptionsSheet";
@@ -65,7 +66,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const [notes, setNotes] = useState("");
   // Colaborador (la RRPP que llama para su gente): se lleva su %. Ver docs/COLABORADORES.md
   const [collabCode, setCollabCode] = useState("");
-  const [collabs, setCollabs] = useState<{ name: string; place: string | null; code: string }[]>([]);
+  const [collabs, setCollabs] = useState<{ name: string; place: string | null; code: string; discountPct: number }[]>([]);
   useEffect(() => {
     fetch(`/api/admin/${tenant}/colaboradores?lite=1`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
@@ -187,7 +188,12 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     return categories.find((c) => c.slug === cat)?.products ?? [];
   }, [categories, cat, q]);
 
-  const subtotal = lines.reduce((a, l) => a + lineTotal(l), 0);
+  const linesTotal = lines.reduce((a, l) => a + lineTotal(l), 0);
+  // Colaborador (guía, hotel…): su descuento se ve antes de cobrar. El servidor
+  // lo recalcula (si hay una promoción o un cupón mejor, gana ese).
+  const collab = collabs.find((c) => c.code === collabCode) ?? null;
+  const collabOff = collab ? collaboratorDiscountCents(linesTotal, collab.discountPct) : 0;
+  const subtotal = linesTotal - collabOff;
   const count = lines.reduce((a, l) => a + l.quantity, 0);
   const tenderedCents = payment === "CASH" && tendered.trim() ? parseEuros(tendered) : null;
   const change = tenderedCents != null && tenderedCents >= subtotal ? tenderedCents - subtotal : null;
@@ -464,17 +470,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono (suma sellos)" inputMode="tel" aria-label="Teléfono del cliente" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />
             <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Cupón" aria-label="Cupón" className="min-w-0 rounded-lg px-3 py-2.5 text-sm uppercase" />
             <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Nota para cocina" aria-label="Notas" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />
-            {collabs.length > 0 && (
-              <select value={collabCode} onChange={(e) => setCollabCode(e.target.value)} aria-label="Colaborador" className="col-span-2 min-w-0 rounded-lg px-3 py-2.5 text-sm">
-                <option value="">Sin colaborador</option>
-                {collabs.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    De {c.name}
-                    {c.place ? ` (${c.place})` : ""}
-                  </option>
-                ))}
-              </select>
-            )}
+            {collabs.length > 0 && <CollabPicker collabs={collabs} value={collabCode} onChange={setCollabCode} />}
           </div>
         )}
         <div className="mt-3 flex items-baseline justify-between">
@@ -482,7 +478,14 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             {count} {count === 1 ? "artículo" : "artículos"}
             {mode === "DELIVERY" && " · envío según la zona"}
           </span>
-          <span className="text-2xl font-semibold tabular-nums">{euros(subtotal)}</span>
+          <span className="text-right">
+            {collabOff > 0 && (
+              <span className="block text-xs font-semibold text-emerald-700 tabular-nums">
+                −{euros(collabOff)} de {collab?.name.split(" ")[0]} ({collab?.discountPct.toLocaleString("es-ES")} %)
+              </span>
+            )}
+            <span className="text-2xl font-semibold tabular-nums">{euros(subtotal)}</span>
+          </span>
         </div>
         <div className="mt-3 flex gap-2">
           {lines.length > 0 && (
@@ -943,5 +946,62 @@ function PayIcon({ kind }: { kind: Payment }) {
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
     </svg>
+  );
+}
+
+// Colaborador en Caja: se escribe el código que dice el cliente (guía, hotel…)
+// o se busca por nombre. Al elegirlo se ve su descuento en el total.
+function CollabPicker({ collabs, value, onChange }: { collabs: { name: string; place: string | null; code: string; discountPct: number }[]; value: string; onChange: (code: string) => void }) {
+  const [text, setText] = useState("");
+  const chosen = collabs.find((c) => c.code === value);
+  if (chosen) {
+    return (
+      <div className="col-span-2 flex items-center justify-between gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
+        <span className="min-w-0 truncate">
+          De <span className="font-semibold">{chosen.name}</span>
+          {chosen.place ? ` · ${chosen.place}` : ""}
+          {chosen.discountPct > 0 && <span className="font-semibold"> · −{chosen.discountPct.toLocaleString("es-ES")} %</span>}
+        </span>
+        <button type="button" onClick={() => onChange("")} className="shrink-0 text-xs font-semibold underline">
+          Quitar
+        </button>
+      </div>
+    );
+  }
+  const q = text.trim().toUpperCase();
+  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  const matches = q ? collabs.filter((c) => c.code.startsWith(q.replace(/[^A-Z0-9]/g, "")) || norm(c.name).includes(norm(q)) || norm(c.place ?? "").includes(norm(q))).slice(0, 4) : [];
+  const exact = collabs.find((c) => c.code === q.replace(/[^A-Z0-9]/g, ""));
+  return (
+    <div className="col-span-2">
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (exact || matches.length === 1)) {
+            e.preventDefault();
+            onChange((exact ?? matches[0]).code);
+            setText("");
+          }
+        }}
+        placeholder="Código de colaborador (guía, hotel…)"
+        aria-label="Código de colaborador"
+        className="w-full min-w-0 rounded-lg px-3 py-2.5 text-sm uppercase"
+      />
+      {q && (
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {matches.length ? (
+            matches.map((c) => (
+              <button key={c.code} type="button" onClick={() => { onChange(c.code); setText(""); }} className="rounded-full bg-black/[0.06] px-3 py-1.5 text-xs font-semibold">
+                {c.name} · {c.code}
+                {c.discountPct > 0 ? ` · −${c.discountPct.toLocaleString("es-ES")} %` : ""}
+              </button>
+            ))
+          ) : (
+            <span className="text-xs text-[var(--p-accent)]">Ningún colaborador con ese código</span>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

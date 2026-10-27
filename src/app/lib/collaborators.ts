@@ -50,10 +50,10 @@ export function monthStart(month: string, timeZone: string): Date {
 export const COUNTED = { status: { notIn: ["CANCELLED" as const, "AWAITING_PAYMENT" as const] } };
 
 // Busca el colaborador activo de un código (para la tienda y la Caja).
-export async function collaboratorByCode(tenantId: string, raw: unknown): Promise<{ id: string; name: string; place: string | null; commissionPct: number } | null> {
+export async function collaboratorByCode(tenantId: string, raw: unknown): Promise<{ id: string; name: string; place: string | null; commissionPct: number; discountPct: number } | null> {
   const code = normalizeCollabCode(raw);
   if (!validCollabCode(code)) return null;
-  return prisma.collaborator.findFirst({ where: { tenantId, code, active: true }, select: { id: true, name: true, place: true, commissionPct: true } });
+  return prisma.collaborator.findFirst({ where: { tenantId, code, active: true }, select: { id: true, name: true, place: true, commissionPct: true, discountPct: true } });
 }
 
 // Datos de un colaborador que llegan del panel.
@@ -64,12 +64,17 @@ export function parseCollaborator(b: Record<string, unknown>) {
   if (!validCollabCode(code)) return "El código necesita de 3 a 20 letras o números";
   const pct = Number(b.commissionPct);
   if (!(pct > 0 && pct <= 50)) return "El porcentaje tiene que estar entre 1 y 50";
+  const discount = b.discountPct === undefined || b.discountPct === "" || b.discountPct === null ? 0 : Number(b.discountPct);
+  if (!(discount >= 0 && discount <= 50)) return "El descuento para el cliente tiene que estar entre 0 y 50";
   return {
     name,
     code,
     commissionPct: Math.round(pct * 10) / 10,
+    discountPct: Math.round(discount * 10) / 10,
     place: cleanText(b.place, 80) || null,
     phone: cleanText(b.phone, 20) || null,
     notes: cleanText(b.notes, 300) || null,
   };
 }
+
+export { bestDiscount, collaboratorDiscountCents } from "./collaboratorDiscount";

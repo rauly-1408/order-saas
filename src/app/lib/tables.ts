@@ -4,6 +4,7 @@
 // cobro de la Caja. Ver docs/MESAS.md
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
+import { collaboratorByCode, collaboratorDiscountCents, commissionCents } from "@/app/lib/collaborators";
 import { applyStockDeltas, orderConsumption, type ConsumptionItem, perOrderConsumables } from "@/app/lib/inventory";
 
 type Tx = Prisma.TransactionClient;
@@ -49,12 +50,40 @@ export function tableNames(prefix: string, from: number, to: number): string[] {
 
 // ─── Base de datos ──────────────────────────────────────────────────────────
 
-// Totales de la cuenta a partir de sus líneas (nunca sumando a ojo).
+// Colaborador de la mesa (guía turístico, hotel…): su descuento va a toda la
+// cuenta y su comisión sobre lo que se cobra. Ver docs/COLABORADORES.md
+type CollabTerms = { id: string; commissionPct: number; discountPct: number } | null;
+async function collabTerms(tx: Tx, collaboratorId: string | null): Promise<CollabTerms> {
+  if (!collaboratorId) return null;
+  return tx.collaborator.findUnique({ where: { id: collaboratorId }, select: { id: true, commissionPct: true, discountPct: true } });
+}
+function withCollab(subtotal: number, terms: CollabTerms) {
+  const off = terms ? collaboratorDiscountCents(subtotal, terms.discountPct) : 0;
+  const total = subtotal - off;
+  return { subtotalCents: subtotal, discountCents: off, collaboratorDiscountCents: off, totalCents: total, commissionCents: terms ? commissionCents(total, terms.commissionPct) : 0 };
+}
+
+// Totales de la cuenta a partir de sus líneas (nunca sumando a ojo). Devuelve lo que se cobra.
 async function recompute(tx: Tx, orderId: string): Promise<number> {
   const agg = await tx.orderLine.aggregate({ where: { orderId }, _sum: { totalCents: true } });
-  const subtotal = agg._sum.totalCents ?? 0;
-  await tx.order.update({ where: { id: orderId }, data: { subtotalCents: subtotal, totalCents: subtotal, discountCents: 0, feesCents: 0 } });
-  return subtotal;
+  const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { collaboratorId: true } });
+  const t = withCollab(agg._sum.totalCents ?? 0, await collabTerms(tx, order.collaboratorId));
+  await tx.order.update({ where: { id: orderId }, data: { ...t, feesCents: 0 } });
+  return t.totalCents;
+}
+
+// «Vienen de parte de…»: el código que dicen en la mesa (guía, hotel…). Su
+// descuento se aplica a la cuenta y su comisión cuenta al cobrar. Código vacío = quitarlo.
+export async function setTableCollaborator(tenantId: string, orderId: string, code: string): Promise<{ totalCents: number; collaborator: { name: string; code: string; discountPct: number } | null }> {
+  const found = code.trim() ? await collaboratorByCode(tenantId, code) : null;
+  if (code.trim() && !found) throw new TableError("Ese código de colaborador no existe o está en pausa");
+  return prisma.$transaction(async (tx) => {
+    await lockOpen(tx, orderId, tenantId);
+    await tx.order.update({ where: { id: orderId }, data: { collaboratorId: found?.id ?? null } });
+    const totalCents = await recompute(tx, orderId);
+    const c = found ? await tx.collaborator.findUniqueOrThrow({ where: { id: found.id }, select: { name: true, code: true, discountPct: true } }) : null;
+    return { totalCents, collaborator: c };
+  });
 }
 
 // Bloquea la cuenta mientras se le añade, quita o cobra algo: dos camareros a la
@@ -200,9 +229,8 @@ export async function payTable(
       const paid = { paymentStatus: "PAID" as const, paymentMethod: opts.method, paidAt, status: "DELIVERED" as const };
 
       if (!picks.size || all) {
-        const total = lines.reduce((a, l) => a + l.totalCents, 0);
+        const total = await recompute(tx, orderId);
         if (opts.cashTenderedCents != null && opts.cashTenderedCents < total) throw new TableError("El efectivo entregado no llega al total");
-        await recompute(tx, orderId);
         const done = await tx.order.update({ where: { id: orderId }, data: { ...paid, cashTenderedCents: opts.cashTenderedCents } });
         return { paidOrderId: done.id, orderNumber: done.orderNumber, totalCents: done.totalCents, closed: true };
       }
@@ -216,7 +244,10 @@ export async function payTable(
         moves.push({ line, qty, movedTotal, movedDiscount });
         total += movedTotal;
       }
-      if (opts.cashTenderedCents != null && opts.cashTenderedCents < total) throw new TableError("El efectivo entregado no llega al total");
+      // La parte también lleva el descuento y la comisión del colaborador de la mesa.
+      const terms = await collabTerms(tx, order.collaboratorId);
+      const t = withCollab(total, terms);
+      if (opts.cashTenderedCents != null && opts.cashTenderedCents < t.totalCents) throw new TableError("El efectivo entregado no llega al total");
       const part = await tx.order.create({
         data: {
           tenantId,
@@ -232,8 +263,8 @@ export async function payTable(
           tableId: order.tableId,
           createdByUserId: opts.userId,
           notes: `Parte de la cuenta nº ${order.orderNumber ?? "?"}`,
-          subtotalCents: total,
-          totalCents: total,
+          ...t,
+          collaboratorId: terms?.id ?? null,
           cashTenderedCents: opts.cashTenderedCents,
           ...paid,
         },
@@ -264,7 +295,7 @@ export async function payTable(
         }
       }
       await recompute(tx, orderId);
-      return { paidOrderId: part.id, orderNumber: part.orderNumber, totalCents: total, closed: false };
+      return { paidOrderId: part.id, orderNumber: part.orderNumber, totalCents: t.totalCents, closed: false };
     })
   );
 }

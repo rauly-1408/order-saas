@@ -40,9 +40,9 @@ export default async function TarjetasPage({ params }: { params: Promise<{ token
           <p className="mt-[1.5mm] text-[6.5pt] font-semibold tracking-[0.2em] text-black/50 uppercase">Tarjeta VIP</p>
         </div>
         <div>
-          <p className="text-[7.5pt] text-black/60">Pide online con mi código</p>
+          <p className="text-[7.5pt] text-black/60">{c.discountPct > 0 ? `−${c.discountPct.toLocaleString("es-ES")} % con mi código` : "Pide con mi código"}</p>
           <p className={`${codeSize} leading-none font-bold break-all`}>{c.code}</p>
-          <p className="mt-[1.5mm] text-[6.5pt] leading-snug text-black/55">Escanea el QR o escribe el código al pagar.</p>
+          <p className="mt-[1.5mm] text-[6.5pt] leading-snug text-black/55">Online con el QR, o dilo en el local al pagar.</p>
         </div>
       </div>
       <div className="flex w-[34mm] shrink-0 flex-col items-center justify-center bg-[#f5f5f7] p-[3mm]">

@@ -23,7 +23,7 @@ import { bestPromotion, rewardDiscount } from "@/app/lib/promotions";
 import { couponDiscount, couponProblem, normalizeCode } from "@/app/lib/retention";
 import { MAX_QTY_PER_LINE, priceOrderItems, type OrderLineInput } from "@/app/lib/orderPricing";
 import { CouponError, createOrderWithNumber } from "@/app/lib/createOrder";
-import { collaboratorByCode, commissionCents } from "@/app/lib/collaborators";
+import { bestDiscount, collaboratorByCode, collaboratorDiscountCents, commissionCents } from "@/app/lib/collaborators";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -228,14 +228,20 @@ export async function POST(req: NextRequest) {
       coupon = { id: found.id, oncePerCustomer: found.oncePerCustomer, maxRedemptions: found.maxRedemptions };
       couponDiscountCents = couponDiscount(found, afterLoyalty);
     }
-    // Si la promoción ahorra más que el cupón, el cupón no se gasta.
-    const usePromo = promo && promo.discountCents > couponDiscountCents;
-    if (usePromo) {
+    // Colaborador: un código que no existe no impide el pedido, simplemente no cuenta.
+    const collab = body.collaboratorCode ? await collaboratorByCode(tenant.id, body.collaboratorCode) : null;
+    // Promoción, cupón y descuento del colaborador no se acumulan: gana el que más ahorra.
+    // Si no gana el cupón, no se gasta.
+    const collabOffer = collab ? collaboratorDiscountCents(afterLoyalty, collab.discountPct) : 0;
+    const winner = bestDiscount(promo?.discountCents ?? 0, couponDiscountCents, collabOffer);
+    const usePromo = winner === "promo" && !!promo;
+    if (winner !== "coupon") {
       coupon = null;
       couponDiscountCents = 0;
     }
     const promotionDiscountCents = usePromo ? promo.discountCents : 0;
-    const discountCents = Math.min(loyaltyDiscountCents + promotionDiscountCents + couponDiscountCents, subtotalCents + feesCents);
+    const collabDiscountCents = winner === "collab" ? collabOffer : 0;
+    const discountCents = Math.min(loyaltyDiscountCents + promotionDiscountCents + couponDiscountCents + collabDiscountCents, subtotalCents + feesCents);
     // Propina: un porcentaje de los que ofrece el restaurante, sobre la comida.
     const tipPct = Number(body.tipPercent ?? 0);
     if (tipPct && (!checkout.tips.enabled || !checkout.tips.percents.includes(tipPct))) {
@@ -250,8 +256,6 @@ export async function POST(req: NextRequest) {
       giftCard = { id: found.card.id, cents: Math.min(found.card.balanceCents, subtotalCents + feesCents - discountCents + tip) };
     }
     const totalCents = subtotalCents + feesCents - discountCents + tip - (giftCard?.cents ?? 0);
-    // Colaborador: un código que no existe no impide el pedido, simplemente no cuenta.
-    const collab = body.collaboratorCode ? await collaboratorByCode(tenant.id, body.collaboratorCode) : null;
     const settings = tenant.settings as Record<string, unknown>;
     const currency = (settings?.currency as string) ?? "EUR";
 
@@ -278,6 +282,7 @@ export async function POST(req: NextRequest) {
           coupon,
           promotionId: usePromo ? promo.promotion.id : null,
           promotionDiscountCents,
+          collaboratorDiscountCents: collabDiscountCents,
           loyaltyDiscountCents,
           estimatedReadyAt: scheduledAt ?? new Date(Date.now() + 60_000 * leadMinutes(ops, channel)),
           scheduledFor: scheduledAt,

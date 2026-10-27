@@ -15,7 +15,7 @@ export type MapData = { stores: { id: string; name: string }[]; storeId: string 
 export type CuentaLine = { id: string; name: string; quantity: number; totalCents: number; discountCents: number; modifiers: string[]; note: string | null };
 export type Round = { round: number; at: string; by: string | null; lines: CuentaLine[] };
 export type Cuenta = {
-  order: { id: string; orderNumber: number | null; status: string; table: { id: string; name: string; zone: string }; guests: number | null; openedAt: string; billRequestedAt: string | null; totalCents: number; waiter: string | null; invoiceNumber: string | null };
+  order: { id: string; orderNumber: number | null; status: string; table: { id: string; name: string; zone: string }; guests: number | null; openedAt: string; billRequestedAt: string | null; totalCents: number; subtotalCents: number; collaboratorDiscountCents: number; collaborator: { name: string; code: string; discountPct: number } | null; waiter: string | null; invoiceNumber: string | null };
   rounds: Round[];
   parts: { id: string; orderNumber: number | null; totalCents: number; paymentMethod: string; paidAt: string | null }[];
   freeTables: { id: string; name: string; zone: string }[];

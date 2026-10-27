@@ -31,3 +31,23 @@ describe("Colaboradores", () => {
     expect(parseCollaborator({ name: "Laura", place: "Pub La Charca", commissionPct: "10" })).toMatchObject({ name: "Laura", code: "LAURA", commissionPct: 10, place: "Pub La Charca" });
   });
 });
+
+import { bestDiscount, collaboratorDiscountCents } from "../collaboratorDiscount";
+
+describe("descuento para el cliente del colaborador", () => {
+  it("un 5 % de 30 € son 1,50 €; sin % no hay descuento", () => {
+    expect(collaboratorDiscountCents(3000, 5)).toBe(150);
+    expect(collaboratorDiscountCents(3000, 0)).toBe(0);
+  });
+  it("no se acumula: gana el que más ahorra", () => {
+    expect(bestDiscount(0, 0, 150)).toBe("collab");
+    expect(bestDiscount(200, 0, 150)).toBe("promo");
+    expect(bestDiscount(0, 300, 150)).toBe("coupon");
+    expect(bestDiscount(0, 0, 0)).toBeNull();
+  });
+  it("a igualdad, como antes: promoción o cupón antes que el colaborador", () => {
+    expect(bestDiscount(150, 0, 150)).toBe("promo");
+    expect(bestDiscount(0, 150, 150)).toBe("coupon");
+    expect(bestDiscount(150, 150, 0)).toBe("coupon");
+  });
+});

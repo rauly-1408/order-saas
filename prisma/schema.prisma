@@ -497,6 +497,7 @@ model Order {
   promotionId            String?
   promotion              Promotion? @relation(fields: [promotionId], references: [id], onDelete: SetNull)
   promotionDiscountCents Int        @default(0)
+  collaboratorDiscountCents Int     @default(0) // descuento por el código de un colaborador
   loyaltyReward          Boolean    @default(false) // este pedido canjeó el premio de la tarjeta
   loyaltyDiscountCents   Int        @default(0)
 
@@ -1362,6 +1363,7 @@ model Collaborator {
   phone         String?
   code          String // lo que escribe el cliente o va en su enlace (MAYÚSCULAS)
   commissionPct Float    @default(10)
+  discountPct   Float    @default(0) // descuento para el cliente que pide con su código (0 = sin descuento)
   token         String   @unique // su página privada: /colaborador/[token]
   active        Boolean  @default(true)
   notes         String?
