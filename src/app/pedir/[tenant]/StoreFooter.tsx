@@ -77,7 +77,7 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
           <ul className="space-y-2.5">
             {address && (
               <li className="flex gap-2">
-                <span aria-hidden>📍</span>
+                <FooterIcon><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></FooterIcon>
                 {maps ? (
                   <a href={maps} target="_blank" rel="noopener noreferrer" className={link}>
                     {address}
@@ -89,7 +89,7 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
             )}
             {b.phone && (
               <li className="flex gap-2">
-                <span aria-hidden>📞</span>
+                <FooterIcon><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" /></FooterIcon>
                 <a href={telHref(b.phone)} className={link}>
                   {b.phone}
                 </a>
@@ -97,7 +97,7 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
             )}
             {b.whatsapp && (
               <li className="flex gap-2">
-                <span aria-hidden>💬</span>
+                <FooterIcon><path d="M21 12a8 8 0 0 1-11.8 7L4 20l1.1-4.6A8 8 0 1 1 21 12z" /></FooterIcon>
                 <a href={whatsappHref(b.whatsapp)} target="_blank" rel="noopener noreferrer" className={link}>
                   WhatsApp
                 </a>
@@ -105,7 +105,7 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
             )}
             {b.email && (
               <li className="flex gap-2">
-                <span aria-hidden>✉️</span>
+                <FooterIcon><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></FooterIcon>
                 <a href={`mailto:${b.email}`} className={`${link} break-all`}>
                   {b.email}
                 </a>
@@ -154,5 +154,14 @@ export default function StoreFooter({ tenant, tenantName, logoUrl, business: b, 
         </p>
       </div>
     </footer>
+  );
+}
+
+// Iconos del contacto dibujados (los emojis cambian de un móvil a otro).
+function FooterIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-0.5 shrink-0">
+      {children}
+    </svg>
   );
 }

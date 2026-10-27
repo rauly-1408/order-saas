@@ -16,6 +16,7 @@ import { captureCollabFromUrl } from "./collab";
 import { ComboCard, ProductCard, PromoTile } from "./StoreCards";
 import StoreFooter from "./StoreFooter";
 import MenuCarousel from "./MenuCarousel";
+import SwipeRow from "./SwipeRow";
 import type { BusinessInfo } from "@/app/lib/business";
 import type { WeeklyHours } from "@/app/lib/storeStatus";
 import { useRouter } from "next/navigation";
@@ -144,7 +145,16 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
       obs.observe(el);
       observers.push(obs);
     });
-    return () => observers.forEach((o) => o.disconnect());
+    // Al final de la página (pie), la última categoría queda marcada.
+    const onScroll = () => {
+      const last = categories[categories.length - 1];
+      if (last && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) setActiveCategory(last.slug);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      observers.forEach((o) => o.disconnect());
+      window.removeEventListener("scroll", onScroll);
+    };
     // Al cerrar el buscador las secciones se vuelven a montar: hay que observarlas otra vez.
   }, [categories, searching]);
 
@@ -461,13 +471,13 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         {favorites.length > 0 && (
           <section className="mb-14" aria-label={T.favorites}>
             <h2 data-reveal className="mb-4 text-[28px] sm:text-[38px]" style={{ ...heading, color: cssVars["--heading-color"] }}>{T.favorites}</h2>
-            <div className="s-row -mx-4 flex items-stretch gap-4 overflow-x-auto px-4 pb-2 sm:-mx-8 sm:px-8">
+            <SwipeRow className="s-row -mx-4 flex items-stretch gap-4 overflow-x-auto px-4 pb-2 sm:-mx-8 sm:px-8">
               {favorites.map((product, i) => (
                 <div key={product.id} data-reveal className="w-[84vw] max-w-[360px] shrink-0 sm:w-[260px]" style={{ ["--i" as any]: Math.min(i, 6) }}>
                   {productCard(product, "featured")}
                 </div>
               ))}
-            </div>
+            </SwipeRow>
           </section>
         )}
 
@@ -475,7 +485,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         {perks && (visiblePromos.length > 0 || perks.loyalty) && (
           <section className="mb-14" aria-label={T.promotions}>
             <h2 data-reveal className="mb-4 text-[28px] sm:text-[38px]" style={{ ...heading, color: cssVars["--heading-color"] }}>{T.promotions}</h2>
-            <div className="s-row -mx-4 flex items-stretch gap-4 overflow-x-auto px-4 pb-2 sm:-mx-8 sm:px-8">
+            <SwipeRow className="s-row -mx-4 flex items-stretch gap-4 overflow-x-auto px-4 pb-2 sm:-mx-8 sm:px-8">
               {perks.loyalty && (
                 <div data-reveal className="w-[85vw] max-w-[380px] shrink-0 sm:w-[380px]">
                   <StampCard ordersRequired={perks.loyalty.ordersRequired} stamps={null} rewardName={perks.loyalty.rewardName} upperHeadings={upper} lang={lang} />
@@ -486,7 +496,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                   <PromoTile promo={p} tone={i % 2 === 0 ? "secondary" : "accent"} upperHeadings={upper} lang={lang} />
                 </div>
               ))}
-            </div>
+            </SwipeRow>
           </section>
         )}
 
