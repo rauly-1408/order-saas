@@ -104,6 +104,19 @@ export function tempPasswordEmail(p: { restaurant: string; email: string; passwo
   return { subject: `${intro} de ${p.restaurant}`, html, text };
 }
 
+// «¿Has olvidado tu contraseña?»: enlace de un solo uso (caduca en 1 hora).
+export function passwordResetEmail(p: { restaurant: string; resetUrl: string }): { subject: string; html: string; text: string } {
+  const html = layout(
+    "Cambia tu contraseña",
+    `<p>Alguien (seguramente tú) ha pedido una contraseña nueva para el panel de <b>${esc(p.restaurant)}</b>.</p>
+     <p style="margin:16px 0"><a href="${esc(p.resetUrl)}" style="display:inline-block;background:#0d3328;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:600">Poner una contraseña nueva</a></p>
+     <p style="color:#5d6b64">El enlace sirve una sola vez y caduca en 1 hora.</p>`,
+    "Si no lo has pedido tú, ignora este email: tu contraseña no cambia."
+  );
+  const text = `Cambia tu contraseña del panel de ${p.restaurant}.\n\nAbre este enlace (sirve una vez y caduca en 1 hora):\n${p.resetUrl}\n\nSi no lo has pedido tú, ignora este email.`;
+  return { subject: `Cambia tu contraseña · ${p.restaurant}`, html, text };
+}
+
 export function dailySummaryEmail(p: {
   restaurant: string;
   dayLabel: string;
