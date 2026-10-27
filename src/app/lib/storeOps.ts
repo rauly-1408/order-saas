@@ -65,8 +65,6 @@ export function publicStoreInfo(ops: StoreOps, now = new Date()) {
   return {
     status: ops.status,
     prepExtraMinutes: ops.prepExtraMinutes,
-    // Tiempo estimado (preparación + reparto) para la franja de la portada.
-    minutes: { TAKEAWAY: ops.takeawayEnabled ? leadMinutes(ops, "TAKEAWAY") : null, DELIVERY: ops.deliveryEnabled ? leadMinutes(ops, "DELIVERY") : null },
     // Horas para programar el pedido (hoy y los próximos días), por canal.
     slots: {
       DELIVERY: ops.deliveryEnabled ? availableSlots(sched, now, ops.timeZone, leadMinutes(ops, "DELIVERY")) : [],

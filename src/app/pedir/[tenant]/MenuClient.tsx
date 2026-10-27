@@ -365,31 +365,6 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         </div>
       </section>
 
-      {/* Lo que el cliente quiere saber antes de pedir: si está abierto y cuánto tarda */}
-      {store && (
-        <div className="border-b border-[var(--border)]" style={{ backgroundColor: cssVars["--surface-0"] }}>
-          <div className={`${wrap} flex flex-wrap items-center gap-x-5 gap-y-1.5 py-3 text-[13.5px] font-medium`} style={{ color: cssVars["--text-primary"] }}>
-            <span className="inline-flex items-center gap-2">
-              <span className={`h-2 w-2 shrink-0 rounded-full ${store.status.open ? "bg-emerald-500" : "bg-red-500"}`} aria-hidden />
-              {/* Cerrado: el detalle (cuándo abre) ya va en la franja de arriba del todo */}
-              {store.status.open ? T.openNow : T.closed}
-            </span>
-            {settings?.takeawayEnabled && store.minutes.TAKEAWAY != null && (
-              <span className="inline-flex items-center gap-1.5" style={{ color: cssVars["--text-secondary"] }}>
-                <ClockIcon />
-                {T.pickupIn(store.minutes.TAKEAWAY)}
-              </span>
-            )}
-            {settings?.deliveryEnabled && store.minutes.DELIVERY != null && (
-              <span className="inline-flex items-center gap-1.5" style={{ color: cssVars["--text-secondary"] }}>
-                <ClockIcon />
-                {T.deliveryIn(store.minutes.DELIVERY)}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Categorías: barra fija bajo la cabecera, alineada con el contenido */}
       <nav className="sticky top-16 z-40 border-b border-[var(--border)] shadow-[0_8px_20px_-18px_rgba(0,0,0,0.4)]" style={{ backgroundColor: cssVars["--surface-0"] }} aria-label={T.categories}>
         {searchOpen ? (
@@ -620,15 +595,6 @@ function SearchIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden className="shrink-0 opacity-70">
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden className="shrink-0">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
     </svg>
   );
 }
