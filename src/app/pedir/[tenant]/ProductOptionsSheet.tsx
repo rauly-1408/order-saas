@@ -323,11 +323,11 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
             {withQty && (
               <div className="flex shrink-0 items-center rounded-full border border-[var(--border)]" role="group" aria-label={T.quantity}>
                 <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1} aria-label={T.removeOne(product.name)} className="p-press flex h-12 w-11 items-center justify-center rounded-full text-xl font-bold disabled:opacity-30">
-                  −
+                  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M2.5 8h11" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
                 </button>
                 <span className="w-6 text-center text-[16px] font-bold tabular-nums" aria-live="polite">{qty}</span>
                 <button type="button" onClick={() => setQty((q) => Math.min(20, q + 1))} aria-label={T.addAnother(product.name)} className="p-press flex h-12 w-11 items-center justify-center rounded-full text-xl font-bold">
-                  +
+                  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
                 </button>
               </div>
             )}

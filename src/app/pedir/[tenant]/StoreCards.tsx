@@ -204,11 +204,11 @@ export function ProductCard({
         {stepper ? (
           <div className="flex w-28 items-center shadow-[0_8px_18px_-10px_rgba(0,0,0,0.5)] sm:w-full sm:shadow-none justify-between rounded-full bg-[var(--brand-accent)] p-1 text-[var(--on-accent)]">
             <button onClick={onDec} aria-label={T.removeOne(name)} className="p-press flex h-9 w-9 items-center justify-center rounded-full text-xl font-bold hover:bg-white/15">
-              −
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M2.5 8h11" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
             </button>
             <span className="text-[15px] font-bold tabular-nums">{qty}</span>
             <button onClick={onInc} aria-label={T.addAnother(name)} className="p-press flex h-9 w-9 items-center justify-center rounded-full text-xl font-bold hover:bg-white/15">
-              +
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
             </button>
           </div>
         ) : (
@@ -218,7 +218,7 @@ export function ProductCard({
             title={T.add}
             className="p-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent)] text-[22px] font-semibold leading-none text-[var(--on-accent)] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.5)] transition-transform [@media(hover:hover)]:group-hover:scale-110"
           >
-            +
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
           </button>
         )}
       </div>
