@@ -409,8 +409,8 @@ function CollabSheet({ form, setForm, tenant, origin, saving, error, onSave, onC
         </>
       }
     >
-      <div className="space-y-5 px-5 pb-2">
-        <fieldset className="space-y-3">
+      <div className="space-y-5 pb-2">
+        <fieldset className="min-w-0 space-y-3">
           <legend className="mb-2 text-xs font-semibold tracking-wide text-[var(--p-muted)] uppercase">Quién es</legend>
           <label className="block">
             <span className={label}>Nombre</span>
@@ -428,15 +428,15 @@ function CollabSheet({ form, setForm, tenant, origin, saving, error, onSave, onC
           </div>
         </fieldset>
 
-        <fieldset>
+        <fieldset className="min-w-0">
           <legend className="mb-2 text-xs font-semibold tracking-wide text-[var(--p-muted)] uppercase">Su código</legend>
           <input value={form.code} onChange={(e) => set({ code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20) })} placeholder="LAURA" aria-label="Código" className={`${input} text-base font-bold tracking-widest`} />
-          <p className="mt-1.5 truncate text-xs text-[var(--p-muted)]">
-            Su enlace: {origin}/pedir/{tenant}?c={form.code || "CODIGO"}
+          <p className="mt-1.5 text-xs break-all text-[var(--p-muted)]">
+            Su enlace: {origin.replace(/^https?:\/\//, "")}/pedir/{tenant}?c={form.code || "CODIGO"}
           </p>
         </fieldset>
 
-        <fieldset>
+        <fieldset className="min-w-0">
           <legend className="mb-2 text-xs font-semibold tracking-wide text-[var(--p-muted)] uppercase">Condiciones</legend>
           <div className="grid grid-cols-2 gap-3">
             <PctInput label="Se lleva (comisión)" value={form.commissionPct} onChange={(v) => set({ commissionPct: v })} />
@@ -473,7 +473,7 @@ function PctInput({ label: text, value, onChange, hint }: { label: string; value
     <label className="block">
       <span className={label}>{text}</span>
       <span className="flex items-center gap-1.5">
-        <input value={value} onChange={(e) => onChange(e.target.value.replace(/[^0-9,.]/g, "").slice(0, 5))} inputMode="decimal" className={`${input} text-lg font-semibold`} />
+        <input value={value} onChange={(e) => onChange(e.target.value.replace(/[^0-9,.]/g, "").slice(0, 5))} inputMode="decimal" className={`${input} min-w-0 text-lg font-semibold`} />
         <span className="text-sm text-[var(--p-muted)]">%</span>
       </span>
       {hint && <span className="mt-1 block text-[11px] text-[var(--p-muted)]">{hint}</span>}
