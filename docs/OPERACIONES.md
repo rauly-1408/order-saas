@@ -73,3 +73,16 @@ Cada función de Vercel abre su propia conexión. Con la URL directa, en un pico
 - Si una migración falla, el build falla y la versión anterior sigue publicada: arreglar la migración y volver a desplegar.
 - Por qué: el 23-10-2026 se publicó un cambio con migración sin aplicarla y el seguimiento y el panel dieron error 500 hasta ejecutarla a mano.
 - En local sigue igual: `npx prisma migrate deploy` a mano (ojo: el `.env` del proyecto apunta a Neon).
+
+## 10. Contraseñas: recuperar y cambiar
+
+- **«¿Has olvidado tu contraseña?»** en la pantalla de entrada (`/admin/[tenant]/recuperar`). Llega un email con un enlace de un solo uso que caduca en 1 hora (`lib/passwordReset.ts`; en la base solo se guarda el hash). Necesita el envío de emails (`RESEND_API_KEY` y `EMAIL_FROM`); sin él, la pantalla lo dice y manda pedir la contraseña al gerente.
+- Al cambiar la contraseña (por enlace, por el gerente en Configuración → Usuarios o por el script) se cierran las sesiones abiertas antes en otros dispositivos (`User.passwordChangedAt`, comprobado en `lib/auth.ts`).
+- **Sin email y sin poder entrar** (el dueño): desde su Mac, con el `.env` que apunta a la base de datos de producción:
+
+  ```bash
+  node --env-file=.env scripts/cambiar-contrasena.mjs
+  ```
+
+  Enseña los administradores, pide el email y la contraseña nueva dos veces (no se ve al escribirla) y la guarda cifrada.
+

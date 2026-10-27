@@ -14,6 +14,7 @@ export type SessionPayload = {
   tenantId: string | null;
   storeId?: string | null; // rol «Pedidos» limitado a un local (se lee de la base de datos)
   seesTakings?: boolean; // ve lo recaudado (se lee de la base de datos)
+  issuedAt?: number; // segundos (iat): las sesiones anteriores a un cambio de contraseña no valen
 };
 
 function getSecret(): Uint8Array {
@@ -48,6 +49,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       email: typeof payload.email === "string" ? payload.email : "",
       role: typeof payload.role === "string" ? payload.role : "",
       tenantId: typeof payload.tenantId === "string" ? payload.tenantId : null,
+      issuedAt: typeof payload.iat === "number" ? payload.iat : undefined,
     };
   } catch {
     return null;

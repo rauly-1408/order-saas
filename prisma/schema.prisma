@@ -137,18 +137,21 @@ enum OrderStatus {
 //  USER
 // ─────────────────────────────────────────────
 model User {
-  id          String    @id @default(cuid())
-  email       String    @unique
-  password    String
-  role        Role      @default(TENANT_ADMIN)
-  name        String?
-  active      Boolean   @default(true) // desactivado = no puede entrar (Configuración → Usuarios)
+  id                String          @id @default(cuid())
+  email             String          @unique
+  password          String
+  role              Role            @default(TENANT_ADMIN)
+  name              String?
+  active            Boolean         @default(true) // desactivado = no puede entrar (Configuración → Usuarios)
   // Solo para el rol «Pedidos»: limita a un local (null = todos los locales)
-  storeId     String?
+  storeId           String?
   // Ve lo recaudado (Caja → «Hoy en caja»). Solo el administrador principal
   // por defecto; se concede por usuario en Configuración → Usuarios.
-  seesTakings Boolean   @default(false)
-  lastLoginAt DateTime?
+  seesTakings       Boolean         @default(false)
+  lastLoginAt       DateTime?
+  // Al cambiar la contraseña se cierran las sesiones abiertas antes (lib/auth.ts → fresh)
+  passwordChangedAt DateTime?
+  passwordResets    PasswordReset[]
 
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
@@ -320,13 +323,13 @@ model Product {
   imageUrl       String? // NUEVO: imagen del producto
   basePriceCents Int     @default(0)
 
-  isActive     Boolean @default(true)
-  isAvailable  Boolean @default(true) // NUEVO: agotado temporal
-  isFeatured   Boolean @default(false) // NUEVO: destacado en la carta
+  isActive     Boolean  @default(true)
+  isAvailable  Boolean  @default(true) // NUEVO: agotado temporal
+  isFeatured   Boolean  @default(false) // NUEVO: destacado en la carta
   dietTags     String[] @default([]) // sellos de dieta: VEGAN, VEGETARIAN, GLUTEN_FREE (ver lib/diet.ts)
   allergens    String[] @default([]) // alérgenos declarados en Carta (o importados); se suman a los del escandallo
-  hasModifiers Boolean @default(false)
-  stockOut     Boolean @default(false) // agotado automático por falta de ingrediente (módulo Costes)
+  hasModifiers Boolean  @default(false)
+  stockOut     Boolean  @default(false) // agotado automático por falta de ingrediente (módulo Costes)
 
   sortOrder Int @default(0) // NUEVO: orden dentro de categoría
 
@@ -496,12 +499,12 @@ model Order {
   coupon   Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
 
   // Promoción automática aplicada (sin código) y premio de fidelización
-  promotionId            String?
-  promotion              Promotion? @relation(fields: [promotionId], references: [id], onDelete: SetNull)
-  promotionDiscountCents Int        @default(0)
-  collaboratorDiscountCents Int     @default(0) // descuento por el código de un colaborador
-  loyaltyReward          Boolean    @default(false) // este pedido canjeó el premio de la tarjeta
-  loyaltyDiscountCents   Int        @default(0)
+  promotionId               String?
+  promotion                 Promotion? @relation(fields: [promotionId], references: [id], onDelete: SetNull)
+  promotionDiscountCents    Int        @default(0)
+  collaboratorDiscountCents Int        @default(0) // descuento por el código de un colaborador
+  loyaltyReward             Boolean    @default(false) // este pedido canjeó el premio de la tarjeta
+  loyaltyDiscountCents      Int        @default(0)
 
   // Pago
   paymentMethod         PaymentMethod @default(IN_STORE)
@@ -1437,4 +1440,18 @@ model AppSecret {
   key       String   @id
   value     String
   createdAt DateTime @default(now())
+}
+
+// «¿Has olvidado tu contraseña?»: enlace de un solo uso que llega por email.
+// Se guarda solo el hash del token; caduca en 1 hora. Ver docs/OPERACIONES.md
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }

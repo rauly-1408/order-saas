@@ -46,8 +46,8 @@ export async function proxy(req: NextRequest) {
 
   if (!pathname.startsWith("/admin")) return NextResponse.next();
 
-  // 2) La página de login debe ser accesible sin sesión.
-  if (pathname.endsWith("/login")) {
+  // 2) Entrar y recuperar la contraseña tienen que funcionar sin sesión.
+  if (/\/(login|recuperar|restablecer)$/.test(pathname)) {
     return NextResponse.next();
   }
 

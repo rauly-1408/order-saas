@@ -105,7 +105,7 @@ export async function PATCH(req: NextRequest) {
       storeId,
       ...(typeof b.seesTakings === "boolean" && { seesTakings: b.seesTakings }),
       ...(typeof b.name === "string" && { name: b.name.trim().slice(0, 80) || null }),
-      ...(password && { password: await hashPassword(password) }),
+      ...(password && { password: await hashPassword(password), passwordChangedAt: new Date() }),
     },
   });
   const emailed = password ? await mailPassword(req, c.tenantId, user.email, password, true) : false;

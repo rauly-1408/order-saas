@@ -75,6 +75,11 @@ export default function LoginForm({ tenant, tenantName }: { tenant: string; tena
             >
               {loading ? "Entrando…" : "Entrar"}
             </button>
+            <p className="text-center text-sm">
+              <a href={`/admin/${tenant}/recuperar`} className="font-medium text-[var(--p-brand)] hover:underline">
+                ¿Has olvidado tu contraseña?
+              </a>
+            </p>
           </div>
         </div>
       </div>
