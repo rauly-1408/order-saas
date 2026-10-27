@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import ImagePicker from "../archivos/ImagePicker";
 import { readPanelCache, writePanelCache } from "../panelCache";
+import DietBadges from "@/app/pedir/[tenant]/DietBadges";
+import type { DietTag } from "@/app/lib/diet";
 
 // Carta → Productos: lista por categorías con tarjetas que se tocan para
 // editar (en el móvil también, sin tabla que se salga de la pantalla). Cada
@@ -21,10 +23,11 @@ type Product = {
   isActive: boolean;
   isAvailable: boolean;
   isFeatured: boolean;
+  dietTags?: DietTag[];
   sortOrder: number;
 };
 type Category = { id: string; name: string; products: Product[] };
-type FormData = { name: string; description: string; price: string; imageUrl: string; isActive: boolean; isAvailable: boolean; isFeatured: boolean; categoryId: string };
+type FormData = { name: string; description: string; price: string; imageUrl: string; isActive: boolean; isAvailable: boolean; isFeatured: boolean; dietTags: DietTag[]; categoryId: string };
 
 const fmt = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
 const toEuros = (c: number) => fmt.format(c / 100);
@@ -125,12 +128,12 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
   function openEdit(p: Product, categoryId: string) {
     setFormError("");
     expand(categoryId);
-    setEditing({ product: p, form: { name: p.name, description: p.description ?? "", price: priceText(p.basePriceCents), imageUrl: p.imageUrl ?? "", isActive: p.isActive, isAvailable: p.isAvailable, isFeatured: p.isFeatured, categoryId } });
+    setEditing({ product: p, form: { name: p.name, description: p.description ?? "", price: priceText(p.basePriceCents), imageUrl: p.imageUrl ?? "", isActive: p.isActive, isAvailable: p.isAvailable, isFeatured: p.isFeatured, dietTags: p.dietTags ?? [], categoryId } });
   }
   function openNew(categoryId: string) {
     setFormError("");
     expand(categoryId);
-    setEditing({ product: null, form: { name: "", description: "", price: "", imageUrl: "", isActive: true, isAvailable: true, isFeatured: false, categoryId } });
+    setEditing({ product: null, form: { name: "", description: "", price: "", imageUrl: "", isActive: true, isAvailable: true, isFeatured: false, dietTags: [], categoryId } });
   }
 
   async function save() {
@@ -142,7 +145,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
     setSaving(true);
     setFormError("");
     try {
-      const payload = { name: f.name.trim(), description: f.description, basePriceCents: cents, imageUrl: f.imageUrl, isActive: f.isActive, isAvailable: f.isAvailable, isFeatured: f.isFeatured, categoryId: f.categoryId };
+      const payload = { name: f.name.trim(), description: f.description, basePriceCents: cents, imageUrl: f.imageUrl, isActive: f.isActive, isAvailable: f.isAvailable, isFeatured: f.isFeatured, dietTags: f.dietTags, categoryId: f.categoryId };
       const url = editing.product ? `/api/admin/${tenant}/products/${editing.product.id}` : `/api/admin/${tenant}/products`;
       const res = await fetch(url, { method: editing.product ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) {
@@ -351,6 +354,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                           <p className="flex items-center gap-1.5 truncate text-[15px] font-medium">
                             <span className="truncate">{p.name}</span>
                             {p.isFeatured && <span className="shrink-0 text-xs text-amber-600" title="Destacado">★</span>}
+                            {p.dietTags && p.dietTags.length > 0 && <DietBadges tags={p.dietTags} size={18} />}
                           </p>
                           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--p-muted)]">
                             <span className="font-semibold tabular-nums text-[var(--p-ink)]">{toEuros(p.basePriceCents)}</span>
@@ -455,6 +459,40 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                       <Switch checked={inverted ? !f[key] : f[key]} onChange={(v) => setF({ [key]: inverted ? !v : v } as Partial<FormData>)} label={label} />
                     </label>
                   ))}
+                </div>
+                {/* Sellos de dieta: salen sobre la foto en la tienda */}
+                <div>
+                  <p className="text-sm font-medium">Sellos</p>
+                  <p className="mt-0.5 text-xs text-[var(--p-muted)]">Salen sobre la foto en la tienda para que se encuentren de un vistazo.</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(
+                      [
+                        ["VEGAN", "Vegano"],
+                        ["VEGETARIAN", "Vegetariano"],
+                      ] as const
+                    ).map(([tag, label]) => {
+                      const on = f.dietTags.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => {
+                            // Lo vegano también es vegetariano: marcar Vegano marca los dos.
+                            const next = on ? f.dietTags.filter((t) => t !== tag) : [...f.dietTags, tag, ...(tag === "VEGAN" ? (["VEGETARIAN"] as const) : [])];
+                            setF({ dietTags: [...new Set(next)] });
+                          }}
+                          className={`p-press flex items-center gap-2 rounded-full border py-1.5 pr-3.5 pl-1.5 text-sm font-medium ${on ? "border-[var(--p-brand)] bg-[var(--p-brand-soft)] text-[var(--p-brand)]" : "border-[var(--p-line)] text-[var(--p-muted)]"}`}
+                        >
+                          <span className={on ? "" : "opacity-40 grayscale"}>
+                            <DietBadges tags={[tag]} size={24} decorative />
+                          </span>
+                          {label}
+                          {on && <span aria-hidden>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 {formError && (
                   <p className="text-sm text-[var(--p-accent)]" role="alert">

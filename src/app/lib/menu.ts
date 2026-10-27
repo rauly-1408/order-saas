@@ -1,4 +1,5 @@
 import { prisma } from "@/app/lib/prisma";
+import { parseDietTags } from "./diet";
 import { cachedMenuCategories } from "@/app/lib/menuCache";
 import { cachedUnitsSold, pickBestSellers } from "@/app/lib/bestSellers";
 import { getTenantTheme, getTenantSettings } from "@/app/lib/tenantConfig";
@@ -62,6 +63,7 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
       name: tr(pTr, lang, "name", product.name),
       description: tr(pTr, lang, "description", product.description ?? ""),
       allergens: allergens(recipeLines),
+      dietTags: parseDietTags(product.dietTags),
       bestSeller: bestSellers.has(product.id),
       comboSlots: comboSlots.map(({ translations: sTr, ...s }) => ({ ...s, name: tr(sTr, lang, "name", s.name) })),
       modifierGroups: modifierGroups.map(
