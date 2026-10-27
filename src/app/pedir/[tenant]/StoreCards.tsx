@@ -131,6 +131,7 @@ export function ProductCard({
   qty,
   simple,
   onAdd,
+  onOpen,
   onInc,
   onDec,
   lang = "es",
@@ -146,6 +147,7 @@ export function ProductCard({
   badge?: "featured" | "bestseller" | null;
   simple: boolean; // sin opciones: se puede sumar/restar aquí mismo
   onAdd: () => void;
+  onOpen?: () => void; // abre la ficha del producto (foto grande, descripción completa)
   onInc: () => void;
   onDec: () => void;
   lang?: Lang;
@@ -157,8 +159,9 @@ export function ProductCard({
       className="p-lift group relative flex h-full flex-col overflow-hidden rounded-[var(--border-radius)] bg-[var(--surface-1)]"
       style={{ boxShadow: qty > 0 ? "0 0 0 2px var(--brand-accent)" : "0 1px 2px rgba(0,0,0,0.05)" }}
     >
+      <button type="button" onClick={onOpen} aria-label={T.seeDetails(name)} className="flex flex-1 flex-col text-left outline-offset-[-3px]">
       {imageUrl && (
-        <div className="overflow-hidden">
+        <div className="w-full overflow-hidden">
           {/* Cuadrada: las fotos de producto suelen serlo y así se ven enteras, sin recortar el bocadillo. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageUrl} alt={name} loading="lazy" className="aspect-square w-full object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -166,7 +169,7 @@ export function ProductCard({
       )}
       {/* Sin foto: un recuadro con la inicial, para que la rejilla quede pareja */}
       {!imageUrl && (
-        <div aria-hidden className="flex aspect-square items-center justify-center bg-[color-mix(in_srgb,var(--brand-accent)_7%,var(--surface-1))]">
+        <div aria-hidden className="flex aspect-square w-full items-center justify-center bg-[color-mix(in_srgb,var(--brand-accent)_7%,var(--surface-1))]">
           <span className="text-[56px] leading-none text-[var(--brand-accent)] opacity-25" style={{ fontFamily: "var(--font-heading)" }}>
             {name.trim().charAt(0).toUpperCase()}
           </span>
@@ -184,6 +187,7 @@ export function ProductCard({
         {description && <p className="mt-1 line-clamp-2 text-[12.5px] leading-snug text-[var(--text-secondary)] sm:text-[13px]">{description}</p>}
         {allergens && allergens.length > 0 && <p className="mt-1 line-clamp-1 text-[11px] text-[var(--text-secondary)]">{T.allergens}: {allergens.join(", ")}</p>}
       </div>
+      </button>
       <div className={`flex items-center justify-between gap-2 px-3 pt-2.5 pb-3 sm:px-4 sm:pb-4 ${stepper ? "flex-wrap" : ""}`}>
         <span className="text-[16px] font-bold tabular-nums text-[var(--brand-secondary)] sm:text-[17px]">{euros(priceCents)}</span>
         {stepper ? (

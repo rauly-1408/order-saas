@@ -21,15 +21,18 @@ export type SheetProduct = {
   basePriceCents: number;
   modifierGroups: MenuModifierGroup[];
   allergens?: string[];
+  imageUrl?: string | null;
 };
 
 type Props = {
   product: SheetProduct;
   onClose: () => void;
-  onAdd: (line: { optionIds: string[]; modifiers: OrderLineModifier[]; unitPriceCents: number; note?: string }) => void;
+  onAdd: (line: { optionIds: string[]; modifiers: OrderLineModifier[]; unitPriceCents: number; note?: string; quantity: number }) => void;
   lang?: Lang;
   // Panel (Mesas y Caja): nota para cocina al pedir, con atajos de un toque.
   withNote?: boolean;
+  // Tienda online: elegir cuántas unidades se añaden de una vez.
+  withQty?: boolean;
 };
 
 export const NOTE_CHIPS = ["Sin cebolla", "Sin salsa", "Sin gluten", "Poco hecha", "Al punto", "Muy hecha", "Salsa aparte", "Para compartir"];
@@ -37,9 +40,12 @@ export const NOTE_CHIPS = ["Sin cebolla", "Sin salsa", "Sin gluten", "Poco hecha
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "es", withNote = false }: Props) {
+export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "es", withNote = false, withQty = false }: Props) {
   const { setPanel, setBackdrop, onPointerDown: dragDown, onPointerMove: dragMove, onPointerUp: dragUp, onPointerCancel: dragCancel } = useSheetDrag(onClose);
   const [note, setNote] = useState("");
+  const [qty, setQty] = useState(1);
+  // Foto grande solo en la tienda online; en Caja y Mesas el personal va rápido.
+  const photo = withQty ? product.imageUrl : null;
   const T = ui(lang);
   const groups = product.modifierGroups;
   const [selection, setSelection] = useState<Record<string, string[]>>(() => initialSelection(groups));
@@ -83,36 +89,69 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
       setError(optionError(err, lang));
       return;
     }
-    onAdd({ optionIds: Object.values(selection).flat(), modifiers, unitPriceCents, ...(withNote && note.trim() && { note: note.trim().slice(0, 120) }) });
+    onAdd({ optionIds: Object.values(selection).flat(), modifiers, unitPriceCents, quantity: withQty ? qty : 1, ...(withNote && note.trim() && { note: note.trim().slice(0, 120) }) });
   }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={product.name}>
       <button ref={setBackdrop} aria-label={T.close} onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
 
-      <div ref={setPanel} className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden p-rise rounded-t-[28px] bg-[var(--surface-0)] text-[var(--text-primary)] shadow-2xl will-change-transform sm:rounded-[28px]">
-        {/* Se agarra por aquí para cerrarla deslizando hacia abajo (móvil) */}
-        <header onPointerDown={dragDown} onPointerMove={dragMove} onPointerUp={dragUp} onPointerCancel={dragCancel} className="relative flex touch-none items-start gap-3 border-b border-[var(--border)] p-5 pt-7 sm:touch-auto sm:pt-5">
-          <span aria-hidden className="absolute left-1/2 top-2.5 h-1.5 w-10 -translate-x-1/2 rounded-full bg-[var(--text-secondary)] opacity-30 sm:hidden" />
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-bold">{product.name}</h2>
-            {product.description && (
-              <p className="mt-1 text-[13px] leading-snug text-[var(--text-secondary)]">{product.description}</p>
-            )}
-            {product.allergens && product.allergens.length > 0 && (
-              <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{T.allergens}: {product.allergens.join(", ")}</p>
-            )}
+      <div ref={setPanel} className="relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden p-rise rounded-t-[28px] bg-[var(--surface-0)] text-[var(--text-primary)] shadow-2xl will-change-transform sm:rounded-[28px]">
+        {/* Foto grande arriba (tienda): se ve entera, con la misma foto desenfocada de fondo.
+            También es el asa para cerrar la hoja deslizando hacia abajo (móvil). */}
+        {photo && (
+          <div onPointerDown={dragDown} onPointerMove={dragMove} onPointerUp={dragUp} onPointerCancel={dragCancel} className="relative h-[min(36vh,100vw)] shrink-0 touch-none overflow-hidden bg-black sm:h-72 sm:touch-auto">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo} alt={product.name} className="relative h-full w-full object-contain" />
+            <span aria-hidden className="absolute left-1/2 top-2.5 h-1.5 w-10 -translate-x-1/2 rounded-full bg-white/70 sm:hidden" />
           </div>
-          <button
-            onClick={onClose}
-            aria-label={T.close}
-            className="h-8 w-8 shrink-0 rounded-full text-xl leading-none text-[var(--text-secondary)] hover:bg-[var(--surface-1)]"
-          >
+        )}
+        {photo && (
+          <button onClick={onClose} aria-label={T.close} className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-[20px] leading-none text-black shadow-md backdrop-blur hover:bg-white">
             ×
           </button>
-        </header>
+        )}
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-5">
+        {/* Nombre, descripción y opciones se desplazan juntos: en móviles pequeños queda sitio para elegir */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {/* Se agarra por aquí para cerrarla deslizando hacia abajo (móvil) */}
+        <header
+          onPointerDown={photo ? undefined : dragDown}
+          onPointerMove={photo ? undefined : dragMove}
+          onPointerUp={photo ? undefined : dragUp}
+          onPointerCancel={photo ? undefined : dragCancel}
+          className={`relative flex items-start gap-3 border-b border-[var(--border)] p-5 ${photo ? "pt-4" : "touch-none pt-7 sm:touch-auto sm:pt-5"}`}
+        >
+          {!photo && <span aria-hidden className="absolute left-1/2 top-2.5 h-1.5 w-10 -translate-x-1/2 rounded-full bg-[var(--text-secondary)] opacity-30 sm:hidden" />}
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[20px] font-bold leading-tight tracking-[-0.01em] [text-wrap:balance]">{product.name}</h2>
+            <p className="mt-1 text-[17px] font-bold tabular-nums text-[var(--brand-secondary)]">{euros(product.basePriceCents)}</p>
+            {product.description && (
+              <p className="mt-2 text-[14px] leading-relaxed text-[var(--text-secondary)] [text-wrap:pretty]">{product.description}</p>
+            )}
+            {product.allergens && product.allergens.length > 0 && (
+              <p className="mt-2 flex flex-wrap gap-1.5" aria-label={`${T.allergens}: ${product.allergens.join(", ")}`}>
+                {product.allergens.map((a) => (
+                  <span key={a} className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                    {a}
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+          {!photo && (
+            <button
+              onClick={onClose}
+              aria-label={T.close}
+              className="h-9 w-9 shrink-0 rounded-full text-xl leading-none text-[var(--text-secondary)] hover:bg-[var(--surface-1)]"
+            >
+              ×
+            </button>
+          )}
+        </header>
+        <div className={groups.length ? "space-y-6 p-5" : "hidden"}>
           {groups.map((group) => {
             const chosen = selection[group.id] ?? [];
             const multi = group.maxSelect > 1;
@@ -275,16 +314,30 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
             );
           })}
         </div>
+        </div>
 
-        <footer className="border-t border-[var(--border)] p-4">
+        <footer className="border-t border-[var(--border)] p-4 pb-[max(16px,env(safe-area-inset-bottom))]">
           {withNote && <NoteField note={note} setNote={setNote} />}
-          {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
-          <button
-            onClick={handleAdd}
-            className="p-press w-full rounded-full bg-[var(--brand-accent)] py-3.5 text-[15px] font-semibold text-[var(--on-accent)]"
-          >
-            {T.addToOrder(euros(unitPriceCents))}
-          </button>
+          {error && <p className="mb-2 text-sm text-red-600" role="alert">{error}</p>}
+          <div className="flex items-center gap-3">
+            {withQty && (
+              <div className="flex shrink-0 items-center rounded-full border border-[var(--border)]" role="group" aria-label={T.quantity}>
+                <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1} aria-label={T.removeOne(product.name)} className="p-press flex h-12 w-11 items-center justify-center rounded-full text-xl font-bold disabled:opacity-30">
+                  −
+                </button>
+                <span className="w-6 text-center text-[16px] font-bold tabular-nums" aria-live="polite">{qty}</span>
+                <button type="button" onClick={() => setQty((q) => Math.min(20, q + 1))} aria-label={T.addAnother(product.name)} className="p-press flex h-12 w-11 items-center justify-center rounded-full text-xl font-bold">
+                  +
+                </button>
+              </div>
+            )}
+            <button
+              onClick={handleAdd}
+              className="p-press min-h-12 flex-1 rounded-full bg-[var(--brand-accent)] px-4 py-3.5 text-[15px] font-semibold text-[var(--on-accent)]"
+            >
+              {withQty ? T.addShort(euros(unitPriceCents * qty)) : T.addToOrder(euros(unitPriceCents))}
+            </button>
+          </div>
         </footer>
       </div>
     </div>
