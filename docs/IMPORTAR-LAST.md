@@ -1,6 +1,6 @@
 # Importar de Last.app
 
-Para restaurantes que vienen de Last.app: en **Carta → Importar de Last.app** se pega la dirección de su tienda (`https://xxx.last.shop`) y se traen, producto a producto:
+Para restaurantes que vienen de Last.app. **No tiene botón en el panel** (se quitó de Carta tras usarlo con Estafetén): se lanza con la ruta de abajo desde una sesión de gerente, pegando la dirección de su tienda (`https://xxx.last.shop`). Trae, producto a producto:
 
 - **Fotos**: se descargan (cuadradas, 1000 px) y se guardan en Archivos; la foto importada sustituye a la que hubiera.
 - **Alérgenos**: los 14 oficiales. Se SUMAN a los que ya tenga el producto; nunca se quita ninguno.
@@ -13,7 +13,6 @@ Para restaurantes que vienen de Last.app: en **Carta → Importar de Last.app** 
   - sin `apply`: devuelve nuestros productos, los de Last y la pareja propuesta;
   - con `apply: [{ productId, lastName }]`: importa.
   Solo gerentes. Solo se aceptan direcciones `*.last.shop` y fotos de `res.cloudinary.com/lastpos`.
-- En la pantalla, cada pareja se puede cambiar a mano o dejar en «No importar».
 
 ## Alérgenos y sellos en la carta
 

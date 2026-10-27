@@ -8,7 +8,6 @@ import { readPanelCache, writePanelCache } from "../panelCache";
 import DietBadges from "@/app/pedir/[tenant]/DietBadges";
 import { AllergenIcon } from "@/app/pedir/[tenant]/FoodIcons";
 import { ALLERGENS } from "@/app/lib/costs";
-import ImportLast from "./ImportLast";
 import type { DietTag } from "@/app/lib/diet";
 
 // Carta → Productos: lista por categorías con tarjetas que se tocan para
@@ -107,7 +106,6 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
     setCollapsedAndSave(next);
   };
 
-  const [importing, setImporting] = useState(false);
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/${tenant}`, { cache: "no-store" });
@@ -233,12 +231,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
         <button type="button" onClick={() => categories[0] && openNew(categories[0].id)} disabled={!categories.length} className="p-press shrink-0 rounded-full bg-[var(--p-brand)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
           + Añadir producto
         </button>
-        {/* Restaurantes que vienen de Last.app: fotos, alérgenos y sellos de golpe */}
-        <button type="button" onClick={() => setImporting(true)} className="p-press shrink-0 rounded-full border border-[var(--p-line)] bg-[var(--p-surface)] px-4 py-2.5 text-sm font-medium">
-          Importar de Last.app
-        </button>
       </div>
-      {importing && <ImportLast tenant={tenant} onClose={() => setImporting(false)} onDone={() => void fetchData()} />}
       <p className="mt-2 flex flex-wrap items-center gap-x-3 text-xs text-[var(--p-muted)]">
         <span>
           {total} productos{soldOut > 0 && ` · ${soldOut} ${soldOut === 1 ? "agotado" : "agotados"}`} · toca un producto para editarlo
