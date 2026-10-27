@@ -92,6 +92,22 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
     () => new Map<string, ChoiceProduct>(categories.flatMap((c) => c.products.filter((p) => !p.isCombo).map((p) => [p.id, { id: p.id, name: p.name, modifierGroups: p.modifierGroups }]))),
     [categories]
   );
+  // Buscador de la carta: sin tildes ni mayúsculas, por nombre y descripción.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const fold = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const q = fold(query.trim());
+  const results = useMemo(
+    () => {
+      if (q.length < 2) return [];
+      const all = categories.flatMap((c) => c.products).filter((p) => !p.isCombo);
+      // Primero los que lo llevan en el nombre; después, los que lo nombran en la descripción.
+      const byName = all.filter((p) => fold(p.name).includes(q));
+      return [...byName, ...all.filter((p) => !byName.includes(p) && fold(p.description).includes(q))];
+    },
+    [q, categories]
+  );
+  const searching = q.length >= 2;
   const navRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -129,7 +145,8 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
       observers.push(obs);
     });
     return () => observers.forEach((o) => o.disconnect());
-  }, [categories]);
+    // Al cerrar el buscador las secciones se vuelven a montar: hay que observarlas otra vez.
+  }, [categories, searching]);
 
   useEffect(() => {
     const nav = navRef.current;
@@ -152,6 +169,12 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
   function getLineId(productId: string): string | null {
     const item = items.find((i) => i.productId === productId);
     return item ? item.id : null;
+  }
+
+  // Ficha del producto (foto grande y descripción): la abre tocar la tarjeta.
+  function openProduct(product: MenuProduct) {
+    if (product.isCombo) setComboFor(product);
+    else setOptionsFor(product);
   }
 
   function handleAdd(product: MenuProduct) {
@@ -187,6 +210,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         simple={product.modifierGroups.length === 0}
         badge={badge}
         onAdd={() => handleAdd(product)}
+        onOpen={() => openProduct(product)}
         onInc={() => { if (lineId) { inc(lineId); bumpCart(); } }}
         onDec={() => { if (!lineId) return; if (qty === 1) remove(lineId); else dec(lineId); }}
       />
@@ -208,7 +232,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
     );
     root.querySelectorAll("[data-reveal]").forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, [categories]);
+  }, [categories, searching]);
 
   // El carrito "salta" cada vez que se añade algo.
   const [bump, setBump] = useState(0);
@@ -320,9 +344,9 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           <div aria-hidden className="s-kenburns absolute inset-0" style={{ backgroundImage: `url("${t.heroImageUrl}")`, backgroundSize: "cover", backgroundPosition: "center" }} />
         )}
         <div aria-hidden className="absolute inset-0" style={{ background: t.heroImageUrl ? "linear-gradient(90deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.1) 100%)" : "radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--bg-base) 18%, transparent) 0, transparent 45%)" }} />
-        <div className={`${wrap} relative flex min-h-[300px] flex-col justify-end py-9 sm:min-h-[520px] sm:py-20`}>
+        <div className={`${wrap} relative flex min-h-[240px] flex-col justify-end py-7 sm:min-h-[440px] sm:py-16`}>
           <p className="s-up text-[13px] font-semibold uppercase tracking-[0.14em] opacity-85" style={{ ["--i" as any]: 0 }}>{deliveryLabel}</p>
-          <h1 className="s-up mt-3 max-w-3xl text-[48px] sm:text-[104px]" style={{ ...heading, ["--i" as any]: 1, color: t.heroImageUrl ? "#ffffff" : cssVars["--bg-base"] }}>
+          <h1 className="s-up mt-3 max-w-3xl text-[44px] [text-wrap:balance] sm:text-[88px]" style={{ ...heading, ["--i" as any]: 1, color: t.heroImageUrl ? "#ffffff" : cssVars["--bg-base"] }}>
             {tenantName}
           </h1>
           <p className="s-up mt-4 max-w-md text-[16px] opacity-90" style={{ ["--i" as any]: 2 }}>{T.tagline}</p>
@@ -341,9 +365,64 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         </div>
       </section>
 
+      {/* Lo que el cliente quiere saber antes de pedir: si está abierto y cuánto tarda */}
+      {store && (
+        <div className="border-b border-[var(--border)]" style={{ backgroundColor: cssVars["--surface-0"] }}>
+          <div className={`${wrap} flex flex-wrap items-center gap-x-5 gap-y-1.5 py-3 text-[13.5px] font-medium`} style={{ color: cssVars["--text-primary"] }}>
+            <span className="inline-flex items-center gap-2">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${store.status.open ? "bg-emerald-500" : "bg-red-500"}`} aria-hidden />
+              {/* Cerrado: el detalle (cuándo abre) ya va en la franja de arriba del todo */}
+              {store.status.open ? T.openNow : T.closed}
+            </span>
+            {settings?.takeawayEnabled && store.minutes.TAKEAWAY != null && (
+              <span className="inline-flex items-center gap-1.5" style={{ color: cssVars["--text-secondary"] }}>
+                <ClockIcon />
+                {T.pickupIn(store.minutes.TAKEAWAY)}
+              </span>
+            )}
+            {settings?.deliveryEnabled && store.minutes.DELIVERY != null && (
+              <span className="inline-flex items-center gap-1.5" style={{ color: cssVars["--text-secondary"] }}>
+                <ClockIcon />
+                {T.deliveryIn(store.minutes.DELIVERY)}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Categorías: barra fija bajo la cabecera, alineada con el contenido */}
       <nav className="sticky top-16 z-40 border-b border-[var(--border)] shadow-[0_8px_20px_-18px_rgba(0,0,0,0.4)]" style={{ backgroundColor: cssVars["--surface-0"] }} aria-label={T.categories}>
+        {searchOpen ? (
+          <div className={`${wrap} flex items-center gap-2 py-2.5`}>
+            <label className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full border px-4" style={{ borderColor: cssVars["--brand-accent"], backgroundColor: cssVars["--surface-1"] }}>
+              <SearchIcon />
+              <input
+                autoFocus
+                type="search"
+                enterKeyHint="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={T.searchPlaceholder}
+                aria-label={T.search}
+                className="min-w-0 flex-1 bg-transparent text-[16px] outline-none"
+                style={{ color: cssVars["--text-primary"] }}
+              />
+            </label>
+            <button type="button" onClick={() => { setSearchOpen(false); setQuery(""); }} className="p-press h-11 shrink-0 px-2 text-[14px] font-semibold" style={{ color: cssVars["--brand-accent"] }}>
+              {T.cancel}
+            </button>
+          </div>
+        ) : (
         <div ref={navRef} className={`${wrap} flex gap-2 overflow-x-auto py-3`} style={{ scrollbarWidth: "none" }}>
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            aria-label={T.search}
+            title={T.search}
+            className="p-press flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] [@media(hover:hover)]:hover:border-[var(--brand-accent)] [@media(hover:hover)]:hover:text-[var(--brand-accent)]"
+          >
+            <SearchIcon />
+          </button>
           {categories.map((cat) => {
             const isActive = activeCategory === cat.slug;
             return (
@@ -364,9 +443,27 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
             );
           })}
         </div>
+        )}
       </nav>
 
-      <main className={`${wrap} pt-10 pb-4`}>
+      <main className={`${wrap} ${searching ? "pt-6" : "pt-8"} pb-4`}>
+        {searching ? (
+          <section aria-live="polite" className="min-h-[50vh]">
+            <p className="mb-4 text-[14px] font-semibold" style={{ color: cssVars["--text-secondary"] }}>{T.searchResults(results.length)}</p>
+            {results.length ? (
+              <Wrap carousel={false} perView={t.menusPerRow} lang={lang}>
+                {results.map((product) => (
+                  <div key={product.id} className="h-full">
+                    {productCard(product, product.isFeatured ? "featured" : product.bestSeller ? "bestseller" : null)}
+                  </div>
+                ))}
+              </Wrap>
+            ) : (
+              <p className="py-16 text-center text-[15px]" style={{ color: cssVars["--text-secondary"] }}>{T.noResults(query.trim())}</p>
+            )}
+          </section>
+        ) : (
+        <>
         {/* A domicilio con plataformas (sin repartidores propios): como McDonald's */}
         {deliveryPartners.length > 0 && (
           <section id="a-domicilio" data-reveal className="mb-12 scroll-mt-32 rounded-[26px] p-6 sm:p-8" style={{ backgroundColor: cssVars["--surface-0"], boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }} aria-label={T.delivery}>
@@ -455,6 +552,8 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           );
         })}
 
+        </>
+        )}
       </main>
 
       {/* Pie con los datos del negocio (Configuración → Información del negocio) */}
@@ -466,8 +565,9 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           lang={lang}
           product={optionsFor}
           onClose={() => setOptionsFor(null)}
-          onAdd={(line) => {
-            addItem({ productId: optionsFor.id, name: optionsFor.name, ...line });
+          withQty
+          onAdd={({ quantity, ...line }) => {
+            for (let n = 0; n < quantity; n++) addItem({ productId: optionsFor.id, name: optionsFor.name, ...line });
             bumpCart();
             setOptionsFor(null);
           }}
@@ -513,4 +613,22 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
 function Wrap({ carousel, perView, lang, children }: { carousel: boolean; perView: number; lang: Lang; children: React.ReactNode }) {
   if (carousel) return <MenuCarousel perView={Math.min(Math.max(Number(perView) || 2, 2), 5)} lang={lang}>{children}</MenuCarousel>;
   return <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{children}</div>;
+}
+
+function SearchIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden className="shrink-0 opacity-70">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden className="shrink-0">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
 }
