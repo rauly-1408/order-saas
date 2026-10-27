@@ -156,12 +156,14 @@ export function ProductCard({
   const stepper = simple && qty > 0;
   return (
     <article
-      className="p-lift group relative flex h-full flex-col overflow-hidden rounded-[var(--border-radius)] bg-[var(--surface-1)]"
+      className={`p-lift group relative flex h-full flex-col overflow-hidden rounded-[var(--border-radius)] bg-[var(--surface-1)] ${imageUrl ? "min-h-[152px] sm:min-h-0" : ""}`}
       style={{ boxShadow: qty > 0 ? "0 0 0 2px var(--brand-accent)" : "0 1px 2px rgba(0,0,0,0.05)" }}
     >
-      <button type="button" onClick={onOpen} aria-label={T.seeDetails(name)} className="flex flex-1 flex-col text-left outline-offset-[-3px]">
+      {/* Móvil: fila con los ingredientes a la izquierda y la foto a la derecha (como las apps de reparto).
+          Desde tableta: tarjeta con la foto arriba. */}
+      <button type="button" onClick={onOpen} aria-label={T.seeDetails(name)} className="flex flex-1 flex-row-reverse items-start text-left outline-offset-[-3px] sm:flex-col sm:items-stretch">
       {imageUrl && (
-        <div className="w-full overflow-hidden">
+        <div className="m-3 ml-0 w-28 shrink-0 overflow-hidden rounded-xl sm:m-0 sm:w-full sm:rounded-none">
           {/* Cuadrada: las fotos de producto suelen serlo y así se ven enteras, sin recortar el bocadillo. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageUrl} alt={name} loading="lazy" className="aspect-square w-full object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -169,29 +171,38 @@ export function ProductCard({
       )}
       {/* Sin foto: un recuadro con la inicial, para que la rejilla quede pareja */}
       {!imageUrl && (
-        <div aria-hidden className="flex aspect-square w-full items-center justify-center bg-[color-mix(in_srgb,var(--brand-accent)_7%,var(--surface-1))]">
+        <div aria-hidden className="hidden aspect-square w-full items-center sm:flex justify-center bg-[color-mix(in_srgb,var(--brand-accent)_7%,var(--surface-1))]">
           <span className="text-[56px] leading-none text-[var(--brand-accent)] opacity-25" style={{ fontFamily: "var(--font-heading)" }}>
             {name.trim().charAt(0).toUpperCase()}
           </span>
         </div>
       )}
-      {badge && <ProductBadge kind={badge} lang={lang} className="absolute left-2 top-2" />}
+      {badge && (
+        <span className="absolute left-2 top-2 hidden sm:block">
+          <ProductBadge kind={badge} lang={lang} />
+        </span>
+      )}
       {qty > 0 && (
-        <span className="absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold" style={{ backgroundColor: "var(--brand-accent)", color: "var(--on-accent)" }}>
+        <span className={`absolute right-4 top-4 h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold sm:right-2 sm:top-2 ${imageUrl ? "flex" : "hidden sm:flex"}`} style={{ backgroundColor: "var(--brand-accent)", color: "var(--on-accent)" }}>
           {qty}
         </span>
       )}
-      {/* Tarjeta compacta (dos por fila en el móvil): nombre, descripción corta y precio con un «+» redondo */}
-      <div className="flex flex-1 flex-col px-3 pt-3 sm:px-4 sm:pt-3.5">
-        <h3 className="line-clamp-2 text-[15px] font-bold leading-tight tracking-[-0.01em] text-[var(--text-primary)] sm:text-[16px]">{name}</h3>
-        {description && <p className="mt-1 line-clamp-2 text-[12.5px] leading-snug text-[var(--text-secondary)] sm:text-[13px]">{description}</p>}
+      {/* Los ingredientes se leen de un vistazo: hasta 4 líneas en el móvil y 3 en la tarjeta */}
+      <div className="flex min-w-0 flex-1 flex-col p-3 pb-0 sm:px-4 sm:pt-3.5">
+        {badge && <ProductBadge kind={badge} lang={lang} className="mb-1.5 self-start sm:hidden" />}
+        <h3 className="line-clamp-2 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--text-primary)] [text-wrap:balance]">{name}</h3>
+        {description && <p className="mt-1 line-clamp-4 text-[13px] leading-snug text-[var(--text-secondary)] sm:line-clamp-3">{description}</p>}
         {allergens && allergens.length > 0 && <p className="mt-1 line-clamp-1 text-[11px] text-[var(--text-secondary)]">{T.allergens}: {allergens.join(", ")}</p>}
+        {/* Móvil: el precio va bajo los ingredientes; el «+» flota sobre la esquina de la foto */}
+        <span className="mt-2 pb-3 text-[16px] font-bold tabular-nums text-[var(--brand-secondary)] sm:hidden">{euros(priceCents)}</span>
       </div>
       </button>
-      <div className={`flex items-center justify-between gap-2 px-3 pt-2.5 pb-3 sm:px-4 sm:pb-4 ${stepper ? "flex-wrap" : ""}`}>
-        <span className="text-[16px] font-bold tabular-nums text-[var(--brand-secondary)] sm:text-[17px]">{euros(priceCents)}</span>
+      <div
+        className={`absolute right-3 flex items-center justify-end gap-2 sm:static sm:justify-between sm:px-4 sm:pt-2.5 sm:pb-4 ${imageUrl ? "top-[100px]" : "bottom-3"} ${stepper ? "sm:flex-wrap" : ""}`}
+      >
+        <span className="hidden text-[17px] font-bold tabular-nums text-[var(--brand-secondary)] sm:inline">{euros(priceCents)}</span>
         {stepper ? (
-          <div className="flex w-full items-center justify-between rounded-full bg-[var(--brand-accent)] p-1 text-[var(--on-accent)]">
+          <div className="flex w-28 items-center shadow-[0_8px_18px_-10px_rgba(0,0,0,0.5)] sm:w-full sm:shadow-none justify-between rounded-full bg-[var(--brand-accent)] p-1 text-[var(--on-accent)]">
             <button onClick={onDec} aria-label={T.removeOne(name)} className="p-press flex h-9 w-9 items-center justify-center rounded-full text-xl font-bold hover:bg-white/15">
               −
             </button>

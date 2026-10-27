@@ -488,7 +488,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
             <h2 data-reveal className="mb-4 text-[28px] sm:text-[38px]" style={{ ...heading, color: cssVars["--heading-color"] }}>{T.favorites}</h2>
             <div className="s-row -mx-4 flex items-stretch gap-4 overflow-x-auto px-4 pb-2 sm:-mx-8 sm:px-8">
               {favorites.map((product, i) => (
-                <div key={product.id} data-reveal className="w-[44vw] max-w-[220px] shrink-0 sm:w-[220px]" style={{ ["--i" as any]: Math.min(i, 6) }}>
+                <div key={product.id} data-reveal className="w-[84vw] max-w-[360px] shrink-0 sm:w-[260px]" style={{ ["--i" as any]: Math.min(i, 6) }}>
                   {productCard(product, "featured")}
                 </div>
               ))}
@@ -523,7 +523,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                 <h2 className="text-[28px] sm:text-[38px]" style={{ ...heading, color: cssVars["--heading-color"] }}>{cat.name}</h2>
                 {cat.description && <p className="mt-2 text-[14px]" style={{ color: cssVars["--text-secondary"] }}>{cat.description}</p>}
               </div>
-              {/* Menús: carrusel (2 en el móvil; en ordenador los que elija el dueño en Marca). Productos: 2 / 3 / 4 / 5 columnas, como las apps de reparto. */}
+              {/* Menús: carrusel (2 en el móvil; en ordenador los que elija el dueño en Marca). Productos: filas en el móvil (ingredientes y foto) y 2 / 3 / 4 columnas desde tableta. */}
               <Wrap carousel={combos} perView={t.menusPerRow} lang={lang}>
                 {cat.products.map((product, i) => {
                   const qty = getQty(product.id);
@@ -612,7 +612,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
 // Los menús van en carrusel; el resto de categorías, en cuadrícula.
 function Wrap({ carousel, perView, lang, children }: { carousel: boolean; perView: number; lang: Lang; children: React.ReactNode }) {
   if (carousel) return <MenuCarousel perView={Math.min(Math.max(Number(perView) || 2, 2), 5)} lang={lang}>{children}</MenuCarousel>;
-  return <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{children}</div>;
+  return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">{children}</div>;
 }
 
 function SearchIcon() {
