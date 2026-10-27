@@ -176,7 +176,9 @@ summary {
 }
 .s-float { animation: s-float 2.8s ease-in-out infinite; }
 /* Fila deslizante sin barra de scroll (promociones) */
-.s-row { scrollbar-width: none; scroll-snap-type: x mandatory; }
+.s-row { scrollbar-width: none; scroll-snap-type: x mandatory; scroll-padding-inline: 1rem; }
+/* Al encajar, cada tarjeta respeta el margen de la página (px-4 / sm:px-8), no el borde */
+@media (min-width: 640px) { .s-row { scroll-padding-inline: 2rem; } }
 .s-row::-webkit-scrollbar { display: none; }
 .s-row > * { scroll-snap-align: start; }
 
