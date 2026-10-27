@@ -30,34 +30,30 @@ export function sniffImage(bytes: Uint8Array): (typeof ALLOWED_MIME)[number] | n
 }
 
 // ── Fuentes ─────────────────────────────────────────────────────────────
-// Inter y Anton ya vienen cargadas con next/font; el resto se piden a Google Fonts.
-export type BrandFont = { name: string; css: string; google: string | null; kind: "texto" | "rótulo" | "elegante" };
+// Todas se sirven desde nuestro dominio con next/font (ver brandFonts.ts): ninguna
+// se pide a Google Fonts desde el navegador del cliente.
+export type BrandFont = { name: string; css: string; kind: "texto" | "rótulo" | "elegante" };
 
 export const BRAND_FONTS: BrandFont[] = [
-  { name: "Inter", css: "var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui, sans-serif", google: null, kind: "texto" },
-  { name: "DM Sans", css: "'DM Sans', system-ui, sans-serif", google: "DM+Sans:wght@400;500;700", kind: "texto" },
-  { name: "Poppins", css: "'Poppins', system-ui, sans-serif", google: "Poppins:wght@400;500;700", kind: "texto" },
-  { name: "Montserrat", css: "'Montserrat', system-ui, sans-serif", google: "Montserrat:wght@400;600;800", kind: "texto" },
-  { name: "Nunito", css: "'Nunito', system-ui, sans-serif", google: "Nunito:wght@400;600;800", kind: "texto" },
-  { name: "Anton", css: "var(--font-display), Anton, Impact, sans-serif", google: null, kind: "rótulo" },
-  { name: "Bebas Neue", css: "'Bebas Neue', Impact, sans-serif", google: "Bebas+Neue", kind: "rótulo" },
-  { name: "Oswald", css: "'Oswald', Impact, sans-serif", google: "Oswald:wght@500;700", kind: "rótulo" },
-  { name: "Archivo Black", css: "'Archivo Black', Impact, sans-serif", google: "Archivo+Black", kind: "rótulo" },
-  { name: "Playfair Display", css: "'Playfair Display', Georgia, serif", google: "Playfair+Display:wght@600;800", kind: "elegante" },
-  { name: "DM Serif Display", css: "'DM Serif Display', Georgia, serif", google: "DM+Serif+Display", kind: "elegante" },
-  { name: "Lora", css: "'Lora', Georgia, serif", google: "Lora:wght@400;600;700", kind: "elegante" },
-  { name: "Pacifico", css: "'Pacifico', cursive", google: "Pacifico", kind: "elegante" },
+  { name: "Inter", css: "var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui, sans-serif", kind: "texto" },
+  { name: "DM Sans", css: "var(--font-dm-sans), system-ui, sans-serif", kind: "texto" },
+  { name: "Poppins", css: "var(--font-poppins), system-ui, sans-serif", kind: "texto" },
+  { name: "Montserrat", css: "var(--font-montserrat), system-ui, sans-serif", kind: "texto" },
+  { name: "Nunito", css: "var(--font-nunito), system-ui, sans-serif", kind: "texto" },
+  { name: "Anton", css: "var(--font-display), Anton, Impact, sans-serif", kind: "rótulo" },
+  { name: "Bebas Neue", css: "var(--font-bebas), Impact, sans-serif", kind: "rótulo" },
+  { name: "Oswald", css: "var(--font-oswald), Impact, sans-serif", kind: "rótulo" },
+  { name: "Archivo Black", css: "var(--font-archivo-black), Impact, sans-serif", kind: "rótulo" },
+  { name: "Playfair Display", css: "var(--font-playfair), Georgia, serif", kind: "elegante" },
+  { name: "DM Serif Display", css: "var(--font-dm-serif), Georgia, serif", kind: "elegante" },
+  { name: "Lora", css: "var(--font-lora), Georgia, serif", kind: "elegante" },
+  { name: "Pacifico", css: "var(--font-pacifico), cursive", kind: "elegante" },
 ];
 
 export function fontByName(name: unknown): BrandFont | null {
   return BRAND_FONTS.find((f) => f.name === name) ?? null;
 }
 
-// Enlace de Google Fonts para las fuentes elegidas (null si no hace falta).
-export function googleFontsHref(names: (string | null | undefined)[]): string | null {
-  const families = [...new Set(names)].map((n) => fontByName(n)?.google).filter((g): g is string => !!g);
-  return families.length ? `https://fonts.googleapis.com/css2?${families.map((f) => `family=${f}`).join("&")}&display=swap` : null;
-}
 
 // ── Paleta ──────────────────────────────────────────────────────────────
 export const COLOR_KEYS = [

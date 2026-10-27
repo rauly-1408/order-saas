@@ -4,6 +4,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getSession } from "@/app/lib/auth";
 import { canManageTenant } from "@/app/lib/roles";
 import { Anton, Inter } from "next/font/google";
+import { brandFontsClass } from "@/app/lib/brandFonts";
 import { panelBrand, panelCssVars } from "@/app/lib/panelTheme";
 import AdminSidebar from "./AdminSidebar";
 import OrderAlerts from "./OrderAlerts";
@@ -60,7 +61,7 @@ export default async function AdminLayout({
   const logoUrl = (branding.logoSquareUrl as string) || (branding.logoUrl as string) || null;
 
   return (
-    <div className={`panel ${inter.variable} ${display.variable} flex min-h-screen`} style={panelCssVars(panelBrand(branding))}>
+    <div className={`panel ${inter.variable} ${display.variable} ${brandFontsClass} flex min-h-screen`} style={panelCssVars(panelBrand(branding))}>
       <AdminSidebar tenant={tenant} tenantName={tenantName} logoUrl={logoUrl} canManage={canManageTenant(session.role)} seesTakings={Boolean(session.seesTakings)} />
       {/* pt-20 en móvil deja sitio a la barra superior fija */}
       <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-20 pb-12 lg:px-10 lg:pt-10">
