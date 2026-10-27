@@ -42,7 +42,7 @@ function parsePrice(v: string): number | null {
 }
 const priceText = (c: number) => (c / 100).toFixed(2).replace(".", ",");
 
-function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button
       type="button"
