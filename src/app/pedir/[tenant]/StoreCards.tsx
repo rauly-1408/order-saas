@@ -158,8 +158,9 @@ export function ProductCard({
     >
       {imageUrl && (
         <div className="overflow-hidden">
+          {/* Cuadrada: las fotos de producto suelen serlo y así se ven enteras, sin recortar el bocadillo. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt={name} className="aspect-[4/3] w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+          <img src={imageUrl} alt={name} className="aspect-square w-full object-cover transition-transform duration-700 group-hover:scale-105" />
         </div>
       )}
       {badge && imageUrl && <ProductBadge kind={badge} lang={lang} className="absolute left-3 top-3" />}
