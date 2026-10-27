@@ -35,4 +35,4 @@ Panel → **Configuración → Marca** (antes «Personalización»). Solo gerent
 - Subir o quitar: `PUT` / `DELETE /api/admin/[tenant]/brand/assets/[kind]` (kinds: `favicon`, `logo`, `logo-mono`, `logo-square`, `hero`).
 - Resto: `PUT /api/admin/[tenant]/brand`, validado en `src/app/lib/brand.ts` (colores `#rrggbb`, fuentes del catálogo, enlaces http/https).
 - Se guarda en `Tenant.branding`: `headingColor`, `headerColor`, `headingFontName`, `bodyFontName`, `logoMonoUrl`, `logoSquareUrl` y `online`.
-- Las fuentes que no son Inter ni Anton se cargan desde Google Fonts en el layout de `/pedir/[tenant]`, junto con favicon, título y descripción (`generateMetadata`).
+- Todas las fuentes se sirven desde nuestro dominio con `next/font` (`lib/brandFonts.ts`): el navegador del cliente nunca llama a Google Fonts, así Google no recibe su IP (RGPD). El navegador solo descarga la fuente elegida. Favicon, título y descripción salen de `generateMetadata` en el layout de `/pedir/[tenant]`.

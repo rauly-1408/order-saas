@@ -18,6 +18,7 @@
  *   - SYSTEM_DEFAULT_* son los valores del sistema, no de ningún restaurante.
  *   - Todos los componentes consumen estos tipos vía props o contexto.
  */
+import { fontByName } from "./brand";
 
 // ─────────────────────────────────────────────
 // TIPOS
@@ -138,7 +139,14 @@ export const SYSTEM_DEFAULT_SETTINGS: StoreSettings = {
 export function getTenantTheme(
   brandingJson: Record<string, unknown> = {}
 ): TenantTheme {
-  return { ...SYSTEM_DEFAULT_THEME, ...(brandingJson as Partial<TenantTheme>) };
+  const theme = { ...SYSTEM_DEFAULT_THEME, ...(brandingJson as Partial<TenantTheme>) };
+  // La fuente se resuelve por su nombre: así las marcas guardadas antes de
+  // servir las fuentes desde nuestro dominio también usan la versión propia.
+  const heading = fontByName(brandingJson.headingFontName);
+  const body = fontByName(brandingJson.bodyFontName);
+  if (heading) theme.headingFont = heading.css;
+  if (body) theme.bodyFont = body.css;
+  return theme;
 }
 
 /**

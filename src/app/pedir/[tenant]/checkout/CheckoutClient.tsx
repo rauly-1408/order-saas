@@ -808,6 +808,14 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           >
             {loading ? (payMethod === "IN_STORE" ? T.sending : T.goingToPay) : blocked ? T.notAccepting : payMethod !== "IN_STORE" ? T.payNow(euros(total)) : chosenSlot ? T.scheduleOrder(euros(total)) : T.confirmOrderTotal(euros(total))}
           </button>
+          {/* Aceptación de condiciones y privacidad (información previa al contrato) */}
+          <p style={{ marginTop: "8px", fontSize: "11.5px", lineHeight: 1.45, textAlign: "center", color: cssVars["--text-secondary"] }}>
+            {T.legalAccept.before}
+            <a href={`/pedir/${tenant}/legal/condiciones`} target="_blank" rel="noopener" style={{ color: "inherit", textDecoration: "underline" }}>{T.legalAccept.terms}</a>
+            {T.legalAccept.and}
+            <a href={`/pedir/${tenant}/legal/privacidad`} target="_blank" rel="noopener" style={{ color: "inherit", textDecoration: "underline" }}>{T.legalAccept.privacy}</a>
+            {T.legalAccept.after}
+          </p>
           </div>
 
           {/* Sellos: debajo del botón para que al escribir el teléfono no lo empuje. Con cookie del cliente se ven los suyos; sin ella, la genérica (stamps null). */}

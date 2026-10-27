@@ -8,7 +8,6 @@ import {
   contrastRatio,
   fontByName,
   fontNameFromCss,
-  googleFontsHref,
   isHex,
   parseOnline,
   SOCIAL_FIELDS,
@@ -178,18 +177,6 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
         setError(e instanceof Error ? e.message : "No se pudo cargar tu marca"),
       );
   }, [tenant, cacheKey]);
-
-  // Carga en el panel las fuentes de Google elegidas para que la vista previa sea real.
-  const fontHref = form
-    ? googleFontsHref([form.headingFontName, form.bodyFontName])
-    : null;
-  useEffect(() => {
-    if (!fontHref || document.querySelector(`link[href="${fontHref}"]`)) return;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = fontHref;
-    document.head.appendChild(link);
-  }, [fontHref]);
 
   const theme = useMemo(() => {
     if (!form || !loaded || !assets) return null;
