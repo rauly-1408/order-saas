@@ -1,4 +1,5 @@
 import { parseDietTags } from "@/app/lib/diet";
+import { normalizeAllergens } from "@/app/lib/costs";
 import { NextRequest, NextResponse, after } from "next/server";
 import { productImageUrl } from "@/app/lib/media";
 import { autoTranslateMenu } from "@/app/lib/menuTranslate";
@@ -31,7 +32,7 @@ export async function PATCH(req: NextRequest) {
     if (!product) return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
 
     const body = await req.json();
-    const { name, description, basePriceCents, categoryId, imageUrl, isActive, isAvailable, isFeatured, dietTags, sortOrder } = body;
+    const { name, description, basePriceCents, categoryId, imageUrl, isActive, isAvailable, isFeatured, dietTags, allergens, sortOrder } = body;
     const img = imageUrl === undefined ? { value: null } : productImageUrl(imageUrl, tenantSlug);
     if ("error" in img) return NextResponse.json({ error: img.error }, { status: 400 });
 
@@ -47,6 +48,7 @@ export async function PATCH(req: NextRequest) {
         ...(isAvailable !== undefined && { isAvailable }),
         ...(isFeatured !== undefined && { isFeatured }),
         ...(dietTags !== undefined && { dietTags: parseDietTags(dietTags) }),
+        ...(Array.isArray(allergens) && { allergens: normalizeAllergens(allergens.filter((a: unknown): a is string => typeof a === "string")) }),
         ...(sortOrder !== undefined && { sortOrder }),
       },
     });

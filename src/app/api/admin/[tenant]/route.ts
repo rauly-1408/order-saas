@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
           orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
           select: {
             id: true, name: true, description: true, basePriceCents: true,
-            imageUrl: true, isActive: true, isAvailable: true, isFeatured: true, dietTags: true, sortOrder: true,
+            imageUrl: true, isActive: true, isAvailable: true, isFeatured: true, dietTags: true, allergens: true, sortOrder: true,
           },
         },
       },

@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import DietBadges from "./DietBadges";
+import { AllergenRow } from "./FoodIcons";
 import type { DietTag } from "@/app/lib/diet";
 import { promotionConditions, type PromotionRule } from "@/app/lib/promotions";
 import type { ComboSlotDef } from "@/app/lib/combos";
@@ -130,6 +131,7 @@ export function ProductCard({
   priceCents,
   imageUrl,
   allergens,
+  allergenKeys = [],
   dietTags = [],
   qty,
   simple,
@@ -145,6 +147,7 @@ export function ProductCard({
   priceCents: number;
   imageUrl?: string | null;
   allergens?: string[];
+  allergenKeys?: string[]; // claves oficiales (en español) para los iconos
   dietTags?: DietTag[];
   qty: number;
   // «Recomendado» (lo marca el restaurante) o «Lo más pedido» (sale solo de las ventas).
@@ -173,7 +176,7 @@ export function ProductCard({
           <img src={imageUrl} alt={name} loading="lazy" className="aspect-square w-full object-cover transition-transform duration-700 group-hover:scale-105" />
           {/* Sellos de dieta sobre la foto: arriba a la izquierda en el móvil (lejos del «+»);
               desde tableta, abajo, porque arriba va «Recomendado» */}
-          <DietBadges tags={dietTags} lang={lang} size={24} className="absolute top-1.5 left-1.5 sm:top-auto sm:bottom-2 sm:left-2 sm:[&>svg]:h-7 sm:[&>svg]:w-7" />
+          <DietBadges tags={dietTags} lang={lang} size={24} className="absolute top-1.5 left-1.5 sm:top-auto sm:bottom-2 sm:left-2" />
         </div>
       )}
       {/* Sin foto: un recuadro con la inicial, para que la rejilla quede pareja */}
@@ -200,7 +203,14 @@ export function ProductCard({
         {!imageUrl && dietTags.length > 0 && <DietBadges tags={dietTags} lang={lang} size={22} className="mb-1.5" />}
         <h3 className="line-clamp-2 text-[16px] font-bold leading-tight tracking-[-0.01em] text-[var(--text-primary)] [text-wrap:balance]">{name}</h3>
         {description && <p className="mt-1 line-clamp-4 text-[13px] leading-snug text-[var(--text-secondary)] sm:line-clamp-3">{description}</p>}
-        {allergens && allergens.length > 0 && <p className="mt-1 line-clamp-1 text-[11px] text-[var(--text-secondary)]">{T.allergens}: {allergens.join(", ")}</p>}
+        {/* Alérgenos con iconos; sin claves (datos antiguos), en texto */}
+        {allergenKeys.length > 0 ? (
+          <span className="mt-2 block">
+            <AllergenRow names={allergenKeys} lang={lang} size={20} />
+          </span>
+        ) : (
+          allergens && allergens.length > 0 && <p className="mt-1 line-clamp-1 text-[11px] text-[var(--text-secondary)]">{T.allergens}: {allergens.join(", ")}</p>
+        )}
         {/* Móvil: el precio va bajo los ingredientes; el «+» flota sobre la esquina de la foto */}
         <span className="mt-2 pb-3 text-[16px] font-bold tabular-nums text-[var(--brand-secondary)] sm:hidden">{euros(priceCents)}</span>
       </div>

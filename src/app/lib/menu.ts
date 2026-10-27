@@ -58,11 +58,13 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
     ...cat,
     name: tr(catTr, lang, "name", cat.name),
     description: tr(catTr, lang, "description", cat.description),
-    products: cat.products.map(({ modifierGroups, recipeLines, translations: pTr, comboSlots, ...product }) => ({
+    products: cat.products.map(({ modifierGroups, recipeLines, translations: pTr, comboSlots, allergens: declared, ...product }) => ({
       ...product,
       name: tr(pTr, lang, "name", product.name),
       description: tr(pTr, lang, "description", product.description ?? ""),
-      allergens: allergens(recipeLines),
+      // Los del escandallo más los declarados en Carta; las claves (en español) son para los iconos.
+      allergens: productAllergens(recipeLines, declared).map((a) => allergenName(a, lang)),
+      allergenKeys: productAllergens(recipeLines, declared),
       dietTags: parseDietTags(product.dietTags),
       bestSeller: bestSellers.has(product.id),
       comboSlots: comboSlots.map(({ translations: sTr, ...s }) => ({ ...s, name: tr(sTr, lang, "name", s.name) })),
@@ -96,6 +98,12 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
     deliveryPartners: activePartners(parsePartners((tenant.settings as Record<string, unknown> | null)?.deliveryPartners)),
     categories: menuCategories,
   };
+}
+
+// Alérgenos de un producto: escandallo + declarados a mano, en el orden oficial.
+function productAllergens(lines: { ingredient: { allergens: string[] } }[], declared: string[]): string[] {
+  const found = new Set([...allergensOf(lines), ...declared]);
+  return ALLERGENS.filter((a) => found.has(a));
 }
 
 // Unión de alérgenos de las líneas de un escandallo, en el orden oficial.
