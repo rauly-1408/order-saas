@@ -3,8 +3,8 @@
 import { Children, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ui, type Lang } from "@/app/lib/i18n";
 
-// Carrusel de los menús. En el móvil se ven dos a la vez y se pasan deslizando
-// con el dedo. En ordenador se ven `perView` a la vez (lo elige el dueño en
+// Carrusel de los menús. En el móvil se ve uno grande y asoma el siguiente por
+// el borde (invita a deslizar con el dedo); en tableta, dos. En ordenador se ven `perView` a la vez (lo elige el dueño en
 // Marca: 2 a 5) y, si hay más, flechas y puntos para pasar. Con pocos menús no
 // hay nada que pasar y queda como una cuadrícula normal.
 
@@ -52,11 +52,11 @@ export default function MenuCarousel({ perView, lang = "es", children }: { perVi
     <div className="relative">
       <div
         ref={ref}
-        className="flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 lg:gap-5"
+        className="-mx-4 flex snap-x snap-mandatory scroll-px-4 items-stretch gap-3 overflow-x-auto overscroll-x-contain scroll-smooth px-4 pb-1 sm:mx-0 sm:scroll-px-0 sm:px-0 lg:gap-5"
         style={{ scrollbarWidth: "none", ["--per-view" as string]: perView }}
       >
         {items.map((child, i) => (
-          <div key={i} className="@container w-[calc((100%-12px)/2)] shrink-0 snap-start lg:w-[calc((100%-20px*(var(--per-view)-1))/var(--per-view))]">
+          <div key={i} className="@container w-[84%] shrink-0 snap-start sm:w-[calc((100%-12px)/2)] lg:w-[calc((100%-20px*(var(--per-view)-1))/var(--per-view))]">
             {child}
           </div>
         ))}
