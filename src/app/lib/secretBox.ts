@@ -6,7 +6,8 @@ import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:cr
 
 function key(purpose: string): Buffer {
   const secret = process.env.SESSION_SECRET;
-  if (!secret || secret.length < 32) throw new Error("SESSION_SECRET no está definido");
+  if (!secret) throw new Error("SESSION_SECRET no está definido");
+  if (secret.length < 32) throw new Error(`SESSION_SECRET es demasiado corto (${secret.length} caracteres, mínimo 32)`);
   return Buffer.from(hkdfSync("sha256", secret, "order-saas", purpose, 32));
 }
 
