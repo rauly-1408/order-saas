@@ -1,4 +1,5 @@
 import { parseDietTags } from "@/app/lib/diet";
+import { normalizeAllergens } from "@/app/lib/costs";
 import { NextRequest, NextResponse, after } from "next/server";
 import { productImageUrl } from "@/app/lib/media";
 import { autoTranslateMenu } from "@/app/lib/menuTranslate";
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     after(() => revalidateMenu(tenant.id));
 
     const body = await req.json();
-    const { name, description, basePriceCents, categoryId, imageUrl, isActive, isAvailable, isFeatured, dietTags, sortOrder } = body;
+    const { name, description, basePriceCents, categoryId, imageUrl, isActive, isAvailable, isFeatured, dietTags, allergens, sortOrder } = body;
 
     if (!name?.trim() || typeof basePriceCents !== "number" || !categoryId) {
       return NextResponse.json({ error: "Faltan campos requeridos: name, basePriceCents, categoryId" }, { status: 400 });
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest) {
         isAvailable: isAvailable ?? true,
         isFeatured: isFeatured ?? false,
         dietTags: parseDietTags(dietTags),
+        allergens: Array.isArray(allergens) ? normalizeAllergens(allergens.filter((a: unknown): a is string => typeof a === "string")) : [],
         sortOrder: sortOrder ?? 0,
       },
     });

@@ -6,6 +6,9 @@ import { createPortal } from "react-dom";
 import ImagePicker from "../archivos/ImagePicker";
 import { readPanelCache, writePanelCache } from "../panelCache";
 import DietBadges from "@/app/pedir/[tenant]/DietBadges";
+import { AllergenIcon } from "@/app/pedir/[tenant]/FoodIcons";
+import { ALLERGENS } from "@/app/lib/costs";
+import ImportLast from "./ImportLast";
 import type { DietTag } from "@/app/lib/diet";
 
 // Carta → Productos: lista por categorías con tarjetas que se tocan para
@@ -24,10 +27,11 @@ type Product = {
   isAvailable: boolean;
   isFeatured: boolean;
   dietTags?: DietTag[];
+  allergens?: string[];
   sortOrder: number;
 };
 type Category = { id: string; name: string; products: Product[] };
-type FormData = { name: string; description: string; price: string; imageUrl: string; isActive: boolean; isAvailable: boolean; isFeatured: boolean; dietTags: DietTag[]; categoryId: string };
+type FormData = { name: string; description: string; price: string; imageUrl: string; isActive: boolean; isAvailable: boolean; isFeatured: boolean; dietTags: DietTag[]; allergens: string[]; categoryId: string };
 
 const fmt = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
 const toEuros = (c: number) => fmt.format(c / 100);
@@ -103,6 +107,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
     setCollapsedAndSave(next);
   };
 
+  const [importing, setImporting] = useState(false);
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/${tenant}`, { cache: "no-store" });
@@ -128,12 +133,12 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
   function openEdit(p: Product, categoryId: string) {
     setFormError("");
     expand(categoryId);
-    setEditing({ product: p, form: { name: p.name, description: p.description ?? "", price: priceText(p.basePriceCents), imageUrl: p.imageUrl ?? "", isActive: p.isActive, isAvailable: p.isAvailable, isFeatured: p.isFeatured, dietTags: p.dietTags ?? [], categoryId } });
+    setEditing({ product: p, form: { name: p.name, description: p.description ?? "", price: priceText(p.basePriceCents), imageUrl: p.imageUrl ?? "", isActive: p.isActive, isAvailable: p.isAvailable, isFeatured: p.isFeatured, dietTags: p.dietTags ?? [], allergens: p.allergens ?? [], categoryId } });
   }
   function openNew(categoryId: string) {
     setFormError("");
     expand(categoryId);
-    setEditing({ product: null, form: { name: "", description: "", price: "", imageUrl: "", isActive: true, isAvailable: true, isFeatured: false, dietTags: [], categoryId } });
+    setEditing({ product: null, form: { name: "", description: "", price: "", imageUrl: "", isActive: true, isAvailable: true, isFeatured: false, dietTags: [], allergens: [], categoryId } });
   }
 
   async function save() {
@@ -145,7 +150,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
     setSaving(true);
     setFormError("");
     try {
-      const payload = { name: f.name.trim(), description: f.description, basePriceCents: cents, imageUrl: f.imageUrl, isActive: f.isActive, isAvailable: f.isAvailable, isFeatured: f.isFeatured, dietTags: f.dietTags, categoryId: f.categoryId };
+      const payload = { name: f.name.trim(), description: f.description, basePriceCents: cents, imageUrl: f.imageUrl, isActive: f.isActive, isAvailable: f.isAvailable, isFeatured: f.isFeatured, dietTags: f.dietTags, allergens: f.allergens, categoryId: f.categoryId };
       const url = editing.product ? `/api/admin/${tenant}/products/${editing.product.id}` : `/api/admin/${tenant}/products`;
       const res = await fetch(url, { method: editing.product ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) {
@@ -228,7 +233,12 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
         <button type="button" onClick={() => categories[0] && openNew(categories[0].id)} disabled={!categories.length} className="p-press shrink-0 rounded-full bg-[var(--p-brand)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
           + Añadir producto
         </button>
+        {/* Restaurantes que vienen de Last.app: fotos, alérgenos y sellos de golpe */}
+        <button type="button" onClick={() => setImporting(true)} className="p-press shrink-0 rounded-full border border-[var(--p-line)] bg-[var(--p-surface)] px-4 py-2.5 text-sm font-medium">
+          Importar de Last.app
+        </button>
       </div>
+      {importing && <ImportLast tenant={tenant} onClose={() => setImporting(false)} onDone={() => void fetchData()} />}
       <p className="mt-2 flex flex-wrap items-center gap-x-3 text-xs text-[var(--p-muted)]">
         <span>
           {total} productos{soldOut > 0 && ` · ${soldOut} ${soldOut === 1 ? "agotado" : "agotados"}`} · toca un producto para editarlo
@@ -469,6 +479,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                       [
                         ["VEGAN", "Vegano"],
                         ["VEGETARIAN", "Vegetariano"],
+                        ["GLUTEN_FREE", "Sin gluten"],
                       ] as const
                     ).map(([tag, label]) => {
                       const on = f.dietTags.includes(tag);
@@ -489,6 +500,30 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                           </span>
                           {label}
                           {on && <span aria-hidden>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* Alérgenos declarados: se suman a los del escandallo (Costes) */}
+                <div>
+                  <p className="text-sm font-medium">Alérgenos</p>
+                  <p className="mt-0.5 text-xs text-[var(--p-muted)]">Marca los que lleva. Si el producto tiene escandallo, también salen solos los de sus ingredientes.</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {ALLERGENS.map((a) => {
+                      const on = f.allergens.includes(a);
+                      return (
+                        <button
+                          key={a}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => setF({ allergens: on ? f.allergens.filter((x) => x !== a) : ALLERGENS.filter((x) => x === a || f.allergens.includes(x)) })}
+                          className={`p-press flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1 text-[13px] ${on ? "border-[var(--p-brand)] bg-[var(--p-brand-soft)] font-semibold text-[var(--p-brand)]" : "border-[var(--p-line)] text-[var(--p-muted)]"}`}
+                        >
+                          <span className={on ? "" : "opacity-40 grayscale"}>
+                            <AllergenIcon name={a} size={22} decorative />
+                          </span>
+                          {a}
                         </button>
                       );
                     })}

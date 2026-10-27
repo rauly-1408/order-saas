@@ -9,9 +9,10 @@ import {
   type MenuModifierGroup,
   type OrderLineModifier,
 } from "@/app/lib/menuOptions";
-import { optionError, ui, type Lang } from "@/app/lib/i18n";
+import { allergenName, optionError, ui, type Lang } from "@/app/lib/i18n";
 import type { DietTag } from "@/app/lib/diet";
 import DietBadges from "./DietBadges";
+import { AllergenIcon, dietLabel } from "./FoodIcons";
 
 // Hoja inferior para elegir pan, guarnición y extras antes de añadir al carrito.
 // Usa las CSS vars del theme del tenant (definidas en el contenedor de MenuClient).
@@ -25,6 +26,7 @@ export type SheetProduct = {
   allergens?: string[];
   imageUrl?: string | null;
   dietTags?: DietTag[];
+  allergenKeys?: string[];
 };
 
 type Props = {
@@ -136,7 +138,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
                 {product.dietTags.map((tag) => (
                   <span key={tag} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] py-0.5 pr-2.5 pl-0.5 text-[12px] font-semibold">
                     <DietBadges tags={[tag]} lang={lang} size={20} decorative />
-                    {tag === "VEGAN" ? T.vegan : T.vegetarian}
+                    {dietLabel(tag, lang)}
                   </span>
                 ))}
               </p>
@@ -144,7 +146,21 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
             {product.description && (
               <p className="mt-2 text-[14px] leading-relaxed text-[var(--text-secondary)] [text-wrap:pretty]">{product.description}</p>
             )}
-            {product.allergens && product.allergens.length > 0 && (
+            {/* «Puede contener»: cada alérgeno con su icono y su nombre */}
+            {product.allergenKeys && product.allergenKeys.length > 0 ? (
+              <div className="mt-3">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">{T.mayContain}</p>
+                <ul className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                  {product.allergenKeys.map((a) => (
+                    <li key={a} className="flex min-w-0 items-center gap-2 text-[13px]">
+                      <AllergenIcon name={a} size={22} lang={lang} decorative />
+                      <span className="truncate">{allergenName(a, lang)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              product.allergens && product.allergens.length > 0 && (
               <p className="mt-2 flex flex-wrap gap-1.5" aria-label={`${T.allergens}: ${product.allergens.join(", ")}`}>
                 {product.allergens.map((a) => (
                   <span key={a} className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
@@ -152,6 +168,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
                   </span>
                 ))}
               </p>
+              )
             )}
           </div>
           {!photo && (
