@@ -15,7 +15,7 @@ import { notifyNewOrder } from "@/app/lib/notifyOrder";
 import { cleanText } from "@/app/lib/text";
 import { printOnNewOrder } from "@/app/lib/printing";
 import { issueInvoiceSafe } from "@/app/lib/verifactu";
-import { collaboratorByCode, commissionCents } from "@/app/lib/collaborators";
+import { bestDiscount, collaboratorByCode, collaboratorDiscountCents, commissionCents } from "@/app/lib/collaborators";
 import { once, requestIdOf } from "@/app/lib/idempotency";
 
 export const runtime = "nodejs";
@@ -109,15 +109,19 @@ export async function POST(req: NextRequest) {
         coupon = { id: found.id, oncePerCustomer: found.oncePerCustomer, maxRedemptions: found.maxRedemptions };
         couponDiscountCents = couponDiscount(found, afterLoyalty);
       }
-      const usePromo = !!promo && promo.discountCents > couponDiscountCents;
-      if (usePromo) {
+      const collab = b.collaboratorCode ? await collaboratorByCode(tenant.id, b.collaboratorCode) : null;
+      // Promoción, cupón y descuento del colaborador no se acumulan: gana el que más ahorra.
+      const collabOffer = collab ? collaboratorDiscountCents(afterLoyalty, collab.discountPct) : 0;
+      const winner = bestDiscount(promo?.discountCents ?? 0, couponDiscountCents, collabOffer);
+      const usePromo = winner === "promo" && !!promo;
+      if (winner !== "coupon") {
         coupon = null;
         couponDiscountCents = 0;
       }
       const promotionDiscountCents = usePromo ? promo.discountCents : 0;
-      const discountCents = Math.min(loyaltyDiscountCents + promotionDiscountCents + couponDiscountCents, subtotalCents + feesCents);
+      const collabDiscountCents = winner === "collab" ? collabOffer : 0;
+      const discountCents = Math.min(loyaltyDiscountCents + promotionDiscountCents + couponDiscountCents + collabDiscountCents, subtotalCents + feesCents);
       const totalCents = subtotalCents + feesCents - discountCents;
-      const collab = b.collaboratorCode ? await collaboratorByCode(tenant.id, b.collaboratorCode) : null;
       if (cashTendered != null && cashTendered < totalCents) return NextResponse.json({ error: "El efectivo entregado no llega al total" }, { status: 400 });
 
       let order: Awaited<ReturnType<typeof createOrderWithNumber>> | null = null;
@@ -141,6 +145,7 @@ export async function POST(req: NextRequest) {
             coupon,
             promotionId: usePromo ? promo.promotion.id : null,
             promotionDiscountCents,
+            collaboratorDiscountCents: collabDiscountCents,
             loyaltyDiscountCents,
             estimatedReadyAt: new Date(Date.now() + 60_000 * leadMinutes(ops, channel)),
             scheduledFor: null,

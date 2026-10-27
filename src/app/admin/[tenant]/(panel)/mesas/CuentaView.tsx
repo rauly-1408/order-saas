@@ -214,6 +214,8 @@ export default function CuentaView({ tenant, orderId, tableName, onBack, initial
         </section>
       )}
 
+      {!closed && data.rounds.length > 0 && <CollabRow order={o} busy={busy} onApply={(code) => act({ action: "collab", code }, code ? "Colaborador aplicado a la cuenta" : "Colaborador quitado")} />}
+
       {!closed && (
         <div className="mt-5 flex flex-wrap gap-2 text-sm">
           <button type="button" onClick={() => setMoving(true)} disabled={busy} className="p-press rounded-full bg-[var(--p-surface)] px-4 py-2 font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
@@ -234,6 +236,7 @@ export default function CuentaView({ tenant, orderId, tableName, onBack, initial
                 <p className="text-xs text-[var(--p-muted)]">
                   {lineCount} {lineCount === 1 ? "producto" : "productos"}
                   {paidParts > 0 && " · queda"}
+                  {o.collaboratorDiscountCents > 0 && ` · −${euros(o.collaboratorDiscountCents)} de ${o.collaborator?.name.split(" ")[0] ?? "colaborador"}`}
                 </p>
                 <p className="text-xl font-semibold tabular-nums">{euros(o.totalCents)}</p>
               </div>
@@ -310,6 +313,45 @@ export default function CuentaView({ tenant, orderId, tableName, onBack, initial
   );
 }
 
+// «¿Vienen de parte de alguien?»: el código del guía, del hotel… Se aplica su
+// descuento a toda la cuenta y su comisión cuenta al cobrar. Ver docs/COLABORADORES.md
+function CollabRow({ order, busy, onApply }: { order: Cuenta["order"]; busy: boolean; onApply: (code: string) => Promise<unknown> }) {
+  const [code, setCode] = useState("");
+  const c = order.collaborator;
+  if (c) {
+    return (
+      <section className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900" aria-label="Colaborador">
+        <span className="min-w-0">
+          Vienen de parte de <span className="font-semibold">{c.name}</span> <span className="font-mono text-xs tracking-wider">({c.code})</span>
+          {c.discountPct > 0 && (
+            <span className="block text-xs">
+              Descuento del {c.discountPct.toLocaleString("es-ES")} % en la cuenta: −{euros(order.collaboratorDiscountCents)}
+            </span>
+          )}
+        </span>
+        <button type="button" onClick={() => onApply("")} disabled={busy} className="rounded-full px-3 py-1.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100">
+          Quitar
+        </button>
+      </section>
+    );
+  }
+  return (
+    <form
+      className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-[var(--p-surface)] px-4 py-3 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (code.trim() && (await onApply(code.trim()))) setCode("");
+      }}
+    >
+      <span className="text-[var(--p-muted)]">¿Vienen de parte de alguien?</span>
+      <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20))} placeholder="Código del guía, hotel…" aria-label="Código de colaborador" className="min-w-0 flex-1 rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm font-semibold tracking-wider" />
+      <button type="submit" disabled={busy || !code.trim()} className="p-press rounded-full bg-[var(--p-ink)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+        Aplicar
+      </button>
+    </form>
+  );
+}
+
 // Cobrar: todo, por productos (cada uno lo suyo) o a partes iguales.
 function PaySheet({ data, api, onClose, onPaid }: { data: Cuenta; api: string; onClose: () => void; onPaid: (r: { closed: boolean }) => void }) {
   const lines = useMemo(() => data.rounds.flatMap((r) => r.lines), [data]);
@@ -323,7 +365,10 @@ function PaySheet({ data, api, onClose, onPaid }: { data: Cuenta; api: string; o
   const [done, setDone] = useState<{ total: number; change: number | null; invoice: string | null; closed: boolean } | null>(null);
 
   const total = data.order.totalCents;
-  const pickedTotal = lines.reduce((a, l) => a + Math.round((l.totalCents * (units[l.id] ?? 0)) / l.quantity), 0);
+  const pickedGross = lines.reduce((a, l) => a + Math.round((l.totalCents * (units[l.id] ?? 0)) / l.quantity), 0);
+  // Con colaborador en la mesa, lo cobrado por separado también lleva su descuento.
+  const collabPct = data.order.collaborator?.discountPct ?? 0;
+  const pickedTotal = pickedGross - (collabPct > 0 ? Math.round((pickedGross * collabPct) / 100) : 0);
   const share = Math.ceil(total / Math.max(1, people));
   const amount = split === "items" ? pickedTotal : total;
   const tenderedCents = method === "CASH" && tendered.trim() ? parseEuros(tendered) : null;

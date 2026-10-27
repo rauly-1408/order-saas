@@ -9,6 +9,7 @@ import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
 import { themeToCssVars, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import { formatModifier } from "@/app/lib/menuOptions";
 import { couponDiscount } from "@/app/lib/retention";
+import { bestDiscount, collaboratorDiscountCents } from "@/app/lib/collaboratorDiscount";
 import { captureCollabFromUrl, checkCollab, saveCollab, type Collab } from "../collab";
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
@@ -174,12 +175,16 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   // El descuento se recalcula al cambiar cantidades; bajo el mínimo no se aplica.
   const couponBelowMin = coupon ? subtotal < coupon.minOrderCents : false;
   const couponAmount = coupon && !couponBelowMin ? couponDiscount(coupon, afterLoyalty) : 0;
-  const promoWins = !!promo && promo.discountCents > couponAmount;
-  const discount = promoWins ? 0 : couponAmount;
+  // Promoción, cupón y descuento del colaborador no se acumulan: gana el que más ahorra.
+  const collabOffer = collab ? collaboratorDiscountCents(afterLoyalty, collab.discountPct ?? 0) : 0;
+  const winner = bestDiscount(promo?.discountCents ?? 0, couponAmount, collabOffer);
+  const promoWins = winner === "promo" && !!promo;
+  const discount = winner === "coupon" ? couponAmount : 0;
   const promoDiscount = promoWins ? promo.discountCents : 0;
+  const collabDiscount = winner === "collab" ? collabOffer : 0;
   // Propina sobre la comida (sin envío) y tarjeta regalo al final.
-  const tip = tipPct ? Math.round((Math.max(subtotal - loyaltyDiscount - promoDiscount - discount, 0) * tipPct) / 100) : 0;
-  const beforeGift = Math.max(subtotal + fee - loyaltyDiscount - promoDiscount - discount, 0) + tip;
+  const tip = tipPct ? Math.round((Math.max(subtotal - loyaltyDiscount - promoDiscount - discount - collabDiscount, 0) * tipPct) / 100) : 0;
+  const beforeGift = Math.max(subtotal + fee - loyaltyDiscount - promoDiscount - discount - collabDiscount, 0) + tip;
   const giftUsed = gift ? Math.min(gift.balanceCents, beforeGift) : 0;
   const total = beforeGift - giftUsed;
 
@@ -401,6 +406,12 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "13px", color: cssVars["--brand-secondary"], fontWeight: 600 }}>
                   <span>🏷️ {promo.promotion.name}</span>
                   <span>−{euros(promoDiscount)}</span>
+                </div>
+              )}
+              {collabDiscount > 0 && collab && (
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "13px", color: cssVars["--brand-secondary"], fontWeight: 600 }}>
+                  <span>{T.collabDiscountLine(collab.name, (collab.discountPct ?? 0).toLocaleString("es-ES"))}</span>
+                  <span>−{euros(collabDiscount)}</span>
                 </div>
               )}
               {discount > 0 && coupon && (
@@ -646,6 +657,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 16px", borderRadius: "12px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
               <div style={{ minWidth: 0, fontSize: "14px" }}>
                 {T.collabApplied} <span style={{ fontWeight: 700, letterSpacing: "0.04em" }}>{collab.code}</span>
+                {(collab.discountPct ?? 0) > 0 && <span style={{ display: "block", fontSize: "12px", color: cssVars["--brand-secondary"], fontWeight: 600 }}>{T.collabDiscountHint((collab.discountPct ?? 0).toLocaleString("es-ES"))}</span>}
               </div>
               <button type="button" onClick={() => { saveCollab(tenant, null); setCollab(null); }} style={{ background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer", flexShrink: 0, minHeight: "44px" }}>
                 {T.remove}

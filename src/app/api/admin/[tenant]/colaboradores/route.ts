@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     const session = await getSessionFromRequest(req);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return NextResponse.json({ error: "Prohibido" }, { status: 403 });
-    const list = await prisma.collaborator.findMany({ where: { tenantId: tenant.id, active: true }, orderBy: { name: "asc" }, select: { name: true, place: true, code: true } });
+    const list = await prisma.collaborator.findMany({ where: { tenantId: tenant.id, active: true }, orderBy: { name: "asc" }, select: { name: true, place: true, code: true, discountPct: true } });
     return NextResponse.json({ collaborators: list });
   }
   const denied = await denyUnlessTenantAdmin(req, tenant.id);
@@ -41,7 +41,8 @@ export async function GET(req: NextRequest) {
       by: ["collaboratorId"],
       where: { tenantId: tenant.id, collaboratorId: { not: null }, createdAt: { gte: from, lt: to }, ...COUNTED },
       _count: { _all: true },
-      _sum: { totalCents: true, commissionCents: true },
+      _sum: { totalCents: true, commissionCents: true, collaboratorDiscountCents: true },
+      _max: { createdAt: true },
     }),
     prisma.collaboratorPayout.findMany({ where: { tenantId: tenant.id, month }, select: { collaboratorId: true, amountCents: true, paidAt: true } }),
     // Lo que se les debe de meses anteriores sin pagar (para no olvidarlo).
@@ -68,12 +69,15 @@ export async function GET(req: NextRequest) {
         phone: c.phone,
         code: c.code,
         commissionPct: c.commissionPct,
+        discountPct: c.discountPct,
         token: c.token,
         active: c.active,
         notes: c.notes,
         orders: s?._count._all ?? 0,
         salesCents: s?._sum.totalCents ?? 0,
         commissionCents: s?._sum.commissionCents ?? 0,
+        discountGivenCents: s?._sum.collaboratorDiscountCents ?? 0,
+        lastOrderAt: s?._max.createdAt ?? null,
         paid: payoutOf.get(c.id) ?? null,
         pendingBeforeCents: Math.max(0, (owedBefore.get(c.id) ?? 0) - (paidBeforeOf.get(c.id) ?? 0)),
       };

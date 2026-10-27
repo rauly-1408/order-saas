@@ -11,17 +11,18 @@ export type CollaboratorDashboard = {
   name: string;
   code: string;
   commissionPct: number;
+  discountPct: number; // descuento que tienen sus clientes
   active: boolean;
   tenantName: string;
   tenantSlug: string;
   timeZone: string;
   months: DashboardMonth[]; // del actual hacia atrás (6)
-  orders: { id: string; at: string; number: number | null; totalCents: number; earnedCents: number }[]; // este mes
+  orders: { id: string; at: string; number: number | null; totalCents: number; earnedCents: number; inStore: boolean }[]; // este mes (inStore: en el local, no online)
 };
 
 export async function collaboratorDashboard(token: string): Promise<CollaboratorDashboard | null> {
   if (!/^[\w-]{10,64}$/.test(token)) return null;
-  const c = await prisma.collaborator.findUnique({ where: { token }, select: { id: true, name: true, code: true, commissionPct: true, active: true, tenantId: true } });
+  const c = await prisma.collaborator.findUnique({ where: { token }, select: { id: true, name: true, code: true, commissionPct: true, discountPct: true, active: true, tenantId: true } });
   if (!c) return null;
   const tenant = await prisma.tenant.findUnique({ where: { id: c.tenantId }, select: { name: true, slug: true, settings: true } });
   if (!tenant) return null;
@@ -31,7 +32,7 @@ export async function collaboratorDashboard(token: string): Promise<Collaborator
     prisma.order.findMany({
       where: { collaboratorId: c.id, createdAt: { gte: monthStart(addMonths(current, -5), tz) }, ...COUNTED },
       orderBy: { createdAt: "desc" },
-      select: { id: true, createdAt: true, orderNumber: true, totalCents: true, commissionCents: true },
+      select: { id: true, createdAt: true, orderNumber: true, totalCents: true, commissionCents: true, source: true },
     }),
     prisma.collaboratorPayout.findMany({ where: { collaboratorId: c.id }, select: { month: true, paidAt: true } }),
   ]);
@@ -47,20 +48,21 @@ export async function collaboratorDashboard(token: string): Promise<Collaborator
     name: c.name,
     code: c.code,
     commissionPct: c.commissionPct,
+    discountPct: c.discountPct,
     active: c.active,
     tenantName: tenant.name,
     tenantSlug: tenant.slug,
     timeZone: tz,
     months,
-    orders: orders.filter((o) => o.createdAt >= startCurrent).map((o) => ({ id: o.id, at: o.createdAt.toISOString(), number: o.orderNumber, totalCents: o.totalCents, earnedCents: o.commissionCents })),
+    orders: orders.filter((o) => o.createdAt >= startCurrent).map((o) => ({ id: o.id, at: o.createdAt.toISOString(), number: o.orderNumber, totalCents: o.totalCents, earnedCents: o.commissionCents, inStore: o.source === "TABLE" || o.source === "COUNTER" })),
   };
 }
 
 // Lo justo para las tarjetas VIP (el enlace secreto es la llave).
 export async function collaboratorByToken(token: string) {
   if (!/^[\w-]{10,64}$/.test(token)) return null;
-  const c = await prisma.collaborator.findUnique({ where: { token }, select: { code: true, name: true, tenantId: true } });
+  const c = await prisma.collaborator.findUnique({ where: { token }, select: { code: true, name: true, tenantId: true, discountPct: true } });
   if (!c) return null;
   const t = await prisma.tenant.findUniqueOrThrow({ where: { id: c.tenantId }, select: { slug: true, name: true } });
-  return { code: c.code, name: c.name, tenantId: c.tenantId, tenantSlug: t.slug, tenantName: t.name };
+  return { code: c.code, name: c.name, discountPct: c.discountPct, tenantId: c.tenantId, tenantSlug: t.slug, tenantName: t.name };
 }

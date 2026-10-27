@@ -4,7 +4,7 @@
 // lleva ?c=CODIGO. Se guarda en el aparato 30 días y se manda con el pedido,
 // para que el colaborador se lleve su parte. Ver docs/COLABORADORES.md
 
-export type Collab = { code: string; name: string };
+export type Collab = { code: string; name: string; discountPct?: number };
 const DAYS = 30;
 const key = (tenant: string) => `collab:${tenant}`;
 
@@ -12,7 +12,7 @@ export function loadCollab(tenant: string): Collab | null {
   try {
     const v = JSON.parse(localStorage.getItem(key(tenant)) ?? "null") as (Collab & { at: number }) | null;
     if (!v || Date.now() - v.at > DAYS * 86_400_000) return null;
-    return { code: v.code, name: v.name };
+    return { code: v.code, name: v.name, discountPct: v.discountPct ?? 0 };
   } catch {
     return null;
   }
