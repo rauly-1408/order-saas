@@ -151,6 +151,7 @@ export function ProductCard({
   lang?: Lang;
 }) {
   const T = ui(lang);
+  const stepper = simple && qty > 0;
   return (
     <article
       className="p-lift group relative flex h-full flex-col overflow-hidden rounded-[var(--border-radius)] bg-[var(--surface-1)]"
@@ -160,30 +161,38 @@ export function ProductCard({
         <div className="overflow-hidden">
           {/* Cuadrada: las fotos de producto suelen serlo y así se ven enteras, sin recortar el bocadillo. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt={name} className="aspect-square w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+          <img src={imageUrl} alt={name} loading="lazy" className="aspect-square w-full object-cover transition-transform duration-700 group-hover:scale-105" />
         </div>
       )}
-      {badge && imageUrl && <ProductBadge kind={badge} lang={lang} className="absolute left-3 top-3" />}
+      {/* Sin foto: un recuadro con la inicial, para que la rejilla quede pareja */}
+      {!imageUrl && (
+        <div aria-hidden className="flex aspect-square items-center justify-center bg-[color-mix(in_srgb,var(--brand-accent)_7%,var(--surface-1))]">
+          <span className="text-[56px] leading-none text-[var(--brand-accent)] opacity-25" style={{ fontFamily: "var(--font-heading)" }}>
+            {name.trim().charAt(0).toUpperCase()}
+          </span>
+        </div>
+      )}
+      {badge && <ProductBadge kind={badge} lang={lang} className="absolute left-2 top-2" />}
       {qty > 0 && (
-        <span className="absolute right-3 top-3 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[13px] font-bold" style={{ backgroundColor: "var(--brand-accent)", color: "var(--on-accent)" }}>
+        <span className="absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold" style={{ backgroundColor: "var(--brand-accent)", color: "var(--on-accent)" }}>
           {qty}
         </span>
       )}
-      <div className="flex flex-1 flex-col px-5 pt-5">
-        {badge && !imageUrl && <ProductBadge kind={badge} lang={lang} className="mb-2 self-start" />}
-        <h3 className="pr-8 text-[17px] font-bold leading-snug tracking-[-0.01em] text-[var(--text-primary)]">{name}</h3>
-        {description && <p className="mt-1.5 line-clamp-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">{description}</p>}
-        {allergens && allergens.length > 0 && <p className="mt-2 text-[11px] text-[var(--text-secondary)]">{T.allergens}: {allergens.join(", ")}</p>}
+      {/* Tarjeta compacta (dos por fila en el móvil): nombre, descripción corta y precio con un «+» redondo */}
+      <div className="flex flex-1 flex-col px-3 pt-3 sm:px-4 sm:pt-3.5">
+        <h3 className="line-clamp-2 text-[15px] font-bold leading-tight tracking-[-0.01em] text-[var(--text-primary)] sm:text-[16px]">{name}</h3>
+        {description && <p className="mt-1 line-clamp-2 text-[12.5px] leading-snug text-[var(--text-secondary)] sm:text-[13px]">{description}</p>}
+        {allergens && allergens.length > 0 && <p className="mt-1 line-clamp-1 text-[11px] text-[var(--text-secondary)]">{T.allergens}: {allergens.join(", ")}</p>}
       </div>
-      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-5">
-        <span className="text-[18px] font-bold tabular-nums text-[var(--brand-secondary)]">{euros(priceCents)}</span>
-        {simple && qty > 0 ? (
-          <div className="flex items-center gap-2">
-            <button onClick={onDec} aria-label={T.removeOne(name)} className="p-press flex h-11 w-11 items-center justify-center rounded-full border-2 border-[var(--brand-accent)] text-xl font-bold text-[var(--brand-accent)]">
+      <div className={`flex items-center justify-between gap-2 px-3 pt-2.5 pb-3 sm:px-4 sm:pb-4 ${stepper ? "flex-wrap" : ""}`}>
+        <span className="text-[16px] font-bold tabular-nums text-[var(--brand-secondary)] sm:text-[17px]">{euros(priceCents)}</span>
+        {stepper ? (
+          <div className="flex w-full items-center justify-between rounded-full bg-[var(--brand-accent)] p-1 text-[var(--on-accent)]">
+            <button onClick={onDec} aria-label={T.removeOne(name)} className="p-press flex h-9 w-9 items-center justify-center rounded-full text-xl font-bold hover:bg-white/15">
               −
             </button>
-            <span className="min-w-5 text-center text-[16px] font-bold tabular-nums">{qty}</span>
-            <button onClick={onInc} aria-label={T.addAnother(name)} className="p-press flex h-11 w-11 items-center justify-center rounded-full bg-[var(--brand-accent)] text-xl font-bold text-[var(--on-accent)]">
+            <span className="text-[15px] font-bold tabular-nums">{qty}</span>
+            <button onClick={onInc} aria-label={T.addAnother(name)} className="p-press flex h-9 w-9 items-center justify-center rounded-full text-xl font-bold hover:bg-white/15">
               +
             </button>
           </div>
@@ -191,9 +200,10 @@ export function ProductCard({
           <button
             onClick={onAdd}
             aria-label={T.addX(name)}
-            className="p-press flex h-11 items-center gap-1.5 rounded-full bg-[var(--brand-accent)] pr-4 pl-3 text-[15px] font-bold text-[var(--on-accent)] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.5)] transition-transform [@media(hover:hover)]:group-hover:scale-105"
+            title={T.add}
+            className="p-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent)] text-[22px] font-semibold leading-none text-[var(--on-accent)] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.5)] transition-transform [@media(hover:hover)]:group-hover:scale-110"
           >
-            <span className="text-xl leading-none">+</span> {T.add}
+            +
           </button>
         )}
       </div>
@@ -201,12 +211,11 @@ export function ProductCard({
   );
 }
 
-// Etiqueta de la tarjeta: «★ Recomendado» en el color de la marca o «Lo más pedido».
 function ProductBadge({ kind, lang, className = "" }: { kind: "featured" | "bestseller"; lang: Lang; className?: string }) {
   const T = ui(lang);
   return (
     <span
-      className={`${className} inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide shadow-[0_4px_12px_-6px_rgba(0,0,0,0.45)]`}
+      className={`${className} inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold tracking-wide shadow-[0_4px_12px_-6px_rgba(0,0,0,0.45)]`}
       style={kind === "featured" ? { backgroundColor: "var(--brand-accent)", color: "var(--on-accent)" } : { backgroundColor: "var(--surface-1)", color: "var(--brand-secondary)", boxShadow: "inset 0 0 0 1.5px var(--brand-secondary)" }}
     >
       {kind === "featured" ? <><span aria-hidden>★</span> {T.badgeFeatured}</> : T.badgeBestSeller}
