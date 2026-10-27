@@ -4,8 +4,8 @@ Panel → **Inicio** (`/admin/[tenant]/home`). Solo gerentes, porque muestra ing
 
 ## Qué se ve
 
-1. **Cabecera**: «Hoy en {restaurante}», con los ingresos del día.
-2. **Cifras clave**: pedidos de hoy, activos ahora, ticket medio y tamaño de la carta.
+1. **Cabecera**: «Hoy en {restaurante}». Debajo, los ingresos del día comparados con el mismo día de la semana pasada a esta hora, y las ventas por horas (`HourlyBars.tsx`; al pasar el dedo se ve cada hora, si no, la hora punta).
+2. **Cifras clave**: pedidos de hoy, activos ahora (punto rojo si hay que atender), ticket medio y productos en carta, en una sola tarjeta.
 3. **Haz tuya tu tienda**: ideas para personalizar la tienda, al estilo de las tarjetas del Inicio de Shopify.
 4. **Últimos pedidos**.
 

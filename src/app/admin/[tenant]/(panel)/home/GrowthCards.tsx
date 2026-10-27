@@ -51,10 +51,10 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
   const done = total - cards.length;
 
   return (
-    <section className="mt-8">
+    <section className="mt-10">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2 px-1">
         <div>
-          <h2 className="text-xl font-semibold">Haz tuya tu tienda</h2>
+          <h2 className="text-xl font-semibold tracking-tight">Haz tuya tu tienda</h2>
           <p className="text-sm text-[var(--p-muted)]">
             {cards.length === 0 ? "Has activado todo. ¡Tu tienda está completa!" : `${done} de ${total} cosas hechas. Ideas para vender más:`}
           </p>
@@ -65,7 +65,7 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
           </button>
         )}
       </div>
-      <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-black/[0.06]" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label="Tienda personalizada">
+      <div className="mb-5 h-1.5 overflow-hidden rounded-full bg-black/[0.06]" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label="Tienda personalizada">
         <div className="h-full rounded-full bg-[var(--p-brand)] transition-[width] duration-700" style={{ width: `${Math.round((done / total) * 100)}%` }} />
       </div>
 
@@ -74,26 +74,30 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
         {shown.map((c, i) => (
           // p-rise va en el envoltorio: su animación fija el transform y anularía el hover.
           <div key={c.id} className="p-rise" style={{ "--i": i } as React.CSSProperties}>
-            <article className="group p-lift relative flex h-full flex-col overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+            <article className="group p-lift relative flex h-full flex-col overflow-hidden rounded-[22px] bg-[var(--p-surface)] ring-1 ring-[var(--p-line)]">
+            {/* Ocultar: siempre a mano en el móvil; en el ordenador aparece al pasar el ratón */}
             <button
               type="button"
               onClick={() => hide(c.id)}
               aria-label={`Ocultar «${c.title}»`}
               title="Ocultar"
-              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-[var(--p-muted)] backdrop-blur hover:bg-white hover:text-[var(--p-text,#111)]"
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-[var(--p-muted)] backdrop-blur transition-opacity hover:bg-white hover:text-[var(--p-ink)] focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
             >
-              ✕
+              <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden>
+                <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
             </button>
-            <div className="flex h-32 items-center justify-center overflow-hidden bg-[var(--p-warm)]" aria-hidden>
+            <div className="m-2 mb-0 flex h-32 items-center justify-center overflow-hidden rounded-2xl bg-[linear-gradient(160deg,var(--p-warm),color-mix(in_srgb,var(--p-warm)_55%,white))]" aria-hidden>
               <div className="transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:transform-none">
                 <Art kind={c.art} />
               </div>
             </div>
-            <div className="flex flex-1 flex-col p-5">
-              <h3 className="font-semibold leading-snug">{c.title}</h3>
-              <p className="mt-1 flex-1 text-sm text-[var(--p-muted)]">{c.text}</p>
-              <Link href={c.href} className="p-press mt-4 self-start rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
+            <div className="flex flex-1 flex-col px-5 pt-4 pb-5">
+              <h3 className="text-[15px] font-semibold leading-snug tracking-[-0.01em]">{c.title}</h3>
+              <p className="mt-1 flex-1 text-sm leading-relaxed text-[var(--p-muted)]">{c.text}</p>
+              <Link href={c.href} className="p-press group/cta mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
                 {c.cta}
+                <span aria-hidden className="transition-transform group-hover/cta:translate-x-0.5">→</span>
               </Link>
             </div>
             </article>
@@ -128,13 +132,13 @@ function InsightCard({ tenant, insight }: { tenant: string; insight: Insight }) 
 
   return (
     <div className="p-rise sm:col-span-2 lg:col-span-1">
-    <article className="p-lift flex h-full flex-col overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+    <article className="p-lift flex h-full flex-col overflow-hidden rounded-[22px] bg-[var(--p-brand)] text-white">
       <div className="p-5 pb-0">
-        <p className="text-xs font-medium uppercase tracking-wide text-[var(--p-faint)]">Tu producto estrella · 7 días</p>
-        <h3 className="mt-1 font-semibold leading-snug">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-white/60">★ Tu producto estrella · 7 días</p>
+        <h3 className="mt-1.5 text-lg font-semibold leading-snug tracking-[-0.01em]">
           {insight.name}: {insight.units} {insight.units === 1 ? "vendido" : "vendidos"}
         </h3>
-        <p className="mt-1 text-sm text-[var(--p-muted)]">
+        <p className="mt-1 text-sm text-white/75">
           {insight.growthPct === null
             ? "La semana anterior no se vendió. ¿Lo destacas en la carta?"
             : up
@@ -146,30 +150,31 @@ function InsightCard({ tenant, insight }: { tenant: string; insight: Insight }) 
       </div>
       <div className="relative px-3 pt-3">
         <svg viewBox={`0 0 ${W} ${H}`} className="block h-24 w-full" role="img" aria-label={`Unidades por día: ${insight.daily.map((d) => `${d.label} ${d.units}`).join(", ")}`} onMouseLeave={() => setHover(null)}>
-          <line x1={pad} x2={W - pad} y1={H - pad} y2={H - pad} stroke="currentColor" strokeOpacity={0.12} />
-          <path d={path} fill="none" stroke="var(--p-brand)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-          <line x1={x(at)} x2={x(at)} y1={pad} y2={H - pad} stroke="currentColor" strokeOpacity={hover === null ? 0 : 0.2} />
-          <circle cx={x(at)} cy={y(insight.daily[at].units)} r={4.5} fill="var(--p-brand)" stroke="var(--p-surface)" strokeWidth={2} />
+          <line x1={pad} x2={W - pad} y1={H - pad} y2={H - pad} stroke="currentColor" strokeOpacity={0.2} />
+          <path d={`${path} L${x(last).toFixed(1)},${H - pad} L${x(0).toFixed(1)},${H - pad} Z`} fill="currentColor" fillOpacity={0.1} />
+          <path d={path} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          <line x1={x(at)} x2={x(at)} y1={pad} y2={H - pad} stroke="currentColor" strokeOpacity={hover === null ? 0 : 0.35} />
+          <circle cx={x(at)} cy={y(insight.daily[at].units)} r={4.5} fill="currentColor" stroke="var(--p-brand)" strokeWidth={2} />
           {insight.daily.map((d, i) => (
             <rect key={i} x={x(i) - (W - pad * 2) / 12} y={0} width={(W - pad * 2) / 6} height={H} fill="transparent" onMouseEnter={() => setHover(i)} onTouchStart={() => setHover(i)} />
           ))}
         </svg>
-        <div className="flex justify-between px-1 pb-1 text-[11px] text-[var(--p-faint)]">
+        <div className="flex justify-between px-1 pb-1 text-[11px] text-white/50">
           {insight.daily.map((d, i) => (
-            <span key={i} className={i === at ? "font-semibold text-[var(--p-muted)]" : ""}>
+            <span key={i} className={i === at ? "font-semibold text-white" : ""}>
               {d.label}
             </span>
           ))}
         </div>
-        <p className="px-1 text-xs text-[var(--p-muted)]" aria-live="polite">
+        <p className="px-1 text-xs text-white/70" aria-live="polite">
           {insight.daily[at].label}: <b className="tabular-nums">{insight.daily[at].units}</b> {insight.daily[at].units === 1 ? "unidad" : "unidades"}
         </p>
       </div>
       <div className="flex flex-wrap gap-2 p-5 pt-3">
-        <Link href={`/admin/${tenant}/carta`} className="p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
+        <Link href={`/admin/${tenant}/carta`} className="p-press rounded-full bg-white px-4 py-2 text-sm font-semibold text-[var(--p-brand)]">
           Destacar en la carta
         </Link>
-        <Link href={`/admin/${tenant}/informes`} className="p-press rounded-full border border-[var(--p-line)] px-4 py-2 text-sm font-medium">
+        <Link href={`/admin/${tenant}/informes`} className="p-press rounded-full border border-white/25 px-4 py-2 text-sm font-medium text-white">
           Ver informes
         </Link>
       </div>
