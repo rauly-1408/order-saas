@@ -34,7 +34,7 @@ type Step = "order" | "pay" | "done";
 const euros = (c: number) => (c / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 const parseEuros = (v: string) => Math.round(Number(v.replace(",", ".")) * 100);
 // Apartados del panel de estado (caja, en espera, hoy): etiqueta pequeña + dato.
-const STAT = "p-press flex min-h-11 flex-1 flex-col sm:flex-none justify-center px-2.5 py-1 text-left leading-tight sm:px-3";
+const STAT = "p-press flex min-h-11 flex-1 flex-col justify-center px-2.5 py-1 text-left leading-tight @xl:flex-none sm:px-3";
 const STAT_CAPTION = "text-[10px] font-semibold uppercase tracking-wide text-[var(--p-muted)]";
 const STAT_VALUE = "text-sm font-semibold";
 const MODE_LABEL: Record<Mode, string> = { TAKEAWAY: "Para llevar", DINE_IN: "Comer aquí", DELIVERY: "A domicilio" };
@@ -71,7 +71,7 @@ function tonesFor(names: string[]): Tone[] {
 const TOP_SLUG = "mas-vendidos";
 // Tantas columnas como quepan en el hueco de la carta (no según la pantalla):
 // así los nombres no se cortan con el menú lateral y el ticket al lado.
-const GRID = "grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-1.5 lg:grid-cols-[repeat(auto-fill,minmax(128px,1fr))]";
+const GRID = "grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2 lg:grid-cols-[repeat(auto-fill,minmax(128px,1fr))] @xl:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] @xl:gap-3";
 const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
 // Importes rápidos para el efectivo: el justo y los billetes que lo cubren.
@@ -429,11 +429,11 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         onPointerLeave={endPress}
         onPointerCancel={endPress}
         onContextMenu={(e) => e.preventDefault()}
-        className={`p-press relative flex min-h-[72px] select-none flex-col justify-between rounded-xl px-2.5 py-2 text-left ring-2 [-webkit-touch-callout:none] ${t.tile} ${inOrder ? t.ring : "ring-transparent"}`}
+        className={`p-press relative flex min-h-[80px] select-none flex-col justify-between gap-2 rounded-2xl px-3 py-2.5 text-left ring-2 sm:min-h-[92px] sm:px-3.5 sm:py-3 [-webkit-touch-callout:none] ${t.tile} ${inOrder ? t.ring : "ring-transparent"}`}
       >
-        <span className={`line-clamp-2 text-[13px] font-semibold leading-tight sm:text-sm ${inOrder ? "pr-6" : ""}`}>{p.name}</span>
-        <span className="mt-1 text-[13px] font-semibold tabular-nums">{euros(p.basePriceCents)}</span>
-        {inOrder > 0 && <span className={`absolute right-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold ${t.badge}`}>{inOrder}</span>}
+        <span className={`line-clamp-2 text-[13px] font-semibold leading-snug sm:text-[15px] ${inOrder ? "pr-6" : ""}`}>{p.name}</span>
+        <span className="text-[13px] font-semibold tabular-nums opacity-80 sm:text-sm">{euros(p.basePriceCents)}</span>
+        {inOrder > 0 && <span className={`absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold ${t.badge}`}>{inOrder}</span>}
       </button>
     );
   };
@@ -749,29 +749,31 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     // ordenador, solo la carta): así la barra de categorías se queda fija arriba.
     <div className="-mx-4 -mt-20 -mb-12 flex h-[100dvh] flex-col overflow-y-auto lg:-mx-10 lg:-mt-10 lg:flex-row lg:overflow-visible" style={STORE_VARS}>
       {/* Carta */}
-      <div className="flex shrink-0 flex-col px-4 pt-20 pb-28 lg:min-h-0 lg:flex-1 lg:shrink lg:overflow-y-auto lg:px-5 lg:pt-0 lg:pb-8">
+      <div className="@container flex shrink-0 flex-col px-4 pt-20 pb-28 lg:min-h-0 lg:flex-1 lg:shrink lg:overflow-y-auto lg:px-8 lg:pt-0 lg:pb-10">
         {cash && !cash.open && (
           <div className="mb-1 flex items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 lg:mt-6">
             <span>
-              La caja está cerrada<span className="hidden sm:inline">. Ábrela con el efectivo del cajón para poder cuadrar al final del día</span>.
+              La caja está cerrada<span className="hidden @xl:inline">. Ábrela con el efectivo del cajón para poder cuadrar al final del día</span>.
             </span>
-            <button type="button" onClick={() => setCashOpen(true)} className="p-press rounded-full bg-amber-900 px-4 py-1.5 text-xs font-semibold text-white">
+            <button type="button" onClick={() => setCashOpen(true)} className="p-press shrink-0 whitespace-nowrap rounded-full bg-amber-900 px-4 py-1.5 text-xs font-semibold text-white">
               Abrir caja
             </button>
           </div>
         )}
         {/* Arriba, siempre a mano: buscador, estado de la caja, hoy y categorías */}
-        <div className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)]/95 px-4 pt-2 pb-2 backdrop-blur lg:top-0 lg:-mx-5 lg:px-5 lg:pt-5">
+        <div className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)]/95 px-4 pt-2 pb-3 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8 lg:pt-6 lg:pb-4">
           <h1 className="sr-only">Caja</h1>
-          <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap">
-            <div className="relative min-w-0 flex-1">
+          {/* Según el hueco de la carta (no la pantalla): estrecho, en dos filas;
+              ancho, en una con el buscador de un ancho cómodo a la izquierda. */}
+          <div className="flex flex-wrap items-center gap-2 @xl:flex-nowrap @xl:gap-3">
+            <div className="relative min-w-0 flex-1 @xl:max-w-xs @4xl:max-w-sm">
               <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--p-muted)]">
                 <SearchIcon />
               </span>
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="h-11 w-full rounded-xl pl-9 pr-3 text-sm" />
             </div>
             {/* Estado del turno: un panel con apartados, no píldoras, para que no se confunda con las categorías */}
-            <div className="order-first flex w-full shrink-0 items-stretch divide-x divide-[var(--p-line)] overflow-hidden rounded-xl border sm:order-none sm:w-auto border-[var(--p-line)] bg-[var(--p-surface)]">
+            <div className="order-first flex w-full shrink-0 items-stretch divide-x divide-[var(--p-line)] overflow-hidden rounded-xl border border-[var(--p-line)] bg-[var(--p-surface)] @xl:order-none @xl:ml-auto @xl:w-auto">
               <button
                 type="button"
                 onClick={() => {
@@ -816,7 +818,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             </div>
           </div>
           {categories && !q && (
-            <nav aria-label="Categorías" className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" style={{ scrollbarWidth: "none" }}>
+            <nav aria-label="Categorías" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 lg:-mx-8 lg:px-8 @xl:mx-0 @xl:mt-4 @xl:flex-wrap @xl:overflow-visible @xl:px-0" style={{ scrollbarWidth: "none" }}>
               {shelves.map((c) => (
                 <button key={c.id} id={`caja-chip-${c.slug}`} type="button" aria-current={c.slug === shelf?.slug || undefined} onClick={() => setCat(c.slug)} className={`p-press flex shrink-0 items-center gap-1.5 min-h-11 rounded-full px-3.5 text-sm font-semibold transition-colors ${c.slug === shelf?.slug ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
                   {c.slug !== TOP_SLUG && <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${toneOf.get(c.slug)?.dot ?? ""}`} />}
@@ -835,9 +837,9 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             <div className={GRID}>{found.map(tile)}</div>
           </div>
         ) : (
-          shelf && <div className={`mt-2 ${GRID}`}>{shelf.products.map(tile)}</div>
+          shelf && <div className={`mt-2 sm:mt-3 ${GRID}`}>{shelf.products.map(tile)}</div>
         )}
-        <p className="mt-2 hidden text-center text-xs text-[var(--p-muted)] sm:block">Mantén pulsado un producto para ver su foto y sus ingredientes.</p>
+        <p className="mt-5 hidden text-center text-xs text-[var(--p-muted)] sm:block">Mantén pulsado un producto para ver su foto y sus ingredientes.</p>
       </div>
 
       {/* Ticket: columna en ordenador, hoja desde abajo en el móvil */}
