@@ -1,6 +1,8 @@
 "use client";
 
 import { ask } from "@/app/lib/dialog";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useState } from "react";
 
 import PaidWithChooser, { type PaidWith } from "./PaidWith";
@@ -59,6 +61,7 @@ const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es
 
 export default function OrderCard({ order, estimates, now, busy, onStatus, courierEnabled = false, onCourier, printingEnabled = false, onPrint, draggable = false, dragging = false, onDragStart, onDragEnd, payRequest = 0 }: OrderCardProps) {
   const action = nextAction(order);
+  const { tenant } = useParams<{ tenant: string }>();
   // askPay se abre con el botón o cuando sube payRequest (soltar la tarjeta en «Entregado»).
   const [askPayState, setAskPay] = useState<{ open: boolean; seen: number }>({ open: false, seen: 0 });
   const askPay = askPayState.open || askPayState.seen < payRequest;
@@ -243,7 +246,7 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
       )}
 
       {/* Acciones secundarias: discretas, en una sola fila y sin partirse */}
-      {((printingEnabled && onPrint) || canCancel(order)) && (
+      {((printingEnabled && onPrint) || canCancel(order) || order.paymentStatus === "PAID") && (
         <div className="mt-2 flex gap-1.5">
           {printingEnabled && onPrint && (
             <>
@@ -254,6 +257,11 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
                 <PrinterIcon /> Ticket
               </button>
             </>
+          )}
+          {order.paymentStatus === "PAID" && (
+            <Link href={`/admin/${tenant}/facturas?pedido=${order.id}`} title="Factura a nombre del cliente" className={SECONDARY}>
+              Factura
+            </Link>
           )}
           {canCancel(order) && (
             <button type="button" onClick={handleCancel} disabled={busy} className={`${SECONDARY} hover:!bg-red-50 hover:!text-red-600`}>

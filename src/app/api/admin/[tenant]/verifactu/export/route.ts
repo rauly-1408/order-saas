@@ -19,14 +19,14 @@ export async function GET(req: NextRequest) {
   if (!session?.seesTakings) return NextResponse.json({ error: "No tienes permiso para ver las ventas" }, { status: 403 });
   const rows = await prisma.invoice.findMany({ where: { tenantId: tenant.id }, orderBy: { chainIndex: "asc" }, include: { order: { select: { orderNumber: true } } } });
   const rect = new Map(rows.map((r) => [r.id, r.numSerie]));
-  const head = ["Orden", "NumSerieFactura", "TipoFactura", "FechaExpedicion", "FechaHoraHusoGenRegistro", "NIF", "RazonSocial", "TipoIVA", "BaseImponible", "CuotaIVA", "ImporteTotal", "Rectifica", "Pedido", "HuellaAnterior", "Huella", "Modo", "Entorno", "EstadoAEAT", "QR"];
+  const head = ["Orden", "NumSerieFactura", "TipoFactura", "FechaExpedicion", "FechaHoraHusoGenRegistro", "NIF", "RazonSocial", "TipoIVA", "BaseImponible", "CuotaIVA", "ImporteTotal", "Rectifica", "Sustituye", "NIFCliente", "Cliente", "DomicilioCliente", "Pedido", "HuellaAnterior", "Huella", "Modo", "Entorno", "EstadoAEAT", "QR"];
   const esc = (v: unknown) => {
     let s = v == null ? "" : String(v);
     if (/^[=+@\t]/.test(s) || (/^-/.test(s) && !/^-\d/.test(s))) s = `'${s}`; // que Excel no lo lea como fórmula
     return /[;"\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines = rows.map((r) =>
-    [r.chainIndex, r.numSerie, r.invoiceType, r.issueDate, r.genTimestamp, r.issuerNif, r.issuerName, r.taxRate, amount(r.baseCents), amount(r.taxCents), amount(r.totalCents), r.rectifiedInvoiceId ? rect.get(r.rectifiedInvoiceId) ?? "" : "", r.order.orderNumber ?? "", r.prevHash ?? "", r.hash, r.mode, r.environment, r.aeatStatus, r.qrUrl]
+    [r.chainIndex, r.numSerie, r.invoiceType, r.issueDate, r.genTimestamp, r.issuerNif, r.issuerName, r.taxRate, amount(r.baseCents), amount(r.taxCents), amount(r.totalCents), r.rectifiedInvoiceId ? rect.get(r.rectifiedInvoiceId) ?? "" : "", r.substitutedInvoiceId ? rect.get(r.substitutedInvoiceId) ?? "" : "", r.recipientNif, r.recipientName, r.recipientAddress, r.order.orderNumber ?? "", r.prevHash ?? "", r.hash, r.mode, r.environment, r.aeatStatus, r.qrUrl]
       .map(esc)
       .join(";")
   );

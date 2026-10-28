@@ -64,7 +64,7 @@ export function readBusiness(settings: unknown): BusinessInfo {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 // NIF (8 dígitos + letra), NIE (X/Y/Z + 7 dígitos + letra) o CIF (letra + 7 dígitos + dígito/letra).
-const TAX_ID = /^([0-9]{8}[A-Z]|[XYZ][0-9]{7}[A-Z]|[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J])$/;
+export const TAX_ID = /^([0-9]{8}[A-Z]|[XYZ][0-9]{7}[A-Z]|[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J])$/;
 
 export function normalizeTaxId(v: string): string {
   return v.toUpperCase().replace(/[\s.-]/g, "");
