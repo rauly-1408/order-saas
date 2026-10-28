@@ -35,17 +35,17 @@ const MODE_LABEL: Record<Mode, string> = { TAKEAWAY: "Para llevar", DINE_IN: "Co
 const PAYMENT_LABEL: Record<Payment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", IN_STORE: "Pagar al recoger" };
 const HOY_PAYMENT_LABEL: Record<HoyPayment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
 const STATUS_LABEL: Record<string, string> = { OPEN: "Mesa abierta", CREATED: "Nuevo", PAID: "Nuevo", SENT_TO_POS: "Nuevo", ACCEPTED: "Preparando", PREPARING: "Preparando", READY: "Listo", DELIVERING: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
-// Color por categoría (siempre el mismo para la misma): la mano aprende dónde está
-// cada cosa sin leer. Clases completas para que Tailwind las genere.
+// Color por categoría (siempre el mismo para la misma, ocho bien distintos): la mano
+// aprende dónde está cada cosa sin leer. Clases completas para que Tailwind las genere.
 const TONES = [
-  { tile: "bg-emerald-100 text-emerald-950", ring: "ring-emerald-800", dot: "bg-emerald-500" },
-  { tile: "bg-orange-100 text-orange-950", ring: "ring-orange-800", dot: "bg-orange-500" },
-  { tile: "bg-sky-100 text-sky-950", ring: "ring-sky-800", dot: "bg-sky-500" },
-  { tile: "bg-violet-100 text-violet-950", ring: "ring-violet-800", dot: "bg-violet-500" },
-  { tile: "bg-rose-100 text-rose-950", ring: "ring-rose-800", dot: "bg-rose-500" },
-  { tile: "bg-amber-100 text-amber-950", ring: "ring-amber-800", dot: "bg-amber-500" },
-  { tile: "bg-fuchsia-100 text-fuchsia-950", ring: "ring-fuchsia-800", dot: "bg-fuchsia-500" },
-  { tile: "bg-lime-100 text-lime-950", ring: "ring-lime-800", dot: "bg-lime-500" },
+  { tile: "bg-emerald-200 text-emerald-950", ring: "ring-emerald-900", dot: "bg-emerald-500" },
+  { tile: "bg-orange-200 text-orange-950", ring: "ring-orange-900", dot: "bg-orange-500" },
+  { tile: "bg-sky-200 text-sky-950", ring: "ring-sky-900", dot: "bg-sky-500" },
+  { tile: "bg-violet-200 text-violet-950", ring: "ring-violet-900", dot: "bg-violet-500" },
+  { tile: "bg-red-200 text-red-950", ring: "ring-red-900", dot: "bg-red-500" },
+  { tile: "bg-yellow-200 text-yellow-950", ring: "ring-yellow-900", dot: "bg-yellow-400" },
+  { tile: "bg-stone-200 text-stone-950", ring: "ring-stone-900", dot: "bg-stone-500" },
+  { tile: "bg-pink-200 text-pink-950", ring: "ring-pink-900", dot: "bg-pink-500" },
 ];
 const TOP_SLUG = "mas-vendidos";
 const GRID = "grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5";
@@ -158,14 +158,12 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         const cats = (d.categories ?? []) as Category[];
         saveLocal(`menu:${tenant}`, cats); // para vender sin conexión
         setCategories(cats);
-        setCat(cats[0]?.slug ?? "");
       })
       .catch((e) => {
         if (!alive) return;
         const saved = loadLocal<Category[]>(`menu:${tenant}`);
         if (saved) {
           setCategories(saved);
-          setCat(saved[0]?.slug ?? "");
         } else setError(e instanceof Error ? e.message : "No se pudo cargar la carta");
       });
     return () => {
@@ -237,40 +235,9 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     pressTimer.current = null;
   }
 
-  // Toda la carta seguida, por secciones: las categorías saltan a la suya y se
-  // marcan solas al desplazarse (como en la tienda).
-  const head = useRef<HTMLDivElement>(null);
-  const sections = useRef(new Map<string, HTMLElement>());
-  useEffect(() => {
-    if (!shelves.length) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        const first = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (first) setCat((first.target as HTMLElement).dataset.slug ?? "");
-      },
-      { rootMargin: "-200px 0px -55% 0px" }
-    );
-    sections.current.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [shelves, query]);
-  // La categoría activa se ve en la barra (en el móvil se desplaza solo en horizontal,
-  // sin interrumpir el desplazamiento de la carta).
-  useEffect(() => {
-    const chip = document.getElementById(`caja-chip-${cat}`);
-    const nav = chip?.parentElement;
-    if (!chip || !nav || nav.scrollWidth <= nav.clientWidth) return;
-    nav.scrollLeft = chip.offsetLeft - nav.clientWidth / 2 + chip.clientWidth / 2;
-  }, [cat]);
-  function jump(slug: string) {
-    const el = sections.current.get(slug);
-    if (!el) return;
-    let box: HTMLElement | null = el.parentElement;
-    while (box && !(/(auto|scroll)/.test(getComputedStyle(box).overflowY) && box.scrollHeight > box.clientHeight)) box = box.parentElement;
-    const scroller = box ?? document.scrollingElement ?? document.documentElement;
-    const offset = (head.current?.getBoundingClientRect().bottom ?? 0) - scroller.getBoundingClientRect().top + 8;
-    scroller.scrollTo({ top: scroller.scrollTop + el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - offset, behavior: "smooth" });
-    setCat(slug);
-  }
+  // Una categoría a la vez, como en un TPV: se ven todos sus productos sin
+  // desplazarse. Al entrar, «Más vendidos».
+  const shelf = shelves.find((c) => c.slug === cat) ?? shelves[0];
 
   const q = query.trim().toLowerCase();
   const found = useMemo(() => (categories && q ? categories.flatMap((c) => c.products.filter((p) => p.name.toLowerCase().includes(q))) : []), [categories, q]);
@@ -413,7 +380,6 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   // dice cuántos van. Sin foto: caben el triple y se encuentran antes.
   const tile = (p: Product) => {
     const inOrder = lines.filter((l) => l.productId === p.id).reduce((a, l) => a + l.quantity, 0);
-    const hasOptions = p.isCombo || p.modifierGroups.length > 0;
     const t = toneOf.get(p.id) ?? TONES[0];
     return (
       <button
@@ -435,10 +401,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         className={`p-press relative flex min-h-[72px] select-none flex-col justify-between rounded-xl px-2.5 py-2 text-left ring-2 [-webkit-touch-callout:none] ${t.tile} ${inOrder ? t.ring : "ring-transparent"}`}
       >
         <span className={`line-clamp-2 text-[13px] font-semibold leading-tight sm:text-sm ${inOrder ? "pr-6" : ""}`}>{p.name}</span>
-        <span className="mt-1 flex items-baseline justify-between gap-1 text-[13px] font-semibold tabular-nums">
-          {euros(p.basePriceCents)}
-          {hasOptions && <span className="text-[11px] font-medium opacity-60">{p.isCombo ? "menú" : "+ opc."}</span>}
-        </span>
+        <span className="mt-1 text-[13px] font-semibold tabular-nums">{euros(p.basePriceCents)}</span>
         {inOrder > 0 && <span className="absolute right-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--p-ink)] px-1.5 text-xs font-bold text-white">{inOrder}</span>}
       </button>
     );
@@ -737,7 +700,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           </div>
         )}
         {/* Arriba, siempre a mano: buscador, estado de la caja, hoy y categorías */}
-        <div ref={head} className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)]/95 px-4 pt-2 pb-2 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8 lg:pt-6">
+        <div className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)]/95 px-4 pt-2 pb-2 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8 lg:pt-6">
           <h1 className="sr-only">Caja</h1>
           <div className="flex items-center gap-1.5">
             <div className="relative min-w-0 flex-1">
@@ -786,9 +749,9 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             )}
           </div>
           {categories && !q && (
-            <nav aria-label="Categorías" className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0" style={{ scrollbarWidth: "none" }}>
+            <nav aria-label="Categorías" className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" style={{ scrollbarWidth: "none" }}>
               {shelves.map((c) => (
-                <button key={c.id} id={`caja-chip-${c.slug}`} type="button" aria-current={c.slug === cat || undefined} onClick={() => jump(c.slug)} className={`p-press flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${c.slug === cat ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
+                <button key={c.id} id={`caja-chip-${c.slug}`} type="button" aria-current={c.slug === shelf?.slug || undefined} onClick={() => setCat(c.slug)} className={`p-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors sm:px-3.5 sm:py-2 sm:text-sm ${c.slug === shelf?.slug ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
                   {c.slug !== TOP_SLUG && <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${toneOf.get(c.slug)?.dot ?? ""}`} />}
                   {c.name}
                 </button>
@@ -805,20 +768,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             <div className={GRID}>{found.map(tile)}</div>
           </div>
         ) : (
-          shelves.map((c) => (
-            <section
-              key={c.id}
-              data-slug={c.slug}
-              ref={(el) => {
-                if (el) sections.current.set(c.slug, el);
-                else sections.current.delete(c.slug);
-              }}
-              className="mt-2 mb-3"
-            >
-              <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--p-muted)]">{c.name}</h2>
-              <div className={GRID}>{c.products.map(tile)}</div>
-            </section>
-          ))
+          shelf && <div className={`mt-2 ${GRID}`}>{shelf.products.map(tile)}</div>
         )}
         <p className="mt-2 hidden text-center text-xs text-[var(--p-muted)] sm:block">Mantén pulsado un producto para ver su foto y sus ingredientes.</p>
       </div>
