@@ -66,7 +66,8 @@ export function invalidLine(item: unknown): boolean {
   );
 }
 
-export async function priceOrderItems(tenantId: string, items: OrderLineInput[], opts: { allowDiscount?: boolean } = {}): Promise<PricedItems | { error: string }> {
+// opts.online: pedido de la tienda online → se cobra el «Precio en la web» si el producto lo tiene.
+export async function priceOrderItems(tenantId: string, items: OrderLineInput[], opts: { allowDiscount?: boolean; online?: boolean } = {}): Promise<PricedItems | { error: string }> {
   const productIds = [...new Set(items.map((i) => i.productId))];
   const groupsSelect = {
     orderBy: { sortOrder: "asc" as const },
@@ -90,18 +91,20 @@ export async function priceOrderItems(tenantId: string, items: OrderLineInput[],
     },
   };
   const available = { tenantId: tenantId, isActive: true, isAvailable: true, stockOut: false };
-  const products = await prisma.product.findMany({
+  const found = await prisma.product.findMany({
     where: { ...available, id: { in: productIds } },
     select: {
       id: true,
       name: true,
       basePriceCents: true,
+      onlinePriceCents: true,
       categoryId: true,
       isCombo: true,
       comboSlots: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, required: true, items: { select: { productId: true, extraCents: true } } } },
       modifierGroups: groupsSelect,
     },
   });
+  const products = found.map(({ onlinePriceCents, ...p }) => ({ ...p, basePriceCents: opts.online && onlinePriceCents != null ? onlinePriceCents : p.basePriceCents }));
 
   // Productos elegidos dentro de los combos (tienen que estar disponibles).
   const choiceIds = [...new Set(items.flatMap((i) => (i.comboChoices ?? []).map((c) => c.productId)))];

@@ -21,6 +21,7 @@ type Product = {
   name: string;
   description: string | null;
   basePriceCents: number;
+  onlinePriceCents?: number | null;
   imageUrl: string | null;
   isActive: boolean;
   isAvailable: boolean;
@@ -30,7 +31,7 @@ type Product = {
   sortOrder: number;
 };
 type Category = { id: string; name: string; products: Product[] };
-type FormData = { name: string; description: string; price: string; imageUrl: string; isActive: boolean; isAvailable: boolean; isFeatured: boolean; dietTags: DietTag[]; allergens: string[]; categoryId: string };
+type FormData = { name: string; description: string; price: string; webPrice: string; imageUrl: string; isActive: boolean; isAvailable: boolean; isFeatured: boolean; dietTags: DietTag[]; allergens: string[]; categoryId: string };
 
 const fmt = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
 const toEuros = (c: number) => fmt.format(c / 100);
@@ -131,12 +132,12 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
   function openEdit(p: Product, categoryId: string) {
     setFormError("");
     expand(categoryId);
-    setEditing({ product: p, form: { name: p.name, description: p.description ?? "", price: priceText(p.basePriceCents), imageUrl: p.imageUrl ?? "", isActive: p.isActive, isAvailable: p.isAvailable, isFeatured: p.isFeatured, dietTags: p.dietTags ?? [], allergens: p.allergens ?? [], categoryId } });
+    setEditing({ product: p, form: { name: p.name, description: p.description ?? "", price: priceText(p.basePriceCents), webPrice: p.onlinePriceCents != null ? priceText(p.onlinePriceCents) : "", imageUrl: p.imageUrl ?? "", isActive: p.isActive, isAvailable: p.isAvailable, isFeatured: p.isFeatured, dietTags: p.dietTags ?? [], allergens: p.allergens ?? [], categoryId } });
   }
   function openNew(categoryId: string) {
     setFormError("");
     expand(categoryId);
-    setEditing({ product: null, form: { name: "", description: "", price: "", imageUrl: "", isActive: true, isAvailable: true, isFeatured: false, dietTags: [], allergens: [], categoryId } });
+    setEditing({ product: null, form: { name: "", description: "", price: "", webPrice: "", imageUrl: "", isActive: true, isAvailable: true, isFeatured: false, dietTags: [], allergens: [], categoryId } });
   }
 
   async function save() {
@@ -145,10 +146,13 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
     const cents = parsePrice(f.price);
     if (!f.name.trim()) return setFormError("Ponle un nombre al producto.");
     if (cents == null) return setFormError("Escribe el precio en euros, por ejemplo 12,50.");
+    // Precio en la web: vacío = el mismo que en el local.
+    const webCents = f.webPrice.trim() ? parsePrice(f.webPrice) : null;
+    if (f.webPrice.trim() && webCents == null) return setFormError("Escribe el precio de la web en euros, por ejemplo 13,50, o déjalo vacío.");
     setSaving(true);
     setFormError("");
     try {
-      const payload = { name: f.name.trim(), description: f.description, basePriceCents: cents, imageUrl: f.imageUrl, isActive: f.isActive, isAvailable: f.isAvailable, isFeatured: f.isFeatured, dietTags: f.dietTags, allergens: f.allergens, categoryId: f.categoryId };
+      const payload = { name: f.name.trim(), description: f.description, basePriceCents: cents, onlinePriceCents: webCents === cents ? null : webCents, imageUrl: f.imageUrl, isActive: f.isActive, isAvailable: f.isAvailable, isFeatured: f.isFeatured, dietTags: f.dietTags, allergens: f.allergens, categoryId: f.categoryId };
       const url = editing.product ? `/api/admin/${tenant}/products/${editing.product.id}` : `/api/admin/${tenant}/products`;
       const res = await fetch(url, { method: editing.product ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) {
@@ -361,6 +365,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                           </p>
                           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--p-muted)]">
                             <span className="font-semibold tabular-nums text-[var(--p-ink)]">{toEuros(p.basePriceCents)}</span>
+                            {p.onlinePriceCents != null && <span className="rounded-full bg-[var(--p-brand-soft)] px-2 py-0.5 font-semibold text-[var(--p-brand)] tabular-nums">Web {toEuros(p.onlinePriceCents)}</span>}
                             {q && <span>· {p._cat.name}</span>}
                             {!p.isAvailable && <span className="rounded-full bg-[var(--p-accent-soft)] px-2 py-0.5 font-semibold text-[var(--p-accent)]">Agotado</span>}
                             {!p.isActive && <span className="rounded-full bg-black/[0.06] px-2 py-0.5 font-semibold">Oculto en la tienda</span>}
@@ -426,6 +431,14 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                     </div>
                   </label>
                   <label className="block text-sm font-medium">
+                    Precio en la web <span className="font-normal text-[var(--p-muted)]">(opcional)</span>
+                    <div className="relative">
+                      <input value={f.webPrice} onChange={(e) => setF({ webPrice: e.target.value.replace(/[^\d,.]/g, "") })} inputMode="decimal" placeholder={f.price || "Igual"} className={`${input} pr-8 text-right tabular-nums`} />
+                      <span className="pointer-events-none absolute right-3 top-1/2 mt-0.5 -translate-y-1/2 text-[var(--p-muted)]">€</span>
+                    </div>
+                    <span className="mt-1 block text-xs font-normal text-[var(--p-muted)]">Lo que se cobra en la tienda online. Vacío = el mismo precio.</span>
+                  </label>
+                  <label className="block text-sm font-medium sm:col-span-2">
                     Categoría
                     <select value={f.categoryId} onChange={(e) => setF({ categoryId: e.target.value })} className={input}>
                       {categories.map((c) => (

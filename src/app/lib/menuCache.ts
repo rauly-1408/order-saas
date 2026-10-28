@@ -26,6 +26,7 @@ function queryCategories(tenantId: string) {
           description: true,
           translations: true,
           basePriceCents: true,
+          onlinePriceCents: true,
           imageUrl: true,
           isFeatured: true,
           dietTags: true,
