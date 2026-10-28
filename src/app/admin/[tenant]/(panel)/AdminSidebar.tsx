@@ -154,6 +154,11 @@ export default function AdminSidebar({
   );
 
   if (inSettings) return null;
+  // En las pantallas de trabajo (Caja, Mesas) en tablet o TPV táctil, el menú se
+  // queda en una columna estrecha de iconos: el sitio es para los productos.
+  const rail = /\/(caja|mesas)(\/|$)/.test(pathname);
+  const railItem = rail ? "lg:flex-col lg:gap-0.5 lg:px-1 lg:py-1.5 lg:text-center lg:text-[10px] lg:leading-tight" : "";
+  const railHide = rail ? "lg:hidden" : ""; // en la columna estrecha, solo lo del día a día
 
   return (
     <>
@@ -171,19 +176,19 @@ export default function AdminSidebar({
 
       {/* Escritorio: barra fija. Móvil: panel deslizante. */}
       <aside
-        className={`p-glass fixed inset-y-0 left-0 z-50 flex h-screen w-64 min-w-64 flex-col border-r border-[var(--p-line)] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+        className={`p-glass fixed inset-y-0 left-0 z-50 flex h-screen w-64 min-w-64 flex-col border-r border-[var(--p-line)] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${rail ? "lg:w-[84px] lg:min-w-[84px]" : ""} ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center gap-3 px-5 pt-6 pb-5">
+        <div className={`flex items-center gap-3 px-5 pt-6 pb-5 ${rail ? "lg:justify-center lg:px-0 lg:pt-4 lg:pb-3" : ""}`}>
           {brandMark}
-          <div className="min-w-0">
+          <div className={`min-w-0 ${rail ? "lg:hidden" : ""}`}>
             <div className="truncate text-[15px] font-semibold">{tenantName}</div>
             <div className="text-xs text-[var(--p-muted)]">Panel del restaurante</div>
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3">
+        <nav className={`flex-1 overflow-y-auto px-3 ${rail ? "lg:px-1.5" : ""}`}>
           <ul className="space-y-0.5">
             {nav.map((item) => {
               const active = isActive(item);
@@ -192,7 +197,7 @@ export default function AdminSidebar({
                   <Link
                     href={item.href}
                     onClick={() => setOpen(false)}
-                    className={`p-press flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] ${
+                    className={`p-press flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] ${railItem} ${
                       active ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
                     }`}
                   >
@@ -207,13 +212,13 @@ export default function AdminSidebar({
           </ul>
         </nav>
 
-        <div className="space-y-0.5 border-t border-[var(--p-line)] px-3 py-3">
+        <div className={`space-y-0.5 border-t border-[var(--p-line)] px-3 py-3 ${rail ? "lg:px-1.5" : ""}`}>
           {/* Configuración abajo, separada del trabajo diario (como Shopify) */}
           {canManage && (
             <Link
               href={`/admin/${tenant}/configuracion`}
               onClick={() => setOpen(false)}
-              className={`p-press flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] ${
+              className={`p-press flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] ${railItem} ${
                 pathname.startsWith(`/admin/${tenant}/configuracion`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
               }`}
             >
@@ -223,20 +228,22 @@ export default function AdminSidebar({
               Configuración
             </Link>
           )}
-          <InstallApp className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
-          <Link href={`/pedir/${tenant}`} target="_blank" className="p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
+          <div className={rail ? "lg:hidden" : ""}>
+            <InstallApp className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
+          </div>
+          <Link href={`/pedir/${tenant}`} target="_blank" className={`p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04] ${railHide}`}>
             <Icon name="external" />
             Ver carta pública
           </Link>
           <Link
             href={`/admin/${tenant}/cuenta`}
             onClick={() => setOpen(false)}
-            className={`p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] hover:bg-black/[0.04] ${pathname.startsWith(`/admin/${tenant}/cuenta`) ? "font-medium text-[var(--p-ink)]" : "text-[var(--p-muted)]"}`}
+            className={`p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] hover:bg-black/[0.04] ${railHide} ${pathname.startsWith(`/admin/${tenant}/cuenta`) ? "font-medium text-[var(--p-ink)]" : "text-[var(--p-muted)]"}`}
           >
             <Icon name="users" />
             Mi cuenta
           </Link>
-          <button onClick={handleLogout} className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
+          <button onClick={handleLogout} className={`p-press flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04] ${railItem}`}>
             <Icon name="logout" />
             Cerrar sesión
           </button>
