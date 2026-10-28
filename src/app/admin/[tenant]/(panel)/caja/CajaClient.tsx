@@ -478,7 +478,8 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             <p className="mt-1 max-w-[240px] text-sm text-[var(--p-muted)]">Toca un producto de la carta para añadirlo aquí.</p>
             {/* Entre pedido y pedido: lo recaudado hoy, en grande y sin tener que buscarlo. */}
             {canSeeTakings && hoy && (
-              <button type="button" onClick={() => setHoyOpen(true)} className="p-press mt-6 w-full rounded-2xl bg-[var(--p-bg)] p-4 text-left">
+              <div className="relative mt-6 w-full">
+              <button type="button" onClick={() => setHoyOpen(true)} className="p-press w-full rounded-2xl bg-[var(--p-bg)] p-4 text-left">
                 <p className="text-xs font-semibold uppercase tracking-wide text-[var(--p-muted)]">Recaudado hoy</p>
                 <p className="text-3xl font-semibold tabular-nums tracking-tight">{money(hoy.totalCents - hoy.pendingCents)}</p>
                 <p className="mt-0.5 text-xs text-[var(--p-muted)]">
@@ -498,6 +499,11 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                 )}
                 <p className="mt-3 text-xs font-semibold text-[var(--p-brand)]">Ver el detalle ›</p>
               </button>
+              {/* El ojo tapa los importes (••••) cuando hay alguien mirando. */}
+              <button type="button" onClick={toggleHide} aria-pressed={hideTakings} aria-label={hideTakings ? "Mostrar importes" : "Ocultar importes"} title={hideTakings ? "Mostrar importes" : "Ocultar importes"} className="p-press absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--p-surface)] text-[var(--p-muted)] shadow-sm">
+                <EyeIcon off={hideTakings} />
+              </button>
+              </div>
             )}
             {/* Lo aparcado, donde se mira: un toque y vuelve al ticket para cobrarlo. */}
             {parked.length > 0 && (
