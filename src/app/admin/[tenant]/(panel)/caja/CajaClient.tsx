@@ -8,6 +8,7 @@ import ComboSheet, { type ComboProduct } from "@/app/pedir/[tenant]/ComboSheet";
 import { modifierLabels, type MenuModifierGroup, type OrderLineModifier } from "@/app/lib/menuOptions";
 import { comboChoicesKey, type ChoiceProduct, type ComboChoice, type ComboSlotDef } from "@/app/lib/combos";
 import type { HoyPayment, HoyResponse } from "@/app/api/admin/[tenant]/caja/hoy/route";
+import type { TopResponse } from "@/app/api/admin/[tenant]/caja/top/route";
 import CashSessionSheet, { type CashState } from "./CashSessionSheet";
 import { STORE_VARS } from "../storeVars";
 import { OUTBOX_SENT, loadLocal, saveLocal, sendOrQueue } from "../outbox";
@@ -34,6 +35,20 @@ const MODE_LABEL: Record<Mode, string> = { TAKEAWAY: "Para llevar", DINE_IN: "Co
 const PAYMENT_LABEL: Record<Payment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", IN_STORE: "Pagar al recoger" };
 const HOY_PAYMENT_LABEL: Record<HoyPayment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
 const STATUS_LABEL: Record<string, string> = { OPEN: "Mesa abierta", CREATED: "Nuevo", PAID: "Nuevo", SENT_TO_POS: "Nuevo", ACCEPTED: "Preparando", PREPARING: "Preparando", READY: "Listo", DELIVERING: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
+// Color por categoría (siempre el mismo para la misma): la mano aprende dónde está
+// cada cosa sin leer. Clases completas para que Tailwind las genere.
+const TONES = [
+  { tile: "bg-emerald-100 text-emerald-950", ring: "ring-emerald-800", dot: "bg-emerald-500" },
+  { tile: "bg-orange-100 text-orange-950", ring: "ring-orange-800", dot: "bg-orange-500" },
+  { tile: "bg-sky-100 text-sky-950", ring: "ring-sky-800", dot: "bg-sky-500" },
+  { tile: "bg-violet-100 text-violet-950", ring: "ring-violet-800", dot: "bg-violet-500" },
+  { tile: "bg-rose-100 text-rose-950", ring: "ring-rose-800", dot: "bg-rose-500" },
+  { tile: "bg-amber-100 text-amber-950", ring: "ring-amber-800", dot: "bg-amber-500" },
+  { tile: "bg-fuchsia-100 text-fuchsia-950", ring: "ring-fuchsia-800", dot: "bg-fuchsia-500" },
+  { tile: "bg-lime-100 text-lime-950", ring: "ring-lime-800", dot: "bg-lime-500" },
+];
+const TOP_SLUG = "mas-vendidos";
+const GRID = "grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5";
 const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
 // Importes rápidos para el efectivo: el justo y los billetes que lo cubren.
@@ -181,22 +196,63 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   // Productos simples de la carta: lo que se puede elegir dentro de un menú.
   const catalog = useMemo(() => new Map<string, ChoiceProduct>((categories ?? []).flatMap((c) => c.products.filter((p) => !p.isCombo).map((p) => [p.id, { id: p.id, name: p.name, modifierGroups: p.modifierGroups }]))), [categories]);
 
+  // «Más vendidos»: se carga al entrar y no cambia durante el turno, para que los
+  // botones no se muevan bajo los dedos.
+  const [top, setTop] = useState<string[]>([]);
+  useEffect(() => {
+    fetch(`/api/admin/${tenant}/caja/top`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setTop((d as TopResponse).productIds))
+      .catch(() => {});
+  }, [tenant]);
+  const shelves = useMemo(() => {
+    if (!categories) return [];
+    const byId = new Map(categories.flatMap((c) => c.products.map((p) => [p.id, p] as const)));
+    const best = top.flatMap((id) => byId.get(id) ?? []);
+    return [...(best.length ? [{ id: TOP_SLUG, slug: TOP_SLUG, name: "Más vendidos", products: best }] : []), ...categories.filter((c) => c.products.length)];
+  }, [categories, top]);
+  const toneOf = useMemo(() => {
+    const m = new Map<string, (typeof TONES)[number]>();
+    (categories ?? []).forEach((c, i) => {
+      m.set(c.slug, TONES[i % TONES.length]);
+      c.products.forEach((p) => m.set(p.id, TONES[i % TONES.length]));
+    });
+    return m;
+  }, [categories]);
+
+  // Mantener pulsado un producto enseña su foto y sus ingredientes (para quien
+  // aún no se sabe la carta); un toque normal lo añade.
+  const [peek, setPeek] = useState<Product | null>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressed = useRef(false);
+  function startPress(p: Product) {
+    longPressed.current = false;
+    pressTimer.current = setTimeout(() => {
+      longPressed.current = true;
+      setPeek(p);
+    }, 450);
+  }
+  function endPress() {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+  }
+
   // Toda la carta seguida, por secciones: las categorías saltan a la suya y se
   // marcan solas al desplazarse (como en la tienda).
-  const head = useRef<HTMLElement>(null);
+  const head = useRef<HTMLDivElement>(null);
   const sections = useRef(new Map<string, HTMLElement>());
   useEffect(() => {
-    if (!categories) return;
+    if (!shelves.length) return;
     const io = new IntersectionObserver(
       (entries) => {
-        const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (top) setCat((top.target as HTMLElement).dataset.slug ?? "");
+        const first = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (first) setCat((first.target as HTMLElement).dataset.slug ?? "");
       },
       { rootMargin: "-200px 0px -55% 0px" }
     );
     sections.current.forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, [categories, query]);
+  }, [shelves, query]);
   // La categoría activa se ve en la barra (en el móvil se desplaza solo en horizontal,
   // sin interrumpir el desplazamiento de la carta).
   useEffect(() => {
@@ -353,28 +409,37 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     }
   }
 
-  // Azulejo de producto: foto, nombre y precio; el número dice cuántos van.
+  // Botón de producto: nombre y precio grandes, color de su categoría; el número
+  // dice cuántos van. Sin foto: caben el triple y se encuentran antes.
   const tile = (p: Product) => {
     const inOrder = lines.filter((l) => l.productId === p.id).reduce((a, l) => a + l.quantity, 0);
     const hasOptions = p.isCombo || p.modifierGroups.length > 0;
+    const t = toneOf.get(p.id) ?? TONES[0];
     return (
-      <button key={p.id} type="button" onClick={() => tap(p)} className={`p-press relative flex min-h-[124px] flex-col overflow-hidden rounded-2xl bg-[var(--p-surface)] text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-2 transition-shadow hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] ${inOrder ? "ring-[var(--p-brand)]" : "ring-transparent"}`}>
-        {p.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={p.imageUrl} alt="" loading="lazy" className="aspect-[16/10] w-full object-cover" />
-        ) : (
-          <div aria-hidden className="flex aspect-[16/10] w-full items-center justify-center bg-[var(--p-brand)]/10 text-2xl font-semibold text-[var(--p-brand)]/60">
-            {p.name.charAt(0)}
-          </div>
-        )}
-        <div className="flex flex-1 flex-col justify-between gap-1 p-3">
-          <span className="line-clamp-2 text-[15px] font-semibold leading-snug">{p.name}</span>
-          <span className="flex items-baseline justify-between gap-1.5 text-sm font-semibold tabular-nums">
-            {euros(p.basePriceCents)}
-            {hasOptions && <span className="rounded-full bg-[var(--p-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--p-muted)]">{p.isCombo ? "elegir menú" : "con opciones"}</span>}
-          </span>
-        </div>
-        {inOrder > 0 && <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--p-brand)] px-2 text-xs font-bold text-white shadow">{inOrder}</span>}
+      <button
+        key={p.id}
+        type="button"
+        title={p.description || undefined}
+        onClick={() => {
+          if (longPressed.current) {
+            longPressed.current = false;
+            return;
+          }
+          tap(p);
+        }}
+        onPointerDown={() => startPress(p)}
+        onPointerUp={endPress}
+        onPointerLeave={endPress}
+        onPointerCancel={endPress}
+        onContextMenu={(e) => e.preventDefault()}
+        className={`p-press relative flex min-h-[72px] select-none flex-col justify-between rounded-xl px-2.5 py-2 text-left ring-2 [-webkit-touch-callout:none] ${t.tile} ${inOrder ? t.ring : "ring-transparent"}`}
+      >
+        <span className={`line-clamp-2 text-[13px] font-semibold leading-tight sm:text-sm ${inOrder ? "pr-6" : ""}`}>{p.name}</span>
+        <span className="mt-1 flex items-baseline justify-between gap-1 text-[13px] font-semibold tabular-nums">
+          {euros(p.basePriceCents)}
+          {hasOptions && <span className="text-[11px] font-medium opacity-60">{p.isCombo ? "menú" : "+ opc."}</span>}
+        </span>
+        {inOrder > 0 && <span className="absolute right-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--p-ink)] px-1.5 text-xs font-bold text-white">{inOrder}</span>}
       </button>
     );
   };
@@ -661,94 +726,101 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     <div className="-mx-4 -mt-20 -mb-12 flex h-[100dvh] flex-col overflow-y-auto lg:-mx-10 lg:-mt-10 lg:flex-row lg:overflow-visible" style={STORE_VARS}>
       {/* Carta */}
       <div className="flex shrink-0 flex-col px-4 pt-20 pb-28 lg:min-h-0 lg:flex-1 lg:shrink lg:overflow-y-auto lg:px-8 lg:pt-0 lg:pb-8">
-        <div className="flex flex-wrap items-center gap-3 lg:pt-8">
-          <h1 className="text-2xl font-semibold tracking-tight">Caja</h1>
-          <div className="relative order-last min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-auto sm:max-w-sm">
-            <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--p-muted)]">
-              <SearchIcon />
-            </span>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="w-full rounded-full py-2.5 pl-9 pr-3 text-sm" />
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              loadCash();
-              setCashOpen(true);
-            }}
-            className={`p-press ml-auto flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:ml-0 ${cash && !cash.open ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)]"}`}
-          >
-            <span aria-hidden className={`h-2 w-2 rounded-full ${cash?.open ? "bg-emerald-500" : "bg-white/70"}`} />
-            {cash ? (cash.open ? "Caja abierta" : "Abrir caja") : "Caja"}
-          </button>
-          {parked.length > 0 && (
-            <button type="button" onClick={() => setParkedOpen(true)} className="p-press flex items-center gap-2 rounded-full bg-[var(--p-accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-              En espera · {parked.length}
-            </button>
-          )}
-          {canSeeTakings && (
-            <span className="flex items-center gap-1">
-            <button type="button" onClick={() => setHoyOpen(true)} title="Ver lo vendido hoy" className={`p-press flex items-center gap-2 rounded-full bg-[var(--p-surface)] px-4 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]`}>
-              <span className="text-[var(--p-muted)]">Hoy</span>
-              {hoy ? (
-                <>
-                  <span>
-                    {hoy.sales} {hoy.sales === 1 ? "venta" : "ventas"}
-                  </span>
-                  <span className="tabular-nums">{money(hoy.totalCents)}</span>
-                </>
-              ) : (
-                <span className="text-[var(--p-muted)]">…</span>
-              )}
-            </button>
-            <button type="button" onClick={toggleHide} aria-pressed={hideTakings} aria-label={hideTakings ? "Mostrar importes" : "Ocultar importes"} title={hideTakings ? "Mostrar importes" : "Ocultar importes"} className="p-press flex h-10 w-10 items-center justify-center rounded-full bg-[var(--p-surface)] text-[var(--p-muted)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-              <EyeIcon off={hideTakings} />
-            </button>
-            </span>
-          )}
-        </div>
         {cash && !cash.open && (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <span>La caja está cerrada. Ábrela con el efectivo del cajón para poder cuadrar al final del día.</span>
+          <div className="mb-1 flex items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 lg:mt-6">
+            <span>
+              La caja está cerrada<span className="hidden sm:inline">. Ábrela con el efectivo del cajón para poder cuadrar al final del día</span>.
+            </span>
             <button type="button" onClick={() => setCashOpen(true)} className="p-press rounded-full bg-amber-900 px-4 py-1.5 text-xs font-semibold text-white">
               Abrir caja
             </button>
           </div>
         )}
-        {error && !lines.length && step === "order" && <p className="mt-3 text-sm text-[var(--p-accent)]">{error}</p>}
-        {categories && !q && (
-          <nav ref={head} aria-label="Categorías" className="sticky top-14 z-20 -mx-4 mt-1 flex gap-2 overflow-x-auto bg-[var(--p-bg)]/95 px-4 py-2.5 backdrop-blur lg:top-0 lg:-mx-8 lg:flex-wrap lg:overflow-visible lg:px-8" style={{ scrollbarWidth: "none" }}>
-            {categories.filter((c) => c.products.length).map((c) => (
-              <button key={c.id} id={`caja-chip-${c.slug}`} type="button" aria-current={c.slug === cat || undefined} onClick={() => jump(c.slug)} className={`p-press shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${c.slug === cat ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
-                {c.name}
+        {/* Arriba, siempre a mano: buscador, estado de la caja, hoy y categorías */}
+        <div ref={head} className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)]/95 px-4 pt-2 pb-2 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8 lg:pt-6">
+          <h1 className="sr-only">Caja</h1>
+          <div className="flex items-center gap-1.5">
+            <div className="relative min-w-0 flex-1">
+              <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--p-muted)]">
+                <SearchIcon />
+              </span>
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="w-full rounded-full py-2.5 pl-9 pr-3 text-sm" />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                loadCash();
+                setCashOpen(true);
+              }}
+              className={`p-press flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:px-3 ${cash && !cash.open ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)]"}`}
+            >
+              <span aria-hidden className={`h-2 w-2 rounded-full ${cash?.open ? "bg-emerald-500" : "bg-white/70"}`} />
+              <span className="sm:hidden">Caja</span>
+              <span className="hidden sm:inline">{cash ? (cash.open ? "Caja abierta" : "Abrir caja") : "Caja"}</span>
+            </button>
+            {parked.length > 0 && (
+              <button type="button" onClick={() => setParkedOpen(true)} className="p-press shrink-0 rounded-full bg-[var(--p-accent)] px-3 py-2.5 text-sm font-semibold text-white">
+                <span className="sm:hidden">Espera {parked.length}</span>
+                <span className="hidden sm:inline">En espera · {parked.length}</span>
               </button>
-            ))}
-          </nav>
-        )}
+            )}
+            {canSeeTakings && (
+              <>
+                <button type="button" onClick={() => setHoyOpen(true)} title="Ver lo vendido hoy" className="p-press flex shrink-0 items-center gap-1 rounded-full bg-[var(--p-surface)] px-2.5 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:gap-1.5 sm:px-3">
+                  <span className="text-[var(--p-muted)]">Hoy</span>
+                  {hoy ? (
+                    <>
+                      <span className="hidden sm:inline">
+                        {hoy.sales} {hoy.sales === 1 ? "venta" : "ventas"}
+                      </span>
+                      <span className="tabular-nums">{money(hoy.totalCents)}</span>
+                    </>
+                  ) : (
+                    <span className="text-[var(--p-muted)]">…</span>
+                  )}
+                </button>
+                <button type="button" onClick={toggleHide} aria-pressed={hideTakings} aria-label={hideTakings ? "Mostrar importes" : "Ocultar importes"} title={hideTakings ? "Mostrar importes" : "Ocultar importes"} className="p-press hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--p-surface)] text-[var(--p-muted)] shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:flex">
+                  <EyeIcon off={hideTakings} />
+                </button>
+              </>
+            )}
+          </div>
+          {categories && !q && (
+            <nav aria-label="Categorías" className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0" style={{ scrollbarWidth: "none" }}>
+              {shelves.map((c) => (
+                <button key={c.id} id={`caja-chip-${c.slug}`} type="button" aria-current={c.slug === cat || undefined} onClick={() => jump(c.slug)} className={`p-press flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${c.slug === cat ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
+                  {c.slug !== TOP_SLUG && <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${toneOf.get(c.slug)?.dot ?? ""}`} />}
+                  {c.name}
+                </button>
+              ))}
+            </nav>
+          )}
+        </div>
+        {error && !lines.length && step === "order" && <p className="mt-2 text-sm text-[var(--p-accent)]">{error}</p>}
         {!categories ? (
           <p className="py-10 text-center text-sm text-[var(--p-muted)]">Cargando la carta…</p>
         ) : q ? (
           <div className="mt-1">
             <p className="mb-2 text-xs text-[var(--p-muted)]">{found.length ? `${found.length} ${found.length === 1 ? "resultado" : "resultados"}` : `Nada con «${query.trim()}».`}</p>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">{found.map(tile)}</div>
+            <div className={GRID}>{found.map(tile)}</div>
           </div>
         ) : (
-          categories
-            .filter((c) => c.products.length)
-            .map((c) => (
-              <section
-                key={c.id}
-                data-slug={c.slug}
-                ref={(el) => {
-                  if (el) sections.current.set(c.slug, el);
-                  else sections.current.delete(c.slug);
-                }}
-                className="mt-2 mb-4"
-              >
-                <h2 className="mb-2 text-sm font-semibold text-[var(--p-muted)]">{c.name}</h2>
-                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">{c.products.map(tile)}</div>
-              </section>
-            ))
+          shelves.map((c) => (
+            <section
+              key={c.id}
+              data-slug={c.slug}
+              ref={(el) => {
+                if (el) sections.current.set(c.slug, el);
+                else sections.current.delete(c.slug);
+              }}
+              className="mt-2 mb-3"
+            >
+              <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--p-muted)]">{c.name}</h2>
+              <div className={GRID}>{c.products.map(tile)}</div>
+            </section>
+          ))
         )}
+        <p className="mt-2 hidden text-center text-xs text-[var(--p-muted)] sm:block">Mantén pulsado un producto para ver su foto y sus ingredientes.</p>
       </div>
 
       {/* Ticket: columna en ordenador, hoja desde abajo en el móvil */}
@@ -766,25 +838,31 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                   </div>
                 </div>
               ) : (
-                lines.length ? (
-                  <button type="button" onClick={() => setSheetOpen(true)} className="p-press mx-4 mb-4 flex w-[calc(100%-32px)] items-center justify-between rounded-full bg-[var(--p-brand)] px-5 py-4 text-base font-semibold text-white shadow-lg">
-                    <span>Ver pedido · {count}</span>
-                    <span className="tabular-nums">{euros(subtotal)}</span>
-                  </button>
-                ) : canSeeTakings ? (
-                  // Sin pedido: la barra enseña lo recaudado hoy y abre el detalle.
-                  <button type="button" onClick={() => setHoyOpen(true)} className="p-press mx-4 mb-4 flex w-[calc(100%-32px)] items-center justify-between rounded-full bg-[var(--p-surface)] px-5 py-4 text-base font-semibold text-[var(--p-ink)] shadow-lg ring-1 ring-[var(--p-line)]">
-                    <span>
-                      Recaudado hoy
-                      {hoy && hoy.sales > 0 && <span className="ml-1.5 text-sm font-medium text-[var(--p-muted)]">· {hoy.sales} {hoy.sales === 1 ? "pedido" : "pedidos"}</span>}
-                    </span>
-                    <span className="tabular-nums">{hoy ? money(hoy.totalCents - hoy.pendingCents) : "…"}</span>
-                  </button>
-                ) : (
-                  <button type="button" disabled className="mx-4 mb-4 flex w-[calc(100%-32px)] items-center justify-between rounded-full bg-[var(--p-brand)] px-5 py-4 text-base font-semibold text-white opacity-40 shadow-lg">
-                    <span>Pedido vacío</span>
-                    <span className="tabular-nums">{euros(0)}</span>
-                  </button>
+                lines.length > 0 && (
+                  // Cobrar a un toque; «Ver» abre el pedido para corregir algo.
+                  <div className="mx-4 mb-4 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep("order");
+                        setSheetOpen(true);
+                      }}
+                      className="p-press shrink-0 rounded-full bg-[var(--p-surface)] px-5 py-4 text-base font-semibold text-[var(--p-ink)] shadow-lg ring-1 ring-[var(--p-line)]"
+                    >
+                      Ver ({count})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep("pay");
+                        setSheetOpen(true);
+                      }}
+                      className="p-press flex min-w-0 flex-1 items-center justify-between rounded-full bg-[var(--p-brand)] px-5 py-4 text-base font-semibold text-white shadow-lg"
+                    >
+                      <span>Cobrar</span>
+                      <span className="tabular-nums">{euros(subtotal)}</span>
+                    </button>
+                  </div>
                 )
               )}
             </div>
@@ -825,6 +903,37 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                       );
                     })}
                   </ul>
+                </div>
+              </div>
+            )}
+            {peek && (
+              <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label={peek.name}>
+                <button type="button" aria-label="Cerrar" onClick={() => setPeek(null)} className="absolute inset-0 bg-black/40" />
+                <div className="relative w-full overflow-hidden rounded-t-[24px] bg-[var(--p-surface)] pb-[max(16px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-sm lg:rounded-[24px] lg:pb-0">
+                  {peek.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={peek.imageUrl} alt="" className="aspect-[16/10] w-full object-cover" />
+                  )}
+                  <div className="p-4">
+                    <p className="text-lg font-semibold">{peek.name}</p>
+                    {peek.description && <p className="mt-1 text-sm text-[var(--p-muted)]">{peek.description}</p>}
+                    <div className="mt-4 flex gap-2">
+                      <button type="button" onClick={() => setPeek(null)} className="p-press shrink-0 rounded-full bg-black/[0.06] px-5 py-3.5 text-sm font-semibold">
+                        Cerrar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const p = peek;
+                          setPeek(null);
+                          tap(p);
+                        }}
+                        className="p-press flex min-w-0 flex-1 items-center justify-center rounded-full bg-[var(--p-brand)] py-3.5 text-sm font-semibold text-white"
+                      >
+                        Añadir · {euros(peek.basePriceCents)}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
