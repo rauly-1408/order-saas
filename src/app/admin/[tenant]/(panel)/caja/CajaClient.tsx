@@ -63,7 +63,7 @@ function tonesFor(names: string[]): Tone[] {
   return names.map((n) => NAMED.find(([re]) => re.test(plain(n)))?.[1] ?? SPARE[spare++ % SPARE.length]);
 }
 const TOP_SLUG = "mas-vendidos";
-const GRID = "grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5";
+const GRID = "grid grid-cols-3 gap-1.5 sm:grid-cols-4 xl:grid-cols-5";
 const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
 // Importes rápidos para el efectivo: el justo y los billetes que lo cubren.
@@ -429,14 +429,14 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Pedido</h2>
         {lines.length > 0 && (
-          <button type="button" onClick={() => setLines([])} className="rounded-full px-3 py-1 text-xs font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
+          <button type="button" onClick={() => setLines([])} className="min-h-10 rounded-full px-3 text-xs font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
             Vaciar
           </button>
         )}
       </div>
       <div className="mt-3 flex gap-1.5 rounded-xl bg-black/[0.05] p-1" role="radiogroup" aria-label="Tipo de pedido">
         {(Object.keys(MODE_LABEL) as Mode[]).map((m) => (
-          <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`flex-1 rounded-lg py-2 text-[13px] font-semibold outline-none transition-colors ${mode === m ? "bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.06)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
+          <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`min-h-11 flex-1 rounded-lg text-[13px] font-semibold outline-none transition-colors ${mode === m ? "bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.06)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
             {MODE_LABEL[m]}
           </button>
         ))}
@@ -445,7 +445,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         <span className="text-xs text-[var(--p-muted)]">¿Cómo llega?</span>
         <div className="flex gap-1 rounded-full bg-black/[0.05] p-0.5" role="radiogroup" aria-label="Origen del pedido">
           {(["COUNTER", "PHONE"] as const).map((s) => (
-            <button key={s} type="button" role="radio" aria-checked={source === s} onClick={() => setSource(s)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${source === s ? "bg-white text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.15)]" : "text-[var(--p-muted)]"}`}>
+            <button key={s} type="button" role="radio" aria-checked={source === s} onClick={() => setSource(s)} className={`min-h-10 rounded-full px-3 text-xs font-semibold ${source === s ? "bg-white text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.15)]" : "text-[var(--p-muted)]"}`}>
               {s === "COUNTER" ? "En el mostrador" : "Por teléfono"}
             </button>
           ))}
@@ -461,6 +461,28 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             </span>
             <p className="mt-3 text-[15px] font-semibold">Pedido vacío</p>
             <p className="mt-1 max-w-[240px] text-sm text-[var(--p-muted)]">Toca un producto de la carta para añadirlo aquí.</p>
+            {/* Lo aparcado, donde se mira: un toque y vuelve al ticket para cobrarlo. */}
+            {parked.length > 0 && (
+              <div className="mt-6 w-full text-left">
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--p-accent)]">En espera · {parked.length}</p>
+                <ul className="space-y-1.5">
+                  {parked.map((p) => (
+                    <li key={p.id}>
+                      <button type="button" onClick={() => restore(p.id)} className="p-press flex min-h-14 w-full items-center gap-3 rounded-xl bg-[var(--p-bg)] px-3 py-2 text-left">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold">
+                            {p.label} <span className="font-normal text-[var(--p-muted)]">· {hourOf(p.savedAt)}</span>
+                          </span>
+                          <span className="block truncate text-xs text-[var(--p-muted)]">{p.lines.map((l) => `${l.quantity}× ${l.name}`).join(", ")}</span>
+                        </span>
+                        <span className="shrink-0 text-sm font-semibold tabular-nums">{euros(p.lines.reduce((a, l) => a + lineTotal(l), 0))}</span>
+                        <span className="shrink-0 rounded-full bg-[var(--p-brand)] px-3 py-1.5 text-xs font-semibold text-white">Seguir</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </li>
         )}
         {lines.map((l) => {
@@ -481,11 +503,11 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                   </p>
                 </button>
                 <div className="flex items-center rounded-full bg-black/[0.05]">
-                  <button type="button" onClick={() => setQty(l.key, l.quantity - 1)} aria-label={l.quantity === 1 ? "Quitar" : "Quitar uno"} className="p-press flex h-10 w-10 items-center justify-center rounded-full text-lg leading-none">
+                  <button type="button" onClick={() => setQty(l.key, l.quantity - 1)} aria-label={l.quantity === 1 ? "Quitar" : "Quitar uno"} className="p-press flex h-11 w-11 items-center justify-center rounded-full text-lg leading-none">
                     {l.quantity === 1 ? <TrashIcon /> : "−"}
                   </button>
                   <span className="w-6 text-center text-sm font-semibold tabular-nums">{l.quantity}</span>
-                  <button type="button" onClick={() => setQty(l.key, l.quantity + 1)} aria-label="Añadir uno" className="p-press flex h-10 w-10 items-center justify-center rounded-full text-lg leading-none">
+                  <button type="button" onClick={() => setQty(l.key, l.quantity + 1)} aria-label="Añadir uno" className="p-press flex h-11 w-11 items-center justify-center rounded-full text-lg leading-none">
                     +
                   </button>
                 </div>
@@ -539,7 +561,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
       {lines.length > 0 && !editing && <p className="pt-1 text-center text-[11px] text-[var(--p-muted)]">Toca un producto del pedido para añadir una nota{canDiscount ? " o un descuento" : ""}.</p>}
 
       <div className="mt-2 border-t border-[var(--p-line)] pt-3">
-        <button type="button" onClick={() => setDetailsOpen((v) => !v)} aria-expanded={detailsOpen} className="flex w-full items-center justify-between rounded-lg py-1.5 text-left text-sm hover:bg-black/[0.03]">
+        <button type="button" onClick={() => setDetailsOpen((v) => !v)} aria-expanded={detailsOpen} className="flex min-h-11 w-full items-center justify-between rounded-lg text-left text-sm hover:bg-black/[0.03]">
           <span className={detailsSummary ? "truncate font-medium" : "text-[var(--p-muted)]"}>{detailsSummary || collabs.length ? "＋ Cliente, cupón, colaborador o nota" : "＋ Cliente, cupón o nota para cocina"}</span>
           <span className="ml-2 shrink-0 text-xs text-[var(--p-muted)]">{detailsOpen ? "Ocultar" : "Editar"}</span>
         </button>
@@ -583,7 +605,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   // ── Pantalla 2: el cobro ────────────────────────────────────────────────
   const payView = (
     <div className="flex h-full flex-col">
-      <button type="button" onClick={() => setStep("order")} className="-ml-2 flex items-center gap-1 self-start rounded-full px-2 py-1 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
+      <button type="button" onClick={() => setStep("order")} className="-ml-2 flex min-h-11 items-center gap-1 self-start rounded-full px-3 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
         ‹ Volver al pedido
       </button>
       <div className="mt-2 text-center">
@@ -620,14 +642,14 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           </div>
           <div className="mt-2 flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {quickAmounts(subtotal).map((c, i) => (
-              <button key={c} type="button" onClick={() => setTendered((c / 100).toFixed(2).replace(".", ","))} className="p-press shrink-0 rounded-full bg-black/[0.05] px-3.5 py-2 text-sm font-semibold tabular-nums">
+              <button key={c} type="button" onClick={() => setTendered((c / 100).toFixed(2).replace(".", ","))} className="p-press min-h-11 shrink-0 rounded-full bg-black/[0.05] px-4 text-sm font-semibold tabular-nums">
                 {i === 0 ? "Justo" : euros(c).replace(/,00/, "")}
               </button>
             ))}
           </div>
           <div className="mt-2 grid grid-cols-3 gap-1.5" aria-label="Teclado">
             {["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"].map((k) => (
-              <button key={k} type="button" onClick={() => keypad(k)} aria-label={k === "⌫" ? "Borrar" : k === "," ? "Coma" : k} className="p-press rounded-xl bg-[var(--p-bg)] py-3 text-xl font-medium tabular-nums">
+              <button key={k} type="button" onClick={() => keypad(k)} aria-label={k === "⌫" ? "Borrar" : k === "," ? "Coma" : k} className="p-press min-h-12 rounded-xl bg-[var(--p-bg)] text-xl font-medium tabular-nums">
                 {k}
               </button>
             ))}
@@ -704,7 +726,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     // ordenador, solo la carta): así la barra de categorías se queda fija arriba.
     <div className="-mx-4 -mt-20 -mb-12 flex h-[100dvh] flex-col overflow-y-auto lg:-mx-10 lg:-mt-10 lg:flex-row lg:overflow-visible" style={STORE_VARS}>
       {/* Carta */}
-      <div className="flex shrink-0 flex-col px-4 pt-20 pb-28 lg:min-h-0 lg:flex-1 lg:shrink lg:overflow-y-auto lg:px-8 lg:pt-0 lg:pb-8">
+      <div className="flex shrink-0 flex-col px-4 pt-20 pb-28 lg:min-h-0 lg:flex-1 lg:shrink lg:overflow-y-auto lg:px-5 lg:pt-0 lg:pb-8">
         {cash && !cash.open && (
           <div className="mb-1 flex items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 lg:mt-6">
             <span>
@@ -716,14 +738,14 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           </div>
         )}
         {/* Arriba, siempre a mano: buscador, estado de la caja, hoy y categorías */}
-        <div className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)]/95 px-4 pt-2 pb-2 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8 lg:pt-6">
+        <div className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)]/95 px-4 pt-2 pb-2 backdrop-blur lg:top-0 lg:-mx-5 lg:px-5 lg:pt-5">
           <h1 className="sr-only">Caja</h1>
           <div className="flex items-center gap-1.5">
             <div className="relative min-w-0 flex-1">
               <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--p-muted)]">
                 <SearchIcon />
               </span>
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="w-full rounded-full py-2.5 pl-9 pr-3 text-sm" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="h-11 w-full rounded-full pl-9 pr-3 text-sm" />
             </div>
             <button
               type="button"
@@ -731,25 +753,25 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                 loadCash();
                 setCashOpen(true);
               }}
-              className={`p-press flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:px-3 ${cash && !cash.open ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)]"}`}
+              className={`p-press flex shrink-0 items-center gap-1.5 rounded-full px-2.5 min-h-11 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:px-3 ${cash && !cash.open ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)]"}`}
             >
               <span aria-hidden className={`h-2 w-2 rounded-full ${cash?.open ? "bg-emerald-500" : "bg-white/70"}`} />
               <span className="sm:hidden">Caja</span>
               <span className="hidden sm:inline">{cash ? (cash.open ? "Caja abierta" : "Abrir caja") : "Caja"}</span>
             </button>
             {parked.length > 0 && (
-              <button type="button" onClick={() => setParkedOpen(true)} className="p-press shrink-0 rounded-full bg-[var(--p-accent)] px-3 py-2.5 text-sm font-semibold text-white">
+              <button type="button" onClick={() => setParkedOpen(true)} className="p-press min-h-11 shrink-0 rounded-full bg-[var(--p-accent)] px-3 text-sm font-semibold text-white">
                 <span className="sm:hidden">Espera {parked.length}</span>
                 <span className="hidden sm:inline">En espera · {parked.length}</span>
               </button>
             )}
             {canSeeTakings && (
               <>
-                <button type="button" onClick={() => setHoyOpen(true)} title="Ver lo vendido hoy" className="p-press flex shrink-0 items-center gap-1 rounded-full bg-[var(--p-surface)] px-2.5 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:gap-1.5 sm:px-3">
+                <button type="button" onClick={() => setHoyOpen(true)} title="Ver lo vendido hoy" className="p-press flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-[var(--p-surface)] px-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:gap-1.5 sm:px-3">
                   <span className="text-[var(--p-muted)]">Hoy</span>
                   {hoy ? (
                     <>
-                      <span className="hidden sm:inline">
+                      <span className="hidden xl:inline">
                         {hoy.sales} {hoy.sales === 1 ? "venta" : "ventas"}
                       </span>
                       <span className="tabular-nums">{money(hoy.totalCents)}</span>
@@ -758,7 +780,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                     <span className="text-[var(--p-muted)]">…</span>
                   )}
                 </button>
-                <button type="button" onClick={toggleHide} aria-pressed={hideTakings} aria-label={hideTakings ? "Mostrar importes" : "Ocultar importes"} title={hideTakings ? "Mostrar importes" : "Ocultar importes"} className="p-press hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--p-surface)] text-[var(--p-muted)] shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:flex">
+                <button type="button" onClick={toggleHide} aria-pressed={hideTakings} aria-label={hideTakings ? "Mostrar importes" : "Ocultar importes"} title={hideTakings ? "Mostrar importes" : "Ocultar importes"} className="p-press hidden h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--p-surface)] text-[var(--p-muted)] shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:flex">
                   <EyeIcon off={hideTakings} />
                 </button>
               </>
@@ -767,7 +789,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           {categories && !q && (
             <nav aria-label="Categorías" className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" style={{ scrollbarWidth: "none" }}>
               {shelves.map((c) => (
-                <button key={c.id} id={`caja-chip-${c.slug}`} type="button" aria-current={c.slug === shelf?.slug || undefined} onClick={() => setCat(c.slug)} className={`p-press flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors sm:px-3.5 sm:py-2 sm:text-sm ${c.slug === shelf?.slug ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
+                <button key={c.id} id={`caja-chip-${c.slug}`} type="button" aria-current={c.slug === shelf?.slug || undefined} onClick={() => setCat(c.slug)} className={`p-press flex shrink-0 items-center gap-1.5 min-h-11 rounded-full px-3.5 text-sm font-semibold transition-colors ${c.slug === shelf?.slug ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
                   {c.slug !== TOP_SLUG && <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${toneOf.get(c.slug)?.dot ?? ""}`} />}
                   {c.name}
                 </button>
@@ -790,7 +812,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
       </div>
 
       {/* Ticket: columna en ordenador, hoja desde abajo en el móvil */}
-      <aside className="hidden w-[400px] shrink-0 border-l border-[var(--p-line)] bg-[var(--p-surface)] p-5 lg:block">{ticket}</aside>
+      <aside className="hidden w-[340px] shrink-0 border-l border-[var(--p-line)] bg-[var(--p-surface)] p-4 lg:block xl:w-[380px] xl:p-5">{ticket}</aside>
       {portal &&
         createPortal(
           <div style={STORE_VARS}>
@@ -830,6 +852,12 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                     </button>
                   </div>
                 )
+              )}
+              {!mobileSheet && lines.length === 0 && parked.length > 0 && (
+                <button type="button" onClick={() => setParkedOpen(true)} className="p-press mx-4 mb-4 flex w-[calc(100%-32px)] items-center justify-between rounded-full bg-[var(--p-accent)] px-5 py-4 text-base font-semibold text-white shadow-lg">
+                  <span>En espera ({parked.length})</span>
+                  <span className="text-sm font-medium">Seguir con uno ›</span>
+                </button>
               )}
             </div>
             {parkedOpen && (

@@ -13,7 +13,7 @@ Tres pantallas en el ticket, como en un TPV (Square, Shopify POS):
 
 **Cada línea se edita** (lo recuerda una línea bajo el pedido). Tocando el nombre de una línea se despliega: **nota para cocina** («sin cebolla»), **descuento** (−10 %, −50 %, invitación o un importe a mano) y «Quitar línea». La nota sale en la tarjeta de Pedidos y en el email de pedido nuevo; el descuento se resta en la línea y queda guardado en ella (`OrderLine.note`, `OrderLine.discountCents`). Solo la Caja puede aplicar descuentos: la tienda pública los ignora.
 
-**Pedidos en espera.** «Aparcar» guarda el pedido en curso (líneas, tipo, cliente, nota, cupón) y deja el ticket limpio; el botón «En espera · n» lo recupera o lo descarta. Si al recuperar uno hay otro a medias, ese se aparca solo. Se guardan en el dispositivo (localStorage), no en el servidor: un pedido aparcado en la tablet no se ve en el móvil.
+**Pedidos en espera.** «Aparcar» guarda el pedido en curso (líneas, tipo, cliente, nota, cupón) y deja el ticket limpio. Con el ticket vacío, los aparcados salen **en el propio ticket**, cada uno con «Seguir» (un toque y vuelve para cobrarlo); en el móvil, la barra de abajo muestra «En espera (n)». El botón «En espera · n» de arriba también los recupera o los descarta. Si al recuperar uno hay otro a medias, ese se aparca solo. Se guardan en el dispositivo (localStorage), no en el servidor: un pedido aparcado en la tablet no se ve en el móvil.
 
 **Cobro al entregar o al recoger.** Un pedido pendiente de cobro (online «al recoger / al entregar», o de Caja con «pagar al recoger») no se da por entregado sin apuntar el cobro: el botón pasa a «Entregado y cobrar» y pregunta **¿Cómo ha pagado? Efectivo / Datáfono / Bizum**. Si alguno se entregó sin apuntarlo, en Pedidos → Últimas 24 h aparece «Sin cobrar · apuntar» para registrarlo después. Así el resumen de caja y los informes cuadran con el dinero real.
 
@@ -32,6 +32,14 @@ Lo que debería haber = fondo + cobrado en efectivo desde la apertura + entradas
 En el móvil, con productos en el pedido, abajo hay dos botones: **«Ver (n)»** abre el pedido para corregir algo y **«Cobrar X €»** va directo a la pantalla de cobro (un toque menos). Sin pedido no hay barra. El cobro y la confirmación van en la misma hoja.
 
 Las promociones automáticas y los cupones se aplican igual que en la tienda. No hay propina ni tarjeta regalo en la Caja (de momento).
+
+## Pantallas táctiles
+
+El software se recomienda con pantalla táctil (tablet de 10–13″ en horizontal o TPV táctil de 15,6″). Por eso:
+- Todo lo que se toca en la Caja mide **44 px o más**: categorías, botones de arriba, tipo de pedido, cantidades, importes rápidos y teclado (48 px).
+- En **Caja y Mesas**, en pantallas de tablet o TPV (desde 1024 px), el menú lateral se queda en una **columna estrecha de iconos** (84 px). Fuera quedan «Ver carta pública», «Mi cuenta» e «Instalar», que están en las demás pantallas. El ticket mide 340 px (380 px desde 1280).
+- La botonera muestra 4 columnas a 1024 px y 5 desde 1280 px: en un TPV de 1366×768 las 24 bebidas caben sin desplazarse.
+- Los botones tienen `touch-action: manipulation`: dos toques rápidos suman dos y no hacen zoom.
 
 ## Entregas
 
