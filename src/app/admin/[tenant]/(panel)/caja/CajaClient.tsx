@@ -35,18 +35,33 @@ const MODE_LABEL: Record<Mode, string> = { TAKEAWAY: "Para llevar", DINE_IN: "Co
 const PAYMENT_LABEL: Record<Payment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", IN_STORE: "Pagar al recoger" };
 const HOY_PAYMENT_LABEL: Record<HoyPayment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
 const STATUS_LABEL: Record<string, string> = { OPEN: "Mesa abierta", CREATED: "Nuevo", PAID: "Nuevo", SENT_TO_POS: "Nuevo", ACCEPTED: "Preparando", PREPARING: "Preparando", READY: "Listo", DELIVERING: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
-// Color por categoría (siempre el mismo para la misma, ocho bien distintos): la mano
-// aprende dónde está cada cosa sin leer. Clases completas para que Tailwind las genere.
-const TONES = [
-  { tile: "bg-emerald-200 text-emerald-950", ring: "ring-emerald-900", dot: "bg-emerald-500" },
-  { tile: "bg-orange-200 text-orange-950", ring: "ring-orange-900", dot: "bg-orange-500" },
-  { tile: "bg-sky-200 text-sky-950", ring: "ring-sky-900", dot: "bg-sky-500" },
-  { tile: "bg-violet-200 text-violet-950", ring: "ring-violet-900", dot: "bg-violet-500" },
-  { tile: "bg-red-200 text-red-950", ring: "ring-red-900", dot: "bg-red-500" },
-  { tile: "bg-yellow-200 text-yellow-950", ring: "ring-yellow-900", dot: "bg-yellow-400" },
-  { tile: "bg-stone-200 text-stone-950", ring: "ring-stone-900", dot: "bg-stone-500" },
-  { tile: "bg-pink-200 text-pink-950", ring: "ring-pink-900", dot: "bg-pink-500" },
+// Color por categoría: los que eligió el restaurante, por el nombre de la
+// categoría (vegano verde, carne granate, mar celeste, burger rojo…); las que no
+// encajan toman uno libre. La mano aprende dónde está cada cosa sin leer.
+// Clases completas para que Tailwind las genere.
+type Tone = { tile: string; ring: string; dot: string; badge: string };
+const tone = (tile: string, ring: string, dot: string, badge = "bg-[var(--p-ink)] text-white"): Tone => ({ tile, ring, dot, badge });
+const NAMED: [RegExp, Tone][] = [
+  [/vegan|vegetal/, tone("bg-green-200 text-green-950", "ring-green-900", "bg-green-500")],
+  [/carne/, tone("bg-rose-900 text-white", "ring-rose-300", "bg-rose-900", "bg-white text-rose-950")],
+  [/mar|pescado/, tone("bg-sky-200 text-sky-950", "ring-sky-900", "bg-sky-400")],
+  [/burg/, tone("bg-red-200 text-red-950", "ring-red-900", "bg-red-500")],
+  [/men[uú]/, tone("bg-violet-200 text-violet-950", "ring-violet-900", "bg-violet-500")],
+  [/complement|entrante|racion/, tone("bg-yellow-200 text-yellow-950", "ring-yellow-900", "bg-yellow-400")],
+  [/bebida|refresco/, tone("bg-stone-200 text-stone-950", "ring-stone-900", "bg-stone-500")],
+  [/postre|dulce/, tone("bg-pink-200 text-pink-950", "ring-pink-900", "bg-pink-500")],
 ];
+const SPARE: Tone[] = [
+  tone("bg-orange-200 text-orange-950", "ring-orange-900", "bg-orange-500"),
+  tone("bg-teal-200 text-teal-950", "ring-teal-900", "bg-teal-500"),
+  tone("bg-indigo-200 text-indigo-950", "ring-indigo-900", "bg-indigo-500"),
+  tone("bg-lime-200 text-lime-950", "ring-lime-900", "bg-lime-500"),
+];
+const plain = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function tonesFor(names: string[]): Tone[] {
+  let spare = 0;
+  return names.map((n) => NAMED.find(([re]) => re.test(plain(n)))?.[1] ?? SPARE[spare++ % SPARE.length]);
+}
 const TOP_SLUG = "mas-vendidos";
 const GRID = "grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5";
 const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
@@ -210,10 +225,11 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     return [...(best.length ? [{ id: TOP_SLUG, slug: TOP_SLUG, name: "Más vendidos", products: best }] : []), ...categories.filter((c) => c.products.length)];
   }, [categories, top]);
   const toneOf = useMemo(() => {
-    const m = new Map<string, (typeof TONES)[number]>();
+    const m = new Map<string, Tone>();
+    const tones = tonesFor((categories ?? []).map((c) => c.name));
     (categories ?? []).forEach((c, i) => {
-      m.set(c.slug, TONES[i % TONES.length]);
-      c.products.forEach((p) => m.set(p.id, TONES[i % TONES.length]));
+      m.set(c.slug, tones[i]);
+      c.products.forEach((p) => m.set(p.id, tones[i]));
     });
     return m;
   }, [categories]);
@@ -380,7 +396,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   // dice cuántos van. Sin foto: caben el triple y se encuentran antes.
   const tile = (p: Product) => {
     const inOrder = lines.filter((l) => l.productId === p.id).reduce((a, l) => a + l.quantity, 0);
-    const t = toneOf.get(p.id) ?? TONES[0];
+    const t = toneOf.get(p.id) ?? SPARE[0];
     return (
       <button
         key={p.id}
@@ -402,7 +418,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
       >
         <span className={`line-clamp-2 text-[13px] font-semibold leading-tight sm:text-sm ${inOrder ? "pr-6" : ""}`}>{p.name}</span>
         <span className="mt-1 text-[13px] font-semibold tabular-nums">{euros(p.basePriceCents)}</span>
-        {inOrder > 0 && <span className="absolute right-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--p-ink)] px-1.5 text-xs font-bold text-white">{inOrder}</span>}
+        {inOrder > 0 && <span className={`absolute right-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold ${t.badge}`}>{inOrder}</span>}
       </button>
     );
   };
