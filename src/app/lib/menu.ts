@@ -18,7 +18,8 @@ import { allergenName, enabledLangs, tr, type Lang } from "@/app/lib/i18n";
 // /pedir directamente — las páginas NO deben llamarse a sí mismas por HTTP
 // (en Vercel esa auto-llamada fallaba en producción).
 // storeId: el local elegido por el cliente (sucursales); si no vale, el primero abierto al público.
-export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: string | null) {
+// online: carta de la tienda (precio web si lo hay); sin él, la de Caja y Mesas (precio del local).
+export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: string | null, opts: { online?: boolean } = {}) {
   const tenant = await prisma.tenant.findUnique({
     where: { slug: tenantSlug },
     select: { id: true, slug: true, name: true, branding: true, settings: true, addons: true },
@@ -58,8 +59,9 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
     ...cat,
     name: tr(catTr, lang, "name", cat.name),
     description: tr(catTr, lang, "description", cat.description),
-    products: cat.products.map(({ modifierGroups, recipeLines, translations: pTr, comboSlots, allergens: declared, ...product }) => ({
+    products: cat.products.map(({ modifierGroups, recipeLines, translations: pTr, comboSlots, allergens: declared, onlinePriceCents, ...product }) => ({
       ...product,
+      basePriceCents: opts.online && onlinePriceCents != null ? onlinePriceCents : product.basePriceCents,
       name: tr(pTr, lang, "name", product.name),
       description: tr(pTr, lang, "description", product.description ?? ""),
       // Los del escandallo más los declarados en Carta; las claves (en español) son para los iconos.

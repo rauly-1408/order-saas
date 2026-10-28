@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     after(() => revalidateMenu(tenant.id));
 
     const body = await req.json();
-    const { name, description, basePriceCents, categoryId, imageUrl, isActive, isAvailable, isFeatured, dietTags, allergens, sortOrder } = body;
+    const { name, description, basePriceCents, categoryId, imageUrl, isActive, isAvailable, isFeatured, dietTags, allergens, onlinePriceCents, sortOrder } = body;
 
     if (!name?.trim() || typeof basePriceCents !== "number" || !categoryId) {
       return NextResponse.json({ error: "Faltan campos requeridos: name, basePriceCents, categoryId" }, { status: 400 });
@@ -38,6 +38,9 @@ export async function POST(req: NextRequest) {
     // Verificar que la categoría pertenece al tenant
     const category = await prisma.category.findFirst({ where: { id: categoryId, tenantId: tenant.id } });
     if (!category) return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
+    // Precio en la web: null = el mismo que en el local.
+    const webPrice = onlinePriceCents === null || onlinePriceCents === undefined ? null : Number.isInteger(onlinePriceCents) && onlinePriceCents >= 0 && onlinePriceCents <= 1_000_00 ? (onlinePriceCents as number) : NaN;
+    if (Number.isNaN(webPrice)) return NextResponse.json({ error: "Precio de la web no válido" }, { status: 400 });
     const img = productImageUrl(imageUrl, slug);
     if ("error" in img) return NextResponse.json({ error: img.error }, { status: 400 });
 
@@ -63,6 +66,7 @@ export async function POST(req: NextRequest) {
         isAvailable: isAvailable ?? true,
         isFeatured: isFeatured ?? false,
         dietTags: parseDietTags(dietTags),
+        onlinePriceCents: webPrice,
         allergens: Array.isArray(allergens) ? normalizeAllergens(allergens.filter((a: unknown): a is string => typeof a === "string")) : [],
         sortOrder: sortOrder ?? 0,
       },

@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
 
 
     // Precio de cada línea (base + opciones + menús) con datos de la base de datos.
-    const priced = await priceOrderItems(tenant.id, items);
+    const priced = await priceOrderItems(tenant.id, items, { online: true });
     if ("error" in priced) return NextResponse.json({ error: priced.error }, { status: 400 });
     const { linesCreate, cartLines, consumption, subtotalCents } = priced;
 

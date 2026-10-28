@@ -13,7 +13,7 @@ export default async function PedirPage({
 }) {
   const { tenant } = await params;
   const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { settings: true } });
-  const menu = await loadMenu(tenant, await storeLang(t?.settings), await shopStoreId());
+  const menu = await loadMenu(tenant, await storeLang(t?.settings), await shopStoreId(), { online: true });
   if (!menu) notFound();
 
   return (

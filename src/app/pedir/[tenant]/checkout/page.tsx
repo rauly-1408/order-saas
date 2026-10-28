@@ -15,7 +15,7 @@ export default async function CheckoutPage({
 }) {
   const { tenant } = await params;
   const settings = (await prisma.tenant.findUnique({ where: { slug: tenant }, select: { settings: true } }))?.settings;
-  const menu = await loadMenu(tenant, await storeLang(settings), await shopStoreId());
+  const menu = await loadMenu(tenant, await storeLang(settings), await shopStoreId(), { online: true });
   if (!menu) notFound();
   // El campo de cupón solo aparece si el restaurante tiene el motor de retención.
   const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { id: true, addons: true, settings: true } });

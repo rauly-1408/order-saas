@@ -17,3 +17,11 @@ Lo que el cliente elige al pedir: el pan, la guarnición, los extras, las salsas
   - se traduce al inglés solo y se refresca la carta.
 - **Los pedidos ya hechos no cambian:** cada línea guarda su copia de las opciones elegidas.
 - El código interno del grupo (`code`) se genera a partir del nombre y no cambia al renombrar. Algunos códigos tienen significado: `SIDE` (guarnición) muestra «Incluido» cuando la opción no suma precio.
+
+# Precio en la web
+
+Cada producto puede tener un **precio distinto en la tienda online** (`Product.onlinePriceCents`; vacío = el del local). Se pone en Carta → editar producto → «Precio en la web».
+
+- **Tienda** (`/pedir`): `loadMenu(…, { online: true })` muestra ese precio y `POST /api/orders` lo cobra (`priceOrderItems(…, { online: true })`).
+- **Caja y Mesas** (`/api/menu`, `/caja`, mesas): siempre el precio del local.
+- Las opciones (pan, extras…) suman lo mismo en los dos canales.

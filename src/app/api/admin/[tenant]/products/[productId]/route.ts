@@ -32,7 +32,10 @@ export async function PATCH(req: NextRequest) {
     if (!product) return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
 
     const body = await req.json();
-    const { name, description, basePriceCents, categoryId, imageUrl, isActive, isAvailable, isFeatured, dietTags, allergens, sortOrder } = body;
+    const { name, description, basePriceCents, categoryId, imageUrl, isActive, isAvailable, isFeatured, dietTags, allergens, onlinePriceCents, sortOrder } = body;
+    // Precio en la web: null = el mismo que en el local.
+    const webPrice = onlinePriceCents === null || onlinePriceCents === undefined ? null : Number.isInteger(onlinePriceCents) && onlinePriceCents >= 0 && onlinePriceCents <= 1_000_00 ? (onlinePriceCents as number) : NaN;
+    if (Number.isNaN(webPrice)) return NextResponse.json({ error: "Precio de la web no válido" }, { status: 400 });
     const img = imageUrl === undefined ? { value: null } : productImageUrl(imageUrl, tenantSlug);
     if ("error" in img) return NextResponse.json({ error: img.error }, { status: 400 });
 
@@ -48,6 +51,7 @@ export async function PATCH(req: NextRequest) {
         ...(isAvailable !== undefined && { isAvailable }),
         ...(isFeatured !== undefined && { isFeatured }),
         ...(dietTags !== undefined && { dietTags: parseDietTags(dietTags) }),
+        ...(onlinePriceCents !== undefined && { onlinePriceCents: webPrice }),
         ...(Array.isArray(allergens) && { allergens: normalizeAllergens(allergens.filter((a: unknown): a is string => typeof a === "string")) }),
         ...(sortOrder !== undefined && { sortOrder }),
       },

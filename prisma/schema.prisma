@@ -317,11 +317,13 @@ model Product {
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
 
-  name           String
-  slug           String
-  description    String?
-  imageUrl       String? // NUEVO: imagen del producto
-  basePriceCents Int     @default(0)
+  name             String
+  slug             String
+  description      String?
+  imageUrl         String? // NUEVO: imagen del producto
+  basePriceCents   Int     @default(0)
+  // Precio en la tienda online (web). Vacío = el mismo que en el local (Caja y Mesas usan siempre basePriceCents).
+  onlinePriceCents Int?
 
   isActive     Boolean  @default(true)
   isAvailable  Boolean  @default(true) // NUEVO: agotado temporal
