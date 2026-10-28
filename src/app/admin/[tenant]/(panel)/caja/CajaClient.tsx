@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { collaboratorDiscountCents } from "@/app/lib/collaboratorDiscount";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -732,6 +733,11 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
       <button type="button" onClick={newOrder} className="p-press mt-8 w-full rounded-full bg-[var(--p-brand)] py-4 text-base font-semibold text-white">
         Nuevo pedido
       </button>
+      {done.invoiceNumber && (
+        <Link href={`/admin/${tenant}/facturas?ticket=${encodeURIComponent(done.invoiceNumber)}`} className="p-press mt-2 flex min-h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-[var(--p-muted)] hover:bg-black/[0.04]">
+          ¿Quiere factura a su nombre?
+        </Link>
+      )}
     </div>
   );
 

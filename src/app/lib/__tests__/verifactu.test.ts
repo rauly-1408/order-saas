@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { altaHash, amount, invoiceTotalOf, issueDateOf, qrUrlOf, readVerifactu, splitTax, timestampOf } from "../verifactu";
+import { altaHash, amount, invoiceTotalOf, issueDateOf, qrUrlOf, readRecipient, readVerifactu, splitTax, timestampOf } from "../verifactu";
 
 // Ejemplos de la especificación de la AEAT para el cálculo de la huella.
 describe("VeriFactu · huella", () => {
@@ -57,5 +57,17 @@ describe("VeriFactu · importes de la factura", () => {
   it("apagado por defecto y la serie «R» queda para rectificativas", () => {
     expect(readVerifactu({}).enabled).toBe(false);
     expect(readVerifactu({ verifactu: { enabled: true, seriesPrefix: "R" } }).seriesPrefix).toBe("T");
+  });
+});
+
+describe("VeriFactu · factura completa", () => {
+  it("datos del cliente: NIF válido, nombre y domicilio", () => {
+    expect(readRecipient({ nif: " b-12345678 ", name: "  Empresa   S.L. ", address: "Calle Mayor, 1, 18001 Granada" })).toEqual({ nif: "B12345678", name: "Empresa S.L.", address: "Calle Mayor, 1, 18001 Granada" });
+    expect(readRecipient({ nif: "123", name: "Empresa", address: "Calle Mayor, 1" })).toMatch(/NIF/);
+    expect(readRecipient({ nif: "12345678Z", name: "", address: "Calle Mayor, 1" })).toMatch(/nombre/);
+    expect(readRecipient({ nif: "12345678Z", name: "Ana López", address: "" })).toMatch(/domicilio/);
+  });
+  it("la serie «F» queda para las completas", () => {
+    expect(readVerifactu({ verifactu: { seriesPrefix: "F" } }).seriesPrefix).toBe("T");
   });
 });

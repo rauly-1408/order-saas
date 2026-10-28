@@ -8,7 +8,7 @@ import InstallApp from "./InstallApp";
 // Barra lateral del panel: translúcida con desenfoque (estilo Apple), iconos de
 // línea y el elemento activo con el color de la marca del restaurante (--p-brand).
 
-type IconName = "home" | "orders" | "cash" | "tables" | "users" | "partners" | "menu" | "costs" | "chart" | "brush" | "gear" | "files" | "external" | "logout";
+type IconName = "home" | "orders" | "cash" | "tables" | "users" | "partners" | "menu" | "costs" | "chart" | "brush" | "gear" | "files" | "invoice" | "external" | "logout";
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, React.ReactNode> = {
@@ -62,6 +62,12 @@ function Icon({ name }: { name: IconName }) {
       </>
     ),
     chart: <path d="M3 3v17a1 1 0 0 0 1 1h17M7 15l4-4 3 3 6-6" />,
+    invoice: (
+      <>
+        <path d="M6 3h9l4 4v14l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21V4a1 1 0 0 1 1-1z" />
+        <path d="M9 9h6M9 13h6" />
+      </>
+    ),
     files: (
       <>
         <rect x="3" y="4" width="18" height="16" rx="2" />
@@ -107,6 +113,7 @@ function buildNav(tenant: string): NavItem[] {
     { label: "Pedidos", href: `${base}/pedidos`, icon: "orders" },
     { label: "Caja", href: `${base}/caja`, icon: "cash" },
     { label: "Mesas", href: `${base}/mesas`, icon: "tables" },
+    { label: "Facturas", href: `${base}/facturas`, icon: "invoice" },
     { label: "Informes", href: `${base}/informes`, icon: "chart", managerOnly: true, takingsOnly: true },
     { label: "Clientes", href: `${base}/clientes`, icon: "users", managerOnly: true },
     { label: "Colaboradores", href: `${base}/colaboradores`, icon: "partners", managerOnly: true },

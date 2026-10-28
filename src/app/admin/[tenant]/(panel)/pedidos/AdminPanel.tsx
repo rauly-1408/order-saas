@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import OrderCard from "./OrderCard";
 import PaidWithChooser, { type PaidWith } from "./PaidWith";
@@ -428,6 +429,11 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                     </span>
                     <span className="flex shrink-0 items-center gap-3">
                       <span className="text-[var(--p-muted)]">{toEuros(o.totalCents)}</span>
+                      {o.status === "DELIVERED" && o.paymentStatus === "PAID" && (
+                        <Link href={`/admin/${tenant}/facturas?pedido=${o.id}`} className="rounded-full bg-black/[0.04] px-2 py-0.5 text-xs font-semibold text-[var(--p-muted)] hover:text-[var(--p-ink)]">
+                          Factura
+                        </Link>
+                      )}
                       {o.status === "DELIVERED" && o.paymentStatus !== "PAID" && o.paymentStatus !== "REFUNDED" && (
                         <button type="button" onClick={() => setCollectFor(collectFor === o.id ? null : o.id)} className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">
                           Sin cobrar · apuntar

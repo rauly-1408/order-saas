@@ -1,11 +1,13 @@
 // VeriFactu: facturas simplificadas encadenadas e inalterables (RD 1007/2023,
 // Orden HAC/1177/2024). Se emite una factura simplificada (F2) cuando un pedido
 // queda cobrado y una rectificativa por diferencias (R5) si después se cancela.
+// A petición del cliente, una factura completa a su nombre: F3 si sustituye a la
+// simplificada, F1 si el pedido no la tenía (y su rectificativa sería R1).
 // El envío a la AEAT necesita el certificado digital del restaurante y aún no
 // está: los registros quedan «PENDIENTE_ENVIO». Ver docs/VERIFACTU.md
 import { createHash } from "crypto";
 import { prisma } from "@/app/lib/prisma";
-import { readBusiness } from "@/app/lib/business";
+import { normalizeTaxId, readBusiness, TAX_ID } from "@/app/lib/business";
 import { readTax } from "@/app/lib/storePolicies";
 import { tenantTimeZone } from "@/app/lib/time";
 
@@ -23,7 +25,7 @@ export function readVerifactu(settings: unknown): VerifactuSettings {
     enabled: v.enabled === true,
     mode: v.mode === "NO_VERIFACTU" ? "NO_VERIFACTU" : "VERIFACTU",
     environment: v.environment === "PRODUCCION" ? "PRODUCCION" : "PRUEBAS",
-    seriesPrefix: prefix === "R" ? "T" : prefix, // «R» queda para las rectificativas
+    seriesPrefix: prefix === "R" || prefix === "F" ? "T" : prefix, // «R» y «F» quedan para rectificativas y completas
   };
 }
 
@@ -99,57 +101,50 @@ export const pad6 = (n: number) => String(n).padStart(6, "0");
 // ─── Emisión ───────────────────────────────────────────────────────────────
 export class VerifactuError extends Error {}
 
-// Emite la factura simplificada (F2) de un pedido cobrado o, con kind R5, la
-// rectificativa por diferencias de uno ya facturado. Idempotente: si ya existe
-// la del mismo tipo, la devuelve. Devuelve null si VeriFactu está apagado o el
-// pedido no se factura.
-export async function issueInvoice(orderId: string, kind: "F2" | "R5" = "F2") {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    select: { id: true, tenantId: true, storeId: true, paymentStatus: true, status: true, totalCents: true, tipCents: true, giftCardCents: true, invoices: true, tenant: { select: { settings: true } } },
-  });
-  if (!order) return null;
-  const cfg = readVerifactu(order.tenant.settings);
-  if (!cfg.enabled) return null;
-  const existing = order.invoices.find((i) => i.invoiceType === kind);
-  if (existing) return existing;
+type IssuedOrder = { id: string; tenantId: string; storeId: string; tenant: { settings: unknown } };
+type RecordData = {
+  kind: string;
+  seriesLetter: string;
+  rate: number;
+  baseCents: number;
+  taxCents: number;
+  totalCents: number;
+  rectifiedInvoiceId?: string | null;
+  substitutedInvoiceId?: string | null;
+  recipient?: Recipient | null;
+};
 
-  const original = order.invoices.find((i) => i.invoiceType === "F2") ?? null;
-  if (kind === "F2" && order.paymentStatus !== "PAID") return null; // solo lo cobrado
-  if (kind === "R5" && !original) return null; // no hay nada que rectificar
-
+// Añade un registro al final de la cadena del emisor. Idempotente por (pedido, tipo).
+async function appendRecord(order: IssuedOrder, cfg: VerifactuSettings, d: RecordData) {
   const biz = readBusiness(order.tenant.settings);
   const nif = (biz.taxId ?? "").replace(/\s|-/g, "").toUpperCase();
   const name = (biz.legalName ?? "").trim();
   if (!nif || !name) throw new VerifactuError("Faltan la razón social o el NIF en Información del negocio");
   const tz = tenantTimeZone(order.tenant.settings);
-  const rate = original?.taxRate ?? readTax(order.tenant.settings).rate;
-  const total = kind === "R5" ? -original!.totalCents : invoiceTotalOf(order);
-  const { baseCents, taxCents } = kind === "R5" ? { baseCents: -original!.baseCents, taxCents: -original!.taxCents } : splitTax(total, rate);
 
   // Un registro detrás de otro: el bloqueo evita dos huellas sobre la misma anterior.
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"verifactu:" + order.tenantId}))`;
-    const again = await tx.invoice.findUnique({ where: { orderId_invoiceType: { orderId: order.id, invoiceType: kind } } });
+    const again = await tx.invoice.findUnique({ where: { orderId_invoiceType: { orderId: order.id, invoiceType: d.kind } } });
     if (again) return again;
     const prev = await tx.invoice.findFirst({ where: { tenantId: order.tenantId }, orderBy: { chainIndex: "desc" } });
     const now = new Date();
     const year = parts(now, tz).y;
-    const series = `${kind === "R5" ? "R" : cfg.seriesPrefix}${year}`;
+    const series = `${d.seriesLetter}${year}`;
     const lastInSeries = await tx.invoice.findFirst({ where: { tenantId: order.tenantId, series }, orderBy: { number: "desc" }, select: { number: true } });
     const number = (lastInSeries?.number ?? 0) + 1;
     const numSerie = `${series}-${pad6(number)}`;
     const issueDate = issueDateOf(now, tz);
     const genTimestamp = timestampOf(now, tz);
     const prevHash = prev?.hash ?? null;
-    const hash = altaHash({ nif, numSerie, issueDate, invoiceType: kind, taxCents, totalCents: total, prevHash, genTimestamp });
+    const hash = altaHash({ nif, numSerie, issueDate, invoiceType: d.kind, taxCents: d.taxCents, totalCents: d.totalCents, prevHash, genTimestamp });
     return tx.invoice.create({
       data: {
         tenantId: order.tenantId,
         storeId: order.storeId,
         orderId: order.id,
         chainIndex: (prev?.chainIndex ?? 0) + 1,
-        invoiceType: kind,
+        invoiceType: d.kind,
         series,
         number,
         numSerie,
@@ -157,19 +152,91 @@ export async function issueInvoice(orderId: string, kind: "F2" | "R5" = "F2") {
         genTimestamp,
         issuerNif: nif,
         issuerName: name,
-        taxRate: rate,
-        baseCents,
-        taxCents,
-        totalCents: total,
-        rectifiedInvoiceId: kind === "R5" ? original!.id : null,
+        taxRate: d.rate,
+        baseCents: d.baseCents,
+        taxCents: d.taxCents,
+        totalCents: d.totalCents,
+        rectifiedInvoiceId: d.rectifiedInvoiceId ?? null,
+        substitutedInvoiceId: d.substitutedInvoiceId ?? null,
+        recipientNif: d.recipient?.nif ?? null,
+        recipientName: d.recipient?.name ?? null,
+        recipientAddress: d.recipient?.address ?? null,
         prevHash,
         hash,
-        qrUrl: qrUrlOf(cfg.environment, nif, numSerie, issueDate, total),
+        qrUrl: qrUrlOf(cfg.environment, nif, numSerie, issueDate, d.totalCents),
         mode: cfg.mode,
         environment: cfg.environment,
       },
     });
   });
+}
+
+const FULL_TYPES = ["F1", "F3"];
+const orderSelect = { id: true, tenantId: true, storeId: true, paymentStatus: true, status: true, totalCents: true, tipCents: true, giftCardCents: true, invoices: true, tenant: { select: { settings: true } } } as const;
+
+// Emite la factura simplificada (F2) de un pedido cobrado o, con kind R5, la
+// rectificativa de uno ya facturado (R1 si tenía factura completa). Idempotente:
+// si ya existe la del mismo tipo, la devuelve. Devuelve null si VeriFactu está
+// apagado o el pedido no se factura.
+export async function issueInvoice(orderId: string, kind: "F2" | "R5" = "F2") {
+  const order = await prisma.order.findUnique({ where: { id: orderId }, select: orderSelect });
+  if (!order) return null;
+  const cfg = readVerifactu(order.tenant.settings);
+  if (!cfg.enabled) return null;
+
+  if (kind === "F2") {
+    const existing = order.invoices.find((i) => i.invoiceType === "F2");
+    if (existing) return existing;
+    if (order.paymentStatus !== "PAID") return null; // solo lo cobrado
+    const rate = readTax(order.tenant.settings).rate;
+    const total = invoiceTotalOf(order);
+    return appendRecord(order, cfg, { kind: "F2", seriesLetter: cfg.seriesPrefix, rate, ...splitTax(total, rate), totalCents: total });
+  }
+
+  // Se rectifica la factura vigente: la completa si se hizo, si no la simplificada.
+  const full = order.invoices.find((i) => FULL_TYPES.includes(i.invoiceType)) ?? null;
+  const original = full ?? order.invoices.find((i) => i.invoiceType === "F2") ?? null;
+  if (!original) return null; // no hay nada que rectificar
+  const rKind = full ? "R1" : "R5";
+  const existing = order.invoices.find((i) => i.invoiceType === rKind);
+  if (existing) return existing;
+  return appendRecord(order, cfg, { kind: rKind, seriesLetter: "R", rate: original.taxRate, baseCents: -original.baseCents, taxCents: -original.taxCents, totalCents: -original.totalCents, rectifiedInvoiceId: original.id });
+}
+
+// ─── Factura completa a nombre del cliente ─────────────────────────────────
+export type Recipient = { nif: string; name: string; address: string };
+
+// Valida los datos del cliente: NIF/CIF/NIE con formato válido, nombre y domicilio.
+export function readRecipient(b: unknown): Recipient | string {
+  const o = (b ?? {}) as Record<string, unknown>;
+  const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().replace(/\s+/g, " ").slice(0, max) : "");
+  const nif = normalizeTaxId(str(o.nif, 20));
+  const name = str(o.name, 120);
+  const address = str(o.address, 250);
+  if (!TAX_ID.test(nif)) return "El NIF / CIF del cliente no tiene un formato válido (p. ej. B12345678 o 12345678Z)";
+  if (name.length < 2) return "Falta el nombre o la razón social del cliente";
+  if (address.length < 5) return "Falta el domicilio del cliente (calle, código postal y ciudad)";
+  return { nif, name, address };
+}
+
+// Factura completa de un pedido cobrado. Sustituye a su simplificada (F3, mismos
+// importes) o, si no la tenía, es una F1. Una por pedido: si ya existe, la devuelve.
+export async function issueFullInvoice(orderId: string, recipient: Recipient) {
+  const order = await prisma.order.findUnique({ where: { id: orderId }, select: orderSelect });
+  if (!order) throw new VerifactuError("Pedido no encontrado");
+  const cfg = readVerifactu(order.tenant.settings);
+  if (!cfg.enabled) throw new VerifactuError("Para hacer facturas, activa VeriFactu en Configuración → Facturación (necesita la razón social y el NIF del negocio)");
+  const existing = order.invoices.find((i) => FULL_TYPES.includes(i.invoiceType));
+  if (existing) return existing;
+  if (order.invoices.some((i) => i.invoiceType.startsWith("R")) || order.status === "CANCELLED") throw new VerifactuError("Este pedido está cancelado o devuelto: no se puede facturar");
+  if (order.paymentStatus !== "PAID") throw new VerifactuError("El pedido aún no está cobrado: cóbralo primero y luego haz la factura");
+  const simplified = order.invoices.find((i) => i.invoiceType === "F2") ?? null;
+  if (simplified) {
+    return appendRecord(order, cfg, { kind: "F3", seriesLetter: "F", rate: simplified.taxRate, baseCents: simplified.baseCents, taxCents: simplified.taxCents, totalCents: simplified.totalCents, substitutedInvoiceId: simplified.id, recipient });
+  }
+  const rate = readTax(order.tenant.settings).rate;
+  const total = invoiceTotalOf(order);
+  return appendRecord(order, cfg, { kind: "F1", seriesLetter: "F", rate, ...splitTax(total, rate), totalCents: total, recipient });
 }
 
 // Para los ganchos de pago y cancelación: nunca rompe el flujo del pedido.

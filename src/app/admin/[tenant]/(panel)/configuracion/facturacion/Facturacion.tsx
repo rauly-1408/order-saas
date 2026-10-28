@@ -23,7 +23,7 @@ type Data = Cfg & {
 
 const euros = (c: number) => (c / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 const STATUS: Record<string, string> = { PENDIENTE_ENVIO: "Pendiente de envío", ACEPTADO: "Aceptada", ACEPTADO_CON_ERRORES: "Aceptada con errores", RECHAZADO: "Rechazada" };
-const TYPE: Record<string, string> = { F2: "Simplificada", R5: "Rectificativa" };
+const TYPE: Record<string, string> = { F2: "Simplificada", F1: "Completa", F3: "Completa (sustituye)", R5: "Rectificativa", R1: "Rectificativa" };
 
 function Check({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (

@@ -62,7 +62,7 @@ export default async function ConfirmacionPage({
   const isDelivery = order.channel === "DELIVERY";
   // VeriFactu: si el pedido ya está facturado, su factura simplificada con el QR de la AEAT.
   const invoice = order.invoices.find((i) => i.invoiceType === "F2") ?? null;
-  const rectification = order.invoices.find((i) => i.invoiceType === "R5") ?? null;
+  const rectification = order.invoices.find((i) => i.invoiceType === "R5" || i.invoiceType === "R1") ?? null;
   const invoiceQr = invoice ? await QRCode.toString(invoice.qrUrl, { type: "svg", errorCorrectionLevel: "M", margin: 1, width: 132 }) : null;
   // Recogida: dirección del local (o la del negocio) y enlace para llegar.
   const biz = readBusiness(tenantData?.settings);
