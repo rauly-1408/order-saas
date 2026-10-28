@@ -39,7 +39,7 @@ Las promociones automáticas y los cupones se aplican igual que en la tienda. No
 
 El software se recomienda con pantalla táctil (tablet de 10–13″ en horizontal o TPV táctil de 15,6″). Por eso:
 - Todo lo que se toca en la Caja mide **44 px o más**: categorías, botones de arriba, tipo de pedido, cantidades, importes rápidos y teclado (48 px).
-- En **Caja y Mesas**, en pantallas de tablet o TPV (desde 1024 px), el menú lateral se queda en una **columna estrecha de iconos** (84 px). Fuera quedan «Ver carta pública», «Mi cuenta» e «Instalar», que están en las demás pantallas. El ticket mide 340 px (380 px desde 1280).
+- El menú lateral es **el mismo en todas las pantallas** (también en Caja y Mesas): cambiarlo según la página despista. El ticket mide 340 px (380 px desde 1280). Los productos ocupan tantas columnas como quepan en el hueco de la carta (mínimo 104 px, 128 px desde 1024), para que los nombres no se corten.
 - La botonera muestra 4 columnas a 1024 px y 5 desde 1280 px: en un TPV de 1366×768 las 24 bebidas caben sin desplazarse.
 - Los botones tienen `touch-action: manipulation`: dos toques rápidos suman dos y no hacen zoom.
 
