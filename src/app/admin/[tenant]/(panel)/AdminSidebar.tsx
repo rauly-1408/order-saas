@@ -203,7 +203,7 @@ export default function AdminSidebar({
               const heading = item.group && item.group !== nav[i - 1]?.group ? item.group : null;
               return (
                 <li key={item.href}>
-                  {heading && <p className="px-3 pt-2.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--p-muted)]">{heading}</p>}
+                  {heading && <p className="px-3 pt-2.5 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--p-accent)]">{heading}</p>}
                   <Link
                     href={item.href}
                     onClick={() => setOpen(false)}
