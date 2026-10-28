@@ -32,6 +32,10 @@ type Step = "order" | "pay" | "done";
 
 const euros = (c: number) => (c / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 const parseEuros = (v: string) => Math.round(Number(v.replace(",", ".")) * 100);
+// Apartados del panel de estado (caja, en espera, hoy): etiqueta pequeña + dato.
+const STAT = "p-press flex min-h-11 flex-1 flex-col sm:flex-none justify-center px-2.5 py-1 text-left leading-tight sm:px-3";
+const STAT_CAPTION = "text-[10px] font-semibold uppercase tracking-wide text-[var(--p-muted)]";
+const STAT_VALUE = "text-sm font-semibold";
 const MODE_LABEL: Record<Mode, string> = { TAKEAWAY: "Para llevar", DINE_IN: "Comer aquí", DELIVERY: "A domicilio" };
 const PAYMENT_LABEL: Record<Payment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", IN_STORE: "Pagar al recoger" };
 const HOY_PAYMENT_LABEL: Record<HoyPayment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
@@ -751,51 +755,57 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         {/* Arriba, siempre a mano: buscador, estado de la caja, hoy y categorías */}
         <div className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)]/95 px-4 pt-2 pb-2 backdrop-blur lg:top-0 lg:-mx-5 lg:px-5 lg:pt-5">
           <h1 className="sr-only">Caja</h1>
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap">
             <div className="relative min-w-0 flex-1">
               <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--p-muted)]">
                 <SearchIcon />
               </span>
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="h-11 w-full rounded-full pl-9 pr-3 text-sm" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="h-11 w-full rounded-xl pl-9 pr-3 text-sm" />
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                loadCash();
-                setCashOpen(true);
-              }}
-              className={`p-press flex shrink-0 items-center gap-1.5 rounded-full px-2.5 min-h-11 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:px-3 ${cash && !cash.open ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)]"}`}
-            >
-              <span aria-hidden className={`h-2 w-2 rounded-full ${cash?.open ? "bg-emerald-500" : "bg-white/70"}`} />
-              <span className="sm:hidden">Caja</span>
-              <span className="hidden sm:inline">{cash ? (cash.open ? "Caja abierta" : "Abrir caja") : "Caja"}</span>
-            </button>
-            {parked.length > 0 && (
-              <button type="button" onClick={() => setParkedOpen(true)} className="p-press min-h-11 shrink-0 rounded-full bg-[var(--p-accent)] px-3 text-sm font-semibold text-white">
-                <span className="sm:hidden">Espera {parked.length}</span>
-                <span className="hidden sm:inline">En espera · {parked.length}</span>
+            {/* Estado del turno: un panel con apartados, no píldoras, para que no se confunda con las categorías */}
+            <div className="order-first flex w-full shrink-0 items-stretch divide-x divide-[var(--p-line)] overflow-hidden rounded-xl border sm:order-none sm:w-auto border-[var(--p-line)] bg-[var(--p-surface)]">
+              <button
+                type="button"
+                onClick={() => {
+                  loadCash();
+                  setCashOpen(true);
+                }}
+                className={`${STAT} ${cash && !cash.open ? "bg-amber-50" : ""}`}
+              >
+                <span className={STAT_CAPTION}>Caja</span>
+                <span className={`flex items-center gap-1 ${STAT_VALUE} ${cash && !cash.open ? "text-amber-900" : ""}`}>
+                  <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${cash?.open ? "bg-emerald-500" : "bg-amber-500"}`} />
+                  {cash ? (cash.open ? "Abierta" : "Cerrada") : "…"}
+                </span>
               </button>
-            )}
-            {canSeeTakings && (
-              <>
-                <button type="button" onClick={() => setHoyOpen(true)} title="Ver lo vendido hoy" className="p-press flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-[var(--p-surface)] px-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:gap-1.5 sm:px-3">
-                  <span className="text-[var(--p-muted)]">Hoy</span>
-                  {hoy ? (
-                    <>
-                      <span className="hidden xl:inline">
-                        {hoy.sales} {hoy.sales === 1 ? "venta" : "ventas"}
-                      </span>
-                      <span className="tabular-nums">{money(hoy.totalCents)}</span>
-                    </>
-                  ) : (
-                    <span className="text-[var(--p-muted)]">…</span>
-                  )}
+              {parked.length > 0 && (
+                <button type="button" onClick={() => setParkedOpen(true)} className={`${STAT} bg-red-50`}>
+                  <span className={`${STAT_CAPTION} text-[var(--p-accent)]`}>En espera</span>
+                  <span className={`${STAT_VALUE} text-[var(--p-accent)]`}>
+                    {parked.length} <span className="hidden font-medium sm:inline">{parked.length === 1 ? "pedido" : "pedidos"}</span>
+                  </span>
                 </button>
-                <button type="button" onClick={toggleHide} aria-pressed={hideTakings} aria-label={hideTakings ? "Mostrar importes" : "Ocultar importes"} title={hideTakings ? "Mostrar importes" : "Ocultar importes"} className="p-press hidden h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--p-surface)] text-[var(--p-muted)] shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:flex">
-                  <EyeIcon off={hideTakings} />
-                </button>
-              </>
-            )}
+              )}
+              {canSeeTakings && (
+                <>
+                  <button type="button" onClick={() => setHoyOpen(true)} title="Ver lo vendido hoy" className={STAT}>
+                    <span className={STAT_CAPTION}>
+                      Hoy
+                      {hoy && (
+                        <span className="hidden xl:inline">
+                          {" "}
+                          · {hoy.sales} {hoy.sales === 1 ? "venta" : "ventas"}
+                        </span>
+                      )}
+                    </span>
+                    <span className={`${STAT_VALUE} tabular-nums`}>{hoy ? money(hoy.totalCents) : "…"}</span>
+                  </button>
+                  <button type="button" onClick={toggleHide} aria-pressed={hideTakings} aria-label={hideTakings ? "Mostrar importes" : "Ocultar importes"} title={hideTakings ? "Mostrar importes" : "Ocultar importes"} className="p-press hidden w-11 items-center justify-center text-[var(--p-muted)] sm:flex">
+                    <EyeIcon off={hideTakings} />
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           {categories && !q && (
             <nav aria-label="Categorías" className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" style={{ scrollbarWidth: "none" }}>
