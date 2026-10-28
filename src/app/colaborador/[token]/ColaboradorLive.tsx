@@ -165,13 +165,10 @@ export default function ColaboradorLive({ token, initial, link, qrSvg }: { token
 
         {/* Tu código */}
         <section className="rounded-3xl bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm text-[#6e6e73]">Tu código</p>
-              <p className="text-3xl font-bold tracking-widest break-all">{data.code}</p>
-            </div>
-            {perk && <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700">Tus clientes −{perk}</span>}
-          </div>
+          {/* El código va siempre en una línea: la letra se ajusta a lo largo que sea (3–20). */}
+          <p className="text-sm text-[#6e6e73]">Tu código</p>
+          <p className={`whitespace-nowrap font-bold ${codeSize(data.code)}`}>{data.code}</p>
+          {perk && <span className="mt-2 inline-block rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700">Tus clientes −{perk}</span>}
           <div className="mt-4 grid grid-cols-[auto_1fr] items-center gap-4">
             <div className="w-[132px] rounded-2xl bg-[#f5f5f7] p-2.5 [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: qrSvg }} />
             <ul className="space-y-2.5 text-sm">
@@ -314,4 +311,11 @@ function Mini({ label, value }: { label: string; value: string }) {
       <p className="text-[11px] text-white/60">{label}</p>
     </div>
   );
+}
+
+function codeSize(code: string) {
+  if (code.length <= 8) return "text-[30px] tracking-widest";
+  if (code.length <= 12) return "text-[26px] tracking-wider";
+  if (code.length <= 16) return "text-[21px] tracking-wide";
+  return "text-[17px]";
 }
