@@ -17,6 +17,9 @@ import { UNIT_LABEL, euros, linesCost, type Ingredient, type Overview, type Prod
 
 type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToRecipes: () => void };
 type Filter = "all" | "below" | "ok" | "missing";
+// Para no hacer scroll sin fin: se enseñan unos pocos y el resto con «Ver todos».
+const DISHES_FIRST = 10;
+const ORDERS_FIRST = 5;
 
 const MODES: { key: PriceMode; label: string; hint: string }[] = [
   { key: "MARKUP", label: "Recargo sobre el coste", hint: "Al coste le sumas un %: me cuesta 3 €, le pongo un 60 % y lo vendo a 4,80 €." },
@@ -80,6 +83,14 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<string | null>(null);
+  const [allDishes, setAllDishes] = useState(false);
+  const [allOrders, setAllOrders] = useState(false);
+  // El objetivo se fija una vez: plegado se lee en una línea y se abre para cambiarlo.
+  const [goalOpen, setGoalOpen] = useState(false);
+  const pickFilter = (f: Filter) => {
+    setFilter(f);
+    setAllDishes(false);
+  };
 
   // Las elaboraciones le cuestan al local lo del obrador más su recargo.
   const ingredients = useMemo(() => new Map<string, Ingredient>(withPrepMarkup(data.ingredients, form.prepMarkupPct).map((i) => [i.id, i])), [data.ingredients, form.prepMarkupPct]);
@@ -109,6 +120,9 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
     .filter((d) => !q || d.p.name.toLowerCase().includes(q) || d.category.toLowerCase().includes(q))
     .sort((a, b) => Number(a.noRecipe) - Number(b.noRecipe) || Number(a.v.meets ?? 2) - Number(b.v.meets ?? 2) || a.v.profitCents / (a.price || 1) - b.v.profitCents / (b.price || 1));
 
+  const listed = allDishes || q ? shown : shown.slice(0, DISHES_FIRST);
+  const orders = allOrders ? data.orders : data.orders.slice(0, ORDERS_FIRST);
+
   async function applyPrice(d: (typeof dishes)[number]) {
     const newBase = d.v.targetPriceCents - (d.price - d.p.basePriceCents);
     if (!(await ask(`¿Cambiar el precio de ${d.p.name} en la carta de ${euros(d.price)} a ${euros(d.v.targetPriceCents)}?`, { confirm: "Cambiar precio" }))) return;
@@ -125,8 +139,21 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
     <div className="space-y-6">
       {/* 1. Tu objetivo */}
       <section className="rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-5">
-        <h2 className="text-[17px] font-semibold">Tu objetivo</h2>
-        <p className="mt-0.5 text-xs text-[var(--p-muted)]">Cómo calculas tus precios. Cada negocio lo hace a su manera: elige la tuya y te diremos qué platos llegan.</p>
+        <button type="button" onClick={() => setGoalOpen((o) => !o)} aria-expanded={goalOpen} className="flex w-full items-center gap-3 text-left">
+          <span className="min-w-0 flex-1">
+            <span className="block text-[17px] font-semibold">Tu objetivo</span>
+            {goalOpen ? (
+              <span className="block text-xs text-[var(--p-muted)]">Cómo calculas tus precios. Cada negocio lo hace a su manera: elige la tuya y te diremos qué platos llegan.</span>
+            ) : (
+              <span className="block text-sm text-[var(--p-muted)]">
+                Un <span className="font-semibold text-[var(--p-ink)]">{goalText(form)}</span> · lo que cuesta 3,00 € va a {euros(example)}
+              </span>
+            )}
+          </span>
+          <span className="shrink-0 rounded-full bg-[var(--p-bg)] px-3 py-1.5 text-xs font-semibold">{goalOpen ? "Cerrar" : "Cambiar"}</span>
+        </button>
+        {goalOpen && (
+        <>
         <div className="mt-3 grid grid-cols-3 gap-1 rounded-2xl bg-black/[0.05] p-1 sm:w-fit sm:rounded-full">
           {MODES.map((m) => (
             <button key={m.key} type="button" onClick={() => set({ priceMode: m.key })} className={`p-press rounded-xl px-2 py-1.5 text-[13px] font-medium sm:rounded-full sm:px-3 sm:text-sm ${form.priceMode === m.key ? "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"}`}>
@@ -161,13 +188,18 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
             </div>
           )}
         </div>
+        </>
+        )}
       </section>
 
       {/* 2. Resumen */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Stat label={`Llegan a tu ${goalText(form)}`} value={costed.length ? `${reaching.length} de ${costed.length}` : "—"} tone={costed.length && reaching.length === costed.length ? "ok" : undefined} />
         <Stat label="Te quedan de media por plato" value={avgProfit == null ? "—" : euros(avgProfit)} sub="sin IVA y quitado el coste" />
-        <button type="button" onClick={() => setFilter("missing")} className="col-span-2 rounded-2xl bg-[var(--p-surface)] p-4 text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:col-span-1">
+        <button type="button" onClick={() => {
+            pickFilter("missing");
+            document.getElementById("tus-platos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }} className="col-span-2 rounded-2xl bg-[var(--p-surface)] p-4 text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:col-span-1">
           <div className="text-sm text-[var(--p-muted)]">Sin escandallo</div>
           <div className={`mt-1 text-2xl font-bold ${dishes.length - costed.length ? "text-amber-700" : ""}`}>{dishes.length - costed.length}</div>
           <div className="text-xs text-[var(--p-muted)]">{dishes.length - costed.length ? "No sabemos lo que te cuestan" : "Todo escandallado"}</div>
@@ -182,13 +214,14 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
         onPick={(id) => {
           setFilter("all");
           setQuery("");
+          setAllDishes(true);
           setOpen(id);
           requestAnimationFrame(() => document.getElementById(`plato-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
         }}
       />
 
       {/* 3. Platos */}
-      <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <section id="tus-platos" className="scroll-mt-24 rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <div className="px-4 pt-4 sm:px-5">
           <h2 className="text-[17px] font-semibold">Tus platos</h2>
           <p className="text-xs text-[var(--p-muted)]">Tal como salen de cocina, con el pan y la guarnición que van por defecto. Toca uno para ver de dónde sale su coste.</p>
@@ -201,7 +234,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
                 ["missing", `Sin escandallo (${dishes.length - costed.length})`],
               ] as const
             ).map(([k, l]) => (
-              <button key={k} type="button" onClick={() => setFilter(k)} className={`rounded-full px-3 py-1 text-xs font-semibold ${filter === k ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-bg)] text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
+              <button key={k} type="button" onClick={() => pickFilter(k)} className={`rounded-full px-3 py-1 text-xs font-semibold ${filter === k ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-bg)] text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
                 {l}
               </button>
             ))}
@@ -213,7 +246,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
           <p className="px-5 py-6 text-sm text-[var(--p-muted)]">Ningún plato aquí.</p>
         ) : (
           <ul className="mt-3 divide-y divide-[var(--p-line)] border-t border-[var(--p-line)]">
-            {shown.map((d) => {
+            {listed.map((d) => {
               const m = metric(d.v, form);
               const isOpen = open === d.p.id;
               return (
@@ -248,6 +281,23 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
             })}
           </ul>
         )}
+        {listed.length < shown.length && (
+          <button type="button" onClick={() => setAllDishes(true)} className="p-press w-full border-t border-[var(--p-line)] px-4 py-3 text-sm font-semibold text-[var(--p-brand)] hover:bg-[var(--p-bg)]/60">
+            Ver los {shown.length - listed.length} platos restantes
+          </button>
+        )}
+        {allDishes && !q && shown.length > DISHES_FIRST && (
+          <button
+            type="button"
+            onClick={() => {
+              setAllDishes(false);
+              document.getElementById("tus-platos")?.scrollIntoView({ block: "start" });
+            }}
+            className="p-press w-full border-t border-[var(--p-line)] px-4 py-3 text-sm font-semibold text-[var(--p-muted)] hover:bg-[var(--p-bg)]/60"
+          >
+            Ver menos
+          </button>
+        )}
       </section>
 
       {/* Margen real de pedidos */}
@@ -269,7 +319,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--p-line)]">
-                {data.orders.map((o) => (
+                {orders.map((o) => (
                   <tr key={o.id}>
                     <td className="px-4 py-2.5 sm:px-5">
                       <span className="font-semibold">#{o.orderNumber}</span> <span className="text-[var(--p-muted)]">{o.customerName}</span>
@@ -284,6 +334,11 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
               </tbody>
             </table>
           </div>
+        )}
+        {data.orders.length > ORDERS_FIRST && (
+          <button type="button" onClick={() => setAllOrders((a) => !a)} className="p-press w-full border-t border-[var(--p-line)] px-4 py-3 text-sm font-semibold text-[var(--p-brand)] hover:bg-[var(--p-bg)]/60">
+            {allOrders ? "Ver menos" : `Ver los ${data.orders.length} pedidos`}
+          </button>
         )}
       </section>
 

@@ -16,12 +16,16 @@ type Props = { dishes: Dish[]; missing: number; sales: { last7: Record<string, n
 const COLOR: Record<Quadrant, string> = { star: "#2f9e44", plowhorse: "#e8590c", puzzle: "#1c7ed6", dog: "#868e96" };
 const ORDER: Quadrant[] = ["star", "plowhorse", "puzzle", "dog"];
 
+// Platos que se ven de cada grupo antes de «+N más».
+const CHIPS_FIRST = 6;
+
 const PAD = { l: 48, r: 12, t: 28, b: 40 };
 
 export default function MenuMatrix({ dishes, missing, sales, onPick }: Props) {
   const [days, setDays] = useState<7 | 30>(30);
   const [cat, setCat] = useState<string>("");
   const [hover, setHover] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<Quadrant>>(new Set());
   const units = days === 7 ? sales.last7 : sales.last30;
   const { items, popularityLine, profitLine } = useMemo(
     () => classifyMenu(dishes.filter((d) => !cat || d.category === cat).map((d) => ({ ...d, units: units[d.id] ?? 0 }))),
@@ -133,11 +137,16 @@ export default function MenuMatrix({ dishes, missing, sales, onPick }: Props) {
                   <p className="mt-1 text-xs text-[var(--p-muted)]">{QUADRANTS[q].advice}</p>
                   {list.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {list.map((i) => (
+                      {(expanded.has(q) ? list : list.slice(0, CHIPS_FIRST)).map((i) => (
                         <button key={i.id} type="button" onClick={() => onPick(i.id)} className="p-press rounded-full bg-[var(--p-bg)] px-2.5 py-1 text-xs font-medium hover:bg-black/[0.06]">
                           {i.name} <span className="text-[var(--p-muted)]">· {i.units}</span>
                         </button>
                       ))}
+                      {list.length > CHIPS_FIRST && (
+                        <button type="button" onClick={() => setExpanded((s) => new Set(s.has(q) ? [...s].filter((x) => x !== q) : [...s, q]))} className="p-press rounded-full px-2.5 py-1 text-xs font-semibold text-[var(--p-brand)] hover:bg-[var(--p-bg)]">
+                          {expanded.has(q) ? "Ver menos" : `+${list.length - CHIPS_FIRST} más`}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
