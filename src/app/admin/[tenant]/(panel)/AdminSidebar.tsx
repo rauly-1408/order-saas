@@ -104,22 +104,27 @@ type NavItem = {
   exact?: boolean;
   managerOnly?: boolean; // oculto para STORE_MANAGER
   takingsOnly?: boolean; // solo con el permiso «Ve lo recaudado»
+  group: string; // apartado del menú: así se encuentra cada cosa por lo que es
 };
 
 function buildNav(tenant: string): NavItem[] {
   const base = `/admin/${tenant}`;
   return [
-    { label: "Inicio", href: `${base}/home`, icon: "home", exact: true, managerOnly: true },
-    { label: "Pedidos", href: `${base}/pedidos`, icon: "orders" },
-    { label: "Caja", href: `${base}/caja`, icon: "cash" },
-    { label: "Mesas", href: `${base}/mesas`, icon: "tables" },
-    { label: "Facturas", href: `${base}/facturas`, icon: "invoice" },
-    { label: "Informes", href: `${base}/informes`, icon: "chart", managerOnly: true, takingsOnly: true },
-    { label: "Clientes", href: `${base}/clientes`, icon: "users", managerOnly: true },
-    { label: "Colaboradores", href: `${base}/colaboradores`, icon: "partners", managerOnly: true },
-    { label: "Carta", href: `${base}/carta`, icon: "menu", managerOnly: true },
-    { label: "Costes", href: `${base}/costes`, icon: "costs", managerOnly: true },
-    { label: "Archivos", href: `${base}/archivos`, icon: "files", managerOnly: true },
+    // El día a día del servicio, en el orden en que se usa
+    { label: "Inicio", href: `${base}/home`, icon: "home", exact: true, managerOnly: true, group: "" },
+    { label: "Caja", href: `${base}/caja`, icon: "cash", group: "Día a día" },
+    { label: "Pedidos", href: `${base}/pedidos`, icon: "orders", group: "Día a día" },
+    { label: "Mesas", href: `${base}/mesas`, icon: "tables", group: "Día a día" },
+    { label: "Facturas", href: `${base}/facturas`, icon: "invoice", group: "Día a día" },
+    // Lo que se vende y cómo se enseña
+    { label: "Carta", href: `${base}/carta`, icon: "menu", managerOnly: true, group: "Tu carta" },
+    { label: "Archivos", href: `${base}/archivos`, icon: "files", managerOnly: true, group: "Tu carta" },
+    // Quién compra y quién trae clientes
+    { label: "Clientes", href: `${base}/clientes`, icon: "users", managerOnly: true, group: "Clientes" },
+    { label: "Colaboradores", href: `${base}/colaboradores`, icon: "partners", managerOnly: true, group: "Clientes" },
+    // Los números del negocio
+    { label: "Informes", href: `${base}/informes`, icon: "chart", managerOnly: true, takingsOnly: true, group: "Números" },
+    { label: "Costes", href: `${base}/costes`, icon: "costs", managerOnly: true, group: "Números" },
   ];
 }
 
@@ -181,7 +186,7 @@ export default function AdminSidebar({
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center gap-3 px-5 pt-6 pb-5">
+        <div className="flex items-center gap-3 px-5 pt-5 pb-3">
           {brandMark}
           <div className="min-w-0">
             <div className="truncate text-[15px] font-semibold">{tenantName}</div>
@@ -190,15 +195,17 @@ export default function AdminSidebar({
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3">
-          <ul className="space-y-0.5">
-            {nav.map((item) => {
+          <ul>
+            {nav.map((item, i) => {
               const active = isActive(item);
+              const heading = item.group && item.group !== nav[i - 1]?.group ? item.group : null;
               return (
                 <li key={item.href}>
+                  {heading && <p className="px-3 pt-2.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--p-muted)]">{heading}</p>}
                   <Link
                     href={item.href}
                     onClick={() => setOpen(false)}
-                    className={`p-press flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] ${
+                    className={`p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${
                       active ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
                     }`}
                   >
