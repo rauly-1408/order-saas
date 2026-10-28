@@ -476,6 +476,29 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             </span>
             <p className="mt-3 text-[15px] font-semibold">Pedido vacío</p>
             <p className="mt-1 max-w-[240px] text-sm text-[var(--p-muted)]">Toca un producto de la carta para añadirlo aquí.</p>
+            {/* Entre pedido y pedido: lo recaudado hoy, en grande y sin tener que buscarlo. */}
+            {canSeeTakings && hoy && (
+              <button type="button" onClick={() => setHoyOpen(true)} className="p-press mt-6 w-full rounded-2xl bg-[var(--p-bg)] p-4 text-left">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--p-muted)]">Recaudado hoy</p>
+                <p className="text-3xl font-semibold tabular-nums tracking-tight">{money(hoy.totalCents - hoy.pendingCents)}</p>
+                <p className="mt-0.5 text-xs text-[var(--p-muted)]">
+                  {hoy.sales} {hoy.sales === 1 ? "venta" : "ventas"}
+                  {hoy.pendingCents > 0 && ` · ${money(hoy.pendingCents)} pendiente de cobrar`}
+                </p>
+                {hoy.sales > 0 && (
+                  <ul className="mt-3 flex flex-wrap gap-1.5">
+                    {(Object.keys(HOY_PAYMENT_LABEL) as HoyPayment[])
+                      .filter((k) => hoy.byPayment[k] > 0)
+                      .map((k) => (
+                        <li key={k} className="rounded-full bg-[var(--p-surface)] px-2.5 py-1 text-xs font-medium">
+                          {HOY_PAYMENT_LABEL[k]} <span className="tabular-nums">{money(hoy.byPayment[k])}</span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+                <p className="mt-3 text-xs font-semibold text-[var(--p-brand)]">Ver el detalle ›</p>
+              </button>
+            )}
             {/* Lo aparcado, donde se mira: un toque y vuelve al ticket para cobrarlo. */}
             {parked.length > 0 && (
               <div className="mt-6 w-full text-left">
