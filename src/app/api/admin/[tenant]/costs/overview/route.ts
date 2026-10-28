@@ -201,6 +201,15 @@ export async function GET(req: NextRequest) {
     month: { ...sum(periodOrders.filter((o) => o.createdAt >= monthFrom)), daysElapsed: Math.floor((now.getTime() - monthFrom.getTime()) / 86_400_000) + 1, daysInMonth: new Date(Date.UTC(y, mo, 0)).getUTCDate() },
   };
 
+  // Unidades vendidas de cada plato (7 y 30 días): popularidad para la ingeniería de menús.
+  const from7 = new Date(now.getTime() - 7 * 86_400_000);
+  const unitsSince = (from: Date) => {
+    const units: Record<string, number> = {};
+    for (const o of periodOrders) if (o.createdAt >= from) for (const i of o.items) if (i.productId) units[i.productId] = (units[i.productId] ?? 0) + i.quantity;
+    return units;
+  };
+  const sales = { last7: unitsSince(from7), last30: unitsSince(from30) };
+
   // Lo que rinden de verdad las elaboraciones: media de sus últimos 10 lotes.
   const batches = await prisma.stockMovement.findMany({
     where: { tenantId, type: "PRODUCTION", batchFactor: { not: null }, quantity: { gt: 0 } },
@@ -220,6 +229,7 @@ export async function GET(req: NextRequest) {
     yields,
     costSettings,
     period,
+    sales,
     restaurantName: tenantInfo?.name ?? "",
     aiEnabled: aiConfigured(),
     suppliers,

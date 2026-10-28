@@ -120,6 +120,7 @@ export type PeriodSum = { orders: number; items: number; revenueNetCents: number
 export type Overview = {
   costSettings: import("@/app/lib/pricing").CostSettings;
   period: { last30: PeriodSum; month: PeriodSum & { daysElapsed: number; daysInMonth: number } };
+  sales: { last7: Record<string, number>; last30: Record<string, number> }; // unidades vendidas por plato
   yields: Record<string, BatchYield | null>;
   restaurantName: string;
   aiEnabled: boolean;

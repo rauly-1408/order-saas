@@ -6,6 +6,7 @@ import { unitCostCents } from "@/app/lib/costs";
 import { dishVerdict, withPrepMarkup, type CostSettings, type DishVerdict, type PriceMode } from "@/app/lib/pricing";
 import { toast, useSaveBar } from "../configuracion/ui";
 import GastosFijos from "./GastosFijos";
+import MenuMatrix from "./MenuMatrix";
 import { UNIT_LABEL, euros, linesCost, type Ingredient, type Overview, type Product, type RecipeLine } from "./types";
 
 // Rentabilidad: lo más importante del negocio, explicado para cualquiera.
@@ -173,6 +174,19 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
         </button>
       </div>
 
+      {/* ¿Qué platos te convienen? (ventas × lo que dejan) */}
+      <MenuMatrix
+        dishes={costed.map((d) => ({ id: d.p.id, name: d.p.name, category: d.category, profitCents: d.v.profitCents }))}
+        missing={dishes.length - costed.length}
+        sales={data.sales}
+        onPick={(id) => {
+          setFilter("all");
+          setQuery("");
+          setOpen(id);
+          requestAnimationFrame(() => document.getElementById(`plato-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+        }}
+      />
+
       {/* 3. Platos */}
       <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <div className="px-4 pt-4 sm:px-5">
@@ -203,7 +217,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
               const m = metric(d.v, form);
               const isOpen = open === d.p.id;
               return (
-                <li key={d.p.id}>
+                <li key={d.p.id} id={`plato-${d.p.id}`} className="scroll-mt-24">
                   <button type="button" onClick={() => setOpen(isOpen ? null : d.p.id)} aria-expanded={isOpen} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[var(--p-bg)]/60 sm:px-5">
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-semibold">{d.p.name}</div>
