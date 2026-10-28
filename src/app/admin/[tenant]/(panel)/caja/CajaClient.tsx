@@ -68,7 +68,9 @@ function tonesFor(names: string[]): Tone[] {
   return names.map((n) => NAMED.find(([re]) => re.test(plain(n)))?.[1] ?? SPARE[spare++ % SPARE.length]);
 }
 const TOP_SLUG = "mas-vendidos";
-const GRID = "grid grid-cols-3 gap-1.5 sm:grid-cols-4 xl:grid-cols-5";
+// Tantas columnas como quepan en el hueco de la carta (no según la pantalla):
+// así los nombres no se cortan con el menú lateral y el ticket al lado.
+const GRID = "grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-1.5 lg:grid-cols-[repeat(auto-fill,minmax(128px,1fr))]";
 const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
 // Importes rápidos para el efectivo: el justo y los billetes que lo cubren.
