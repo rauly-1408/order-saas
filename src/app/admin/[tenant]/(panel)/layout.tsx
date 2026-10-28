@@ -9,6 +9,7 @@ import { panelBrand, panelCssVars } from "@/app/lib/panelTheme";
 import AdminSidebar from "./AdminSidebar";
 import OrderAlerts from "./OrderAlerts";
 import OutboxBar from "./OutboxBar";
+import PanelOffline from "./PanelOffline";
 
 // Texto: tipografía del sistema de Apple (SF) con Inter como respaldo fuera de
 // Apple. Titulares de marca: condensada en mayúsculas, como la carta impresa.
@@ -69,6 +70,7 @@ export default async function AdminLayout({
       </main>
       <OrderAlerts tenant={tenant} canManage={canManageTenant(session.role)} />
       <OutboxBar />
+      <PanelOffline tenant={tenant} />
     </div>
   );
 }

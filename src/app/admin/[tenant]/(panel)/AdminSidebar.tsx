@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import InstallApp from "./InstallApp";
+import { forgetOfflinePages } from "./PanelOffline";
 
 // Barra lateral del panel: translúcida con desenfoque (estilo Apple), iconos de
 // línea y el elemento activo con el color de la marca del restaurante (--p-brand).
@@ -148,6 +149,7 @@ export default function AdminSidebar({
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+    forgetOfflinePages();
     router.replace(`/admin/${tenant}/login`);
   }
 
@@ -220,13 +222,13 @@ export default function AdminSidebar({
           </ul>
         </nav>
 
-        <div className="space-y-0.5 border-t border-[var(--p-line)] px-3 py-3">
+        <div className="border-t border-[var(--p-line)] px-3 py-2">
           {/* Configuración abajo, separada del trabajo diario (como Shopify) */}
           {canManage && (
             <Link
               href={`/admin/${tenant}/configuracion`}
               onClick={() => setOpen(false)}
-              className={`p-press flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] ${
+              className={`p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${
                 pathname.startsWith(`/admin/${tenant}/configuracion`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
               }`}
             >
@@ -236,20 +238,20 @@ export default function AdminSidebar({
               Configuración
             </Link>
           )}
-          <InstallApp className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
-          <Link href={`/pedir/${tenant}`} target="_blank" className="p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
+          <InstallApp className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
+          <Link href={`/pedir/${tenant}`} target="_blank" className="p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
             <Icon name="external" />
             Ver carta pública
           </Link>
           <Link
             href={`/admin/${tenant}/cuenta`}
             onClick={() => setOpen(false)}
-            className={`p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] hover:bg-black/[0.04] ${pathname.startsWith(`/admin/${tenant}/cuenta`) ? "font-medium text-[var(--p-ink)]" : "text-[var(--p-muted)]"}`}
+            className={`p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] hover:bg-black/[0.04] ${pathname.startsWith(`/admin/${tenant}/cuenta`) ? "font-medium text-[var(--p-ink)]" : "text-[var(--p-muted)]"}`}
           >
             <Icon name="users" />
             Mi cuenta
           </Link>
-          <button onClick={handleLogout} className={`p-press flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]`}>
+          <button onClick={handleLogout} className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
             <Icon name="logout" />
             Cerrar sesión
           </button>

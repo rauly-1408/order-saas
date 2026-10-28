@@ -14,7 +14,9 @@ Si se va internet con el panel abierto:
 - **Nunca se duplica**: cada envío lleva un código único; si llega dos veces (la conexión se cortó justo al enviar), el servidor devuelve la primera respuesta sin crear nada nuevo.
 - Si el servidor rechaza algo al enviarlo (por ejemplo, la mesa ya se cobró desde otro aparato), queda en rojo en la lista con el motivo y un botón **Quitar**; no frena a lo demás.
 
-**Lo que no se puede sin internet**: cobrar una mesa, ver la cuenta, anular, cambiar de mesa, recargar la página o cambiar de pestaña del panel. **No recargues ni cierres la página** mientras no haya conexión: lo guardado vive en ese navegador. Si se recarga sin internet, el navegador enseña su página de error y no se puede tomar nota hasta que vuelva (lo guardado no se pierde: se envía al volver a abrir el panel).
+**El panel se abre sin internet** (desde el 2026-10-28): al entrar en el panel con conexión, el aparato guarda la Caja, las Mesas y Pedidos con sus archivos (y cada pantalla que se abre). Sin internet se pueden **recargar y abrir** esas pantallas; las que no se habían guardado enseñan «Esta pantalla necesita internet» con botones a Caja y Mesas. Con internet siempre se ve la versión más nueva (si la red tarda más de 4 s, sale la guardada). Al **cerrar sesión** se borran las pantallas guardadas.
+
+**Lo que aún no se puede sin internet**: cobrar una mesa, ver la cuenta, anular y cambiar de mesa (siguiente entrega). Lo guardado vive en ese navegador: no borres los datos del navegador mientras haya envíos pendientes.
 
 La carta se guarda en el aparato al entrar en Mesas o en Caja; si se cae internet después, se sigue pudiendo tomar nota. El total de una venta guardada es sin cupones (el cupón se aplica al enviarse).
 
@@ -27,6 +29,9 @@ La forma de que el sábado ni se note: un **router 4G/5G con una SIM de datos** 
 Alternativa de emergencia: compartir datos desde un móvil y conectar a esa red el ordenador de la sala **y** el ordenador del agente de impresión (la impresora sigue en la wifi del local; el agente necesita las dos cosas: internet y ver la impresora, así que con un móvil solo vale si el PC del agente tiene cable a la red del local).
 
 ## Técnica
+
+- `public/sw.js` (el mismo service worker de los avisos): las páginas del panel van «primero la red» con 4 s de espera y se guardan en `panel-pages-v1`; los archivos de `/_next/static/` (con huella, no cambian) en `panel-static-v1` (máx. 400). Las peticiones RSC no se atienden (sin red Next abre la página entera, que sale de la caché). La API no se guarda aquí. Mensajes: `warm` (guardar páginas y sus archivos de antemano) y `logout` (borrar las páginas).
+- `PanelOffline.tsx` (en el diseño del panel, solo en producción): registra el service worker y pide guardar Caja, Mesas y Pedidos. `forgetOfflinePages()` al cerrar sesión.
 
 - `src/app/admin/[tenant]/(panel)/outbox.ts`: cola en `localStorage` (`panel-outbox-v1`). `sendOrQueue(url, body, label)` añade `requestId` (uuid) y envía; sin red, con 502/503/504 o si ya hay algo en cola, lo guarda. `flush()` reenvía en orden (para en el primer fallo de red o en un 401; un rechazo queda marcado con su error). `saveLocal`/`loadLocal` guardan la carta. Evento `panel-outbox-sent` al enviar algo.
 - `OutboxBar.tsx` (en el diseño del panel): reintenta cada 10 s y al volver la conexión; muestra lo pendiente y lo rechazado.
