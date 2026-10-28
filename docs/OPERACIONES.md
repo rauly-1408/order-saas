@@ -86,3 +86,26 @@ Cada función de Vercel abre su propia conexión. Con la URL directa, en un pico
 
   Enseña los administradores, pide el email y la contraseña nueva dos veces (no se ve al escribirla) y la guarda cifrada.
 
+## 11. Empezar de cero antes de abrir (borrar pedidos de prueba)
+
+`scripts/empezar-de-cero.mjs` deja un restaurante sin datos de prueba para el día de la apertura.
+
+**Qué hace:**
+- Borra pedidos, clientes, sesiones de caja, impresiones y pagos a colaboradores.
+- Devuelve al inventario el stock que gastaron los pedidos y a las tarjetas regalo su saldo.
+- Pone a cero los usos de los cupones.
+- **No toca** la carta, los ajustes, los usuarios ni los colaboradores.
+
+```bash
+node --env-file=.env scripts/empezar-de-cero.mjs estafeten            # solo enseña el resumen
+node --env-file=.env scripts/empezar-de-cero.mjs estafeten --borrar   # pide escribir «BORRAR estafeten»
+```
+
+**Facturas (VeriFactu):**
+- La base de datos impide borrarlas (trigger `invoice_inalterable`).
+- El script solo borra las de prueba, y **solo si ninguna se ha enviado a Hacienda**; si hay alguna enviada, no toca nada.
+- Para borrarlas quita el trigger dentro de la misma transacción y lo vuelve a poner. Si algo falla, todo vuelve atrás.
+- La numeración legal empieza en 1 al abrir.
+
+Probado en local: 107 pedidos, 7 facturas y 31 clientes quedan a 0, el stock vuelve, la carta y los usuarios quedan intactos y el siguiente pedido es el n.º 1.
+
