@@ -12,6 +12,7 @@ import type { TopResponse } from "@/app/api/admin/[tenant]/caja/top/route";
 import CashSessionSheet, { type CashState } from "./CashSessionSheet";
 import { STORE_VARS } from "../storeVars";
 import { OUTBOX_SENT, loadLocal, saveLocal, sendOrQueue } from "../outbox";
+import { ask } from "@/app/lib/dialog";
 
 // Caja: tomar un pedido en el mostrador o por teléfono, cobrarlo y mandarlo a
 // cocina. Tres pantallas en el ticket: pedido → cobro → confirmación, como en
@@ -302,7 +303,8 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     setSheetOpen(false);
   }
   // Recuperar: si hay un pedido a medias, se aparca primero para no perderlo.
-  function restore(id: string) {
+  // «pay» lo abre ya en la pantalla de cobro; «order», en el ticket para añadir más.
+  function restore(id: string, to: "pay" | "order" = "order") {
     const p = parked.find((x) => x.id === id);
     if (!p) return;
     setParked((ps) => {
@@ -321,9 +323,15 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     setNotes(p.notes);
     setCoupon(p.coupon);
     setDetailsOpen(Boolean(p.name || p.phone || p.notes || p.coupon));
-    setStep("order");
+    setStep(to);
     setDone(null);
     setParkedOpen(false);
+    if (to === "pay") setSheetOpen(true);
+  }
+  async function discardParked(p: Parked) {
+    if (await ask(`¿Descartar el pedido en espera «${p.label}» de las ${hourOf(p.savedAt)}? No se ha cobrado.`, { confirm: "Descartar", danger: true })) {
+      setParked((ps) => ps.filter((x) => x.id !== p.id));
+    }
   }
   function reset() {
     setEditing(null);
@@ -467,17 +475,20 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--p-accent)]">En espera · {parked.length}</p>
                 <ul className="space-y-1.5">
                   {parked.map((p) => (
-                    <li key={p.id}>
-                      <button type="button" onClick={() => restore(p.id)} className="p-press flex min-h-14 w-full items-center gap-3 rounded-xl bg-[var(--p-bg)] px-3 py-2 text-left">
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold">
-                            {p.label} <span className="font-normal text-[var(--p-muted)]">· {hourOf(p.savedAt)}</span>
-                          </span>
-                          <span className="block truncate text-xs text-[var(--p-muted)]">{p.lines.map((l) => `${l.quantity}× ${l.name}`).join(", ")}</span>
-                        </span>
-                        <span className="shrink-0 text-sm font-semibold tabular-nums">{euros(p.lines.reduce((a, l) => a + lineTotal(l), 0))}</span>
-                        <span className="shrink-0 rounded-full bg-[var(--p-brand)] px-3 py-1.5 text-xs font-semibold text-white">Seguir</span>
-                      </button>
+                    <li key={p.id} className="rounded-xl bg-[var(--p-bg)] p-2">
+                      <p className="truncate px-1 text-sm font-semibold">
+                        {p.label} <span className="font-normal text-[var(--p-muted)]">· {hourOf(p.savedAt)}</span>
+                      </p>
+                      <p className="truncate px-1 text-xs text-[var(--p-muted)]">{p.lines.map((l) => `${l.quantity}× ${l.name}`).join(", ")}</p>
+                      <div className="mt-2 flex gap-1.5">
+                        <button type="button" onClick={() => restore(p.id)} className="p-press min-h-11 shrink-0 rounded-full bg-[var(--p-surface)] px-4 text-sm font-semibold ring-1 ring-[var(--p-line)]">
+                          Añadir más
+                        </button>
+                        <button type="button" onClick={() => restore(p.id, "pay")} className="p-press flex min-h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[var(--p-brand)] px-4 text-sm font-semibold text-white">
+                          <span>Cobrar</span>
+                          <span className="tabular-nums">{euros(p.lines.reduce((a, l) => a + lineTotal(l), 0))}</span>
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -856,7 +867,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
               {!mobileSheet && lines.length === 0 && parked.length > 0 && (
                 <button type="button" onClick={() => setParkedOpen(true)} className="p-press mx-4 mb-4 flex w-[calc(100%-32px)] items-center justify-between rounded-full bg-[var(--p-accent)] px-5 py-4 text-base font-semibold text-white shadow-lg">
                   <span>En espera ({parked.length})</span>
-                  <span className="text-sm font-medium">Seguir con uno ›</span>
+                  <span className="text-sm font-medium">Cobrar o seguir ›</span>
                 </button>
               )}
             </div>
@@ -868,7 +879,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h2 className="text-lg font-semibold">Pedidos en espera</h2>
-                      <p className="text-xs text-[var(--p-muted)]">Guardados en este dispositivo. Toca uno para seguir con él.</p>
+                      <p className="text-xs text-[var(--p-muted)]">Guardados en este dispositivo. «Cobrar» lo lleva directo al pago.</p>
                     </div>
                     <button type="button" onClick={() => setParkedOpen(false)} className="rounded-full px-3 py-1 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
                       Cerrar
@@ -880,19 +891,29 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                       const total = p.lines.reduce((a, l) => a + lineTotal(l), 0);
                       const n = p.lines.reduce((a, l) => a + l.quantity, 0);
                       return (
-                        <li key={p.id} className="flex items-center gap-3 py-2.5">
-                          <button type="button" onClick={() => restore(p.id)} className="min-w-0 flex-1 rounded-lg py-1 text-left hover:bg-black/[0.03]">
-                            <p className="truncate text-[15px] font-medium">
-                              {p.label} <span className="font-normal text-[var(--p-muted)]">· {hourOf(p.savedAt)}</span>
-                            </p>
-                            <p className="truncate text-xs text-[var(--p-muted)]">
-                              {n} {n === 1 ? "artículo" : "artículos"} · {MODE_LABEL[p.mode]} · {p.lines.map((l) => `${l.quantity}× ${l.name}`).join(", ")}
-                            </p>
-                          </button>
-                          <span className="text-sm font-semibold tabular-nums">{euros(total)}</span>
-                          <button type="button" onClick={() => setParked((ps) => ps.filter((x) => x.id !== p.id))} aria-label={`Descartar ${p.label}`} className="p-press flex h-9 w-9 items-center justify-center rounded-full text-[var(--p-muted)] hover:bg-black/[0.05]">
-                            <TrashIcon />
-                          </button>
+                        <li key={p.id} className="py-3">
+                          <div className="flex items-start gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[15px] font-medium">
+                                {p.label} <span className="font-normal text-[var(--p-muted)]">· {hourOf(p.savedAt)}</span>
+                              </p>
+                              <p className="truncate text-xs text-[var(--p-muted)]">
+                                {n} {n === 1 ? "artículo" : "artículos"} · {MODE_LABEL[p.mode]} · {p.lines.map((l) => `${l.quantity}× ${l.name}`).join(", ")}
+                              </p>
+                            </div>
+                            <button type="button" onClick={() => discardParked(p)} aria-label={`Descartar ${p.label}`} className="p-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--p-muted)] hover:bg-black/[0.05]">
+                              <TrashIcon />
+                            </button>
+                          </div>
+                          <div className="mt-2 flex gap-2">
+                            <button type="button" onClick={() => restore(p.id)} className="p-press min-h-12 shrink-0 rounded-full bg-[var(--p-bg)] px-5 text-sm font-semibold">
+                              Añadir más
+                            </button>
+                            <button type="button" onClick={() => restore(p.id, "pay")} className="p-press flex min-h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[var(--p-brand)] px-5 text-base font-semibold text-white">
+                              <span>Cobrar</span>
+                              <span className="tabular-nums">{euros(total)}</span>
+                            </button>
+                          </div>
                         </li>
                       );
                     })}
