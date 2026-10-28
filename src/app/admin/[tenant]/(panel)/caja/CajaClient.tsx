@@ -1,7 +1,7 @@
 "use client";
 
 import { collaboratorDiscountCents } from "@/app/lib/collaboratorDiscount";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import ProductOptionsSheet, { type SheetProduct } from "@/app/pedir/[tenant]/ProductOptionsSheet";
 import ComboSheet, { type ComboProduct } from "@/app/pedir/[tenant]/ComboSheet";
@@ -181,12 +181,43 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   // Productos simples de la carta: lo que se puede elegir dentro de un menú.
   const catalog = useMemo(() => new Map<string, ChoiceProduct>((categories ?? []).flatMap((c) => c.products.filter((p) => !p.isCombo).map((p) => [p.id, { id: p.id, name: p.name, modifierGroups: p.modifierGroups }]))), [categories]);
 
+  // Toda la carta seguida, por secciones: las categorías saltan a la suya y se
+  // marcan solas al desplazarse (como en la tienda).
+  const head = useRef<HTMLElement>(null);
+  const sections = useRef(new Map<string, HTMLElement>());
+  useEffect(() => {
+    if (!categories) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (top) setCat((top.target as HTMLElement).dataset.slug ?? "");
+      },
+      { rootMargin: "-200px 0px -55% 0px" }
+    );
+    sections.current.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [categories, query]);
+  // La categoría activa se ve en la barra (en el móvil se desplaza solo en horizontal,
+  // sin interrumpir el desplazamiento de la carta).
+  useEffect(() => {
+    const chip = document.getElementById(`caja-chip-${cat}`);
+    const nav = chip?.parentElement;
+    if (!chip || !nav || nav.scrollWidth <= nav.clientWidth) return;
+    nav.scrollLeft = chip.offsetLeft - nav.clientWidth / 2 + chip.clientWidth / 2;
+  }, [cat]);
+  function jump(slug: string) {
+    const el = sections.current.get(slug);
+    if (!el) return;
+    let box: HTMLElement | null = el.parentElement;
+    while (box && !(/(auto|scroll)/.test(getComputedStyle(box).overflowY) && box.scrollHeight > box.clientHeight)) box = box.parentElement;
+    const scroller = box ?? document.scrollingElement ?? document.documentElement;
+    const offset = (head.current?.getBoundingClientRect().bottom ?? 0) - scroller.getBoundingClientRect().top + 8;
+    scroller.scrollTo({ top: scroller.scrollTop + el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - offset, behavior: "smooth" });
+    setCat(slug);
+  }
+
   const q = query.trim().toLowerCase();
-  const shown = useMemo(() => {
-    if (!categories) return [];
-    if (q) return categories.flatMap((c) => c.products.filter((p) => p.name.toLowerCase().includes(q)));
-    return categories.find((c) => c.slug === cat)?.products ?? [];
-  }, [categories, cat, q]);
+  const found = useMemo(() => (categories && q ? categories.flatMap((c) => c.products.filter((p) => p.name.toLowerCase().includes(q))) : []), [categories, q]);
 
   const linesTotal = lines.reduce((a, l) => a + lineTotal(l), 0);
   // Colaborador (guía, hotel…): su descuento se ve antes de cobrar. El servidor
@@ -322,6 +353,32 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     }
   }
 
+  // Azulejo de producto: foto, nombre y precio; el número dice cuántos van.
+  const tile = (p: Product) => {
+    const inOrder = lines.filter((l) => l.productId === p.id).reduce((a, l) => a + l.quantity, 0);
+    const hasOptions = p.isCombo || p.modifierGroups.length > 0;
+    return (
+      <button key={p.id} type="button" onClick={() => tap(p)} className={`p-press relative flex min-h-[124px] flex-col overflow-hidden rounded-2xl bg-[var(--p-surface)] text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-2 transition-shadow hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] ${inOrder ? "ring-[var(--p-brand)]" : "ring-transparent"}`}>
+        {p.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={p.imageUrl} alt="" loading="lazy" className="aspect-[16/10] w-full object-cover" />
+        ) : (
+          <div aria-hidden className="flex aspect-[16/10] w-full items-center justify-center bg-[var(--p-brand)]/10 text-2xl font-semibold text-[var(--p-brand)]/60">
+            {p.name.charAt(0)}
+          </div>
+        )}
+        <div className="flex flex-1 flex-col justify-between gap-1 p-3">
+          <span className="line-clamp-2 text-[15px] font-semibold leading-snug">{p.name}</span>
+          <span className="flex items-baseline justify-between gap-1.5 text-sm font-semibold tabular-nums">
+            {euros(p.basePriceCents)}
+            {hasOptions && <span className="rounded-full bg-[var(--p-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--p-muted)]">{p.isCombo ? "elegir menú" : "con opciones"}</span>}
+          </span>
+        </div>
+        {inOrder > 0 && <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--p-brand)] px-2 text-xs font-bold text-white shadow">{inOrder}</span>}
+      </button>
+    );
+  };
+
   // ── Pantalla 1: el pedido ───────────────────────────────────────────────
   const orderView = (
     <div className="flex h-full flex-col">
@@ -340,12 +397,12 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           </button>
         ))}
       </div>
-      <div className="mt-2 flex items-center gap-2 text-xs text-[var(--p-muted)]">
-        <span>Llega por</span>
-        <div className="flex gap-1" role="radiogroup" aria-label="Origen del pedido">
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className="text-xs text-[var(--p-muted)]">¿Cómo llega?</span>
+        <div className="flex gap-1 rounded-full bg-black/[0.05] p-0.5" role="radiogroup" aria-label="Origen del pedido">
           {(["COUNTER", "PHONE"] as const).map((s) => (
-            <button key={s} type="button" role="radio" aria-checked={source === s} onClick={() => setSource(s)} className={`rounded-full px-3 py-1 text-xs font-medium ${source === s ? "bg-[var(--p-ink)] text-white" : "bg-black/[0.05] text-[var(--p-ink)]"}`}>
-              {s === "COUNTER" ? "Mostrador" : "Teléfono"}
+            <button key={s} type="button" role="radio" aria-checked={source === s} onClick={() => setSource(s)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${source === s ? "bg-white text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.15)]" : "text-[var(--p-muted)]"}`}>
+              {s === "COUNTER" ? "En el mostrador" : "Por teléfono"}
             </button>
           ))}
         </div>
@@ -354,35 +411,12 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
 
       <ul className="mt-3 flex-1 divide-y divide-[var(--p-line)] overflow-y-auto">
         {lines.length === 0 && (
-          <li className="py-3">
-            <p className="py-4 text-center text-sm text-[var(--p-muted)]">Toca un producto para empezar un pedido.</p>
-            {/* Entre pedido y pedido: lo recaudado hoy, sin tener que buscarlo. */}
-            {canSeeTakings && hoy && (
-              <div className="relative mt-2">
-                <button type="button" onClick={() => setHoyOpen(true)} className="p-press w-full rounded-2xl bg-[var(--p-bg)] p-4 text-left">
-                  <p className="text-xs uppercase tracking-wide text-[var(--p-muted)]">Recaudado hoy</p>
-                  <p className="text-3xl font-semibold tabular-nums tracking-tight">{money(hoy.totalCents - hoy.pendingCents)}</p>
-                  <p className="mt-0.5 text-xs text-[var(--p-muted)]">
-                    {hoy.sales} {hoy.sales === 1 ? "pedido" : "pedidos"}
-                    {hoy.pendingCents > 0 && ` · ${money(hoy.pendingCents)} pendiente de cobrar`}
-                  </p>
-                  <ul className="mt-3 flex flex-wrap gap-1.5">
-                    {(Object.keys(HOY_PAYMENT_LABEL) as HoyPayment[])
-                      .filter((k) => hoy.byPayment[k] > 0)
-                      .map((k) => (
-                        <li key={k} className="rounded-full bg-[var(--p-surface)] px-2.5 py-1 text-xs font-medium">
-                          {HOY_PAYMENT_LABEL[k]} <span className="tabular-nums">{money(hoy.byPayment[k])}</span>
-                        </li>
-                      ))}
-                    {hoy.sales === 0 && <li className="text-xs text-[var(--p-muted)]">Todavía no hay ventas hoy.</li>}
-                  </ul>
-                  <p className="mt-3 text-xs font-semibold text-[var(--p-brand)]">Ver el detalle ›</p>
-                </button>
-                <button type="button" onClick={toggleHide} aria-pressed={hideTakings} aria-label={hideTakings ? "Mostrar importes" : "Ocultar importes"} title={hideTakings ? "Mostrar importes" : "Ocultar importes"} className="p-press absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--p-surface)] text-[var(--p-muted)] shadow-sm">
-                  <EyeIcon off={hideTakings} />
-                </button>
-              </div>
-            )}
+          <li className="flex h-full flex-col items-center justify-center py-10 text-center">
+            <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--p-bg)] text-[var(--p-muted)]">
+              <TicketIcon />
+            </span>
+            <p className="mt-3 text-[15px] font-semibold">Pedido vacío</p>
+            <p className="mt-1 max-w-[240px] text-sm text-[var(--p-muted)]">Toca un producto de la carta para añadirlo aquí.</p>
           </li>
         )}
         {lines.map((l) => {
@@ -458,6 +492,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           );
         })}
       </ul>
+      {lines.length > 0 && !editing && <p className="pt-1 text-center text-[11px] text-[var(--p-muted)]">Toca un producto del pedido para añadir una nota{canDiscount ? " o un descuento" : ""}.</p>}
 
       <div className="mt-2 border-t border-[var(--p-line)] pt-3">
         <button type="button" onClick={() => setDetailsOpen((v) => !v)} aria-expanded={detailsOpen} className="flex w-full items-center justify-between rounded-lg py-1.5 text-left text-sm hover:bg-black/[0.03]">
@@ -494,7 +529,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             </button>
           )}
           <button type="button" onClick={() => setStep("pay")} disabled={!lines.length} className="p-press min-w-0 flex-1 rounded-full bg-[var(--p-brand)] py-4 text-base font-semibold text-white disabled:opacity-40">
-            Cobrar {lines.length ? euros(subtotal) : ""}
+            {lines.length ? `Cobrar ${euros(subtotal)}` : "Añade productos para cobrar"}
           </button>
         </div>
       </div>
@@ -621,10 +656,12 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const mobileSheet = sheetOpen || step === "done";
 
   return (
-    <div className="-mx-4 -mt-20 flex min-h-screen flex-col lg:-mx-10 lg:-mt-10 lg:h-[calc(100vh-0px)] lg:flex-row" style={STORE_VARS}>
+    // La Caja ocupa la pantalla y se desplaza por dentro (en el móvil, entera; en el
+    // ordenador, solo la carta): así la barra de categorías se queda fija arriba.
+    <div className="-mx-4 -mt-20 -mb-12 flex h-[100dvh] flex-col overflow-y-auto lg:-mx-10 lg:-mt-10 lg:flex-row lg:overflow-visible" style={STORE_VARS}>
       {/* Carta */}
-      <div className="flex min-h-0 flex-1 flex-col px-4 pt-20 pb-28 lg:px-8 lg:pt-8 lg:pb-8">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex shrink-0 flex-col px-4 pt-20 pb-28 lg:min-h-0 lg:flex-1 lg:shrink lg:overflow-y-auto lg:px-8 lg:pt-0 lg:pb-8">
+        <div className="flex flex-wrap items-center gap-3 lg:pt-8">
           <h1 className="text-2xl font-semibold tracking-tight">Caja</h1>
           <div className="relative order-last min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-auto sm:max-w-sm">
             <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--p-muted)]">
@@ -649,7 +686,8 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             </button>
           )}
           {canSeeTakings && (
-            <button type="button" onClick={() => setHoyOpen(true)} className={`p-press flex items-center gap-2 rounded-full bg-[var(--p-surface)] px-4 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]`}>
+            <span className="flex items-center gap-1">
+            <button type="button" onClick={() => setHoyOpen(true)} title="Ver lo vendido hoy" className={`p-press flex items-center gap-2 rounded-full bg-[var(--p-surface)] px-4 py-2.5 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]`}>
               <span className="text-[var(--p-muted)]">Hoy</span>
               {hoy ? (
                 <>
@@ -662,6 +700,10 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                 <span className="text-[var(--p-muted)]">…</span>
               )}
             </button>
+            <button type="button" onClick={toggleHide} aria-pressed={hideTakings} aria-label={hideTakings ? "Mostrar importes" : "Ocultar importes"} title={hideTakings ? "Mostrar importes" : "Ocultar importes"} className="p-press flex h-10 w-10 items-center justify-center rounded-full bg-[var(--p-surface)] text-[var(--p-muted)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+              <EyeIcon off={hideTakings} />
+            </button>
+            </span>
           )}
         </div>
         {cash && !cash.open && (
@@ -674,9 +716,9 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         )}
         {error && !lines.length && step === "order" && <p className="mt-3 text-sm text-[var(--p-accent)]">{error}</p>}
         {categories && !q && (
-          <nav className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0" style={{ scrollbarWidth: "none" }}>
-            {categories.map((c) => (
-              <button key={c.id} type="button" onClick={() => setCat(c.slug)} className={`p-press shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold ${c.slug === cat ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] text-[var(--p-ink)]"}`}>
+          <nav ref={head} aria-label="Categorías" className="sticky top-14 z-20 -mx-4 mt-1 flex gap-2 overflow-x-auto bg-[var(--p-bg)]/95 px-4 py-2.5 backdrop-blur lg:top-0 lg:-mx-8 lg:flex-wrap lg:overflow-visible lg:px-8" style={{ scrollbarWidth: "none" }}>
+            {categories.filter((c) => c.products.length).map((c) => (
+              <button key={c.id} id={`caja-chip-${c.slug}`} type="button" aria-current={c.slug === cat || undefined} onClick={() => jump(c.slug)} className={`p-press shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${c.slug === cat ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
                 {c.name}
               </button>
             ))}
@@ -684,32 +726,28 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         )}
         {!categories ? (
           <p className="py-10 text-center text-sm text-[var(--p-muted)]">Cargando la carta…</p>
-        ) : (
-          <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {shown.map((p) => {
-              const inOrder = lines.filter((l) => l.productId === p.id).reduce((a, l) => a + l.quantity, 0);
-              const hasOptions = p.isCombo || p.modifierGroups.length > 0;
-              return (
-                <button key={p.id} type="button" onClick={() => tap(p)} className={`p-press relative flex min-h-[112px] flex-col overflow-hidden rounded-2xl bg-[var(--p-surface)] text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-2 ${inOrder ? "ring-[var(--p-brand)]" : "ring-transparent"}`}>
-                  {p.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.imageUrl} alt="" className="h-20 w-full object-cover" />
-                  ) : (
-                    <div className="h-2 w-full bg-[var(--p-brand)]/20" />
-                  )}
-                  <div className="flex flex-1 flex-col justify-between p-3">
-                    <span className="line-clamp-2 text-sm font-medium leading-snug">{p.name}</span>
-                    <span className="mt-1.5 flex items-baseline gap-1.5 text-sm font-semibold tabular-nums">
-                      {euros(p.basePriceCents)}
-                      {hasOptions && <span className="text-[11px] font-normal text-[var(--p-muted)]">{p.isCombo ? "menú" : "opciones"}</span>}
-                    </span>
-                  </div>
-                  {inOrder > 0 && <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--p-brand)] px-2 text-xs font-bold text-white shadow">{inOrder}</span>}
-                </button>
-              );
-            })}
-            {shown.length === 0 && <p className="col-span-full py-8 text-center text-sm text-[var(--p-muted)]">{q ? `Nada con «${query.trim()}».` : "Esta categoría está vacía."}</p>}
+        ) : q ? (
+          <div className="mt-1">
+            <p className="mb-2 text-xs text-[var(--p-muted)]">{found.length ? `${found.length} ${found.length === 1 ? "resultado" : "resultados"}` : `Nada con «${query.trim()}».`}</p>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">{found.map(tile)}</div>
           </div>
+        ) : (
+          categories
+            .filter((c) => c.products.length)
+            .map((c) => (
+              <section
+                key={c.id}
+                data-slug={c.slug}
+                ref={(el) => {
+                  if (el) sections.current.set(c.slug, el);
+                  else sections.current.delete(c.slug);
+                }}
+                className="mt-2 mb-4"
+              >
+                <h2 className="mb-2 text-sm font-semibold text-[var(--p-muted)]">{c.name}</h2>
+                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">{c.products.map(tile)}</div>
+              </section>
+            ))
         )}
       </div>
 
@@ -899,6 +937,14 @@ function EyeIcon({ off }: { off: boolean }) {
       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
       <circle cx="12" cy="12" r="3" />
       {off && <path d="M4 4l16 16" />}
+    </svg>
+  );
+}
+function TicketIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
     </svg>
   );
 }
