@@ -337,7 +337,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
         <div className="py-20 text-center text-[var(--p-muted)]">Cargando pedidos…</div>
       ) : (
         <div>
-          <div className="grid gap-4 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {COLUMNS.map((col) => {
               const list = byColumn(col.key);
               const isTarget = drag?.to === col.key;

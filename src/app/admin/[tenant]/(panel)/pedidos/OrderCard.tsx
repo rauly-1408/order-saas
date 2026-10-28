@@ -56,12 +56,14 @@ const COURIER_TONE: Record<string, string> = {
   CANCELLED: "bg-black/[0.04] text-[var(--p-muted)]",
   DELIVERED: "bg-emerald-50 text-emerald-700",
 };
-const SECONDARY = "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-black/[0.04] px-2 py-2 text-xs font-medium text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)] disabled:opacity-50";
+const SECONDARY = "flex min-h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-black/[0.04] px-2 py-2 text-xs font-medium text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)] disabled:opacity-50";
 const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : null);
 
 export default function OrderCard({ order, estimates, now, busy, onStatus, courierEnabled = false, onCourier, printingEnabled = false, onPrint, draggable = false, dragging = false, onDragStart, onDragEnd, payRequest = 0 }: OrderCardProps) {
   const action = nextAction(order);
   const { tenant } = useParams<{ tenant: string }>();
+  const canPrint = printingEnabled && !!onPrint;
+  const secondaryCount = (canPrint ? 2 : 0) + (order.paymentStatus === "PAID" ? 1 : 0) + (canCancel(order) ? 1 : 0);
   // askPay se abre con el botón o cuando sube payRequest (soltar la tarjeta en «Entregado»).
   const [askPayState, setAskPay] = useState<{ open: boolean; seen: number }>({ open: false, seen: 0 });
   const askPay = askPayState.open || askPayState.seen < payRequest;
@@ -211,7 +213,7 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
         <p className="mb-2 rounded-xl bg-[var(--p-warm)] px-3 py-2 text-xs text-[var(--p-brand)] wrap-anywhere">Nota: {order.notes}</p>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--p-line)] pt-3">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-[var(--p-line)] pt-3">
         <span className="text-lg font-bold tabular-nums text-[var(--p-ink)]">{toEuros(order.totalCents)}</span>
         {/* Cobro: pagado (y cómo) o pendiente de cobrar en persona */}
         {order.paymentStatus === "PAID" ? (
@@ -245,9 +247,11 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
         </button>
       )}
 
-      {/* Acciones secundarias: discretas, en una sola fila y sin partirse */}
-      {((printingEnabled && onPrint) || canCancel(order) || order.paymentStatus === "PAID") && (
-        <div className="mt-2 flex gap-1.5">
+      {/* Acciones secundarias: discretas. Hasta dos en una fila; con más, en
+          cuadrícula de dos (si sobra una, ocupa la fila entera) para que nunca
+          se salgan de la tarjeta en columnas estrechas. */}
+      {secondaryCount > 0 && (
+        <div className={`mt-2 grid gap-1.5 ${secondaryCount === 1 ? "grid-cols-1" : "grid-cols-2 [&>*:last-child:nth-child(odd)]:col-span-2"}`}>
           {printingEnabled && onPrint && (
             <>
               <button type="button" onClick={() => onPrint(order.id, "KITCHEN")} disabled={busy} title="Reimprimir la comanda de cocina" className={SECONDARY}>
