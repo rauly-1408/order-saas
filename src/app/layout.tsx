@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { NORAPP_ICON } from "@/app/lib/tenantIcons";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import TouchFeedback from "./TouchFeedback";
@@ -17,6 +18,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "Pedidos online", template: "%s · Pedidos online" },
   description: "Haz tu pedido online para recoger o a domicilio.",
+  // Icono de NorApp; cada restaurante lo cambia por su favicon oficial (lib/tenantIcons.ts).
+  icons: { icon: NORAPP_ICON },
 };
 
 export default function RootLayout({
