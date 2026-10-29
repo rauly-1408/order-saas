@@ -10,6 +10,16 @@ La plataforma se llama **NorApp**. La marca elegida es la propuesta **C · Ticke
 
 ## Dos capas
 
+- **Marca propia**: Estafetén y su franquicia (`lib/ownBrand.ts`):
+  - no se enseña NorApp en ningún sitio;
+  - el menú lleva el logo del restaurante arriba y, abajo, Configuración, Ver carta pública, Mi cuenta y Cerrar sesión;
+  - se amplía con la variable `NORAPP_OWN_BRAND="estafeten,otro"`.
+- **Restaurantes con NorApp**: el menú va como Shopify:
+  - el logo de NorApp arriba;
+  - abajo, el logo y el nombre del restaurante con el puesto de quien ha entrado;
+  - al pulsarlo se abre su menú: el restaurante (abre la carta pública), Ver carta pública, el usuario (puesto y email, lleva a Mi cuenta) y Cerrar sesión;
+  - el menú se cierra al tocar fuera o con Escape.
+
 - **NorApp**, la marca de la plataforma, sale:
   - en la pantalla de carga;
   - en la web de venta, el dossier y los iconos (pendiente).
@@ -17,6 +27,8 @@ La plataforma se llama **NorApp**. La marca elegida es la propuesta **C · Ticke
 - No se pinta el panel con la mandarina de NorApp.
 
 ## Pantalla de carga
+
+Solo en restaurantes con NorApp, nunca en los de marca propia.
 
 | Cuándo | Duración | Sonido | Dónde |
 |---|---|---|---|

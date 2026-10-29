@@ -16,7 +16,7 @@ const seen = () => {
   }
 };
 
-export default function LoginForm({ tenant, tenantName }: { tenant: string; tenantName: string }) {
+export default function LoginForm({ tenant, tenantName, norapp = true }: { tenant: string; tenantName: string; norapp?: boolean }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export default function LoginForm({ tenant, tenantName }: { tenant: string; tena
   async function handleSubmit() {
     setError(null);
     setLoading(true);
-    const first = !seen();
+    const first = norapp && !seen(); // marca propia (lib/ownBrand.ts): sin pantalla de NorApp
     const audio = first ? unlockAudio() : null;
     try {
       const res = await fetch("/api/auth/login", {

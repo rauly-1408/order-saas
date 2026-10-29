@@ -339,3 +339,5 @@ summary {
 @media (prefers-reduced-motion: reduce) {
   .nsplash .nsplash-paper, .nsplash .nsplash-word, .nsplash .nsplash-sub { animation: none; }
 }
+.nlogo-word { font: 800 1.15rem / 1 var(--font-norapp-mono), ui-monospace, monospace; letter-spacing: -0.04em; color: #111214; }
+.nlogo-word span { color: #ff6a13; }

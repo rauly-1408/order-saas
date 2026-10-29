@@ -36,3 +36,23 @@ export default function NorappSplash({ mode, id }: { mode: "long" | "short"; id?
     </div>
   );
 }
+
+// Logo de NorApp para la parte de arriba del menú del panel (como Shopify: la
+// app arriba, el negocio abajo). Pequeño y sobre fondo claro.
+export function NorappLogo() {
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${mono.variable}`} aria-label="NorApp">
+      <svg width="26" height="26" viewBox="18 6 64 80" aria-hidden="true">
+        <path d="M28 10 H72 V66 L67 70 L62 66 L57 70 L52 66 L47 70 L42 66 L37 70 L32 66 L28 70 Z" fill="#111214" />
+        <text x="50" y="44" textAnchor="middle" fontFamily="var(--font-norapp-mono), monospace" fontWeight="800" fontSize="26" fill="#fafaf8">
+          N
+        </text>
+        <rect x="36" y="52" width="28" height="3" rx="1.5" fill="#ff6a13" />
+        <rect x="18" y="72" width="64" height="12" rx="6" fill="#2a2c31" />
+      </svg>
+      <span className="nlogo-word" aria-hidden="true">
+        nor<span>app</span>
+      </span>
+    </span>
+  );
+}
