@@ -19,6 +19,7 @@ const PATHS: Record<IconName, string> = {
   printer: "M7 8V4h10v4M5 8h14a2 2 0 012 2v6h-4v4H7v-4H3v-6a2 2 0 012-2zM7 15h10",
   lang: "M4 5h9M8.5 3v2M6 5c0 4 3 7 6 8M11 5c0 4-3 8-7 9M13 20l4-9 4 9M14.5 17h5",
   doc: "M6 3h9l4 4v14H6zM15 3v4h4M9 12h7M9 16h7",
+  plug: "M9 3v5M15 3v5M7 8h10v3a5 5 0 01-10 0zM12 16v5",
 };
 
 export default function ConfigIcon({ name, className = "" }: { name: IconName; className?: string }) {

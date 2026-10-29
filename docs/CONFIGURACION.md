@@ -22,6 +22,7 @@ Panel → **Configuración**, abajo en la barra lateral. Solo gerentes.
 | **Pagos** | Pasarela del restaurante (ver PAGOS.md) | `PaymentAccount` |
 | **Pantalla de pago** | Notas del pedido, programar pedidos, casilla de ofertas y **propinas** (5/10/15/20 %) | `Tenant.settings.checkout` |
 | **Envío y entrega** | Canales, precios y tiempos (comunes a todos los locales), reparto con plataformas y repartidor externo | `Store`, `Tenant.settings`, `CourierAccount` |
+| **Integraciones** | Una tarjeta por conexión (Glovo, Uber Eats y Just Eat para solicitar; pasarela, datáfono, repartidor, botones a plataformas, impresoras y VeriFactu) con su estado y un botón a su apartado (ver INTEGRACIONES.md) | `Tenant.settings.integrationRequests` |
 | **Impuestos** | Tipo de IVA (4/10/21 %, 10 % por defecto); «IVA incluido» en la confirmación; IVA y propinas en Informes y en la exportación a Excel | `Tenant.settings.tax` |
 | **Sucursales** | Locales: crear, editar, cerrar o abrir al público | `Store` |
 | **Horario y zonas** | Horario, cierres y zonas **de cada local** (con varios, se elige arriba) | `Store`, `StoreClosure`, `DeliveryZone` |
