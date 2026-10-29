@@ -293,3 +293,49 @@ summary {
 @media (prefers-reduced-motion: reduce) {
   .p-dialog-rise { animation: p-dialog-fade 0.15s ease-out both; }
 }
+
+/* Pantalla de carga de NorApp (NorappSplash.tsx). Marca de la plataforma:
+   tinta #111214, mandarina #FF6A13, papel #FAFAF8. Ver docs/MARCA-NORAPP.md */
+.nsplash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: #111214;
+  color: #fafaf8;
+  padding: 16px;
+  text-align: center;
+}
+.nsplash-word {
+  margin-top: 18px;
+  font: 800 clamp(2.4rem, 11vw, 3.4rem) / 1 var(--font-norapp-mono), ui-monospace, monospace;
+  letter-spacing: -0.04em;
+}
+.nsplash-word span { color: #ff6a13; }
+.nsplash-sub { margin-top: 10px; font: 500 1rem var(--font-norapp), system-ui, sans-serif; }
+.nsplash-paper { transform-box: fill-box; }
+
+/* Larga (1,8 s): el ticket se imprime a golpes, luego el nombre y el lema. */
+.nsplash-long { animation: nsplash-out 0.3s 1.5s ease-in forwards; }
+.nsplash-long .nsplash-paper { animation: nsplash-print 0.9s steps(9, end) both; }
+.nsplash-long .nsplash-word { animation: p-rise 0.5s 0.95s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.nsplash-long .nsplash-sub { animation: p-rise 0.5s 1.15s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Corta (0,8 s, una vez al día): solo aparece cuando DailySplash le pone
+   data-on antes de pintar. */
+.nsplash-short { display: none; animation: nsplash-out 0.25s 0.55s ease-in forwards; }
+.nsplash-short[data-on] { display: flex; }
+.nsplash-short .nsplash-paper { animation: nsplash-print 0.4s steps(5, end) both; }
+.nsplash-short .nsplash-word { animation: p-fade 0.3s 0.2s ease-out both; }
+.nsplash-short .nsplash-sub { animation: p-fade 0.3s 0.3s ease-out both; }
+
+@keyframes nsplash-print { from { transform: translateY(78%); } to { transform: none; } }
+@keyframes nsplash-out { to { opacity: 0; visibility: hidden; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .nsplash .nsplash-paper, .nsplash .nsplash-word, .nsplash .nsplash-sub { animation: none; }
+}

@@ -7,6 +7,7 @@ import { Anton, Inter } from "next/font/google";
 import { brandFontsClass } from "@/app/lib/brandFonts";
 import { panelBrand, panelCssVars } from "@/app/lib/panelTheme";
 import AdminSidebar from "./AdminSidebar";
+import DailySplash from "./DailySplash";
 import OrderAlerts from "./OrderAlerts";
 import OutboxBar from "./OutboxBar";
 import PanelOffline from "./PanelOffline";
@@ -64,6 +65,7 @@ export default async function AdminLayout({
 
   return (
     <div className={`panel ${inter.variable} ${display.variable} ${brandFontsClass} flex min-h-screen`} style={panelCssVars(panelBrand(branding))}>
+      <DailySplash />
       <AdminSidebar tenant={tenant} tenantName={tenantName} logoUrl={logoUrl} canManage={canManageTenant(session.role)} seesTakings={Boolean(session.seesTakings)} areas={{ pedidos: access.pedidos, caja: access.caja, mesas: access.mesas, facturas: access.facturas }} />
       {/* pt-20 en móvil deja sitio a la barra superior fija */}
       <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-20 pb-12 lg:px-10 lg:pt-10">
