@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import type { OrderStatus, PaymentMethod } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
+import { STATION_STATUSES, accessOf } from "@/app/lib/roles";
 import { courierAccount, requestCourier, toPublicCourier } from "@/app/lib/couriers";
 import { cancelOrder } from "@/app/lib/cancelOrder";
 import { issueInvoiceSafe } from "@/app/lib/verifactu";
@@ -51,6 +52,15 @@ export async function PATCH(req: NextRequest) {
         if (session.storeId && session.storeId !== order.storeId) {
           return NextResponse.json({ error: "Este pedido es de otro local" }, { status: 403 });
         }
+
+        // Cada puesto, lo suyo: cocina y barra solo preparan; cobrar y cancelar,
+        // quien tenga permiso (lib/roles.ts).
+        const access = accessOf(session);
+        if (paidWith && !access.cobrar) return NextResponse.json({ error: "Tu puesto no puede cobrar: avisa a la caja" }, { status: 403 });
+        if (access.station && (typeof newStatus !== "string" || !STATION_STATUSES.includes(newStatus))) {
+          return NextResponse.json({ error: "Desde cocina o barra solo se marca preparando o listo" }, { status: 403 });
+        }
+        if (newStatus === "CANCELLED" && !(access.anular || access.caja)) return NextResponse.json({ error: "Tu puesto no puede cancelar pedidos" }, { status: 403 });
 
         // Una mesa abierta se cobra, se mueve o se cierra desde Mesas.
         if (order.status === "OPEN") return NextResponse.json({ error: "Esta cuenta es de una mesa: se gestiona desde Mesas" }, { status: 400 });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { getSessionFromRequest } from "@/app/lib/auth";
+import { denyUnlessArea, getSessionFromRequest } from "@/app/lib/auth";
 import { emailConfigured, sendEmail } from "@/app/lib/email";
 import { invoiceEmail, loadInvoiceDoc } from "@/app/lib/invoiceDoc";
 
@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
     const session = await getSessionFromRequest(req);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+    const noArea = denyUnlessArea(session, "facturas");
+    if (noArea) return noArea;
     if (!emailConfigured()) return NextResponse.json({ error: "El envío de emails no está configurado" }, { status: 400 });
 
     const inv = await prisma.invoice.findFirst({ where: { id, tenantId: tenant.id }, select: { storeId: true } });

@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { canManageTenant } from "@/app/lib/roles";
+import { accessOf, canManageTenant } from "@/app/lib/roles";
 import { once, requestIdOf } from "@/app/lib/idempotency";
 import { prepareRound, type CustomInput } from "@/app/lib/tableRound";
 import type { OrderLineInput } from "@/app/lib/orderPricing";
@@ -33,13 +33,18 @@ export type TableActionBody = {
 
 type Ctx = {
   tenant: { id: string; addons: string[] };
-  session: { userId: string; role: string };
+  session: { userId: string; role: string; position?: string | null; canCharge?: boolean };
   order: { id: string; tableId: string | null; orderNumber: number | null };
 };
 
 export async function runTableAction({ tenant, session, order }: Ctx, b: TableActionBody): Promise<NextResponse> {
   const manager = canManageTenant(session.role);
+  const access = accessOf(session);
   const rid = requestIdOf(b.requestId);
+  // Cada puesto, lo suyo: cobrar (caja, encargado, camarero si se le permite) y
+  // anular o cerrar sin cobrar (gerente y encargado). Ver lib/roles.ts
+  if (!access.mesas) return NextResponse.json({ error: "Tu puesto no tiene acceso a Mesas" }, { status: 403 });
+  if (b.action === "pay" && !access.cobrar) return NextResponse.json({ error: "Tu puesto no puede cobrar: avisa a la caja" }, { status: 403 });
   switch (b.action) {
     case "round":
       return once(tenant.id, rid, async () => {
@@ -50,7 +55,7 @@ export async function runTableAction({ tenant, session, order }: Ctx, b: TableAc
         return NextResponse.json(r);
       });
     case "void": {
-      if (!manager) return NextResponse.json({ error: "Solo el gerente puede anular lo que ya se ha enviado a cocina" }, { status: 403 });
+      if (!access.anular) return NextResponse.json({ error: "Solo el gerente o el encargado pueden anular lo que ya se ha enviado a cocina" }, { status: 403 });
       if (typeof b.lineId !== "string") return NextResponse.json({ error: "Línea no válida" }, { status: 400 });
       const { line, totalCents } = await voidLine(tenant.id, order.id, b.lineId);
       after(() => enqueueTablePrint(order.id, { kind: "VOID", lines: [{ quantity: line.quantity, productName: line.productName, productId: line.productId, modifiers: line.modifiers, note: line.note }] }));
@@ -92,7 +97,7 @@ export async function runTableAction({ tenant, session, order }: Ctx, b: TableAc
     }
     case "cancel": {
       const lines = await prisma.orderLine.count({ where: { orderId: order.id } });
-      if (lines && !manager) return NextResponse.json({ error: "Una mesa con consumo solo la puede cerrar sin cobrar el gerente" }, { status: 403 });
+      if (lines && !access.anular) return NextResponse.json({ error: "Una mesa con consumo solo la pueden cerrar sin cobrar el gerente o el encargado" }, { status: 403 });
       const paidParts = await prisma.order.count({ where: { tenantId: tenant.id, tableId: order.tableId, notes: partNote(order.orderNumber), status: "DELIVERED" } });
       if (paidParts) return NextResponse.json({ error: "Parte de esta cuenta ya está cobrada: cobra el resto" }, { status: 400 });
       const current = await prisma.order.findUnique({ where: { id: order.id }, select: { status: true } });

@@ -27,7 +27,7 @@ function quickAmounts(total: number): number[] {
 
 type Sendable = { url: string; body: Record<string, unknown> };
 
-export default function CuentaView({ tenant, table, overlay, offlineFreeTables, onBack, initialAction }: { tenant: string; table: Table; overlay?: TableOverlay; offlineFreeTables: { id: string; name: string; zone: string }[] | null; onBack: (opts?: { closed?: boolean; notice?: string }) => void; initialAction?: "round" | "pay" }) {
+export default function CuentaView({ tenant, table, overlay, offlineFreeTables, onBack, initialAction, canCharge = true }: { tenant: string; table: Table; overlay?: TableOverlay; offlineFreeTables: { id: string; name: string; zone: string }[] | null; onBack: (opts?: { closed?: boolean; notice?: string }) => void; initialAction?: "round" | "pay"; canCharge?: boolean }) {
   const orderId = table.open?.orderId ?? null;
   const api = orderId ? `/api/admin/${tenant}/mesas/${orderId}` : null;
   const [server, setServer] = useState<Cuenta | null>(() => (orderId ? (loadLocal<Cuenta>(cuentaKey(orderId)) ?? null) : null));
@@ -35,7 +35,7 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [composing, setComposing] = useState(initialAction === "round");
-  const [paying, setPaying] = useState(initialAction === "pay");
+  const [paying, setPaying] = useState(initialAction === "pay" && canCharge);
   const [moving, setMoving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [, setTick] = useState(0);
@@ -325,9 +325,13 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex">
-              <button type="button" onClick={() => setPaying(true)} disabled={busy || (!lineCount && !blind) || o.totalCents <= 0} className="p-press rounded-2xl bg-[var(--p-ink)] px-6 py-4 text-base font-bold text-white disabled:opacity-50 sm:min-w-[150px]">
-                Cobrar
-              </button>
+              {canCharge ? (
+                <button type="button" onClick={() => setPaying(true)} disabled={busy || (!lineCount && !blind) || o.totalCents <= 0} className="p-press rounded-2xl bg-[var(--p-ink)] px-6 py-4 text-base font-bold text-white disabled:opacity-50 sm:min-w-[150px]">
+                  Cobrar
+                </button>
+              ) : (
+                <span className="flex items-center justify-center rounded-2xl bg-black/[0.04] px-4 py-4 text-center text-sm font-medium text-[var(--p-muted)] sm:min-w-[150px]">Cobra la caja</span>
+              )}
               <button type="button" onClick={() => setComposing(true)} disabled={busy} className="p-press rounded-2xl bg-[var(--p-brand)] px-6 py-4 text-base font-bold text-white disabled:opacity-50 sm:min-w-[190px]">
                 + Nueva ronda
               </button>

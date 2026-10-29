@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { getSessionFromRequest } from "@/app/lib/auth";
+import { denyUnlessArea, getSessionFromRequest } from "@/app/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
     const session = await getSessionFromRequest(req);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+    const noArea = denyUnlessArea(session, "caja");
+    if (noArea) return noArea;
 
     const since = new Date(Date.now() - 30 * 86_400_000);
     const rows = await prisma.orderLine.groupBy({

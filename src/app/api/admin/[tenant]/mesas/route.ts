@@ -2,7 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
-import { canManageTenant } from "@/app/lib/roles";
+import { accessOf, canManageTenant } from "@/app/lib/roles";
 import { listStores, storeForSession } from "@/app/lib/stores";
 import { cleanText } from "@/app/lib/text";
 import { MAX_TABLES_PER_STORE, TableError, addRound, openTable, tableNames } from "@/app/lib/tables";
@@ -25,6 +25,7 @@ async function context(req: NextRequest) {
   const session = await getSessionFromRequest(req);
   if (!session) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }) };
   if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return { error: NextResponse.json({ error: "Prohibido" }, { status: 403 }) };
+  if (!accessOf(session).mesas) return { error: NextResponse.json({ error: "Tu puesto no tiene acceso a Mesas" }, { status: 403 }) };
   return { tenant, session };
 }
 
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
     const { tenant, session } = ctx;
     const storeId = await storeForSession(tenant.id, session.storeId, new URL(req.url).searchParams.get("store"));
     const stores = session.storeId ? [] : (await listStores(tenant.id, { activeOnly: true })).map((s) => ({ id: s.id, name: s.name }));
-    if (!storeId) return NextResponse.json({ stores, storeId: null, canManage: canManageTenant(session.role), sees: Boolean(session.seesTakings), tables: [], fixtures: {} });
+    if (!storeId) return NextResponse.json({ stores, storeId: null, canManage: canManageTenant(session.role), canCharge: accessOf(session).cobrar, sees: Boolean(session.seesTakings), tables: [], fixtures: {} });
 
     // En paralelo: el plano se refresca cada pocos segundos en todos los móviles de sala.
     const [store, tables, open] = await Promise.all([
@@ -92,6 +93,7 @@ export async function GET(req: NextRequest) {
       stores,
       storeId,
       canManage: canManageTenant(session.role),
+      canCharge: accessOf(session).cobrar,
       sees: Boolean(session.seesTakings),
       fixtures: readFixtures(store?.floorPlan),
       tables: tables.map((t) => {

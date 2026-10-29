@@ -11,7 +11,7 @@ export type Shape = "SQUARE" | "ROUND";
 export type TableOpen = { orderId: string | null; orderNumber: number | null; guests: number | null; totalCents: number; openedAt: string; billRequested: boolean; waiter: string | null; lines: number; rounds: number; lastRoundAt: string | null; pending?: boolean };
 export type Table = { id: string; name: string; zone: string; seats: number; shape: Shape; posX: number | null; posY: number | null; open: TableOpen | null };
 export type Fixture = { id: string; kind: "BAR" | "WALL" | "LABEL"; x: number; y: number; w: number; h: number; label: string };
-export type MapData = { stores: { id: string; name: string }[]; storeId: string | null; canManage: boolean; sees: boolean; tables: Table[]; fixtures: Record<string, Fixture[]> };
+export type MapData = { stores: { id: string; name: string }[]; storeId: string | null; canManage: boolean; canCharge?: boolean; sees: boolean; tables: Table[]; fixtures: Record<string, Fixture[]> };
 
 export type CuentaLine = { id: string; name: string; quantity: number; totalCents: number; discountCents: number; modifiers: string[]; note: string | null };
 export type Round = { round: number; at: string; by: string | null; lines: CuentaLine[] };
@@ -21,6 +21,7 @@ export type Cuenta = {
   parts: { id: string; orderNumber: number | null; totalCents: number; paymentMethod: string; paidAt: string | null }[];
   freeTables: { id: string; name: string; zone: string }[];
   canVoid: boolean;
+  canCharge?: boolean; // el puesto puede cobrar (camarero sin permiso: no)
 };
 
 export const euros = (c: number) => (c / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });

@@ -105,6 +105,7 @@ type NavItem = {
   exact?: boolean;
   managerOnly?: boolean; // oculto para STORE_MANAGER
   takingsOnly?: boolean; // solo con el permiso «Ve lo recaudado»
+  area?: "pedidos" | "caja" | "mesas" | "facturas"; // pantallas del día a día: según el puesto (lib/roles.ts)
   group: string; // apartado del menú: así se encuentra cada cosa por lo que es
 };
 
@@ -113,10 +114,10 @@ function buildNav(tenant: string): NavItem[] {
   return [
     // El día a día del servicio, en el orden en que se usa
     { label: "Inicio", href: `${base}/home`, icon: "home", exact: true, managerOnly: true, group: "" },
-    { label: "Caja", href: `${base}/caja`, icon: "cash", group: "Día a día" },
-    { label: "Pedidos", href: `${base}/pedidos`, icon: "orders", group: "Día a día" },
-    { label: "Mesas", href: `${base}/mesas`, icon: "tables", group: "Día a día" },
-    { label: "Facturas", href: `${base}/facturas`, icon: "invoice", group: "Día a día" },
+    { label: "Caja", href: `${base}/caja`, icon: "cash", area: "caja", group: "Día a día" },
+    { label: "Pedidos", href: `${base}/pedidos`, icon: "orders", area: "pedidos", group: "Día a día" },
+    { label: "Mesas", href: `${base}/mesas`, icon: "tables", area: "mesas", group: "Día a día" },
+    { label: "Facturas", href: `${base}/facturas`, icon: "invoice", area: "facturas", group: "Día a día" },
     // Lo que se vende y cómo se enseña
     { label: "Carta", href: `${base}/carta`, icon: "menu", managerOnly: true, group: "Tu carta" },
     { label: "Archivos", href: `${base}/archivos`, icon: "files", managerOnly: true, group: "Tu carta" },
@@ -135,16 +136,18 @@ export default function AdminSidebar({
   logoUrl,
   canManage,
   seesTakings = false,
+  areas = { pedidos: true, caja: true, mesas: true, facturas: true },
 }: {
   tenant: string;
   tenantName: string;
   logoUrl: string | null;
   canManage: boolean;
   seesTakings?: boolean;
+  areas?: Record<"pedidos" | "caja" | "mesas" | "facturas", boolean>;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const nav = buildNav(tenant).filter((item) => (canManage || !item.managerOnly) && (seesTakings || !item.takingsOnly));
+  const nav = buildNav(tenant).filter((item) => (canManage || !item.managerOnly) && (seesTakings || !item.takingsOnly) && (!item.area || areas[item.area]));
   const [open, setOpen] = useState(false);
 
   async function handleLogout() {

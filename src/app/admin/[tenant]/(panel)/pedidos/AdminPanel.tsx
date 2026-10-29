@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import OrderCard from "./OrderCard";
+import OrderCard, { ALL_PERMS, type Perms } from "./OrderCard";
 import PaidWithChooser, { type PaidWith } from "./PaidWith";
 import {
   cancelLabel,
@@ -30,7 +30,7 @@ const STORE_FILTER_KEY = "panel-store-filter";
 
 const DEFAULT_ESTIMATES: Estimates = { deliveryMinutes: 45, pickupMinutes: 20 };
 
-export default function AdminPanel({ tenant }: { tenant: string }) {
+export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: string; perms?: Perms }) {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [history, setHistory] = useState<Order[]>([]);
@@ -242,7 +242,10 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
     <div className="text-[var(--p-ink)]">
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Pedidos</h1>
+          <h1 className="flex flex-wrap items-center gap-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+            Pedidos
+            {perms.station && <span className="rounded-full bg-[var(--p-brand-soft)] px-3 py-1 text-sm font-semibold tracking-normal text-[var(--p-brand)]">Vista de {perms.station === "COCINA" ? "cocina" : "barra"}</span>}
+          </h1>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--p-muted)]">
             <span className={`h-2 w-2 rounded-full ${error ? "bg-red-500" : "bg-emerald-400"}`} />
             {error ? "Problema de conexión" : "En directo"}
@@ -373,6 +376,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                         <OrderCard
                           key={o.id}
                           order={o}
+                          perms={perms}
                           estimates={estimates}
                           now={now}
                           busy={updating === o.id}
@@ -381,7 +385,7 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                           onCourier={handleCourier}
                           printingEnabled={printingEnabled}
                           onPrint={handlePrint}
-                          draggable={canDrag && !!dropTarget(o)}
+                          draggable={canDrag && !perms.station && !!dropTarget(o)}
                           dragging={drag?.id === o.id}
                           onDragStart={(id) => {
                             const to = dropTarget(o);
@@ -429,12 +433,12 @@ export default function AdminPanel({ tenant }: { tenant: string }) {
                     </span>
                     <span className="flex shrink-0 items-center gap-3">
                       <span className="text-[var(--p-muted)]">{toEuros(o.totalCents)}</span>
-                      {o.status === "DELIVERED" && o.paymentStatus === "PAID" && (
+                      {o.status === "DELIVERED" && o.paymentStatus === "PAID" && perms.canInvoice && (
                         <Link href={`/admin/${tenant}/facturas?pedido=${o.id}`} className="rounded-full bg-black/[0.04] px-2 py-0.5 text-xs font-semibold text-[var(--p-muted)] hover:text-[var(--p-ink)]">
                           Factura
                         </Link>
                       )}
-                      {o.status === "DELIVERED" && o.paymentStatus !== "PAID" && o.paymentStatus !== "REFUNDED" && (
+                      {o.status === "DELIVERED" && o.paymentStatus !== "PAID" && o.paymentStatus !== "REFUNDED" && perms.canCharge && (
                         <button type="button" onClick={() => setCollectFor(collectFor === o.id ? null : o.id)} className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">
                           Sin cobrar · apuntar
                         </button>

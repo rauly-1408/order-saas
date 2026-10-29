@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
-import { getSessionFromRequest } from "@/app/lib/auth";
+import { denyUnlessArea, getSessionFromRequest } from "@/app/lib/auth";
 import { storeForSession } from "@/app/lib/stores";
 import { canManageTenant } from "@/app/lib/roles";
 import { getStoreOps, leadMinutes } from "@/app/lib/storeOps";
@@ -55,6 +55,8 @@ export async function POST(req: NextRequest) {
     const session = await getSessionFromRequest(req);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+    const noArea = denyUnlessArea(session, "caja");
+    if (noArea) return noArea;
 
     const b = ((await req.json().catch(() => null)) ?? {}) as Body;
     return await once(tenant.id, requestIdOf(b.requestId), async () => {

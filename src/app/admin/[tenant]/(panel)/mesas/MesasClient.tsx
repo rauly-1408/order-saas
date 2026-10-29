@@ -121,6 +121,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
         table={viewTable}
         overlay={overlay.get(view)}
         offlineFreeTables={offline ? data.tables.filter((t) => !t.open).map((t) => ({ id: t.id, name: t.name, zone: t.zone })) : null}
+        canCharge={data.canCharge !== false}
         initialAction={viewAction}
         onBack={(opts) => {
           setView(null);
@@ -227,6 +228,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
               allTables={data.tables}
               fixtures={data.fixtures?.[currentZone] ?? []}
               sees={data.sees}
+              canCharge={data.canCharge !== false}
               now={Date.now()}
               onOpenFree={setOpening}
               onAction={async (t, a) => {
