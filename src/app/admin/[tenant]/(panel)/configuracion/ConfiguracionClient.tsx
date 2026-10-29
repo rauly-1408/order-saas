@@ -148,7 +148,7 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
           <Toggle checked={form.takeawayEnabled} onChange={v => setForm({ ...form, takeawayEnabled: v })} label="Recogida — Takeaway / Click & Collect" />
         </div>
         {/* Reparto con plataformas: para quien no tiene repartidores propios */}
-        <div className="mt-5 border-t border-[var(--p-line)] pt-4">
+        <div id="plataformas" className="mt-5 scroll-mt-24 border-t border-[var(--p-line)] pt-4">
           <p className="text-sm font-semibold">Reparto con plataformas</p>
           <p className="mt-0.5 mb-3 text-xs text-[var(--p-muted)]">
             ¿No tienes repartidores? Pega el enlace de tu tienda en cada plataforma. En la carta, «A domicilio» mostrará «Escoge quién te lo lleva» (como McDonald&apos;s) y el cliente pedirá en esa app. Desactiva «Delivery» arriba si no haces reparto propio.

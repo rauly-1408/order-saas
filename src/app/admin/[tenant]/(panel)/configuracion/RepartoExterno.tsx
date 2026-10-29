@@ -100,7 +100,7 @@ export default function RepartoExterno({ tenant }: { tenant: string }) {
   const setG = (patch: Partial<Glovo>) => setForm({ ...form, glovo: { ...g, ...patch } });
 
   return (
-    <section className={card}>
+    <section id="repartidor" className={`${card} scroll-mt-24`}>
       <p className="text-[15px] font-semibold">🛵 Repartidor externo</p>
       <p className="mt-1 max-w-xl text-sm text-[var(--p-muted)]">
         El cliente pide y paga en tu tienda y solo contratas el repartidor por viaje: sin comisión sobre el pedido y el cliente sigue siendo tuyo. Necesitas tener activado «Delivery» y tus zonas de reparto: el cliente paga el envío de su zona.
