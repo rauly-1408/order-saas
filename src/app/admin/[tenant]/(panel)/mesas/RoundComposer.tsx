@@ -125,9 +125,11 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
         custom: custom.map((l) => ({ name: l.name, quantity: l.quantity, priceCents: l.unitPriceCents, free: Boolean(l.free), note: l.note.trim() })),
       };
       const label = `Mesa ${tableName} · ronda de ${count} ${count === 1 ? "producto" : "productos"}`;
+      // Para enseñar la ronda en la cuenta mientras no hay conexión (el servidor recalcula los precios).
+      const preview = { lines: lines.map((l) => ({ name: l.name, quantity: l.quantity, totalCents: l.free ? 0 : l.unitPriceCents * l.quantity, modifiers: modifierLabels(l.modifiers), note: l.note.trim() || null })) };
       const r = orderId
-        ? await sendOrQueue<{ round: number }>(`/api/admin/${tenant}/mesas/${orderId}`, { action: "round", ...round }, label)
-        : await sendOrQueue<{ round: number }>(`/api/admin/${tenant}/mesas`, { action: "open", tableId: opening?.tableId, guests: opening?.guests ?? 1, round }, label);
+        ? await sendOrQueue<{ round: number }>(`/api/admin/${tenant}/mesas/${orderId}`, { action: "round", ...round, preview }, label)
+        : await sendOrQueue<{ round: number }>(`/api/admin/${tenant}/mesas`, { action: "open", tableId: opening?.tableId, guests: opening?.guests ?? 1, round, preview }, label);
       onSent(r.queued ? null : r.data.round);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo enviar la ronda");

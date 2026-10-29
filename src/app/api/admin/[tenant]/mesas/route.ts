@@ -9,6 +9,7 @@ import { MAX_TABLES_PER_STORE, TableError, addRound, openTable, tableNames } fro
 import { once, requestIdOf } from "@/app/lib/idempotency";
 import { prepareRound, type RoundInput } from "@/app/lib/tableRound";
 import { enqueueTablePrint } from "@/app/lib/printing";
+import { runTableAction, type TableActionBody } from "@/app/lib/tableActions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -127,7 +128,12 @@ export async function GET(req: NextRequest) {
 }
 
 type Body = {
-  action?: "open" | "add" | "update" | "remove" | "layout" | "fixtures";
+  action?: "open" | "table" | "add" | "update" | "remove" | "layout" | "fixtures";
+  op?: TableActionBody["action"]; // action "table": lo que se hace en la mesa
+  toTableId?: string; // op "move"
+  method?: string;
+  cashTenderedCents?: number;
+  units?: TableActionBody["units"];
   items?: unknown[];
   shape?: string;
   positions?: { id?: unknown; posX?: unknown; posY?: unknown }[];
@@ -150,6 +156,24 @@ export async function POST(req: NextRequest) {
     if ("error" in ctx) return ctx.error;
     const { tenant, session } = ctx;
     const b = ((await req.json().catch(() => null)) ?? {}) as Body;
+
+    // Lo guardado sin conexión en una mesa abierta sin conexión (aún sin número
+    // de cuenta): se hace en la cuenta que esa mesa tenga abierta al llegar.
+    if (b.action === "table") {
+      if (typeof b.tableId !== "string") return NextResponse.json({ error: "Mesa no válida" }, { status: 400 });
+      if (!["round", "bill", "pay", "move"].includes(b.op ?? "")) return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
+      const order = await prisma.order.findFirst({
+        where: { tableId: b.tableId, tenantId: tenant.id, status: "OPEN" },
+        select: { id: true, tableId: true, orderNumber: true, storeId: true, table: { select: { name: true } } },
+      });
+      if (!order) {
+        const t = await prisma.diningTable.findUnique({ where: { id: b.tableId }, select: { name: true } });
+        return NextResponse.json({ error: `${t ? `La mesa ${t.name}` : "Esa mesa"} ya no está abierta: se cobró o se cerró desde otro aparato` }, { status: 409 });
+      }
+      if (session.storeId && session.storeId !== order.storeId) return NextResponse.json({ error: "Esa mesa es de otro local" }, { status: 403 });
+      const { op, toTableId, ...rest } = b;
+      return await runTableAction({ tenant, session, order }, { ...(rest as TableActionBody), action: op, tableId: op === "move" ? toTableId : undefined });
+    }
 
     if (b.action === "open") {
       if (typeof b.tableId !== "string") return NextResponse.json({ error: "Mesa no válida" }, { status: 400 });
@@ -263,6 +287,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
   } catch (err) {
     if (err instanceof TableError) return NextResponse.json({ error: err.message }, { status: 409 });
+    if (err instanceof Error && err.message.startsWith("Transicion")) return NextResponse.json({ error: "Esta mesa acaba de cambiar. Vuelve a abrirla." }, { status: 409 });
     console.error("[POST /api/admin/mesas]", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
