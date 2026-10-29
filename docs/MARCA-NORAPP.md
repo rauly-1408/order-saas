@@ -43,3 +43,22 @@ Solo en restaurantes con NorApp, nunca en los de marca propia.
   - el día se guarda en `localStorage` (`norapp-splash-day`) y la primera vez en `norapp-intro`.
 - **«Reducir movimiento»**: la versión diaria no sale y la de la primera vez sale sin animación.
 - **Estilos**: `.nsplash` en `globals.css`; el componente es `admin/[tenant]/NorappSplash.tsx`.
+
+## Icono de la pestaña (favicon)
+
+- Cada restaurante lleva **su favicon oficial**, el que sube en Configuración → Marca, en todas sus páginas: tienda, entrada al panel, recuperar contraseña, panel y facturas.
+- Si no ha subido ninguno, sale el de NorApp (`public/norapp-icon.svg`).
+- Código: `lib/tenantIcons.ts`, usado en el layout raíz, `admin/[tenant]/layout.tsx`, `(panel)/layout.tsx` y `pedir/[tenant]/layout.tsx`.
+- Ya no hay `app/favicon.ico`: aquel archivo era el triángulo de Vercel y se mezclaba con el del restaurante.
+
+## Restaurante de demostración
+
+- `scripts/crear-demo.mjs` crea «Demo NorApp» (`/admin/demo`, `/pedir/demo`) con marca NorApp:
+  - una carta de ejemplo de 4 secciones y 12 productos;
+  - abierto todo el día, solo para recoger;
+  - un gerente con el email y la contraseña que se escriban en la terminal (la contraseña no se ve al escribirla).
+- Se puede repetir: si la demo existe no borra nada y solo crea el gerente si falta.
+
+```bash
+cd ~/order-saas && node --env-file=.env scripts/crear-demo.mjs
+```

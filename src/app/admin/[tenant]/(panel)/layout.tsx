@@ -7,6 +7,7 @@ import { Anton, Inter } from "next/font/google";
 import { brandFontsClass } from "@/app/lib/brandFonts";
 import { panelBrand, panelCssVars } from "@/app/lib/panelTheme";
 import { isOwnBrand } from "@/app/lib/ownBrand";
+import { tenantIcons } from "@/app/lib/tenantIcons";
 import AdminSidebar from "./AdminSidebar";
 import DailySplash from "./DailySplash";
 import OrderAlerts from "./OrderAlerts";
@@ -24,14 +25,14 @@ export async function generateMetadata({
   params: Promise<{ tenant: string }>;
 }): Promise<Metadata> {
   const { tenant } = await params;
-  const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { name: true } });
+  const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { name: true, branding: true } });
   const name = t?.name ?? tenant;
   return {
     title: { absolute: `Panel · ${name}` },
     // Instalable como app: así puede sonar al entrar un pedido sin tocar antes la pantalla.
     manifest: `/pwa/${tenant}/manifest.webmanifest`,
     appleWebApp: { capable: true, title: name, statusBarStyle: "default" },
-    icons: { apple: `/pwa/${tenant}/icon/180` },
+    icons: tenantIcons(t?.branding, `/pwa/${tenant}/icon/180`), // favicon oficial en la pestaña
   };
 }
 

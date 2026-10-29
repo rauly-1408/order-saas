@@ -86,6 +86,11 @@ Cada función de Vercel abre su propia conexión. Con la URL directa, en un pico
 
   Enseña los administradores, pide el email y la contraseña nueva dos veces (no se ve al escribirla) y la guarda cifrada.
 
+## 10 bis. Restaurante de demostración
+
+- Para ver la versión NorApp del panel y enseñarla en las demos de venta: `node --env-file=.env scripts/crear-demo.mjs`.
+- Crea «Demo NorApp» con una carta de ejemplo y un gerente. Detalle en [MARCA-NORAPP.md](MARCA-NORAPP.md).
+
 ## 11. Empezar de cero antes de abrir (borrar pedidos de prueba)
 
 `scripts/empezar-de-cero.mjs` deja un restaurante sin datos de prueba para el día de la apertura.
