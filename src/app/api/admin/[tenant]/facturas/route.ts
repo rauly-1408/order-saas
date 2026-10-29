@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { getSessionFromRequest } from "@/app/lib/auth";
+import { denyUnlessArea, getSessionFromRequest } from "@/app/lib/auth";
 import { emailConfigured, sendEmail } from "@/app/lib/email";
 import { invoiceEmail, loadInvoiceDoc } from "@/app/lib/invoiceDoc";
 import { VerifactuError, issueFullInvoice, readRecipient, readVerifactu } from "@/app/lib/verifactu";
@@ -24,6 +24,8 @@ async function ctx(req: NextRequest) {
   const session = await getSessionFromRequest(req);
   if (!session) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }) };
   if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return { error: NextResponse.json({ error: "Prohibido" }, { status: 403 }) };
+  const noArea = denyUnlessArea(session, "facturas");
+  if (noArea) return { error: noArea };
   return { tenant, storeId: session.storeId ?? null };
 }
 

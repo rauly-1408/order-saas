@@ -14,6 +14,9 @@ export type SessionPayload = {
   tenantId: string | null;
   storeId?: string | null; // rol «Pedidos» limitado a un local (se lee de la base de datos)
   seesTakings?: boolean; // ve lo recaudado (se lee de la base de datos)
+  position?: string | null; // puesto del empleado (se lee de la base de datos; ver lib/roles.ts)
+  canCharge?: boolean; // camarero: puede cobrar (se lee de la base de datos)
+  stationCategoryIds?: string[]; // cocina y barra: sus secciones de la carta (se lee de la base de datos)
   issuedAt?: number; // segundos (iat): las sesiones anteriores a un cambio de contraseña no valen
 };
 

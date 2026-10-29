@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
-import { getSessionFromRequest } from "@/app/lib/auth";
+import { denyUnlessArea, getSessionFromRequest } from "@/app/lib/auth";
 import { storeForSession } from "@/app/lib/stores";
 import { MOVE_REASONS, openSession, sessionFigures } from "@/app/lib/cashSession";
 import { enqueueClosing } from "@/app/lib/printing";
@@ -27,6 +27,8 @@ async function ctx(req: NextRequest) {
   const session = await getSessionFromRequest(req);
   if (!session) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }) };
   if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return { error: NextResponse.json({ error: "Prohibido" }, { status: 403 }) };
+  const noArea = denyUnlessArea(session, "caja");
+  if (noArea) return { error: noArea };
   const storeId = await storeForSession(tenant.id, session.storeId, new URL(req.url).searchParams.get("store"));
   if (!storeId) return { error: NextResponse.json({ error: session.storeId ? "Tu local no está activo. Habla con el gerente." : "No hay ningún local activo" }, { status: 400 }) };
   const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { name: true, email: true } });

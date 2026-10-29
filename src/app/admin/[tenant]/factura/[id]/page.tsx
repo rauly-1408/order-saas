@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import QRCode from "qrcode";
 import { prisma } from "@/app/lib/prisma";
 import { getSession } from "@/app/lib/auth";
+import { accessOf } from "@/app/lib/roles";
 import { emailConfigured, euros } from "@/app/lib/email";
 import { loadInvoiceDoc } from "@/app/lib/invoiceDoc";
 import InvoiceActions from "./InvoiceActions";
@@ -20,6 +21,7 @@ export default async function FacturaPage({ params }: { params: Promise<{ tenant
   if (!session) redirect(`/admin/${tenant}/login`);
   const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { id: true } });
   if (!t || (session.role !== "SUPERADMIN" && session.tenantId !== t.id)) redirect(`/admin/${tenant}/login`);
+  if (!accessOf(session).facturas) redirect(`/admin/${tenant}/${accessOf(session).home}`);
   const doc = await loadInvoiceDoc(t.id, id);
   if (!doc) notFound();
   const qr = await QRCode.toString(doc.qrUrl, { type: "svg", errorCorrectionLevel: "M", margin: 0, width: 110 });

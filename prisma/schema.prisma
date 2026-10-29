@@ -137,21 +137,28 @@ enum OrderStatus {
 //  USER
 // ─────────────────────────────────────────────
 model User {
-  id                String          @id @default(cuid())
-  email             String          @unique
-  password          String
-  role              Role            @default(TENANT_ADMIN)
-  name              String?
-  active            Boolean         @default(true) // desactivado = no puede entrar (Configuración → Usuarios)
+  id                 String          @id @default(cuid())
+  email              String          @unique
+  password           String
+  role               Role            @default(TENANT_ADMIN)
+  name               String?
+  active             Boolean         @default(true) // desactivado = no puede entrar (Configuración → Usuarios)
   // Solo para el rol «Pedidos»: limita a un local (null = todos los locales)
-  storeId           String?
+  storeId            String?
+  // Puesto del empleado (rol STORE_MANAGER): ENCARGADO | CAJA | CAMARERO | COCINA | BARRA.
+  // null = «Caja» (los usuarios creados antes de los puestos). Ver lib/roles.ts
+  position           String?
+  // Camarero: puede cobrar las mesas.
+  canCharge          Boolean         @default(true)
+  // Cocina y barra: las secciones de la carta que ve en Pedidos.
+  stationCategoryIds String[]        @default([])
   // Ve lo recaudado (Caja → «Hoy en caja»). Solo el administrador principal
   // por defecto; se concede por usuario en Configuración → Usuarios.
-  seesTakings       Boolean         @default(false)
-  lastLoginAt       DateTime?
+  seesTakings        Boolean         @default(false)
+  lastLoginAt        DateTime?
   // Al cambiar la contraseña se cierran las sesiones abiertas antes (lib/auth.ts → fresh)
-  passwordChangedAt DateTime?
-  passwordResets    PasswordReset[]
+  passwordChangedAt  DateTime?
+  passwordResets     PasswordReset[]
 
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id])

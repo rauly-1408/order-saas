@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
-import { canManageTenant } from "@/app/lib/roles";
+import { accessOf } from "@/app/lib/roles";
 import { modifierLabels } from "@/app/lib/menuOptions";
 import { TableError } from "@/app/lib/tables";
 import { partNote, runTableAction, type TableActionBody } from "@/app/lib/tableActions";
@@ -25,6 +25,7 @@ async function context(req: NextRequest) {
   const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, tenantId: true, storeId: true, tableId: true, orderNumber: true } });
   if (!order || order.tenantId !== tenant.id || !order.tableId) return { error: NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 }) };
   if (session.storeId && session.storeId !== order.storeId) return { error: NextResponse.json({ error: "Esta mesa es de otro local" }, { status: 403 }) };
+  if (!accessOf(session).mesas) return { error: NextResponse.json({ error: "Tu puesto no tiene acceso a Mesas" }, { status: 403 }) };
   return { tenant, session, order };
 }
 
@@ -83,7 +84,8 @@ export async function GET(req: NextRequest) {
       rounds: [...rounds.values()].sort((a, b) => a.round - b.round),
       parts: parts.filter((p) => p.status !== "CANCELLED"),
       freeTables: free,
-      canVoid: canManageTenant(session.role),
+      canVoid: accessOf(session).anular,
+      canCharge: accessOf(session).cobrar,
     });
   } catch (err) {
     console.error("[GET /api/admin/mesas/cuenta]", err);

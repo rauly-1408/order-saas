@@ -123,6 +123,7 @@ export default function SalaView({
   allTables,
   fixtures,
   sees,
+  canCharge = true,
   now,
   onOpenFree,
   onAction,
@@ -131,6 +132,7 @@ export default function SalaView({
   allTables: Table[];
   fixtures: Fixture[];
   sees: boolean;
+  canCharge?: boolean;
   now: number;
   onOpenFree: (t: Table) => void;
   onAction: (t: Table, a: QuickAction) => void;
@@ -232,7 +234,7 @@ export default function SalaView({
         <aside className="w-full shrink-0 space-y-3 xl:sticky xl:top-6 xl:w-[340px]" aria-label="Mesas abiertas">
           {selected && (
             <div className="hidden xl:block">
-              <TableCard t={selected} now={now} onAction={(a) => onAction(selected, a)} onClose={() => setSelectedId(null)} />
+              <TableCard t={selected} now={now} canCharge={canCharge} onAction={(a) => onAction(selected, a)} onClose={() => setSelectedId(null)} />
             </div>
           )}
           <div className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
@@ -275,6 +277,7 @@ export default function SalaView({
       {sheetTable && (
         <Sheet title={`Mesa ${sheetTable.name}`} onClose={() => setSheetFor(null)}>
           <TableCard
+            canCharge={canCharge}
             t={sheetTable}
             now={now}
             bare
@@ -290,7 +293,7 @@ export default function SalaView({
 }
 
 // Ficha de una mesa abierta con las acciones rápidas.
-function TableCard({ t, now, bare, onAction, onClose }: { t: Table; now: number; bare?: boolean; onAction: (a: QuickAction) => void; onClose?: () => void }) {
+function TableCard({ t, now, bare, canCharge = true, onAction, onClose }: { t: Table; now: number; bare?: boolean; canCharge?: boolean; onAction: (a: QuickAction) => void; onClose?: () => void }) {
   const o = t.open!;
   const m = mins(o.openedAt, now);
   return (
@@ -331,9 +334,11 @@ function TableCard({ t, now, bare, onAction, onClose }: { t: Table; now: number;
         <button type="button" onClick={() => onAction("round")} className="p-press rounded-2xl bg-[var(--p-brand)] py-3 text-sm font-semibold text-white">
           + Nueva ronda
         </button>
-        <button type="button" onClick={() => onAction("pay")} className="p-press rounded-2xl bg-[var(--p-ink)] py-3 text-sm font-semibold text-white">
-          Cobrar
-        </button>
+        {canCharge && (
+          <button type="button" onClick={() => onAction("pay")} className="p-press rounded-2xl bg-[var(--p-ink)] py-3 text-sm font-semibold text-white">
+            Cobrar
+          </button>
+        )}
         <button type="button" onClick={() => onAction("bill")} className="p-press rounded-2xl bg-black/[0.06] py-3 text-sm font-semibold">
           Imprimir cuenta
         </button>

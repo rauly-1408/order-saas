@@ -10,6 +10,7 @@ import { discountLines } from "@/app/lib/promotions";
 import { scheduledLabel } from "@/app/lib/schedule";
 import { DEFAULT_TIMEZONE } from "@/app/lib/time";
 import { PROVIDER_NAME, courierCanCancel, courierCanRetry, courierPanelLabel } from "@/app/lib/couriers/labels";
+import { STATION_STATUSES } from "@/app/lib/roles";
 import {
   canCancel,
   elapsedLabel,
@@ -32,8 +33,13 @@ const TONE_CLS: Record<TimerTone, string> = {
   late: "bg-red-50 text-red-600",
 };
 
+// Lo que puede hacer quien mira el tablero según su puesto (lib/roles.ts).
+export type Perms = { station: "COCINA" | "BARRA" | null; canCharge: boolean; canCancel: boolean; canInvoice: boolean };
+export const ALL_PERMS: Perms = { station: null, canCharge: true, canCancel: true, canInvoice: true };
+
 type OrderCardProps = {
   order: Order;
+  perms?: Perms;
   estimates: Estimates;
   now: number;
   busy: boolean;
@@ -59,11 +65,16 @@ const COURIER_TONE: Record<string, string> = {
 const SECONDARY = "flex min-h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-black/[0.04] px-2 py-2 text-xs font-medium text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)] disabled:opacity-50";
 const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : null);
 
-export default function OrderCard({ order, estimates, now, busy, onStatus, courierEnabled = false, onCourier, printingEnabled = false, onPrint, draggable = false, dragging = false, onDragStart, onDragEnd, payRequest = 0 }: OrderCardProps) {
-  const action = nextAction(order);
+export default function OrderCard({ order, perms = ALL_PERMS, estimates, now, busy, onStatus, courierEnabled = false, onCourier, printingEnabled = false, onPrint, draggable = false, dragging = false, onDragStart, onDragEnd, payRequest = 0 }: OrderCardProps) {
+  const next = nextAction(order);
+  // Cocina y barra solo preparan: aceptar, «preparando» y «listo».
+  const action = next && (!perms.station || STATION_STATUSES.includes(next.status)) ? next : null;
   const { tenant } = useParams<{ tenant: string }>();
   const canPrint = printingEnabled && !!onPrint;
-  const secondaryCount = (canPrint ? 2 : 0) + (order.paymentStatus === "PAID" ? 1 : 0) + (canCancel(order) ? 1 : 0);
+  const showInvoice = order.paymentStatus === "PAID" && perms.canInvoice;
+  const showCancel = canCancel(order) && perms.canCancel;
+  const showReceipt = !perms.station;
+  const secondaryCount = (canPrint ? (showReceipt ? 2 : 1) : 0) + (showInvoice ? 1 : 0) + (showCancel ? 1 : 0);
   // askPay se abre con el botón o cuando sube payRequest (soltar la tarjeta en «Entregado»).
   const [askPayState, setAskPay] = useState<{ open: boolean; seen: number }>({ open: false, seen: 0 });
   const askPay = askPayState.open || askPayState.seen < payRequest;
@@ -235,7 +246,10 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
           }}
         />
       )}
-      {action && !(askPay && needsPay) && (
+      {action && needsPay && !perms.canCharge && (
+        <p className="mt-3 rounded-full bg-black/[0.04] py-3 text-center text-sm font-medium text-[var(--p-muted)]">Lo cobra la caja</p>
+      )}
+      {action && !(askPay && needsPay) && !(needsPay && !perms.canCharge) && (
         <button
           onClick={() => (needsPay ? setAskPay({ open: true, seen: payRequest }) : onStatus(order.id, action.status))}
           disabled={busy}
@@ -257,17 +271,19 @@ export default function OrderCard({ order, estimates, now, busy, onStatus, couri
               <button type="button" onClick={() => onPrint(order.id, "KITCHEN")} disabled={busy} title="Reimprimir la comanda de cocina" className={SECONDARY}>
                 <PrinterIcon /> Comanda
               </button>
-              <button type="button" onClick={() => onPrint(order.id, "RECEIPT")} disabled={busy} title="Imprimir el ticket del cliente" className={SECONDARY}>
-                <PrinterIcon /> Ticket
-              </button>
+              {showReceipt && (
+                <button type="button" onClick={() => onPrint(order.id, "RECEIPT")} disabled={busy} title="Imprimir el ticket del cliente" className={SECONDARY}>
+                  <PrinterIcon /> Ticket
+                </button>
+              )}
             </>
           )}
-          {order.paymentStatus === "PAID" && (
+          {showInvoice && (
             <Link href={`/admin/${tenant}/facturas?pedido=${order.id}`} title="Factura a nombre del cliente" className={SECONDARY}>
               Factura
             </Link>
           )}
-          {canCancel(order) && (
+          {showCancel && (
             <button type="button" onClick={handleCancel} disabled={busy} className={`${SECONDARY} hover:!bg-red-50 hover:!text-red-600`}>
               Cancelar
             </button>

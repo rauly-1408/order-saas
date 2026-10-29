@@ -1,5 +1,5 @@
 import { getSession } from "@/app/lib/auth";
-import { ROLE_LABEL } from "@/app/lib/roles";
+import { puestoLabel } from "@/app/lib/roles";
 import CuentaClient from "./CuentaClient";
 
 // Mi cuenta: cualquier usuario del panel (también el rol «Pedidos») ve su
@@ -7,5 +7,5 @@ import CuentaClient from "./CuentaClient";
 export default async function CuentaPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
   const session = await getSession();
-  return <CuentaClient tenant={tenant} email={session?.email ?? ""} role={ROLE_LABEL[session?.role ?? ""] ?? ""} seesTakings={Boolean(session?.seesTakings)} />;
+  return <CuentaClient tenant={tenant} email={session?.email ?? ""} role={session ? puestoLabel(session) : ""} seesTakings={Boolean(session?.seesTakings)} />;
 }

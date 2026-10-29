@@ -37,13 +37,11 @@ Panel → **Configuración**, abajo en la barra lateral. Solo gerentes.
 
 ## Usuarios y permisos
 
-- **Dos permisos**:
-  - **Gerente**: todo el panel;
-  - **Pedidos**: solo la pantalla de pedidos. Con varios locales, se puede limitar a uno: solo ve, oye y cambia los pedidos de ese local.
-- **Añadir usuario**: email, nombre y permiso. La **contraseña temporal** (12 caracteres) se muestra **una sola vez** para dársela en mano. «Nueva contraseña» genera otra.
+- **Puestos**: gerente, encargado de sala, caja, camarero, cocina y barra. Cada uno ve solo lo suyo; detalle en [USUARIOS-Y-PUESTOS.md](USUARIOS-Y-PUESTOS.md). Con varios locales, un empleado se puede limitar a uno.
+- **Añadir usuario**: email, nombre y puesto. La **contraseña temporal** (12 caracteres) se muestra **una sola vez** para dársela en mano. «Nueva contraseña» genera otra.
 - **Desactivar** quita el acceso **al momento**: la sesión se comprueba en la base de datos en cada página y en cada petición (`fresh()` en `lib/auth.ts`). Un usuario desactivado no puede iniciar sesión.
 - **Protecciones**:
-  - nadie puede desactivarse ni cambiarse el permiso a sí mismo;
+  - nadie puede desactivarse ni cambiarse el puesto a sí mismo;
   - siempre queda al menos un gerente activo;
   - un email solo puede tener una cuenta.
 - **Mi contraseña**: cualquier usuario la cambia con la actual (mínimo 10 caracteres).

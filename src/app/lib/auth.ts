@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { redirect } from "next/navigation";
-import { canManageTenant } from "@/app/lib/roles";
+import { accessOf, canManageTenant, type Access } from "@/app/lib/roles";
 import { prisma } from "@/app/lib/prisma";
 import {
   SESSION_COOKIE,
@@ -36,11 +36,21 @@ export async function clearSessionCookie(): Promise<void> {
 // empleado o cambiarle el permiso (Configuración → Usuarios) vale al momento.
 async function fresh(payload: SessionPayload | null): Promise<SessionPayload | null> {
   if (!payload) return null;
-  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { active: true, role: true, tenantId: true, storeId: true, email: true, seesTakings: true, passwordChangedAt: true } });
+  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { active: true, role: true, tenantId: true, storeId: true, email: true, seesTakings: true, passwordChangedAt: true, position: true, canCharge: true, stationCategoryIds: true } });
   if (!user || !user.active) return null;
   // Tras cambiar la contraseña, las sesiones abiertas antes (otros móviles) se cierran.
   if (user.passwordChangedAt && (payload.issuedAt ?? 0) < Math.floor(user.passwordChangedAt.getTime() / 1000)) return null;
-  return { ...payload, email: user.email, role: user.role, tenantId: user.tenantId, storeId: user.storeId, seesTakings: user.role === "SUPERADMIN" || user.seesTakings };
+  return {
+    ...payload,
+    email: user.email,
+    role: user.role,
+    tenantId: user.tenantId,
+    storeId: user.storeId,
+    seesTakings: user.role === "SUPERADMIN" || user.seesTakings,
+    position: user.position,
+    canCharge: user.canCharge,
+    stationCategoryIds: user.stationCategoryIds,
+  };
 }
 
 // Para Server Components / Server Actions.
@@ -86,5 +96,21 @@ export async function denyUnlessTenantAdmin(
 export async function requireManagerPage(tenant: string): Promise<void> {
   const session = await getSession();
   if (!session) redirect(`/admin/${tenant}/login`);
-  if (!canManageTenant(session.role)) redirect(`/admin/${tenant}/pedidos`);
+  if (!canManageTenant(session.role)) redirect(`/admin/${tenant}/${accessOf(session).home}`);
+}
+
+// Para las pantallas del día a día: cada puesto entra solo a lo suyo (la caja
+// a Caja, el camarero a Mesas, cocina y barra a Pedidos). Ver lib/roles.ts
+export async function requireAreaPage(tenant: string, area: "pedidos" | "caja" | "mesas" | "facturas"): Promise<Access> {
+  const session = await getSession();
+  if (!session) redirect(`/admin/${tenant}/login`);
+  const access = accessOf(session);
+  if (!access[area]) redirect(`/admin/${tenant}/${access.home}`);
+  return access;
+}
+
+// Lo mismo para las rutas de la API: la respuesta de error, o null si puede.
+export function denyUnlessArea(session: SessionPayload, area: keyof Omit<Access, "station" | "home">): NextResponse | null {
+  if (accessOf(session)[area]) return null;
+  return NextResponse.json({ error: "Tu puesto no tiene acceso a esto. Pídeselo al gerente." }, { status: 403 });
 }

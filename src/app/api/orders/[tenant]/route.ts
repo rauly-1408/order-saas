@@ -1,3 +1,4 @@
+import { accessOf } from "@/app/lib/roles";
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyNewOrder } from "@/app/lib/notifyOrder";
 import { printOnNewOrder, readPrinting } from "@/app/lib/printing";
@@ -409,9 +410,21 @@ export async function GET(req: NextRequest) {
 
     const account = await prisma.courierAccount.findUnique({ where: { tenantId: tenant.id }, select: { provider: true } });
     const withCourier = <T extends { courier: Parameters<typeof toPublicCourier>[0] }>(o: T) => ({ ...o, courier: toPublicCourier(o.courier) });
+    // Cocina y barra: cada uno ve solo las líneas de sus secciones de la carta (y
+    // solo los pedidos que tienen alguna). Ver lib/roles.ts
+    const access = accessOf(session);
+    let forStation = <T extends { items: { productId: string }[] }>(list: T[]) => list;
+    if (access.station) {
+      const mine = new Set(session.stationCategoryIds ?? []);
+      const ids = [...new Set([...orders, ...history].flatMap((o) => o.items.map((i) => i.productId)))];
+      const cat = new Map((await prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true, categoryId: true } })).map((p) => [p.id, p.categoryId]));
+      // Lo que no está en la carta (producto libre) va a cocina.
+      const isMine = (productId: string) => (cat.has(productId) ? mine.has(cat.get(productId)!) : access.station === "COCINA");
+      forStation = (list) => list.map((o) => ({ ...o, items: o.items.filter((i) => isMine(i.productId)) })).filter((o) => o.items.length > 0);
+    }
     return NextResponse.json({
-      orders: orders.map(withCourier),
-      history: history.map(withCourier),
+      orders: forStation(orders).map(withCourier),
+      history: forStation(history).map(withCourier),
       courierEnabled: !!account && account.provider !== "NONE",
       printingEnabled: readPrinting(tenant.settings).printers.length > 0,
       // Sucursales: lista para el filtro (solo si hay más de un local) y el filtro aplicado.
