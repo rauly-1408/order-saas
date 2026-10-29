@@ -1,6 +1,7 @@
 import { Anton, Inter } from "next/font/google";
 import { prisma } from "@/app/lib/prisma";
 import { panelBrand, panelCssVars } from "@/app/lib/panelTheme";
+import { isOwnBrand } from "@/app/lib/ownBrand";
 import LoginForm from "./LoginForm";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -17,7 +18,7 @@ export default async function LoginPage({
 
   return (
     <div className={`panel ${inter.variable} ${display.variable}`} style={panelCssVars(panelBrand(t?.branding))}>
-      <LoginForm tenant={tenant} tenantName={t?.name ?? tenant} />
+      <LoginForm tenant={tenant} tenantName={t?.name ?? tenant} norapp={!isOwnBrand(tenant)} />
     </div>
   );
 }

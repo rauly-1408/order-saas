@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { prisma } from "@/app/lib/prisma";
 import { getSession } from "@/app/lib/auth";
-import { accessOf, canManageTenant } from "@/app/lib/roles";
+import { accessOf, canManageTenant, puestoLabel } from "@/app/lib/roles";
 import { Anton, Inter } from "next/font/google";
 import { brandFontsClass } from "@/app/lib/brandFonts";
 import { panelBrand, panelCssVars } from "@/app/lib/panelTheme";
+import { isOwnBrand } from "@/app/lib/ownBrand";
 import AdminSidebar from "./AdminSidebar";
+import DailySplash from "./DailySplash";
 import OrderAlerts from "./OrderAlerts";
 import OutboxBar from "./OutboxBar";
 import PanelOffline from "./PanelOffline";
@@ -57,6 +59,7 @@ export default async function AdminLayout({
   }
 
   const tenantName = tenantData.name;
+  const ownBrand = isOwnBrand(tenant); // Estafetén y su franquicia: sin marca NorApp
   const access = accessOf(session); // qué pantallas del día a día ve su puesto
   const branding = (tenantData.branding ?? {}) as Record<string, unknown>;
   // El cuadrado encaja mejor en el hueco del icono; si no hay, el principal.
@@ -64,7 +67,8 @@ export default async function AdminLayout({
 
   return (
     <div className={`panel ${inter.variable} ${display.variable} ${brandFontsClass} flex min-h-screen`} style={panelCssVars(panelBrand(branding))}>
-      <AdminSidebar tenant={tenant} tenantName={tenantName} logoUrl={logoUrl} canManage={canManageTenant(session.role)} seesTakings={Boolean(session.seesTakings)} areas={{ pedidos: access.pedidos, caja: access.caja, mesas: access.mesas, facturas: access.facturas }} />
+      {!ownBrand && <DailySplash />}
+      <AdminSidebar tenant={tenant} tenantName={tenantName} logoUrl={logoUrl} user={{ email: session.email, puesto: puestoLabel(session) }} ownBrand={ownBrand} canManage={canManageTenant(session.role)} seesTakings={Boolean(session.seesTakings)} areas={{ pedidos: access.pedidos, caja: access.caja, mesas: access.mesas, facturas: access.facturas }} />
       {/* pt-20 en móvil deja sitio a la barra superior fija */}
       <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-20 pb-12 lg:px-10 lg:pt-10">
         <div className="p-page mx-auto max-w-6xl">{children}</div>

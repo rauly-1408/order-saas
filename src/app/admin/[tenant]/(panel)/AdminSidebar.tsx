@@ -1,13 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { NorappLogo } from "../NorappSplash";
 import InstallApp from "./InstallApp";
 import { forgetOfflinePages } from "./PanelOffline";
 
 // Barra lateral del panel: translúcida con desenfoque (estilo Apple), iconos de
 // línea y el elemento activo con el color de la marca del restaurante (--p-brand).
+// Marca NorApp (como Shopify): el logo de NorApp arriba y el restaurante abajo;
+// al pulsar el restaurante se abre su menú (carta pública, mi cuenta, cerrar
+// sesión). Marca propia (Estafetén y su franquicia, lib/ownBrand.ts): el logo del
+// restaurante arriba y esas opciones sueltas abajo.
 
 type IconName = "home" | "orders" | "cash" | "tables" | "users" | "partners" | "menu" | "costs" | "chart" | "brush" | "gear" | "files" | "invoice" | "external" | "logout";
 
@@ -134,6 +139,8 @@ export default function AdminSidebar({
   tenant,
   tenantName,
   logoUrl,
+  user,
+  ownBrand = false,
   canManage,
   seesTakings = false,
   areas = { pedidos: true, caja: true, mesas: true, facturas: true },
@@ -141,6 +148,8 @@ export default function AdminSidebar({
   tenant: string;
   tenantName: string;
   logoUrl: string | null;
+  user: { email: string; puesto: string };
+  ownBrand?: boolean;
   canManage: boolean;
   seesTakings?: boolean;
   areas?: Record<"pedidos" | "caja" | "mesas" | "facturas", boolean>;
@@ -149,6 +158,21 @@ export default function AdminSidebar({
   const router = useRouter();
   const nav = buildNav(tenant).filter((item) => (canManage || !item.managerOnly) && (seesTakings || !item.takingsOnly) && (!item.area || areas[item.area]));
   const [open, setOpen] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // El menú del restaurante se cierra al tocar fuera o con Escape.
+  useEffect(() => {
+    if (!menu) return;
+    const out = (e: PointerEvent) => !menuRef.current?.contains(e.target as Node) && setMenu(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
+    document.addEventListener("pointerdown", out);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", out);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [menu]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
@@ -165,9 +189,7 @@ export default function AdminSidebar({
     // eslint-disable-next-line @next/next/no-img-element
     <img src={logoUrl} alt={tenantName} className="h-9 w-9 rounded-xl object-contain" />
   ) : (
-    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--p-brand)] text-sm font-semibold text-white">
-      {tenantName.charAt(0).toUpperCase()}
-    </div>
+    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--p-brand)] text-sm font-semibold text-white">{tenantName.charAt(0).toUpperCase()}</div>
   );
 
   if (inSettings) return null;
@@ -191,13 +213,19 @@ export default function AdminSidebar({
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center gap-3 px-5 pt-5 pb-3">
-          {brandMark}
-          <div className="min-w-0">
-            <div className="truncate text-[15px] font-semibold">{tenantName}</div>
-            <div className="text-xs text-[var(--p-muted)]">Panel del restaurante</div>
+        {ownBrand ? (
+          <div className="flex items-center gap-3 px-5 pt-5 pb-3">
+            {brandMark}
+            <div className="min-w-0">
+              <div className="truncate text-[15px] font-semibold">{tenantName}</div>
+              <div className="text-xs text-[var(--p-muted)]">Panel del restaurante</div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="px-5 pt-5 pb-3">
+            <NorappLogo />
+          </div>
+        )}
 
         <nav className="flex-1 overflow-y-auto px-3">
           <ul>
@@ -242,22 +270,107 @@ export default function AdminSidebar({
             </Link>
           )}
           <InstallApp className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
-          <Link href={`/pedir/${tenant}`} target="_blank" className="p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
-            <Icon name="external" />
-            Ver carta pública
-          </Link>
-          <Link
-            href={`/admin/${tenant}/cuenta`}
-            onClick={() => setOpen(false)}
-            className={`p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] hover:bg-black/[0.04] ${pathname.startsWith(`/admin/${tenant}/cuenta`) ? "font-medium text-[var(--p-ink)]" : "text-[var(--p-muted)]"}`}
-          >
-            <Icon name="users" />
-            Mi cuenta
-          </Link>
-          <button onClick={handleLogout} className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
-            <Icon name="logout" />
-            Cerrar sesión
-          </button>
+          {ownBrand ? (
+            <>
+              <Link href={`/pedir/${tenant}`} target="_blank" className="p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
+                <Icon name="external" />
+                Ver carta pública
+              </Link>
+              <Link
+                href={`/admin/${tenant}/cuenta`}
+                onClick={() => setOpen(false)}
+                className={`p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] hover:bg-black/[0.04] ${pathname.startsWith(`/admin/${tenant}/cuenta`) ? "font-medium text-[var(--p-ink)]" : "text-[var(--p-muted)]"}`}
+              >
+                <Icon name="users" />
+                Mi cuenta
+              </Link>
+              <button onClick={handleLogout} className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
+                <Icon name="logout" />
+                Cerrar sesión
+              </button>
+            </>
+          ) : (
+            <div ref={menuRef} className="relative mt-1">
+              {menu && (
+                <div
+                  role="menu"
+                  aria-label={tenantName}
+                  className="p-rise absolute inset-x-0 bottom-full mb-2 rounded-2xl border border-[var(--p-line)] bg-[var(--p-surface)] p-1.5 shadow-[0_18px_48px_-18px_rgba(0,0,0,0.35)]"
+                >
+                  <Link
+                    role="menuitem"
+                    href={`/pedir/${tenant}`}
+                    target="_blank"
+                    onClick={() => setMenu(false)}
+                    className="p-press flex items-center gap-3 rounded-xl bg-black/[0.04] px-2.5 py-2 text-[14px] font-semibold"
+                    title="Ver carta pública"
+                  >
+                    {brandMark}
+                    <span className="min-w-0 flex-1 truncate">{tenantName}</span>
+                    <span className="text-[var(--p-muted)]">
+                      <Icon name="external" />
+                    </span>
+                  </Link>
+                  <Link
+                    role="menuitem"
+                    href={`/pedir/${tenant}`}
+                    target="_blank"
+                    onClick={() => setMenu(false)}
+                    className="p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-[var(--p-ink)] hover:bg-black/[0.04]"
+                  >
+                    <span className="text-[var(--p-muted)]">
+                      <Icon name="menu" />
+                    </span>
+                    Ver carta pública
+                  </Link>
+                  <div className="my-1.5 border-t border-[var(--p-line)]" />
+                  <Link
+                    role="menuitem"
+                    href={`/admin/${tenant}/cuenta`}
+                    onClick={() => {
+                      setMenu(false);
+                      setOpen(false);
+                    }}
+                    className="p-press flex items-center gap-3 rounded-xl px-2.5 py-2 hover:bg-black/[0.04]"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--p-brand-soft)] text-sm font-semibold text-[var(--p-brand)]">
+                      {user.email.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] font-semibold">{user.puesto}</span>
+                      <span className="block truncate text-xs text-[var(--p-muted)]">{user.email}</span>
+                    </span>
+                  </Link>
+                  <button
+                    role="menuitem"
+                    onClick={handleLogout}
+                    className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] text-[var(--p-ink)] hover:bg-black/[0.04]"
+                  >
+                    <span className="text-[var(--p-muted)]">
+                      <Icon name="logout" />
+                    </span>
+                    Cerrar sesión
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setMenu((m) => !m)}
+                aria-expanded={menu}
+                aria-haspopup="menu"
+                className={`p-press flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-black/[0.04] ${menu ? "bg-black/[0.04]" : ""}`}
+              >
+                {brandMark}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14px] font-semibold">{tenantName}</span>
+                  <span className="block truncate text-xs text-[var(--p-muted)]">{user.puesto}</span>
+                </span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[var(--p-muted)]" aria-hidden>
+                  <path d="M8 9l4-4 4 4M8 15l4 4 4-4" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </aside>
     </>
