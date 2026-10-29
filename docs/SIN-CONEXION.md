@@ -7,7 +7,7 @@ Un sábado lleno con la wifi caída no puede parar la sala. Hay dos capas:
 Si se va internet con el panel abierto:
 
 - Arriba sale **«Sin conexión · rondas y ventas se guardan»**.
-- **Mesas**: se puede abrir una mesa nueva y tomar nota, y mandar rondas a las mesas ya abiertas (aunque no se pueda ver su cuenta). Al pulsar «Enviar a cocina» la ronda se guarda en el aparato.
+- **Mesas** (completas desde el 2026-10-29): se ve el plano y la cuenta de cada mesa (la última guardada en el aparato, con lo pendiente encima), y se puede **abrir mesas, tomar nota, pedir la cuenta, cobrar (todo, a partes iguales o por productos ya enviados) y cambiar de mesa**. Lo que aún no ha llegado al servidor sale como «Sin enviar · saldrá al volver internet» y la mesa lleva «sin enviar». Al cobrar se ve el cambio al momento; el número de factura y el ticket salen al volver internet. Una mesa abierta sin conexión no tiene número de cuenta hasta que se envía.
 - **Caja**: se puede vender. La pantalla final dice **«Pedido guardado»** y enseña el cambio que hay que devolver; el número de pedido llega al enviarse.
 - Abajo (en el móvil, bajo la barra de arriba) un aviso cuenta lo que espera: **«2 envíos guardados sin conexión»**. Tocándolo se ve la lista.
 - En cuanto vuelve internet todo se envía **solo y en orden**, sale en cocina por sus impresoras y aparece «✓ Enviado lo que estaba guardado». El plano de mesas y «Hoy en caja» se ponen al día.
@@ -16,7 +16,9 @@ Si se va internet con el panel abierto:
 
 **El panel se abre sin internet** (desde el 2026-10-28): al entrar en el panel con conexión, el aparato guarda la Caja, las Mesas y Pedidos con sus archivos (y cada pantalla que se abre). Sin internet se pueden **recargar y abrir** esas pantallas; las que no se habían guardado enseñan «Esta pantalla necesita internet» con botones a Caja y Mesas. Con internet siempre se ve la versión más nueva (si la red tarda más de 4 s, sale la guardada). Al **cerrar sesión** se borran las pantallas guardadas.
 
-**Lo que aún no se puede sin internet**: cobrar una mesa, ver la cuenta, anular y cambiar de mesa (siguiente entrega). Lo guardado vive en ese navegador: no borres los datos del navegador mientras haya envíos pendientes.
+**Lo que aún no se puede sin internet**: anular líneas, cerrar una mesa sin cobrar y poner un colaborador (los botones no salen sin conexión). Por productos solo se cobra lo ya enviado; lo «sin enviar» se cobra con «Todo». Lo guardado vive en ese navegador: no borres los datos del navegador mientras haya envíos pendientes. Si otro aparato cobra o cierra la mesa mientras tanto, lo guardado sale en rojo en la lista con el motivo.
+
+El aviso «n envíos guardados sin conexión» va abajo a la izquierda en el ordenador (sobre el menú) para no tapar las barras de cobrar.
 
 La carta se guarda en el aparato al entrar en Mesas o en Caja; si se cae internet después, se sigue pudiendo tomar nota. El total de una venta guardada es sin cupones (el cupón se aplica al enviarse).
 
@@ -36,5 +38,7 @@ Alternativa de emergencia: compartir datos desde un móvil y conectar a esa red 
 - `src/app/admin/[tenant]/(panel)/outbox.ts`: cola en `localStorage` (`panel-outbox-v1`). `sendOrQueue(url, body, label)` añade `requestId` (uuid) y envía; sin red, con 502/503/504 o si ya hay algo en cola, lo guarda. `flush()` reenvía en orden (para en el primer fallo de red o en un 401; un rechazo queda marcado con su error). `saveLocal`/`loadLocal` guardan la carta. Evento `panel-outbox-sent` al enviar algo.
 - `OutboxBar.tsx` (en el diseño del panel): reintenta cada 10 s y al volver la conexión; muestra lo pendiente y lo rechazado.
 - `lib/idempotency.ts` → `once(tenantId, requestId, fn)`: guarda el envío en `ClientRequest` (migración `20261025120000_client_requests`) antes de atenderlo; si ya existe, devuelve la respuesta guardada (o 409 «se está procesando»). Las respuestas con error no se guardan, para poder reintentar. Se borra lo de más de 7 días.
-- Usan `requestId`: `POST /api/admin/[tenant]/caja`, `POST /api/admin/[tenant]/mesas/[orderId] { action: "round" }` y `POST /api/admin/[tenant]/mesas { action: "open", round }` (abrir y primera ronda a la vez; si la mesa ya la abrió otro, la ronda se suma a esa cuenta). `lib/tableRound.ts` → `prepareRound` es común a ambas.
+- Usan `requestId`: `POST /api/admin/[tenant]/caja`, `POST /api/admin/[tenant]/mesas/[orderId]` con `round`, `bill`, `pay` y `move`, y `POST /api/admin/[tenant]/mesas { action: "open", round }` (abrir y ronda a la vez; si la mesa ya está abierta, la ronda se suma a esa cuenta). `lib/tableRound.ts` → `prepareRound` es común a ambas.
+- **Mesa abierta sin conexión** (sin número de cuenta todavía): sus acciones van a `POST /api/admin/[tenant]/mesas { action: "table", tableId, op: "round" | "bill" | "pay" | "move", toTableId? }`, que las hace en la cuenta que esa mesa tenga abierta al llegar. Las acciones de la cuenta viven en `lib/tableActions.ts` (`runTableAction`), comunes a las dos rutas.
+- **Pantalla**: el plano (`panel-cache:mesas:<tenant>:<local>`) y cada cuenta (`panel-cache:cuenta:<orderId>`) se guardan al verse con internet. `mesas/offline.ts` → `applyQueue` pinta la cola encima (abrir, rondas, cobros, cambios de mesa, cuentas pedidas), con lo que cada envío lleva en `preview` (líneas y totales; el servidor no lo usa y recalcula). Pruebas: `lib/__tests__/mesas-sin-conexion.test.ts`.
 - Pruebas: `src/app/lib/__tests__/sin-conexion.test.ts`.

@@ -254,7 +254,9 @@ export default function SalaView({
                           <span className="block truncate text-sm font-medium">
                             {o.guests ?? "?"} pax · {o.lines} {o.lines === 1 ? "producto" : "productos"}
                           </span>
-                          <span className="block truncate text-xs text-[var(--p-muted)]">{[t.zone, o.waiter, o.billRequested && "pide la cuenta"].filter(Boolean).join(" · ")}</span>
+                          <span className="block truncate text-xs text-[var(--p-muted)]">{[t.zone, o.waiter, o.billRequested && "pide la cuenta"].filter(Boolean).join(" · ")}
+                            {o.pending && <span className="font-semibold text-amber-700"> · sin enviar</span>}
+                          </span>
                         </span>
                         <span className="flex shrink-0 flex-col items-end gap-1">
                           <span className="text-sm font-semibold tabular-nums">{euros(o.totalCents)}</span>
@@ -297,8 +299,9 @@ function TableCard({ t, now, bare, onAction, onClose }: { t: Table; now: number;
         <div className="min-w-0">
           {!bare && <p className="text-lg font-semibold">Mesa {t.name}</p>}
           <p className="text-sm text-[var(--p-muted)]">
-            {t.zone} · {o.guests ?? "?"} {o.guests === 1 ? "comensal" : "comensales"} · cuenta nº {o.orderNumber ?? "?"}
+            {t.zone} · {o.guests ?? "?"} {o.guests === 1 ? "comensal" : "comensales"} · {o.orderNumber != null ? `cuenta nº ${o.orderNumber}` : "cuenta sin número aún"}
           </p>
+          {o.pending && <p className="mt-0.5 text-xs font-semibold text-amber-700">Con cambios sin enviar: se envían al volver internet</p>}
         </div>
         {onClose && (
           <button type="button" onClick={onClose} aria-label="Cerrar la ficha" className="shrink-0 rounded-full px-2 py-1 text-sm text-[var(--p-muted)] hover:bg-black/[0.05]">

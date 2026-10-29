@@ -43,7 +43,7 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - Si se sale del editor o se cambia de zona con cambios sin guardar, avisa.
   - **Tocar una mesa** para cambiarle el nombre, la zona, las plazas o la forma, o quitarla. Si tiene historial se desactiva en vez de borrarse.
 
-**Sin conexión.** Si se cae internet se sigue abriendo mesas y mandando rondas: se guardan en el aparato y salen en cocina solas al volver, sin duplicarse. Ver `docs/SIN-CONEXION.md`.
+**Sin conexión.** Si se cae internet se sigue trabajando: ver el plano y las cuentas, abrir mesas, tomar nota, pedir la cuenta, cobrar y cambiar de mesa. Se guarda en el aparato y se envía solo al volver, en orden y sin duplicarse. Ver `docs/SIN-CONEXION.md`.
 
 ## Reglas
 

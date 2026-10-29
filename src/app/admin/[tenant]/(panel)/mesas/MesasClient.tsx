@@ -1,10 +1,11 @@
 "use client";
 
 import { ask } from "@/app/lib/dialog";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import CuentaView from "./CuentaView";
 import RoundComposer from "./RoundComposer";
-import { OUTBOX_SENT, saveLocal } from "../outbox";
+import { OUTBOX_SENT, loadLocal, pendingList, saveLocal, sendOrQueue, subscribe } from "../outbox";
+import { applyQueue, isOffline, planKey } from "./offline";
 import SalaView from "./SalaView";
 import { Sheet, Stepper, post, type Fixture, type MapData, type Shape, type Table } from "./shared";
 
@@ -29,12 +30,12 @@ function autoPlace(tables: Table[], taken: Pos): Pos {
 
 export default function MesasClient({ tenant }: { tenant: string }) {
   const api = `/api/admin/${tenant}/mesas`;
-  const [data, setData] = useState<MapData | null>(null);
+  const [raw, setRaw] = useState<MapData | null>(null); // lo último que dijo el servidor
+  const [offline, setOffline] = useState(false);
   const [error, setError] = useState("");
   const [storeId, setStoreId] = useState<string | null>(null);
   const [zone, setZone] = useState<string>("");
-  const [view, setView] = useState<string | null>(null); // cuenta abierta (orderId)
-  const [viewName, setViewName] = useState("");
+  const [view, setView] = useState<string | null>(null); // cuenta abierta (id de la mesa)
   const [offlineOpen, setOfflineOpen] = useState<{ table: Table; guests: number } | null>(null); // abrir mesa sin conexión
   const [viewAction, setViewAction] = useState<"round" | "pay" | undefined>(undefined);
   const [notice, setNotice] = useState("");
@@ -45,17 +46,34 @@ export default function MesasClient({ tenant }: { tenant: string }) {
   const planDirty = useRef(false); // el editor tiene cambios sin guardar
   const [, setTick] = useState(0);
 
+  // Con internet, el plano del servidor (y se guarda en el aparato); sin
+  // internet, el último guardado. Encima, lo que espera en la cola.
   const load = useCallback(async () => {
+    const key = planKey(tenant, storeId);
     try {
       const res = await fetch(`${api}${storeId ? `?store=${encodeURIComponent(storeId)}` : ""}`, { cache: "no-store" });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "No se pudieron cargar las mesas");
-      setData(json as MapData);
+      saveLocal(key, json);
+      setRaw(json as MapData);
+      setOffline(false);
       setError("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudieron cargar las mesas");
+      if (!isOffline(e)) return setError(e instanceof Error ? e.message : "No se pudieron cargar las mesas");
+      const saved = loadLocal<MapData>(key);
+      setOffline(true);
+      if (saved) {
+        setRaw((r) => r ?? saved);
+        setError("");
+      } else setError("Sin conexión, y las mesas aún no se habían guardado en este aparato. Ábrelas una vez con internet.");
     }
-  }, [api, storeId]);
+  }, [api, storeId, tenant]);
+  const queue = useSyncExternalStore(subscribe, () => JSON.stringify(pendingList()), () => "[]");
+  const { data, overlay } = useMemo(() => {
+    if (!raw) return { data: null, overlay: new Map() };
+    const r = applyQueue(tenant, raw.tables, JSON.parse(queue));
+    return { data: { ...raw, tables: r.tables }, overlay: r.overlay };
+  }, [raw, queue, tenant]);
 
   // Se refresca solo (otro camarero abre o cobra una mesa), salvo editando el plano.
   useEffect(() => {
@@ -94,13 +112,15 @@ export default function MesasClient({ tenant }: { tenant: string }) {
   const inZone = useMemo(() => (data?.tables ?? []).filter((t) => t.zone === currentZone), [data, currentZone]);
   const busyCount = (data?.tables ?? []).filter((t) => t.open).length;
 
-  if (view)
+  const viewTable = view ? data?.tables.find((t) => t.id === view) : undefined;
+  if (view && viewTable && data)
     return (
       <CuentaView
         key={view}
         tenant={tenant}
-        orderId={view}
-        tableName={viewName}
+        table={viewTable}
+        overlay={overlay.get(view)}
+        offlineFreeTables={offline ? data.tables.filter((t) => !t.open).map((t) => ({ id: t.id, name: t.name, zone: t.zone })) : null}
         initialAction={viewAction}
         onBack={(opts) => {
           setView(null);
@@ -213,8 +233,11 @@ export default function MesasClient({ tenant }: { tenant: string }) {
                 if (!t.open) return;
                 if (a === "bill") {
                   try {
-                    const r = await post<{ printed: number }>(`${api}/${t.open.orderId}`, { action: "bill" });
-                    setNotice(r.printed > 0 ? `Cuenta de la mesa ${t.name} enviada a la impresora` : `Mesa ${t.name} marcada «pide la cuenta» (no hay impresora de tickets)`);
+                    const label = `Mesa ${t.name} · pide la cuenta`;
+                    const r = t.open.orderId
+                      ? await sendOrQueue<{ printed: number }>(`${api}/${t.open.orderId}`, { action: "bill" }, label)
+                      : await sendOrQueue<{ printed: number }>(api, { action: "table", op: "bill", tableId: t.id }, label);
+                    setNotice(r.queued ? `Sin conexión: la cuenta de la mesa ${t.name} saldrá en la impresora al volver internet` : r.data.printed > 0 ? `Cuenta de la mesa ${t.name} enviada a la impresora` : `Mesa ${t.name} marcada «pide la cuenta» (no hay impresora de tickets)`);
                   } catch (e) {
                     setNotice(e instanceof Error ? e.message : "No se pudo imprimir la cuenta");
                   }
@@ -223,8 +246,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
                   return;
                 }
                 setViewAction(a === "view" ? undefined : a);
-                setViewName(t.name);
-                setView(t.open.orderId);
+                setView(t.id);
               }}
             />
           )}
@@ -236,9 +258,8 @@ export default function MesasClient({ tenant }: { tenant: string }) {
           table={opening}
           onClose={() => setOpening(null)}
           onOpen={async (guests) => {
-            let r: { orderId: string };
             try {
-              r = await post<{ orderId: string }>(api, { action: "open", tableId: opening.id, guests });
+              await post<{ orderId: string }>(api, { action: "open", tableId: opening.id, guests });
             } catch (e) {
               // Sin conexión: se toma nota igual; la mesa se abre al enviar la ronda.
               if (!(e instanceof TypeError)) throw e;
@@ -247,9 +268,9 @@ export default function MesasClient({ tenant }: { tenant: string }) {
               return;
             }
             setOpening(null);
-            setViewName(opening.name);
+            await load(); // la mesa ya abierta, con su cuenta
             setViewAction("round"); // directo a tomar nota
-            setView(r.orderId);
+            setView(opening.id);
           }}
         />
       )}

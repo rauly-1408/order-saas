@@ -7,7 +7,8 @@ import { STORE_VARS } from "../storeVars";
 // Piezas comunes de Mesas. Ver docs/MESAS.md
 
 export type Shape = "SQUARE" | "ROUND";
-export type TableOpen = { orderId: string; orderNumber: number | null; guests: number | null; totalCents: number; openedAt: string; billRequested: boolean; waiter: string | null; lines: number; rounds: number; lastRoundAt: string | null };
+// orderId null: abierta sin conexión, aún sin cuenta en el servidor. pending: tiene algo sin enviar.
+export type TableOpen = { orderId: string | null; orderNumber: number | null; guests: number | null; totalCents: number; openedAt: string; billRequested: boolean; waiter: string | null; lines: number; rounds: number; lastRoundAt: string | null; pending?: boolean };
 export type Table = { id: string; name: string; zone: string; seats: number; shape: Shape; posX: number | null; posY: number | null; open: TableOpen | null };
 export type Fixture = { id: string; kind: "BAR" | "WALL" | "LABEL"; x: number; y: number; w: number; h: number; label: string };
 export type MapData = { stores: { id: string; name: string }[]; storeId: string | null; canManage: boolean; sees: boolean; tables: Table[]; fixtures: Record<string, Fixture[]> };
