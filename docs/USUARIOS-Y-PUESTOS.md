@@ -15,7 +15,7 @@ Se configura en **Configuración → Usuarios**. El cambio vale al momento, porq
 | Facturas | ✓ | ✓ | ✓ | — | — | — |
 | Anular lo enviado, cerrar sin cobrar, cancelar | ✓ | ✓ | cancelar pedidos | — | — | — |
 | Carta, costes, clientes, configuración | ✓ | — | — | — | — | — |
-| Pantalla al entrar | Inicio | Caja | Caja | Mesas | Pedidos | Pedidos |
+| Pantalla al entrar | Inicio | Caja | Caja | Mesas | Pantalla de cocina | Pantalla de cocina |
 
 - **Ve lo recaudado** es aparte: se marca a cada persona, sea cual sea su puesto.
 - **Cocina y barra**:

@@ -71,7 +71,7 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
 - **Esquema**:
   - Modelo `DiningTable`: local, nombre, zona, plazas, orden, activa, `posX` y `posY` (en % del plano de su zona) y `shape` (SQUARE o ROUND).
   - `Order`: `tableId`, `guests` y `billRequestedAt`, más el estado `OPEN` y el origen `TABLE`.
-  - `OrderLine`: `round` y `addedByUserId`.
+  - `OrderLine`: `round`, `addedByUserId` y `readyAt` (la pantalla de cocina la marcó lista; ver `docs/PANTALLA-COCINA.md`).
 - **Migraciones**:
   - `20261024120000_mesas`.
   - `20261024120100_mesas_una_abierta`: índice único parcial, que Prisma no sabe expresar en el esquema. Si una migración futura intenta borrarlo, hay que quitar esa línea.
@@ -91,7 +91,6 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
 
 ## Pendiente
 
-- Juntar mesas y pasar parte de una cuenta a otra mesa.
+- Pasar parte de una cuenta a otra mesa.
 - Propinas por camarero y un informe por camarero.
-- Pantalla de cocina en lugar de papel.
 - Reservas.

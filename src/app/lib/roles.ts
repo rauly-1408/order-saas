@@ -36,7 +36,7 @@ export type Access = {
   cobrar: boolean; // cobrar mesas y pedidos «al recoger»
   anular: boolean; // anular lo enviado a cocina, cerrar mesas sin cobrar, cancelar pedidos
   station: "COCINA" | "BARRA" | null; // vista de cocina o barra: solo sus líneas y solo preparar
-  home: "home" | "pedidos" | "caja" | "mesas"; // a dónde va al entrar
+  home: "home" | "pedidos" | "caja" | "mesas" | "cocina"; // a dónde va al entrar
 };
 
 export function accessOf(u: { role: string; position?: string | null; canCharge?: boolean | null }): Access {
@@ -53,7 +53,7 @@ export function accessOf(u: { role: string; position?: string | null; canCharge?
       return { ...base, mesas: true, cobrar: u.canCharge !== false, home: "mesas" };
     case "COCINA":
     case "BARRA":
-      return { ...base, station: puesto, home: "pedidos" };
+      return { ...base, station: puesto, home: "cocina" }; // la pantalla de cocina
   }
 }
 
