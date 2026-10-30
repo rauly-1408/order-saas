@@ -34,6 +34,12 @@ type Line = {
   takeaway?: boolean; // para llevar desde la mesa: «PARA LLEVAR» en la comanda y gasta su packaging
 };
 
+// Cada sección de la carta lleva siempre su color (franja en la tarjeta y punto
+// en la pestaña): con el uso, el camarero encuentra los productos por el color
+// sin leer. El color va con la sección, por su orden en la carta.
+const SECTION_COLORS = ["#e8590c", "#1c7ed6", "#2f9e44", "#ae3ec9", "#f59f00", "#0c8599", "#d6336c", "#5c7cfa"]; // sin rojo: parecería un error
+const sectionColor = (i: number) => SECTION_COLORS[i % SECTION_COLORS.length];
+
 // La carta se carga una vez por visita a Mesas (no cambia en mitad del servicio).
 let menuCache: { tenant: string; cats: Category[] } | null = null;
 
@@ -110,6 +116,15 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
     if (p.modifierGroups.length) return setOptionsFor(p);
     add(p, { optionIds: [], modifiers: [], unitPriceCents: p.basePriceCents });
   }
+  // «−» en la tarjeta: quita uno de la última línea de ese producto.
+  function removeOne(productId: string) {
+    setLines((ls) => {
+      const i = ls.map((l) => l.productId).lastIndexOf(productId);
+      if (i < 0) return ls;
+      return ls[i].quantity <= 1 ? ls.filter((_, j) => j !== i) : ls.map((l, j) => (j === i ? { ...l, quantity: l.quantity - 1 } : l));
+    });
+  }
+  const colorOf = useMemo(() => new Map((categories ?? []).flatMap((c, i) => c.products.map((p) => [p.id, sectionColor(i)] as const))), [categories]);
   const setQty = (i: number, qty: number) => setLines((ls) => (qty <= 0 ? ls.filter((_, j) => j !== i) : ls.map((l, j) => (j === i ? { ...l, quantity: qty } : l))));
   const setNote = (i: number, note: string) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, note: note.slice(0, 120) } : l)));
 
@@ -236,7 +251,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
   return createPortal(
     <div className="fixed inset-0 z-40 flex flex-col bg-[var(--p-bg)] text-[var(--p-ink)]" style={STORE_VARS} role="dialog" aria-modal="true" aria-label={`Nueva ronda · Mesa ${tableName}`}>
       <header className="flex items-center gap-2 border-b border-[var(--p-line)] bg-[var(--p-surface)] px-3 py-2 sm:px-5">
-        <button type="button" onClick={close} className="p-press shrink-0 rounded-full px-4 py-3 text-base font-semibold hover:bg-black/[0.05]">
+        <button type="button" onClick={close} className="p-press min-h-12 shrink-0 rounded-full bg-black/[0.06] px-5 text-base font-semibold hover:bg-black/[0.09]">
           ‹ Mesa {tableName}
         </button>
         <h2 className="hidden min-w-0 flex-1 truncate text-base font-semibold text-[var(--p-muted)] sm:block">Nueva ronda</h2>
@@ -248,8 +263,9 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-36 sm:px-5 lg:pb-6">
           {categories && !q && (
             <nav className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-5 sm:px-5" aria-label="Categorías">
-              {categories.map((c) => (
-                <button key={c.id} type="button" onClick={() => setCat(c.slug)} aria-pressed={c.slug === cat} className={`p-press shrink-0 rounded-full px-5 py-3 text-[15px] font-semibold ${c.slug === cat ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
+              {categories.map((c, i) => (
+                <button key={c.id} type="button" onClick={() => setCat(c.slug)} aria-pressed={c.slug === cat} className={`p-press flex shrink-0 items-center gap-2 rounded-full px-5 py-3 text-[15px] font-semibold ${c.slug === cat ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
+                  <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: sectionColor(i) }} />
                   {c.name}
                 </button>
               ))}
@@ -258,7 +274,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
           {!categories ? (
             <p className="py-10 text-center text-sm text-[var(--p-muted)]">{error || "Cargando la carta…"}</p>
           ) : (
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+            <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
               <button type="button" onClick={() => setCustomOpen(true)} className="p-press flex min-h-[112px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--p-brand)]/40 p-3 text-center text-[var(--p-brand)]">
                 <span className="text-2xl font-bold leading-none">+</span>
                 <span className="mt-1 text-[15px] font-semibold">Producto libre</span>
@@ -266,15 +282,30 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
               </button>
               {shown.map((p) => {
                 const inRound = lines.filter((l) => l.productId === p.id).reduce((a, l) => a + l.quantity, 0);
+                const color = colorOf.get(p.id);
                 return (
-                  <button key={p.id} type="button" onClick={() => tap(p)} className={`p-press relative flex min-h-[112px] flex-col justify-between rounded-2xl bg-[var(--p-surface)] p-3.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-2 transition-shadow ${inRound ? "ring-[var(--p-brand)]" : "ring-transparent"}`}>
-                    <span className="line-clamp-2 pr-8 text-[15px] font-semibold leading-snug">{p.name}</span>
-                    <span className="mt-2 flex items-baseline gap-1.5 text-[15px] font-semibold tabular-nums">
-                      {euros(p.basePriceCents)}
-                      {(p.isCombo || p.modifierGroups.length > 0) && <span className="text-xs font-normal text-[var(--p-muted)]">{p.isCombo ? "menú" : "opciones"}</span>}
-                    </span>
-                    {inRound > 0 && <span className="absolute right-2.5 top-2.5 flex h-8 min-w-8 items-center justify-center rounded-full bg-[var(--p-brand)] px-2 text-sm font-bold text-white">{inRound}</span>}
-                  </button>
+                  <div key={p.id} className="relative">
+                    <button type="button" onClick={() => tap(p)} className={`p-press relative flex h-full min-h-[120px] w-full flex-col justify-between overflow-hidden rounded-2xl bg-[var(--p-surface)] py-3.5 pr-3.5 pl-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-2 transition-shadow ${inRound ? "ring-[var(--p-brand)]" : "ring-transparent"}`}>
+                      <span aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: color }} />
+                      <span className="flex items-start gap-2.5">
+                        {p.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.imageUrl} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                        )}
+                        <span className="line-clamp-3 min-w-0 pr-8 text-base font-semibold leading-snug">{p.name}</span>
+                      </span>
+                      <span className="mt-2 flex items-baseline gap-1.5 pr-12 text-base font-bold tabular-nums">
+                        {euros(p.basePriceCents)}
+                        {(p.isCombo || p.modifierGroups.length > 0) && <span className="text-xs font-normal text-[var(--p-muted)]">{p.isCombo ? "menú" : "opciones"}</span>}
+                      </span>
+                      {inRound > 0 && <span className="absolute right-2.5 top-2.5 flex h-8 min-w-8 items-center justify-center rounded-full bg-[var(--p-brand)] px-2 text-sm font-bold text-white">{inRound}</span>}
+                    </button>
+                    {inRound > 0 && (
+                      <button type="button" onClick={() => removeOne(p.id)} aria-label={`Quitar uno de ${p.name}`} className="p-press absolute right-1.5 bottom-1.5 flex h-11 w-11 items-center justify-center rounded-full bg-black/[0.07] text-2xl font-semibold leading-none">
+                        −
+                      </button>
+                    )}
+                  </div>
                 );
               })}
               {shown.length === 0 && <p className="col-span-full py-8 text-center text-sm text-[var(--p-muted)]">{q ? `Nada con «${query.trim()}». Usa «Producto libre» si no está en la carta.` : "Esta categoría está vacía."}</p>}
@@ -287,7 +318,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
           <p className="mb-3 flex items-center justify-between text-base font-semibold">
             Ronda · Mesa {tableName}
             {lines.length > 0 && (
-              <button type="button" onClick={async () => (await ask("¿Vaciar la ronda?")) && setLines([])} className="rounded-full px-3 py-1.5 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
+              <button type="button" onClick={async () => (await ask("¿Vaciar la ronda? Se quita todo lo marcado y no se envía nada a cocina.", { confirm: "Vaciar", danger: true })) && setLines([])} className="rounded-full px-3 py-1.5 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
                 Vaciar
               </button>
             )}
