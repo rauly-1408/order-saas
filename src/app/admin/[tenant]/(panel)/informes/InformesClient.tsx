@@ -393,7 +393,7 @@ function Heatmap({ heatmap }: { heatmap: number[][] }) {
                             onFocus={() => setActive({ d, h })}
                             onClick={() => setActive({ d, h })}
                             aria-label={`${WEEKDAYS[d]} ${hh(h)}: ${n} pedidos`}
-                            className={`block h-7 w-full min-w-6 rounded-[4px] ${n ? "" : "bg-black/[0.04]"} ${isActive ? "ring-2 ring-[var(--p-ink)]" : ""}`}
+                            className={`block h-7 min-h-0 w-full min-w-6 rounded-[4px] ${n ? "" : "bg-black/[0.04]"} ${isActive ? "ring-2 ring-[var(--p-ink)]" : ""}`}
                             style={n ? { backgroundColor: `color-mix(in srgb, var(--p-brand) ${pct}%, var(--p-surface))` } : undefined}
                           />
                         </td>

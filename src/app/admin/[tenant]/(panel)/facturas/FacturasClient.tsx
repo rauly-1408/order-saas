@@ -99,7 +99,7 @@ export default function FacturasClient({ tenant, initialOrder, initialTicket }: 
           <p className="font-semibold">Para hacer facturas, activa VeriFactu</p>
           <p className="mt-1">
             Hace falta la razón social y el NIF del negocio. Ve a{" "}
-            <Link href={`/admin/${tenant}/configuracion/facturacion`} className="font-semibold underline">
+            <Link href={`/admin/${tenant}/configuracion/facturacion`} className="-my-3 py-3 font-semibold underline">
               Configuración → Facturación
             </Link>
             .

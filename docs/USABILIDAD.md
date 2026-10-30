@@ -65,3 +65,18 @@ Sin cambios: tarjetas de pedido (rediseñadas en la PR #83), Caja, «Haz tuya tu
   - El aviso al cerrar la pestaña o recargar con cambios sin guardar (`beforeunload`).
   - La ventana de «Instalar la app».
 - **Errores de conexión en español.** `NetworkStatus` (layout raíz) traduce los fallos de red del navegador («Failed to fetch», «Load failed») a «No se ha podido conectar con el servidor…» o «Sin conexión a internet…». Mientras no hay internet, se muestra arriba «Sin conexión a internet: los cambios no se guardarán hasta que vuelva».
+
+## Botones para el dedo (2026-10-30)
+
+El panel se usará en pantallas táctiles (tablet o TPV), así que todo lo que se toca mide al menos **44×44 px**, el mínimo cómodo para el dedo según Apple y Google.
+
+- **Regla general** en `globals.css` (capa base, dentro de `.panel`):
+  - botones, desplegables, pestañas, casillas de texto y enlaces con `p-press` miden al menos 44 px de alto, y los botones también 44 px de ancho;
+  - las casillas de marcar pasan a 20 px.
+- **Excepciones**:
+  - el **menú lateral**, que cabe entero en 768 px de alto;
+  - los **interruptores** (`role="switch"`): conservan su forma y amplían la zona que responde al dedo sin que se vea;
+  - una pieza que deba ser más pequeña, como las celdas del gráfico de horas en Informes, lo anula con `min-h-0 min-w-0`.
+- **Enlaces de texto sueltos** («Ver todos ›», «Carta en inglés →», «Factura» en el historial de pedidos): `inline-flex min-h-11`.
+- **Enlaces dentro de una frase**: `py-3 -my-3`, para agrandar la zona del dedo sin mover el texto.
+- **Medición**: antes había entre 1 y 36 elementos por página por debajo de 40 px (pestañas de 32 px, «Abrir caja» de 28 px, casillas de 16 px, enlaces de 16-20 px). Ahora solo quedan las excepciones, en todas las páginas y a 1024 y 375 px.

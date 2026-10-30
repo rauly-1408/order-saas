@@ -203,7 +203,7 @@ export default function Pagos({ tenant }: { tenant: string }) {
 
       <p className="text-xs text-[var(--p-muted)]">
         La comisión de la plataforma ({view.feePercent} % de los pedidos pagados online) y su resumen por mes están en{" "}
-        <a href={`/admin/${tenant}/configuracion/plan`} className="font-semibold text-[var(--p-brand)]">
+        <a href={`/admin/${tenant}/configuracion/plan`} className="-my-3 py-3 font-semibold text-[var(--p-brand)]">
           Plan y facturación
         </a>
         .
