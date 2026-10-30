@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     const rounds = new Map<number, { round: number; at: Date; by: string | null; lines: unknown[] }>();
     for (const l of o.items) {
       const r = rounds.get(l.round) ?? { round: l.round, at: l.createdAt, by: nameOf(l.addedByUserId ? users.get(l.addedByUserId) : undefined), lines: [] };
-      r.lines.push({ id: l.id, name: l.productName, quantity: l.quantity, totalCents: l.totalCents, discountCents: l.discountCents, modifiers: modifierLabels(l.modifiers), note: l.note });
+      r.lines.push({ id: l.id, name: l.productName, quantity: l.quantity, totalCents: l.totalCents, discountCents: l.discountCents, modifiers: modifierLabels(l.modifiers), note: l.note, ready: Boolean(l.readyAt) });
       rounds.set(l.round, r);
     }
     // Otras mesas abiertas del local: para «Juntar con otra mesa».

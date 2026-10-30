@@ -574,6 +574,7 @@ model OrderLine {
   // Mesas: número de ronda (0 fuera de mesas) y quién la añadió
   round         Int     @default(0)
   addedByUserId String?
+  readyAt       DateTime? // pantalla de cocina: la ronda (o la línea) está lista
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

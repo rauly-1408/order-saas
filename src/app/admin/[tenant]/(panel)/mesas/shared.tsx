@@ -13,7 +13,7 @@ export type Table = { id: string; name: string; zone: string; seats: number; sha
 export type Fixture = { id: string; kind: "BAR" | "WALL" | "LABEL"; x: number; y: number; w: number; h: number; label: string };
 export type MapData = { stores: { id: string; name: string }[]; storeId: string | null; canManage: boolean; canCharge?: boolean; sees: boolean; tables: Table[]; fixtures: Record<string, Fixture[]> };
 
-export type CuentaLine = { id: string; name: string; quantity: number; totalCents: number; discountCents: number; modifiers: string[]; note: string | null };
+export type CuentaLine = { id: string; name: string; quantity: number; totalCents: number; discountCents: number; modifiers: string[]; note: string | null; ready?: boolean }; // ready: la cocina o la barra lo marcó listo
 export type Round = { round: number; at: string; by: string | null; lines: CuentaLine[] };
 export type Cuenta = {
   order: { id: string; orderNumber: number | null; status: string; table: { id: string; name: string; zone: string }; label?: string | null; guests: number | null; openedAt: string; billRequestedAt: string | null; totalCents: number; subtotalCents: number; collaboratorDiscountCents: number; collaborator: { name: string; code: string; discountPct: number } | null; waiter: string | null; invoiceNumber: string | null };

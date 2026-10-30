@@ -120,7 +120,7 @@ Entregables:
 **Ver detalle**: [SPRINT-05.md](./SPRINT-05.md)
 
 Entregables:
-- [ ] KDS (Kitchen Display System) — pantalla de cocina en tiempo real
+- [x] KDS (Kitchen Display System) — pantalla de cocina en tiempo real (ver PANTALLA-COCINA.md)
 - [ ] Multi-canal: conectar Glovo / JustEat vía webhooks
 - [ ] Resumen semanal con IA (narrativa automática de rendimiento)
 - [ ] Modo tablet optimizado para cocina

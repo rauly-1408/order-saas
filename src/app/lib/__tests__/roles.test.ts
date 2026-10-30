@@ -27,7 +27,7 @@ describe("accessOf", () => {
 
   it("cocina y barra solo ven pedidos como estación", () => {
     for (const p of ["COCINA", "BARRA"] as const) {
-      expect(accessOf(emp(p))).toMatchObject({ station: p, pedidos: true, caja: false, mesas: false, cobrar: false, anular: false, home: "pedidos" });
+      expect(accessOf(emp(p))).toMatchObject({ station: p, pedidos: true, caja: false, mesas: false, cobrar: false, anular: false, home: "cocina" });
     }
   });
 });

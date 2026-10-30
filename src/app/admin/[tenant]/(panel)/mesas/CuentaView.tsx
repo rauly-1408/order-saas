@@ -333,7 +333,10 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
           {data.rounds.map((r) => (
             <section key={r.round} className="overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]" aria-label={`Ronda ${r.round}`}>
               <p className="flex items-center justify-between gap-2 border-b border-[var(--p-line)] px-4 py-2 text-xs font-semibold text-[var(--p-muted)]">
-                <span>{r.round < 0 ? <span className="text-amber-700">Sin enviar · saldrá al volver internet</span> : `Ronda ${r.round}`}</span>
+                <span className="flex items-center gap-2">
+                  {r.round < 0 ? <span className="text-amber-700">Sin enviar · saldrá al volver internet</span> : `Ronda ${r.round}`}
+                  <ReadyChip lines={r.lines} />
+                </span>
                 <span className="font-normal">{[hhmm(r.at), r.by].filter(Boolean).join(" · ")}</span>
               </p>
               <ul className="divide-y divide-[var(--p-line)]">
@@ -796,4 +799,12 @@ function PaySheet({ data, send, onClose, onPaid }: { data: Cuenta; send: (body: 
       )}
     </Sheet>
   );
+}
+
+// Lo que la pantalla de cocina ya marcó listo: «Lista» (toda la ronda) o «Lista en parte».
+function ReadyChip({ lines }: { lines: { ready?: boolean }[] }) {
+  const ready = lines.filter((l) => l.ready).length;
+  if (!ready) return null;
+  const all = ready === lines.length;
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${all ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{all ? "✓ Lista" : "Lista en parte"}</span>;
 }

@@ -14,7 +14,7 @@ import { forgetOfflinePages } from "./PanelOffline";
 // sesión). Marca propia (Estafetén y su franquicia, lib/ownBrand.ts): el logo del
 // restaurante arriba y esas opciones sueltas abajo.
 
-type IconName = "home" | "orders" | "cash" | "tables" | "users" | "partners" | "menu" | "costs" | "chart" | "brush" | "gear" | "files" | "invoice" | "external" | "logout";
+type IconName = "home" | "orders" | "cash" | "tables" | "users" | "partners" | "menu" | "costs" | "chart" | "brush" | "gear" | "files" | "invoice" | "kitchen" | "external" | "logout";
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, React.ReactNode> = {
@@ -32,6 +32,12 @@ function Icon({ name }: { name: IconName }) {
         <rect x="3" y="7" width="18" height="11" rx="2" />
         <circle cx="12" cy="12.5" r="2.5" />
         <path d="M7 4h10M3 18h18" />
+      </>
+    ),
+    kitchen: (
+      <>
+        <rect x="3" y="4" width="18" height="13" rx="2" />
+        <path d="M7 9h4M7 12h7M9 21h6M12 17v4" />
       </>
     ),
     orders: (
@@ -122,6 +128,7 @@ function buildNav(tenant: string): NavItem[] {
     { label: "Caja", href: `${base}/caja`, icon: "cash", area: "caja", group: "Día a día" },
     { label: "Pedidos", href: `${base}/pedidos`, icon: "orders", area: "pedidos", group: "Día a día" },
     { label: "Mesas", href: `${base}/mesas`, icon: "tables", area: "mesas", group: "Día a día" },
+    { label: "Pantalla de cocina", href: `${base}/cocina`, icon: "kitchen", area: "pedidos", group: "Día a día" },
     { label: "Facturas", href: `${base}/facturas`, icon: "invoice", area: "facturas", group: "Día a día" },
     // Lo que se vende y cómo se enseña
     { label: "Carta", href: `${base}/carta`, icon: "menu", managerOnly: true, group: "Tu carta" },
