@@ -9,7 +9,7 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
 - **Filtros**: todas, libres, ocupadas y piden la cuenta. Las demás mesas se atenúan en el plano.
 - **Mesas dibujadas**: cada mesa cuadrada lleva sus sillas, una por plaza (hasta 8), y los taburetes son redondos. Una mesa ocupada muestra los comensales, el tiempo con color (verde hasta 45 min, ámbar hasta 90 y rojo después) y las iniciales del camarero. Si pide la cuenta, se ve en ámbar con un «€» que parpadea.
 - **Panel «Mesas abiertas»**: las mesas por orden de llegada, con comensales, productos, camarero, importe y tiempo. En el ordenador va a la derecha del plano y en el móvil, debajo.
-- **Ficha de la mesa**: al tocar una mesa ocupada se ve el total, el tiempo, las rondas, quién la atiende y cuándo fue la última ronda. Tiene acciones rápidas: «+ Nueva ronda», «Cobrar», «Imprimir cuenta» y «Ver cuenta». En el ordenador aparece en el panel y en el móvil sube desde abajo.
+- **Ficha de la mesa**: al tocar una mesa ocupada se ve el total, el tiempo, las rondas, quién la atiende y cuándo fue la última ronda. Tiene acciones rápidas: «+ Nueva ronda», «Cobrar», «Pedir cuenta» y «Ver cuenta». En el ordenador aparece en el panel y en el móvil sube desde abajo.
 - **El plano por zonas**, con pestañas como Interior, Terraza o Barra:
   - Libre en blanco, ocupada en el color de la marca con el importe y los minutos, y «pide la cuenta» en ámbar.
   - Las mesas son cuadradas y los taburetes de barra, redondos.
@@ -27,7 +27,11 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - El stock se descuenta en cada ronda.
 - **La cuenta**:
   - Muestra las rondas con la hora y quién las tomó, el total y lo ya cobrado por separado.
-  - **Cuenta** imprime la cuenta («No es una factura») y marca la mesa como «pide la cuenta».
+  - **Botones grandes para el dedo**:
+    - En tablet y ordenador, cuando la cuenta tiene 42rem o más, hay un **panel de cobro fijo a la derecha**. Muestra el total en grande y debajo, de 80 px de alto, «+ Nueva ronda» y «Cobrar»; luego «Pedir cuenta» y, aparte y en pequeño, «Cambiar de mesa» y «Cerrar sin cobrar».
+    - Las rondas hacen scroll y el panel no se mueve.
+    - En el móvil, una barra fija abajo con el total, «Pedir cuenta» y, de 64 px, «+ Nueva ronda» y «Cobrar».
+  - **Pedir cuenta** imprime la cuenta («No es una factura») y marca la mesa como «pide la cuenta». Arriba sale «Cuenta pedida · hora» y el botón pasa a «Repetir cuenta».
   - **Anular** una línea ya enviada (solo el gerente) imprime en cocina «ANULADO · NO PREPARAR». El stock no vuelve, porque puede estar hecho.
   - **Cambiar de mesa** la pasa a una mesa libre del mismo local.
   - **Cerrar sin cobrar** sirve para una mesa abierta por error. Con consumo, solo la cierra el gerente, y el stock vuelve.

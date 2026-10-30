@@ -10,7 +10,8 @@ import { loadLocal, saveLocal, sendOrQueue, type Sent } from "../outbox";
 import { cuentaKey, isOffline, isPendingLine, pendingRoundsAsCuenta, type TableOverlay } from "./offline";
 
 // La cuenta de una mesa: rondas enviadas, lo cobrado por separado y las
-// acciones (nueva ronda, imprimir la cuenta, cobrar, cambiar de mesa, cerrar).
+// acciones (nueva ronda, cobrar, pedir la cuenta, cambiar de mesa, cerrar),
+// grandes para el dedo: panel de cobro a la derecha en tablet, barra abajo en móvil.
 // Se refresca sola: si otro camarero añade una ronda, aparece. Sin internet se
 // ve la última cuenta guardada con lo que espera en la cola encima, y se puede
 // tomar nota, cobrar, pedir la cuenta y cambiar de mesa: se envía al volver.
@@ -27,9 +28,37 @@ function quickAmounts(total: number): number[] {
 
 type Sendable = { url: string; body: Record<string, unknown> };
 
+// Con sitio (tablet o más, 42rem de cuenta) las acciones van en un panel de
+// cobro fijo a la derecha, como un TPV; en el móvil, en la barra de abajo. Se
+// mide el hueco de la cuenta, no la pantalla: el menú lateral se come parte.
+const WIDE_PX = 672;
+function useWide(el: HTMLElement | null): boolean {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    if (!el) return;
+    const check = () => setWide(el.getBoundingClientRect().width >= WIDE_PX);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el]);
+  return wide;
+}
+
+function ReceiptIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M6 3h12v18l-2.5-1.5L13 21l-2-1.5L9 21l-2.5-1.5L6 21z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
+    </svg>
+  );
+}
+
 export default function CuentaView({ tenant, table, overlay, offlineFreeTables, onBack, initialAction, canCharge = true }: { tenant: string; table: Table; overlay?: TableOverlay; offlineFreeTables: { id: string; name: string; zone: string }[] | null; onBack: (opts?: { closed?: boolean; notice?: string }) => void; initialAction?: "round" | "pay"; canCharge?: boolean }) {
   const orderId = table.open?.orderId ?? null;
   const api = orderId ? `/api/admin/${tenant}/mesas/${orderId}` : null;
+  const [wrap, setWrap] = useState<HTMLDivElement | null>(null);
+  const wide = useWide(wrap);
   const [server, setServer] = useState<Cuenta | null>(() => (orderId ? (loadLocal<Cuenta>(cuentaKey(orderId)) ?? null) : null));
   const [offline, setOffline] = useState(!orderId);
   const [error, setError] = useState("");
@@ -199,9 +228,45 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
   const blind = offline && !server && Boolean(orderId);
   const lineCount = data.rounds.reduce((a, r) => a + r.lines.reduce((b, l) => b + l.quantity, 0), 0);
   const paidParts = data.parts.reduce((a, p) => a + p.totalCents, 0);
+  const canBill = !busy && (lineCount > 0 || blind);
+  const canPay = canBill && o.totalCents > 0;
+  const panel = wide && !closed;
+  const summary = [`${lineCount} ${lineCount === 1 ? "producto" : "productos"}`, paidParts > 0 && "queda por cobrar", o.collaboratorDiscountCents > 0 && `−${euros(o.collaboratorDiscountCents)} de ${o.collaborator?.name.split(" ")[0] ?? "colaborador"}`].filter(Boolean).join(" · ");
+  const shadow = "shadow-[0_10px_24px_-14px_rgba(0,0,0,0.5)]";
+  const roundBtn = (cls: string) => (
+    <button type="button" onClick={() => setComposing(true)} disabled={busy} className={`p-press rounded-2xl bg-[var(--p-brand)] font-bold text-white disabled:opacity-50 ${shadow} ${cls}`}>
+      + Nueva ronda
+    </button>
+  );
+  const payBtn = (cls: string) =>
+    canCharge ? (
+      <button type="button" onClick={() => setPaying(true)} disabled={!canPay} className={`p-press rounded-2xl bg-[var(--p-ink)] font-bold text-white disabled:opacity-50 ${shadow} ${cls}`}>
+        Cobrar
+      </button>
+    ) : (
+      <span className={`flex items-center justify-center rounded-2xl bg-black/[0.04] text-center font-medium text-[var(--p-muted)] ${cls}`}>Cobra la caja</span>
+    );
+  const billBtn = (cls: string, label: string) => (
+    <button type="button" onClick={printBill} disabled={!canBill} className={`p-press flex items-center justify-center gap-2 rounded-2xl bg-black/[0.06] font-semibold disabled:opacity-50 ${cls}`}>
+      <ReceiptIcon />
+      {label}
+    </button>
+  );
+  const sideActions = (cls: string) => (
+    <>
+      <button type="button" onClick={() => setMoving(true)} disabled={busy} className={`p-press min-h-11 font-medium ${cls}`}>
+        Cambiar de mesa
+      </button>
+      {!offline && (
+        <button type="button" onClick={closeEmpty} disabled={busy} className={`p-press min-h-11 font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)] ${cls}`}>
+          Cerrar sin cobrar
+        </button>
+      )}
+    </>
+  );
 
   return (
-    <div className="pb-40">
+    <div ref={setWrap} className={panel || closed ? "pb-10" : "pb-56"}>
       <button type="button" onClick={() => onBack()} className="p-press -ml-2 rounded-full px-2 py-1.5 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
         ‹ Mesas
       </button>
@@ -212,7 +277,7 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
             {[o.table.zone, o.guests && `${o.guests} ${o.guests === 1 ? "comensal" : "comensales"}`, `abierta hace ${minutesSince(o.openedAt)}`, o.waiter, `cuenta nº ${o.orderNumber ?? "?"}`].filter(Boolean).join(" · ")}
           </p>
         </div>
-        {o.billRequestedAt && !closed && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">Pide la cuenta</span>}
+        {o.billRequestedAt && !closed && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">Cuenta pedida · {hhmm(o.billRequestedAt)}</span>}
       </div>
 
       {closed && <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{o.status === "PAID_OFFLINE" ? "Cobrada sin conexión: se registrará al volver internet." : "Esta mesa ya está cobrada o cerrada."}</p>}
@@ -234,6 +299,8 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
         </p>
       )}
 
+      <div className={panel ? "grid grid-cols-[minmax(0,1fr)_18rem] items-start gap-6" : ""}>
+      <div className="min-w-0">
       {data.rounds.length === 0 && !blind ? (
         <button
           type="button"
@@ -294,47 +361,39 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
 
       {!closed && !offline && data.rounds.length > 0 && <CollabRow order={o} busy={busy} onApply={(code) => act({ action: "collab", code }, code ? "Colaborador aplicado a la cuenta" : "Colaborador quitado")} />}
 
-      {!closed && (
-        <div className="mt-5 flex flex-wrap gap-2 text-sm">
-          <button type="button" onClick={() => setMoving(true)} disabled={busy} className="p-press rounded-full bg-[var(--p-surface)] px-4 py-2 font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-            Cambiar de mesa
-          </button>
-          {!offline && (
-            <button type="button" onClick={closeEmpty} disabled={busy} className="p-press rounded-full px-4 py-2 font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">
-              Cerrar sin cobrar
-            </button>
-          )}
-        </div>
-      )}
+      {!closed && !panel && <div className="mt-5 flex flex-wrap gap-2 text-sm">{sideActions("rounded-full px-4 py-2 first:bg-[var(--p-surface)] first:shadow-[0_1px_2px_rgba(0,0,0,0.05)]")}</div>}
+      </div>
 
-      {/* Barra fija: total y lo que más se usa */}
-      {!closed && portal && createPortal(
+      {/* Tablet y ordenador: panel de cobro fijo a la derecha (no se mueve con las rondas) */}
+      {panel && (
+        <aside aria-label="Cobro de la mesa" className="sticky top-6 mt-5 flex flex-col gap-3 rounded-3xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-20px_rgba(0,0,0,0.25)]">
+          <div className="px-1">
+            <p className="text-xs font-medium text-[var(--p-muted)]">Total</p>
+            <p className="text-4xl font-semibold tracking-tight tabular-nums">{euros(o.totalCents)}</p>
+            <p className="mt-0.5 text-xs text-[var(--p-muted)]">{summary}</p>
+          </div>
+          {roundBtn("min-h-20 px-4 text-xl")}
+          {payBtn("min-h-20 px-4 text-xl")}
+          {billBtn("min-h-16 px-4 text-lg", o.billRequestedAt ? "Repetir cuenta" : "Pedir cuenta")}
+          <div className="mt-1 flex flex-col gap-1 border-t border-[var(--p-line)] pt-3 text-sm">{sideActions("rounded-xl px-3 text-left hover:bg-black/[0.04]")}</div>
+        </aside>
+      )}
+      </div>
+
+      {/* Móvil: barra fija abajo con el total y botones grandes para el dedo */}
+      {!closed && !panel && portal && createPortal(
         <div style={STORE_VARS} className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--p-line)] bg-[var(--p-surface)] px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] text-[var(--p-ink)] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:left-64">
-          <div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-2 sm:mr-auto">
+          <div className="mx-auto flex max-w-6xl flex-col gap-2.5">
+            <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-[var(--p-muted)]">
-                  {lineCount} {lineCount === 1 ? "producto" : "productos"}
-                  {paidParts > 0 && " · queda"}
-                  {o.collaboratorDiscountCents > 0 && ` · −${euros(o.collaboratorDiscountCents)} de ${o.collaborator?.name.split(" ")[0] ?? "colaborador"}`}
-                </p>
-                <p className="text-xl font-semibold tabular-nums">{euros(o.totalCents)}</p>
+                <p className="truncate text-xs text-[var(--p-muted)]">{summary}</p>
+                <p className="text-2xl font-semibold tabular-nums">{euros(o.totalCents)}</p>
               </div>
-              <button type="button" onClick={printBill} disabled={busy || (!lineCount && !blind)} className="p-press shrink-0 rounded-2xl bg-black/[0.06] px-5 py-4 text-base font-semibold disabled:opacity-50 sm:order-last">
-                Cuenta
-              </button>
+              {billBtn("min-h-14 shrink-0 px-4 text-base", o.billRequestedAt ? "Repetir cuenta" : "Pedir cuenta")}
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex">
-              {canCharge ? (
-                <button type="button" onClick={() => setPaying(true)} disabled={busy || (!lineCount && !blind) || o.totalCents <= 0} className="p-press rounded-2xl bg-[var(--p-ink)] px-6 py-4 text-base font-bold text-white disabled:opacity-50 sm:min-w-[150px]">
-                  Cobrar
-                </button>
-              ) : (
-                <span className="flex items-center justify-center rounded-2xl bg-black/[0.04] px-4 py-4 text-center text-sm font-medium text-[var(--p-muted)] sm:min-w-[150px]">Cobra la caja</span>
-              )}
-              <button type="button" onClick={() => setComposing(true)} disabled={busy} className="p-press rounded-2xl bg-[var(--p-brand)] px-6 py-4 text-base font-bold text-white disabled:opacity-50 sm:min-w-[190px]">
-                + Nueva ronda
-              </button>
+            <div className="grid grid-cols-2 gap-2.5">
+              {roundBtn("min-h-16 px-3 text-lg")}
+              {payBtn("min-h-16 px-3 text-lg")}
             </div>
           </div>
         </div>,
@@ -431,8 +490,8 @@ function CollabRow({ order, busy, onApply }: { order: Cuenta["order"]; busy: boo
         if (code.trim() && (await onApply(code.trim()))) setCode("");
       }}
     >
-      <span className="text-[var(--p-muted)]">¿Vienen de parte de alguien?</span>
-      <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20))} placeholder="Código del guía, hotel…" aria-label="Código de colaborador" className="min-w-0 flex-1 rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm font-semibold tracking-wider" />
+      <span className="w-full text-[var(--p-muted)]">¿Vienen de parte de alguien?</span>
+      <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20))} placeholder="Código del guía, hotel…" aria-label="Código de colaborador" className="min-h-11 min-w-0 flex-1 rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm font-semibold tracking-wider" />
       <button type="submit" disabled={busy || !code.trim()} className="p-press rounded-full bg-[var(--p-ink)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
         Aplicar
       </button>

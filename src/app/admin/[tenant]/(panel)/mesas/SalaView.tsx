@@ -340,7 +340,7 @@ function TableCard({ t, now, bare, canCharge = true, onAction, onClose }: { t: T
           </button>
         )}
         <button type="button" onClick={() => onAction("bill")} className="p-press rounded-2xl bg-black/[0.06] py-3 text-sm font-semibold">
-          Imprimir cuenta
+          Pedir cuenta
         </button>
         <button type="button" onClick={() => onAction("view")} className="p-press rounded-2xl bg-black/[0.06] py-3 text-sm font-semibold">
           Ver cuenta
