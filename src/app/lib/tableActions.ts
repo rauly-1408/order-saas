@@ -8,7 +8,7 @@ import { enqueueTablePrint, printTablePayment } from "@/app/lib/printing";
 import { issueInvoiceSafe } from "@/app/lib/verifactu";
 import { cancelOrder } from "@/app/lib/cancelOrder";
 import { notifyCollaboratorSale } from "@/app/lib/push";
-import { PAY_METHODS, addRound, moveTable, payTable, requestBill, setTableCollaborator, voidLine, type PayMethod } from "@/app/lib/tables";
+import { PAY_METHODS, addRound, joinTables, moveTable, payTable, requestBill, setTableCollaborator, setTableLabel, voidLine, type PayMethod } from "@/app/lib/tables";
 
 // Acciones sobre la cuenta de una mesa (ronda, anular, cuenta, cobrar, cambiar
 // de mesa, cerrar, colaborador). Las usan POST /mesas/[orderId] y, para lo
@@ -19,7 +19,8 @@ import { PAY_METHODS, addRound, moveTable, payTable, requestBill, setTableCollab
 export const partNote = (n: number | null) => `Parte de la cuenta nº ${n ?? "?"}`;
 
 export type TableActionBody = {
-  action?: "round" | "void" | "bill" | "pay" | "move" | "cancel" | "collab";
+  action?: "round" | "void" | "bill" | "pay" | "move" | "cancel" | "collab" | "label" | "join";
+  label?: string;
   code?: string;
   items?: OrderLineInput[];
   custom?: CustomInput[];
@@ -48,7 +49,7 @@ export async function runTableAction({ tenant, session, order }: Ctx, b: TableAc
   switch (b.action) {
     case "round":
       return once(tenant.id, rid, async () => {
-        const prepared = await prepareRound(tenant.id, b, manager);
+        const prepared = await prepareRound(tenant.id, b, manager || access.anular); // bajar el precio: gerente o encargado
         if ("error" in prepared) return NextResponse.json({ error: prepared.error }, { status: 400 });
         const r = await addRound(tenant.id, order.id, prepared.lines, tenant.addons.includes("COSTS") ? prepared.consumption : [], session.userId, tenant.addons.includes("COSTS") ? prepared.takeaway : []);
         after(() => enqueueTablePrint(order.id, { kind: "ROUND", round: r.round }));
@@ -94,6 +95,16 @@ export async function runTableAction({ tenant, session, order }: Ctx, b: TableAc
         const moved = await moveTable(tenant.id, order.id, to);
         return NextResponse.json({ tableId: moved.tableId });
       });
+    }
+    case "label": {
+      // Nombre de la mesa durante el servicio («Cumpleaños»): cualquiera que lleve mesas.
+      const label = typeof b.label === "string" ? b.label.replace(/\s+/g, " ").trim().slice(0, 30) : "";
+      return NextResponse.json(await setTableLabel(tenant.id, order.id, label));
+    }
+    case "join": {
+      if (typeof b.tableId !== "string") return NextResponse.json({ error: "Elige la mesa" }, { status: 400 });
+      const to = b.tableId;
+      return once(tenant.id, rid, async () => NextResponse.json(await joinTables(tenant.id, order.id, to)));
     }
     case "cancel": {
       const lines = await prisma.orderLine.count({ where: { orderId: order.id } });

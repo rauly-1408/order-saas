@@ -78,7 +78,7 @@ function TableTile({ t, now, selected, dimmed, onTap }: { t: Table; now: number;
       type="button"
       onClick={onTap}
       aria-pressed={selected}
-      aria-label={`Mesa ${t.name}: ${o ? `${o.billRequested ? "pide la cuenta" : "ocupada"}, ${o.guests ?? "?"} comensales, ${m} minutos, ${euros(o.totalCents)}` : `libre, ${t.seats} plazas`}`}
+      aria-label={`Mesa ${t.name}${o?.label ? ` (${o.label})` : ""}: ${o ? `${o.billRequested ? "pide la cuenta" : "ocupada"}, ${o.guests ?? "?"} comensales, ${m} minutos, ${euros(o.totalCents)}` : `libre, ${t.seats} plazas`}`}
       style={{ left: `${t.posX}%`, top: `${t.posY}%` }}
       className={`p-press absolute aspect-square -translate-x-1/2 -translate-y-1/2 transition-opacity ${round ? "w-[7%] min-w-[44px] max-w-[80px]" : "w-[10%] min-w-[56px] max-w-[120px]"} ${dimmed ? "opacity-30" : ""}`}
     >
@@ -96,6 +96,9 @@ function TableTile({ t, now, selected, dimmed, onTap }: { t: Table; now: number;
           !round && <span className="mt-0.5 text-[9px] leading-none text-[var(--p-faint)] sm:text-[11px]">{t.seats} pax</span>
         )}
       </span>
+      {o?.label && (
+        <span className="absolute -bottom-2 left-1/2 z-10 max-w-[140%] -translate-x-1/2 truncate rounded-full bg-[var(--p-ink)] px-1.5 py-0.5 text-[9px] font-semibold leading-none text-white shadow sm:text-[10px]">{o.label}</span>
+      )}
       {o && (
         <span className={`absolute -top-1 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums leading-none shadow sm:text-[10px] ${timeTone(m)}`}>{m < 60 ? `${m}′` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`}</span>
       )}
@@ -254,6 +257,7 @@ export default function SalaView({
                         <span className={`flex h-10 w-10 shrink-0 items-center justify-center text-sm font-bold ${t.shape === "ROUND" ? "rounded-full" : "rounded-xl"} ${o.billRequested ? "bg-amber-300 text-amber-950" : "bg-[var(--p-brand)] text-white"}`}>{t.name}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">
+                            {o.label && <span className="font-semibold text-[var(--p-brand)]">{o.label} · </span>}
                             {o.guests ?? "?"} pax · {o.lines} {o.lines === 1 ? "producto" : "productos"}
                           </span>
                           <span className="block truncate text-xs text-[var(--p-muted)]">{[t.zone, o.waiter, o.billRequested && "pide la cuenta"].filter(Boolean).join(" · ")}
@@ -300,7 +304,13 @@ function TableCard({ t, now, bare, canCharge = true, onAction, onClose }: { t: T
     <div className={bare ? "" : "rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.25)] ring-1 ring-black/5"}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          {!bare && <p className="text-lg font-semibold">Mesa {t.name}</p>}
+          {!bare && (
+            <p className="text-lg font-semibold">
+              Mesa {t.name}
+              {o.label && <span className="text-[var(--p-brand)]"> · {o.label}</span>}
+            </p>
+          )}
+          {bare && o.label && <p className="text-base font-semibold text-[var(--p-brand)]">{o.label}</p>}
           <p className="text-sm text-[var(--p-muted)]">
             {t.zone} · {o.guests ?? "?"} {o.guests === 1 ? "comensal" : "comensales"} · {o.orderNumber != null ? `cuenta nº ${o.orderNumber}` : "cuenta sin número aún"}
           </p>

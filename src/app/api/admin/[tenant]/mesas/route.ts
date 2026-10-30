@@ -5,7 +5,7 @@ import { getSessionFromRequest } from "@/app/lib/auth";
 import { accessOf, canManageTenant } from "@/app/lib/roles";
 import { listStores, storeForSession } from "@/app/lib/stores";
 import { cleanText } from "@/app/lib/text";
-import { MAX_TABLES_PER_STORE, TableError, addRound, openTable, tableNames } from "@/app/lib/tables";
+import { MAX_TABLES_PER_STORE, TableError, addRound, openTable, tableLabel, tableNames } from "@/app/lib/tables";
 import { once, requestIdOf } from "@/app/lib/idempotency";
 import { prepareRound, type RoundInput } from "@/app/lib/tableRound";
 import { enqueueTablePrint } from "@/app/lib/printing";
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
       prisma.diningTable.findMany({ where: { tenantId: tenant.id, storeId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
       prisma.order.findMany({
         where: { tenantId: tenant.id, storeId, status: "OPEN", tableId: { not: null } },
-        select: { id: true, orderNumber: true, tableId: true, guests: true, totalCents: true, createdAt: true, billRequestedAt: true, createdByUserId: true },
+        select: { id: true, orderNumber: true, tableId: true, guests: true, totalCents: true, createdAt: true, billRequestedAt: true, createdByUserId: true, customerName: true },
       }),
     ]);
     const userIds = [...new Set(open.flatMap((o) => (o.createdByUserId ? [o.createdByUserId] : [])))];
@@ -110,6 +110,7 @@ export async function GET(req: NextRequest) {
             ? {
                 orderId: o.id,
                 orderNumber: o.orderNumber,
+                label: tableLabel(o.customerName, t.name),
                 guests: o.guests,
                 totalCents: o.totalCents,
                 openedAt: o.createdAt,
@@ -190,7 +191,7 @@ export async function POST(req: NextRequest) {
       }
       const tableId = b.tableId;
       return await once(tenant.id, requestIdOf(b.requestId), async () => {
-        const prepared = await prepareRound(tenant.id, round, canManageTenant(session.role));
+        const prepared = await prepareRound(tenant.id, round, accessOf(session).anular); // bajar el precio: gerente o encargado
         if ("error" in prepared) return NextResponse.json({ error: prepared.error }, { status: 400 });
         // Si otro camarero la abrió mientras no había conexión, la ronda se suma a esa cuenta.
         const openOrder = () => prisma.order.findFirst({ where: { tableId, status: "OPEN" }, select: { id: true, orderNumber: true } });

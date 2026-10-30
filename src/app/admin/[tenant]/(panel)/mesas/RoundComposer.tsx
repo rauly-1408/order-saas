@@ -32,7 +32,12 @@ type Line = {
   note: string;
   free?: boolean; // invita la casa
   takeaway?: boolean; // para llevar desde la mesa: «PARA LLEVAR» en la comanda y gasta su packaging
+  priceCents?: number; // precio por unidad cambiado a mano (gerente o encargado): solo a la baja
 };
+
+// Precio que se cobra por unidad: el cambiado a mano o el de la carta.
+const unitOf = (l: Line) => (l.priceCents != null && l.priceCents < l.unitPriceCents ? l.priceCents : l.unitPriceCents);
+const lineTotal = (l: Line) => (l.free ? 0 : unitOf(l) * l.quantity);
 
 // Cada sección de la carta lleva siempre su color (franja en la tarjeta y punto
 // en la pestaña): con el uso, el camarero encuentra los productos por el color
@@ -45,7 +50,7 @@ let menuCache: { tenant: string; cats: Category[] } | null = null;
 
 // orderId null + opening: mesa abierta sin conexión (se abre y se manda la ronda a la vez).
 // onSent(null): sin conexión, la ronda queda guardada y se enviará sola.
-export default function RoundComposer({ tenant, orderId, opening, tableName, onClose, onSent }: { tenant: string; orderId: string | null; opening?: { tableId: string; guests: number }; tableName: string; onClose: () => void; onSent: (round: number | null) => void }) {
+export default function RoundComposer({ tenant, orderId, opening, tableName, onClose, onSent, canDiscount = false }: { tenant: string; orderId: string | null; opening?: { tableId: string; guests: number }; tableName: string; onClose: () => void; onSent: (round: number | null) => void; canDiscount?: boolean }) {
   const portal = usePortal();
   const [categories, setCategories] = useState<Category[] | null>(menuCache?.tenant === tenant ? menuCache.cats : null);
   const [cat, setCat] = useState(categories?.[0]?.slug ?? "");
@@ -59,6 +64,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState<string | null>(null); // última añadida (resaltado)
+  const [pad, setPad] = useState<{ i: number; mode: "qty" | "price" } | null>(null); // teclado de cantidad o precio
 
   useEffect(() => {
     if (categories) return;
@@ -95,7 +101,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
   }, [categories, cat, q]);
 
   const count = lines.reduce((a, l) => a + l.quantity, 0);
-  const total = lines.reduce((a, l) => a + l.unitPriceCents * l.quantity, 0);
+  const total = lines.reduce((a, l) => a + lineTotal(l), 0);
 
   function pushLine(l: Line) {
     setLines((ls) => {
@@ -136,12 +142,12 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
       const menu = lines.filter((l) => l.productId);
       const custom = lines.filter((l) => !l.productId);
       const round = {
-        items: menu.map((l) => ({ productId: l.productId, quantity: l.quantity, optionIds: l.optionIds, ...(l.comboChoices && { comboChoices: l.comboChoices }), ...(l.note.trim() && { note: l.note.trim() }), ...(l.takeaway && { takeaway: true }) })),
-        custom: custom.map((l) => ({ name: l.name, quantity: l.quantity, priceCents: l.unitPriceCents, free: Boolean(l.free), note: l.note.trim() })),
+        items: menu.map((l) => ({ productId: l.productId, quantity: l.quantity, optionIds: l.optionIds, ...(l.comboChoices && { comboChoices: l.comboChoices }), ...(l.note.trim() && { note: l.note.trim() }), ...(l.takeaway && { takeaway: true }), ...(unitOf(l) < l.unitPriceCents && { discountCents: (l.unitPriceCents - unitOf(l)) * l.quantity }) })),
+        custom: custom.map((l) => ({ name: l.name, quantity: l.quantity, priceCents: unitOf(l), free: Boolean(l.free), note: l.note.trim() })),
       };
       const label = `Mesa ${tableName} · ronda de ${count} ${count === 1 ? "producto" : "productos"}`;
       // Para enseñar la ronda en la cuenta mientras no hay conexión (el servidor recalcula los precios).
-      const preview = { lines: lines.map((l) => ({ name: l.name, quantity: l.quantity, totalCents: l.free ? 0 : l.unitPriceCents * l.quantity, modifiers: modifierLabels(l.modifiers), note: l.note.trim() || null })) };
+      const preview = { lines: lines.map((l) => ({ name: l.name, quantity: l.quantity, totalCents: lineTotal(l), modifiers: modifierLabels(l.modifiers), note: l.note.trim() || null })) };
       const r = orderId
         ? await sendOrQueue<{ round: number }>(`/api/admin/${tenant}/mesas/${orderId}`, { action: "round", ...round, preview }, label)
         : await sendOrQueue<{ round: number }>(`/api/admin/${tenant}/mesas`, { action: "open", tableId: opening?.tableId, guests: opening?.guests ?? 1, round, preview }, label);
@@ -179,13 +185,18 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
                       {!l.productId && <span className="ml-1.5 rounded-md bg-black/[0.07] px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase text-[var(--p-muted)]">libre</span>}
                     </p>
                     {mods.length > 0 && <p className="text-xs text-[var(--p-muted)]">{mods.join(" · ")}</p>}
-                    <p className="mt-0.5 text-sm font-semibold tabular-nums">{l.free ? "Invita la casa · 0,00 €" : euros(l.unitPriceCents * l.quantity)}</p>
+                    <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                      {l.free ? "Invita la casa · 0,00 €" : euros(lineTotal(l))}
+                      {!l.free && unitOf(l) < l.unitPriceCents && <span className="ml-1.5 text-xs font-normal text-[var(--p-muted)] line-through">{euros(l.unitPriceCents * l.quantity)}</span>}
+                    </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <button type="button" onClick={() => setQty(i, l.quantity - 1)} aria-label={l.quantity === 1 ? `Quitar ${l.name}` : `Uno menos de ${l.name}`} className="p-press flex h-11 w-11 items-center justify-center rounded-full bg-[var(--p-surface)] text-xl font-semibold shadow-sm">
                       {l.quantity === 1 ? <TrashIcon /> : "−"}
                     </button>
-                    <span className="w-8 text-center text-lg font-bold tabular-nums">{l.quantity}</span>
+                    <button type="button" onClick={() => setPad({ i, mode: "qty" })} aria-label={`Escribir la cantidad de ${l.name}`} className="p-press min-w-11 rounded-xl text-center text-lg font-bold tabular-nums underline decoration-dotted underline-offset-4">
+                      {l.quantity}
+                    </button>
                     <button type="button" onClick={() => setQty(i, l.quantity + 1)} aria-label={`Uno más de ${l.name}`} className="p-press flex h-11 w-11 items-center justify-center rounded-full bg-[var(--p-surface)] text-xl font-semibold shadow-sm">
                       +
                     </button>
@@ -201,6 +212,11 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
                     {!l.note && (
                       <button type="button" onClick={() => setNoteFor(`${l.key}-${i}`)} className="rounded-full px-3 py-2 text-sm font-semibold text-[var(--p-brand)] hover:bg-[var(--p-brand-soft)]">
                         + Nota para cocina
+                      </button>
+                    )}
+                    {(canDiscount || !l.productId) && !l.free && (
+                      <button type="button" onClick={() => setPad({ i, mode: "price" })} className="p-press rounded-full border border-[var(--p-line)] bg-[var(--p-surface)] px-3 py-2 text-sm font-semibold">
+                        Precio
                       </button>
                     )}
                     {l.productId && (
@@ -352,6 +368,25 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
         )}
       </div>
 
+      {pad && lines[pad.i] && (
+        <NumPad
+          title={pad.mode === "qty" ? `Cantidad · ${lines[pad.i].name}` : `Precio por unidad · ${lines[pad.i].name}`}
+          money={pad.mode === "price"}
+          initial={pad.mode === "qty" ? String(lines[pad.i].quantity) : (unitOf(lines[pad.i]) / 100).toFixed(2).replace(".", ",")}
+          hint={pad.mode === "price" && lines[pad.i].productId ? `En la carta: ${euros(lines[pad.i].unitPriceCents)}. Solo se puede bajar; a 0 queda invitado.` : undefined}
+          onClose={() => setPad(null)}
+          onOk={(v) => {
+            const i = pad.i;
+            if (pad.mode === "qty") setQty(i, Math.min(99, Math.max(0, Math.round(v))));
+            else {
+              const cents = Math.max(0, Math.round(v * 100));
+              setLines((ls) => ls.map((l, j) => (j !== i ? l : l.productId ? { ...l, priceCents: Math.min(cents, l.unitPriceCents) } : { ...l, unitPriceCents: Math.min(cents, 99_999) })));
+            }
+            setPad(null);
+          }}
+        />
+      )}
+
       {optionsFor && (
         <ProductOptionsSheet
           product={optionsFor as SheetProduct}
@@ -458,5 +493,50 @@ function TrashIcon() {
     <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 fill-none stroke-current" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
     </svg>
+  );
+}
+
+// Teclado grande para el dedo: cantidad («6 cafés») o precio por unidad.
+function NumPad({ title, money, initial, hint, onClose, onOk }: { title: string; money: boolean; initial: string; hint?: string; onClose: () => void; onOk: (value: number) => void }) {
+  const [v, setV] = useState(initial);
+  const [fresh, setFresh] = useState(true); // la primera tecla sustituye lo que había
+  const press = (k: string) => {
+    setV((cur) => {
+      const base = fresh ? "" : cur;
+      if (k === "⌫") return base.slice(0, -1);
+      if (k === ",") return !money || base.includes(",") ? base : (base || "0") + ",";
+      if (money && base.includes(",") && base.split(",")[1].length >= 2) return base;
+      return (base + k).replace(/^0(?=\d)/, "").slice(0, money ? 8 : 2);
+    });
+    setFresh(false);
+  };
+  const value = Number((v || "0").replace(",", "."));
+  return (
+    <Sheet
+      title={title}
+      onClose={onClose}
+      footer={
+        <button type="button" onClick={() => onOk(value)} disabled={!money && value < 1} className="p-press min-h-14 w-full rounded-2xl bg-[var(--p-ink)] text-lg font-bold text-white disabled:opacity-40">
+          Aceptar
+        </button>
+      }
+    >
+      <p className="rounded-2xl bg-black/[0.04] px-4 py-3 text-right text-4xl font-bold tabular-nums" aria-live="polite">
+        {v || "0"}
+        {money && " €"}
+      </p>
+      {hint && <p className="mt-2 text-sm text-[var(--p-muted)]">{hint}</p>}
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {["1", "2", "3", "4", "5", "6", "7", "8", "9", money ? "," : "", "0", "⌫"].map((k, n) =>
+          k ? (
+            <button key={n} type="button" onClick={() => press(k)} aria-label={k === "⌫" ? "Borrar" : k} className="p-press min-h-16 rounded-2xl bg-[var(--p-surface)] text-2xl font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.08)] ring-1 ring-[var(--p-line)]">
+              {k}
+            </button>
+          ) : (
+            <span key={n} />
+          )
+        )}
+      </div>
+    </Sheet>
   );
 }

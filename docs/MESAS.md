@@ -22,6 +22,8 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - Usa la carta de la Caja, con opciones y menús, con botones y productos grandes.
   - **Cada sección tiene su color**: una franja en la tarjeta y un punto en la pestaña. Con el uso, los productos se encuentran por el color sin leer. El color va con el orden de la sección en la carta, y no se usa el rojo para que no parezca un error.
   - **Tarjetas más grandes**: nombre y precio en 16 px, con la foto pequeña si el producto la tiene. Caben tantas por fila como permita la pantalla (5 en un portátil de 1366 px, 3 en una tablet de 1024 px y 2 en el móvil).
+  - **Cantidad con teclado**: tocar el número de una línea abre un teclado grande para poner «6» de una vez.
+  - **Cambiar el precio** de una línea («Precio»), solo el gerente y el encargado. Solo se puede bajar (a 0 queda invitado); se guarda como descuento de la línea y sale tachado el precio de la carta. En un producto libre cambia su precio.
   - **«−» en la tarjeta** cuando ya está en la ronda: quita uno sin ir al ticket.
   - **«‹ Volver a la mesa N»** es un botón grande y, si hay algo sin enviar, pregunta antes de salir. **«Vaciar»** también pregunta, y en rojo.
   - En el ordenador o la tablet, el ticket de la ronda está siempre a la vista a la derecha: cantidad con botones grandes, papelera al quedar en 1 y nota por línea. En el móvil es una barra abajo que se despliega.
@@ -35,6 +37,8 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
     - En tablet y ordenador, cuando la cuenta tiene 42rem o más, hay un **panel de cobro fijo a la derecha**. Muestra el total en grande y debajo, de 80 px de alto, «+ Nueva ronda» y «Cobrar»; luego «Pedir cuenta» y, aparte y en pequeño, «Cambiar de mesa» y «Cerrar sin cobrar».
     - Las rondas hacen scroll y el panel no se mueve. En pantallas grandes (1536 px o más) el panel se ensancha a 24rem y los botones suben a 96 px.
     - En el móvil, una barra fija abajo con el total, «Pedir cuenta» y, de 64 px, «+ Nueva ronda» y «Cobrar».
+  - **Juntar con otra mesa**: lo pedido pasa a la cuenta de otra mesa abierta. Sus rondas van detrás de las de esa mesa, y también pasan su stock y sus comensales. La mesa queda libre y su cuenta se guarda como «Unida a la mesa N». No se puede si ya se cobró una parte por separado (`joinTables` en `lib/tables.ts`).
+  - **Ponerle nombre**: por ejemplo «Cumpleaños» o «Empresa». Sale en el plano (etiqueta bajo la mesa), en «Mesas abiertas», en la ficha, en la comanda y en el ticket. Al cerrar la cuenta la mesa vuelve a su nombre (va en `Order.customerName`).
   - **Pedir cuenta** imprime la cuenta («No es una factura») y marca la mesa como «pide la cuenta». Arriba sale «Cuenta pedida · hora» y el botón pasa a «Repetir cuenta».
   - **Anular** una línea ya enviada (solo el gerente) imprime en cocina «ANULADO · NO PREPARAR». El stock no vuelve, porque puede estar hecho.
   - **Cambiar de mesa** la pasa a una mesa libre del mismo local.
