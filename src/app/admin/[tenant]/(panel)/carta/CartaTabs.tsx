@@ -31,7 +31,7 @@ export default function CartaTabs({ tenant }: { tenant: string }) {
         ))}
       </nav>
       {/* La traducción de la carta está en Configuración → Idiomas (como Shopify) */}
-      <Link href={`/admin/${tenant}/configuracion/idiomas`} className="-mt-3 mb-5 inline-block text-xs font-medium text-[var(--p-brand)]">
+      <Link href={`/admin/${tenant}/configuracion/idiomas`} className="-mt-3 mb-3 inline-flex min-h-11 items-center text-xs font-medium text-[var(--p-brand)]">
         🌐 Carta en inglés → Configuración · Idiomas
       </Link>
       {tab === "productos" ? <CartaClient tenant={tenant} embedded /> : tab === "opciones" ? <Opciones tenant={tenant} /> : <Combos tenant={tenant} />}

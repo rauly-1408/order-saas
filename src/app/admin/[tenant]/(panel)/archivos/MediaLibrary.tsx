@@ -289,7 +289,7 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
                       })
                     }
                     aria-label="Seleccionar todos los de esta página"
-                    className="h-4 w-4 accent-[var(--p-brand)]"
+                    className="h-5 w-5 accent-[var(--p-brand)]"
                   />
                 </th>
                 <th scope="col" className={th}>
@@ -334,7 +334,7 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
                           })
                         }
                         aria-label={`Seleccionar ${f.name}`}
-                        className="h-4 w-4 accent-[var(--p-brand)]"
+                        className="h-5 w-5 accent-[var(--p-brand)]"
                       />
                     </td>
                     <td className="px-3 py-2 align-middle">

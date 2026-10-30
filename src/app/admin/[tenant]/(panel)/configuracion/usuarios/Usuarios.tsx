@@ -253,7 +253,7 @@ export default function Usuarios({ tenant }: { tenant: string }) {
         <p className="mt-3 rounded-xl bg-[var(--p-bg)] px-3 py-2 text-sm text-[var(--p-muted)]">{formHint}</p>
         {form.puesto === "CAMARERO" && (
           <label className="mt-3 flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.canCharge} onChange={(e) => setForm({ ...form, canCharge: e.target.checked })} className="h-4 w-4 accent-[var(--p-brand)]" />
+            <input type="checkbox" checked={form.canCharge} onChange={(e) => setForm({ ...form, canCharge: e.target.checked })} className="h-5 w-5 accent-[var(--p-brand)]" />
             Puede cobrar las mesas
           </label>
         )}

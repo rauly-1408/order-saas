@@ -434,7 +434,7 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
                     <span className="flex shrink-0 items-center gap-3">
                       <span className="text-[var(--p-muted)]">{toEuros(o.totalCents)}</span>
                       {o.status === "DELIVERED" && o.paymentStatus === "PAID" && perms.canInvoice && (
-                        <Link href={`/admin/${tenant}/facturas?pedido=${o.id}`} className="rounded-full bg-black/[0.04] px-2 py-0.5 text-xs font-semibold text-[var(--p-muted)] hover:text-[var(--p-ink)]">
+                        <Link href={`/admin/${tenant}/facturas?pedido=${o.id}`} className="inline-flex min-h-11 items-center rounded-full bg-black/[0.04] px-3 text-xs font-semibold text-[var(--p-muted)] hover:text-[var(--p-ink)]">
                           Factura
                         </Link>
                       )}
