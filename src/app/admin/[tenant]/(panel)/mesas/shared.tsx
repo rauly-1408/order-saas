@@ -8,7 +8,7 @@ import { STORE_VARS } from "../storeVars";
 
 export type Shape = "SQUARE" | "ROUND";
 // orderId null: abierta sin conexión, aún sin cuenta en el servidor. pending: tiene algo sin enviar.
-export type TableOpen = { orderId: string | null; orderNumber: number | null; guests: number | null; totalCents: number; openedAt: string; billRequested: boolean; waiter: string | null; lines: number; rounds: number; lastRoundAt: string | null; pending?: boolean };
+export type TableOpen = { orderId: string | null; orderNumber: number | null; label?: string | null; guests: number | null; totalCents: number; openedAt: string; billRequested: boolean; waiter: string | null; lines: number; rounds: number; lastRoundAt: string | null; pending?: boolean };
 export type Table = { id: string; name: string; zone: string; seats: number; shape: Shape; posX: number | null; posY: number | null; open: TableOpen | null };
 export type Fixture = { id: string; kind: "BAR" | "WALL" | "LABEL"; x: number; y: number; w: number; h: number; label: string };
 export type MapData = { stores: { id: string; name: string }[]; storeId: string | null; canManage: boolean; canCharge?: boolean; sees: boolean; tables: Table[]; fixtures: Record<string, Fixture[]> };
@@ -16,10 +16,11 @@ export type MapData = { stores: { id: string; name: string }[]; storeId: string 
 export type CuentaLine = { id: string; name: string; quantity: number; totalCents: number; discountCents: number; modifiers: string[]; note: string | null };
 export type Round = { round: number; at: string; by: string | null; lines: CuentaLine[] };
 export type Cuenta = {
-  order: { id: string; orderNumber: number | null; status: string; table: { id: string; name: string; zone: string }; guests: number | null; openedAt: string; billRequestedAt: string | null; totalCents: number; subtotalCents: number; collaboratorDiscountCents: number; collaborator: { name: string; code: string; discountPct: number } | null; waiter: string | null; invoiceNumber: string | null };
+  order: { id: string; orderNumber: number | null; status: string; table: { id: string; name: string; zone: string }; label?: string | null; guests: number | null; openedAt: string; billRequestedAt: string | null; totalCents: number; subtotalCents: number; collaboratorDiscountCents: number; collaborator: { name: string; code: string; discountPct: number } | null; waiter: string | null; invoiceNumber: string | null };
   rounds: Round[];
   parts: { id: string; orderNumber: number | null; totalCents: number; paymentMethod: string; paidAt: string | null }[];
   freeTables: { id: string; name: string; zone: string }[];
+  busyTables?: { id: string; name: string; zone: string; label: string | null; totalCents: number }[]; // para juntar mesas
   canVoid: boolean;
   canCharge?: boolean; // el puesto puede cobrar (camarero sin permiso: no)
 };

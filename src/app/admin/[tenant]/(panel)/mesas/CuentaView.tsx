@@ -66,6 +66,8 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
   const [composing, setComposing] = useState(initialAction === "round");
   const [paying, setPaying] = useState(initialAction === "pay" && canCharge);
   const [moving, setMoving] = useState(false);
+  const [naming, setNaming] = useState(false); // nombre de la mesa («Cumpleaños»)
+  const [joining, setJoining] = useState(false); // juntar con otra mesa
   const [busy, setBusy] = useState(false);
   const [, setTick] = useState(0);
   const portal = usePortal();
@@ -135,6 +137,7 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
       rounds: [...(server?.rounds ?? []), ...pending],
       parts: server?.parts ?? [],
       freeTables: offlineFreeTables ?? server?.freeTables ?? [],
+      busyTables: offline ? [] : (server?.busyTables ?? []),
       canVoid: !offline && (server?.canVoid ?? false),
     };
   }, [server, table, overlay, orderId, offline, offlineFreeTables]);
@@ -258,6 +261,16 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
         Cambiar de mesa
       </button>
       {!offline && (
+        <button type="button" onClick={() => setJoining(true)} disabled={busy} className={`p-press min-h-11 font-medium ${cls}`}>
+          Juntar con otra mesa
+        </button>
+      )}
+      {!offline && (
+        <button type="button" onClick={() => setNaming(true)} disabled={busy} className={`p-press min-h-11 font-medium ${cls}`}>
+          {o.label ? "Cambiar el nombre" : "Ponerle nombre"}
+        </button>
+      )}
+      {!offline && (
         <button type="button" onClick={closeEmpty} disabled={busy} className={`p-press min-h-11 font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)] ${cls}`}>
           Cerrar sin cobrar
         </button>
@@ -272,7 +285,10 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
       </button>
       <div className="mt-1 flex flex-wrap items-end justify-between gap-2">
         <div className="min-w-0">
-          <h1 className="text-3xl font-semibold tracking-tight">Mesa {o.table.name}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Mesa {o.table.name}
+            {o.label && <span className="ml-2 align-middle text-xl font-semibold text-[var(--p-brand)]">· {o.label}</span>}
+          </h1>
           <p className="mt-1 text-sm text-[var(--p-muted)]">
             {[o.table.zone, o.guests && `${o.guests} ${o.guests === 1 ? "comensal" : "comensales"}`, `abierta hace ${minutesSince(o.openedAt)}`, o.waiter, `cuenta nº ${o.orderNumber ?? "?"}`].filter(Boolean).join(" · ")}
           </p>
@@ -406,6 +422,7 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
           orderId={orderId}
           opening={orderId ? undefined : { tableId: table.id, guests: table.open?.guests ?? 1 }}
           tableName={o.table.name}
+          canDiscount={Boolean(data.canVoid)}
           onClose={() => setComposing(false)}
           onSent={(round) => {
             setComposing(false);
@@ -430,6 +447,35 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
             }
           }}
         />
+      )}
+      {naming && <NameSheet table={o.table.name} current={o.label ?? ""} busy={busy} onClose={() => setNaming(false)} onSave={async (label) => (await act({ action: "label", label }, label ? `Mesa ${o.table.name}: «${label}»` : "Nombre quitado")) && setNaming(false)} />}
+      {joining && (
+        <Sheet title={`Juntar la mesa ${o.table.name} con…`} onClose={() => setJoining(false)}>
+          <p className="mb-3 text-sm text-[var(--p-muted)]">Lo pedido en la mesa {o.table.name} pasa a la cuenta de la mesa que elijas, y la {o.table.name} queda libre.</p>
+          {!data.busyTables?.length ? (
+            <p className="py-6 text-center text-sm text-[var(--p-muted)]">No hay otras mesas abiertas.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {data.busyTables.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!(await ask(`¿Juntar la mesa ${o.table.name} con la ${t.name}? Todo pasa a la cuenta de la ${t.name}.`, { confirm: "Juntar" }))) return;
+                    const r = await act({ action: "join", tableId: t.id, requestId: crypto.randomUUID() });
+                    if (r) onBack({ notice: `Mesa ${o.table.name} junta con la ${t.name}: todo está en su cuenta` });
+                  }}
+                  className="p-press flex min-h-20 flex-col items-center justify-center rounded-2xl border border-[var(--p-line)] px-2 py-3"
+                >
+                  <span className="text-lg font-semibold">{t.name}</span>
+                  {t.label && <span className="max-w-full truncate text-xs font-semibold text-[var(--p-brand)]">{t.label}</span>}
+                  <span className="text-[11px] text-[var(--p-muted)] tabular-nums">{t.zone} · {euros(t.totalCents)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </Sheet>
       )}
       {moving && (
         <Sheet title={`Pasar la mesa ${o.table.name} a…`} onClose={() => setMoving(false)}>
@@ -457,6 +503,42 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
         </Sheet>
       )}
     </div>
+  );
+}
+
+// Nombre de la mesa durante el servicio: sale en el plano, en la comanda y en el
+// ticket, y se quita solo al cerrar la cuenta.
+const NAME_IDEAS = ["Cumpleaños", "Reserva", "Empresa", "Despedida", "Familia"];
+function NameSheet({ table, current, busy, onClose, onSave }: { table: string; current: string; busy: boolean; onClose: () => void; onSave: (label: string) => Promise<unknown> }) {
+  const [label, setLabel] = useState(current);
+  const clean = label.replace(/\s+/g, " ").trim().slice(0, 30);
+  return (
+    <Sheet
+      title={`Nombre de la mesa ${table}`}
+      onClose={onClose}
+      footer={
+        <div className="flex gap-2">
+          {current && (
+            <button type="button" disabled={busy} onClick={() => onSave("")} className="p-press min-h-12 rounded-2xl px-4 font-semibold text-[var(--p-accent)]">
+              Quitar
+            </button>
+          )}
+          <button type="button" disabled={busy || !clean || clean === current} onClick={() => onSave(clean)} className="p-press min-h-12 flex-1 rounded-2xl bg-[var(--p-ink)] font-semibold text-white disabled:opacity-40">
+            Guardar
+          </button>
+        </div>
+      }
+    >
+      <p className="mb-3 text-sm text-[var(--p-muted)]">Sale en el plano, en la comanda y en el ticket. Al cerrar la cuenta, la mesa vuelve a llamarse {table}.</p>
+      <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={30} autoFocus placeholder="Cumpleaños de Lucía" aria-label="Nombre de la mesa" className="w-full rounded-xl border border-[var(--p-line)] px-4 py-3 text-base" />
+      <div className="mt-3 flex flex-wrap gap-2">
+        {NAME_IDEAS.map((n) => (
+          <button key={n} type="button" onClick={() => setLabel(n)} className="p-press rounded-full border border-[var(--p-line)] px-4 text-sm font-medium">
+            {n}
+          </button>
+        ))}
+      </div>
+    </Sheet>
   );
 }
 

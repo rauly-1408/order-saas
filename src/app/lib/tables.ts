@@ -301,6 +301,47 @@ export async function payTable(
 }
 
 // Pasa la cuenta a otra mesa libre del mismo local.
+// Nombre de la mesa durante el servicio («Cumpleaños», «Empresa Pérez»): va en el
+// nombre del pedido, así sale en la comanda y en el ticket. Al cerrar la cuenta la
+// mesa vuelve a su nombre de siempre (la mesa en sí no cambia). Vacío = quitarlo.
+export const tableLabel = (customerName: string, tableName: string) => (customerName && customerName !== `Mesa ${tableName}` ? customerName : null);
+
+export async function setTableLabel(tenantId: string, orderId: string, label: string) {
+  return prisma.$transaction(async (tx) => {
+    const order = await lockOpen(tx, orderId, tenantId);
+    const name = order.table?.name ?? "";
+    await tx.order.update({ where: { id: orderId }, data: { customerName: label || `Mesa ${name}` } });
+    return { label: label || null };
+  });
+}
+
+// Juntar mesas: lo pedido en esta cuenta pasa a la cuenta de otra mesa ocupada
+// (con sus rondas detrás de las de esa mesa, su stock y sus comensales) y esta
+// mesa queda libre. No se puede si ya se cobró una parte por separado.
+export async function joinTables(tenantId: string, fromOrderId: string, toTableId: string) {
+  return prisma.$transaction(async (tx) => {
+    const from = await lockOpen(tx, fromOrderId, tenantId);
+    const target = await tx.order.findFirst({ where: { tenantId, tableId: toTableId, status: "OPEN" }, select: { id: true } });
+    if (!target) throw new TableError("Esa mesa ya no está abierta");
+    if (target.id === from.id) throw new TableError("Elige otra mesa");
+    const to = await lockOpen(tx, target.id, tenantId);
+    if (to.storeId !== from.storeId) throw new TableError("Esa mesa es de otro local");
+    const paid = await tx.order.count({ where: { tenantId, tableId: from.tableId, notes: `Parte de la cuenta nº ${from.orderNumber ?? "?"}`, status: "DELIVERED" } });
+    if (paid) throw new TableError("Parte de esta cuenta ya está cobrada: cobra el resto antes de juntarla");
+    const last = await tx.orderLine.aggregate({ where: { orderId: to.id }, _max: { round: true } });
+    const offset = last._max.round ?? 0;
+    await tx.$executeRaw`UPDATE "OrderLine" SET "orderId" = ${to.id}, "round" = "round" + ${offset} WHERE "orderId" = ${from.id}`;
+    await tx.stockMovement.updateMany({ where: { tenantId, orderId: from.id }, data: { orderId: to.id } });
+    if (from.guests) await tx.order.update({ where: { id: to.id }, data: { guests: (to.guests ?? 0) + from.guests } });
+    await tx.order.update({
+      where: { id: from.id },
+      data: { status: "CANCELLED", cancelledBy: "RESTAURANT", notes: `Unida a la mesa ${to.table?.name ?? ""}`.trim(), subtotalCents: 0, discountCents: 0, collaboratorDiscountCents: 0, totalCents: 0, commissionCents: 0 },
+    });
+    const totalCents = await recompute(tx, to.id);
+    return { orderId: to.id, tableId: toTableId, tableName: to.table?.name ?? "", totalCents };
+  });
+}
+
 export async function moveTable(tenantId: string, orderId: string, toTableId: string) {
   const to = await prisma.diningTable.findUnique({ where: { id: toTableId } });
   if (!to || to.tenantId !== tenantId || !to.isActive) throw new TableError("Mesa no encontrada");

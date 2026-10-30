@@ -3,7 +3,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getSessionFromRequest } from "@/app/lib/auth";
 import { accessOf } from "@/app/lib/roles";
 import { modifierLabels } from "@/app/lib/menuOptions";
-import { TableError } from "@/app/lib/tables";
+import { TableError, tableLabel } from "@/app/lib/tables";
 import { partNote, runTableAction, type TableActionBody } from "@/app/lib/tableActions";
 
 export const runtime = "nodejs";
@@ -60,6 +60,12 @@ export async function GET(req: NextRequest) {
       r.lines.push({ id: l.id, name: l.productName, quantity: l.quantity, totalCents: l.totalCents, discountCents: l.discountCents, modifiers: modifierLabels(l.modifiers), note: l.note });
       rounds.set(l.round, r);
     }
+    // Otras mesas abiertas del local: para «Juntar con otra mesa».
+    const busy = await prisma.order.findMany({
+      where: { tenantId: tenant.id, storeId: o.storeId, status: "OPEN", tableId: { not: null }, id: { not: o.id } },
+      orderBy: { createdAt: "asc" },
+      select: { customerName: true, totalCents: true, table: { select: { id: true, name: true, zone: true } } },
+    });
     const free = await prisma.diningTable.findMany({
       where: { tenantId: tenant.id, storeId: o.storeId, isActive: true, orders: { none: { status: "OPEN" } } },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -71,6 +77,7 @@ export async function GET(req: NextRequest) {
         orderNumber: o.orderNumber,
         status: o.status,
         table: o.table,
+        label: tableLabel(o.customerName, o.table.name),
         guests: o.guests,
         openedAt: o.createdAt,
         billRequestedAt: o.billRequestedAt,
@@ -84,6 +91,7 @@ export async function GET(req: NextRequest) {
       rounds: [...rounds.values()].sort((a, b) => a.round - b.round),
       parts: parts.filter((p) => p.status !== "CANCELLED"),
       freeTables: free,
+      busyTables: busy.flatMap((b) => (b.table ? [{ ...b.table, label: tableLabel(b.customerName, b.table.name), totalCents: b.totalCents }] : [])),
       canVoid: accessOf(session).anular,
       canCharge: accessOf(session).cobrar,
     });
