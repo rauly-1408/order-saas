@@ -87,6 +87,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   // Por defecto, la tarjeta si el restaurante la tiene (como las grandes cadenas).
   const [payMethod, setPayMethod] = useState<PayMethod>(payment.card ? "CARD" : "IN_STORE");
   const [loading, setLoading] = useState(false);
+  const [placed, setPlaced] = useState(false); // pedido hecho: no enseñar «carrito vacío» mientras se abre la confirmación
   const [error, setError] = useState("");
   const [tipPct, setTipPct] = useState(0);
   const [giftInput, setGiftInput] = useState("");
@@ -320,6 +321,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
         submitPaymentForm(data.payment.action, data.payment.fields);
         return;
       }
+      setPlaced(true);
       clear();
       router.push(`/pedir/${tenant}/confirmacion/${data.orderId}`);
     } catch {
@@ -327,6 +329,14 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
     } finally {
       setLoading(false);
     }
+  }
+
+  if (placed) {
+    return (
+      <div role="status" style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontSize: "17px", fontWeight: 700, color: cssVars["--text-primary"], ...(cssVars as any) }}>
+        {T.sending}
+      </div>
+    );
   }
 
   if (items.length === 0) {
