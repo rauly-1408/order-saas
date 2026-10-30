@@ -299,7 +299,7 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
         </p>
       )}
 
-      <div className={panel ? "grid grid-cols-[minmax(0,1fr)_18rem] items-start gap-6" : ""}>
+      <div className={panel ? "grid grid-cols-[minmax(0,1fr)_18rem] items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_24rem] 2xl:gap-8" : ""}>
       <div className="min-w-0">
       {data.rounds.length === 0 && !blind ? (
         <button
@@ -369,12 +369,12 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
         <aside aria-label="Cobro de la mesa" className="sticky top-6 mt-5 flex flex-col gap-3 rounded-3xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-20px_rgba(0,0,0,0.25)]">
           <div className="px-1">
             <p className="text-xs font-medium text-[var(--p-muted)]">Total</p>
-            <p className="text-4xl font-semibold tracking-tight tabular-nums">{euros(o.totalCents)}</p>
+            <p className="text-4xl font-semibold tracking-tight tabular-nums 2xl:text-5xl">{euros(o.totalCents)}</p>
             <p className="mt-0.5 text-xs text-[var(--p-muted)]">{summary}</p>
           </div>
-          {roundBtn("min-h-20 px-4 text-xl")}
-          {payBtn("min-h-20 px-4 text-xl")}
-          {billBtn("min-h-16 px-4 text-lg", o.billRequestedAt ? "Repetir cuenta" : "Pedir cuenta")}
+          {roundBtn("min-h-20 px-4 text-xl 2xl:min-h-24 2xl:text-2xl")}
+          {payBtn("min-h-20 px-4 text-xl 2xl:min-h-24 2xl:text-2xl")}
+          {billBtn("min-h-16 px-4 text-lg 2xl:min-h-20 2xl:text-xl", o.billRequestedAt ? "Repetir cuenta" : "Pedir cuenta")}
           <div className="mt-1 flex flex-col gap-1 border-t border-[var(--p-line)] pt-3 text-sm">{sideActions("rounded-xl px-3 text-left hover:bg-black/[0.04]")}</div>
         </aside>
       )}

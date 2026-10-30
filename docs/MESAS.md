@@ -9,7 +9,7 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
 - **Filtros**: todas, libres, ocupadas y piden la cuenta. Las demás mesas se atenúan en el plano.
 - **Mesas dibujadas**: cada mesa cuadrada lleva sus sillas, una por plaza (hasta 8), y los taburetes son redondos. Una mesa ocupada muestra los comensales, el tiempo con color (verde hasta 45 min, ámbar hasta 90 y rojo después) y las iniciales del camarero. Si pide la cuenta, se ve en ámbar con un «€» que parpadea.
 - **Panel «Mesas abiertas»**: las mesas por orden de llegada, con comensales, productos, camarero, importe y tiempo. En el ordenador va a la derecha del plano y en el móvil, debajo.
-- **Ficha de la mesa**: al tocar una mesa ocupada se ve el total, el tiempo, las rondas, quién la atiende y cuándo fue la última ronda. Tiene acciones rápidas: «+ Nueva ronda», «Cobrar», «Pedir cuenta» y «Ver cuenta». En el ordenador aparece en el panel y en el móvil sube desde abajo.
+- **Ficha de la mesa**: al tocar una mesa ocupada se ve el total, el tiempo, las rondas, quién la atiende y cuándo fue la última ronda. Tiene acciones rápidas: «+ Nueva ronda» y «Cobrar», de 72 px, y debajo «Pedir cuenta» y «Ver cuenta», de 56 px. En el ordenador aparece en el panel y en el móvil sube desde abajo.
 - **El plano por zonas**, con pestañas como Interior, Terraza o Barra:
   - Libre en blanco, ocupada en el color de la marca con el importe y los minutos, y «pide la cuenta» en ámbar.
   - Las mesas son cuadradas y los taburetes de barra, redondos.
@@ -23,7 +23,7 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - **Cada sección tiene su color**: una franja en la tarjeta y un punto en la pestaña. Con el uso, los productos se encuentran por el color sin leer. El color va con el orden de la sección en la carta, y no se usa el rojo para que no parezca un error.
   - **Tarjetas más grandes**: nombre y precio en 16 px, con la foto pequeña si el producto la tiene. Caben tantas por fila como permita la pantalla (5 en un portátil de 1366 px, 3 en una tablet de 1024 px y 2 en el móvil).
   - **«−» en la tarjeta** cuando ya está en la ronda: quita uno sin ir al ticket.
-  - **«‹ Mesa N»** es un botón grande y, si hay algo sin enviar, pregunta antes de salir. **«Vaciar»** también pregunta, y en rojo.
+  - **«‹ Volver a la mesa N»** es un botón grande y, si hay algo sin enviar, pregunta antes de salir. **«Vaciar»** también pregunta, y en rojo.
   - En el ordenador o la tablet, el ticket de la ronda está siempre a la vista a la derecha: cantidad con botones grandes, papelera al quedar en 1 y nota por línea. En el móvil es una barra abajo que se despliega.
   - **Nota para cocina** al elegir las opciones de un producto o de un menú, y en cada línea del ticket, con atajos de un toque («Sin cebolla», «Poco hecha», «Salsa aparte»…) y texto libre. Sale en la comanda con «>>».
   - **Producto libre** (primera tarjeta de la carta): algo que no está en la carta, solo para esa cuenta. Tiene nombre, con ideas como «Chupito» o «Café», cantidad, precio y nota. **«Invita la casa»** lo deja a 0,00 € y escribe «Invita la casa» en la comanda y en el ticket. No descuenta stock. En la base de datos la línea lleva `productId = "LIBRE"`, y los informes la agrupan por nombre.
@@ -33,7 +33,7 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - Muestra las rondas con la hora y quién las tomó, el total y lo ya cobrado por separado.
   - **Botones grandes para el dedo**:
     - En tablet y ordenador, cuando la cuenta tiene 42rem o más, hay un **panel de cobro fijo a la derecha**. Muestra el total en grande y debajo, de 80 px de alto, «+ Nueva ronda» y «Cobrar»; luego «Pedir cuenta» y, aparte y en pequeño, «Cambiar de mesa» y «Cerrar sin cobrar».
-    - Las rondas hacen scroll y el panel no se mueve.
+    - Las rondas hacen scroll y el panel no se mueve. En pantallas grandes (1536 px o más) el panel se ensancha a 24rem y los botones suben a 96 px.
     - En el móvil, una barra fija abajo con el total, «Pedir cuenta» y, de 64 px, «+ Nueva ronda» y «Cobrar».
   - **Pedir cuenta** imprime la cuenta («No es una factura») y marca la mesa como «pide la cuenta». Arriba sale «Cuenta pedida · hora» y el botón pasa a «Repetir cuenta».
   - **Anular** una línea ya enviada (solo el gerente) imprime en cocina «ANULADO · NO PREPARAR». El stock no vuelve, porque puede estar hecho.

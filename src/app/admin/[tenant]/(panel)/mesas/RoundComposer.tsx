@@ -238,8 +238,8 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
         </ul>
       )}
       {error && categories && <p className="mt-2 text-sm text-[var(--p-accent)]">{error}</p>}
-      <button type="button" onClick={send} disabled={!lines.length || sending} className="p-press mt-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-[var(--p-brand)] px-5 py-4 text-left text-white disabled:opacity-40">
-        <span className="text-lg font-bold">{sending ? "Enviando…" : "Enviar a cocina"}</span>
+      <button type="button" onClick={send} disabled={!lines.length || sending} className="p-press mt-3 flex min-h-[72px] w-full items-center justify-between gap-3 rounded-2xl bg-[var(--p-brand)] px-5 text-left text-white shadow-[0_10px_24px_-14px_rgba(0,0,0,0.5)] disabled:opacity-40 2xl:min-h-20">
+        <span className="text-xl font-bold">{sending ? "Enviando…" : "Enviar a cocina"}</span>
         <span className="text-sm font-semibold tabular-nums opacity-90">
           {count} · {euros(total)}
         </span>
@@ -252,7 +252,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
     <div className="fixed inset-0 z-40 flex flex-col bg-[var(--p-bg)] text-[var(--p-ink)]" style={STORE_VARS} role="dialog" aria-modal="true" aria-label={`Nueva ronda · Mesa ${tableName}`}>
       <header className="flex items-center gap-2 border-b border-[var(--p-line)] bg-[var(--p-surface)] px-3 py-2 sm:px-5">
         <button type="button" onClick={close} className="p-press min-h-12 shrink-0 rounded-full bg-black/[0.06] px-5 text-base font-semibold hover:bg-black/[0.09]">
-          ‹ Mesa {tableName}
+          ‹ Volver a la mesa {tableName}
         </button>
         <h2 className="hidden min-w-0 flex-1 truncate text-base font-semibold text-[var(--p-muted)] sm:block">Nueva ronda</h2>
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="ml-auto w-full min-w-0 max-w-sm rounded-full border border-[var(--p-line)] bg-[var(--p-bg)] px-4 py-3 text-base outline-none focus:border-[var(--p-brand)]" />
@@ -274,7 +274,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
           {!categories ? (
             <p className="py-10 text-center text-sm text-[var(--p-muted)]">{error || "Cargando la carta…"}</p>
           ) : (
-            <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+            <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 2xl:grid-cols-[repeat(auto-fill,minmax(210px,1fr))] 2xl:gap-4">
               <button type="button" onClick={() => setCustomOpen(true)} className="p-press flex min-h-[112px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--p-brand)]/40 p-3 text-center text-[var(--p-brand)]">
                 <span className="text-2xl font-bold leading-none">+</span>
                 <span className="mt-1 text-[15px] font-semibold">Producto libre</span>
@@ -285,16 +285,16 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
                 const color = colorOf.get(p.id);
                 return (
                   <div key={p.id} className="relative">
-                    <button type="button" onClick={() => tap(p)} className={`p-press relative flex h-full min-h-[120px] w-full flex-col justify-between overflow-hidden rounded-2xl bg-[var(--p-surface)] py-3.5 pr-3.5 pl-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-2 transition-shadow ${inRound ? "ring-[var(--p-brand)]" : "ring-transparent"}`}>
+                    <button type="button" onClick={() => tap(p)} className={`p-press relative flex h-full min-h-[120px] w-full flex-col justify-between overflow-hidden rounded-2xl bg-[var(--p-surface)] py-3.5 pr-3.5 pl-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-2 transition-shadow 2xl:min-h-[150px] 2xl:py-5 ${inRound ? "ring-[var(--p-brand)]" : "ring-transparent"}`}>
                       <span aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: color }} />
                       <span className="flex items-start gap-2.5">
                         {p.imageUrl && (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={p.imageUrl} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
                         )}
-                        <span className="line-clamp-3 min-w-0 pr-8 text-base font-semibold leading-snug">{p.name}</span>
+                        <span className="line-clamp-3 min-w-0 pr-8 text-base font-semibold leading-snug 2xl:text-lg">{p.name}</span>
                       </span>
-                      <span className="mt-2 flex items-baseline gap-1.5 pr-12 text-base font-bold tabular-nums">
+                      <span className="mt-2 flex items-baseline gap-1.5 pr-12 text-base font-bold tabular-nums 2xl:text-lg">
                         {euros(p.basePriceCents)}
                         {(p.isCombo || p.modifierGroups.length > 0) && <span className="text-xs font-normal text-[var(--p-muted)]">{p.isCombo ? "menú" : "opciones"}</span>}
                       </span>
@@ -314,11 +314,12 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
         </div>
 
         {/* Ticket de la ronda: columna fija en el ordenador o la tablet */}
-        <aside className="hidden w-[400px] shrink-0 flex-col border-l border-[var(--p-line)] bg-[var(--p-surface)] p-4 lg:flex" aria-label="Ronda">
+        <aside className="hidden w-[400px] shrink-0 flex-col 2xl:w-[480px] border-l border-[var(--p-line)] bg-[var(--p-surface)] p-4 lg:flex" aria-label="Ronda">
           <p className="mb-3 flex items-center justify-between text-base font-semibold">
             Ronda · Mesa {tableName}
             {lines.length > 0 && (
-              <button type="button" onClick={async () => (await ask("¿Vaciar la ronda? Se quita todo lo marcado y no se envía nada a cocina.", { confirm: "Vaciar", danger: true })) && setLines([])} className="rounded-full px-3 py-1.5 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
+              <button type="button" onClick={async () => (await ask("¿Vaciar la ronda? Se quita todo lo marcado y no se envía nada a cocina.", { confirm: "Vaciar", danger: true })) && setLines([])} className="flex items-center gap-1.5 rounded-full bg-black/[0.05] px-4 text-sm font-semibold text-[var(--p-muted)] hover:text-[var(--p-accent)]">
+                <TrashIcon />
                 Vaciar
               </button>
             )}
