@@ -20,6 +20,7 @@ export type HoyOrder = {
   channel: "TAKEAWAY" | "DELIVERY";
   dineIn: boolean;
   paymentMethod: HoyPayment;
+  cashPartCents: number; // pago mixto: lo pagado en efectivo
   paid: boolean;
   status: string;
   totalCents: number;
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
     const rows = await prisma.order.findMany({
       where: { tenantId: tenant.id, createdAt: { gte: dayStart }, status: { not: "AWAITING_PAYMENT" }, ...(session.storeId ? { storeId: session.storeId } : {}) },
       orderBy: { createdAt: "desc" },
-      select: { id: true, orderNumber: true, customerName: true, source: true, channel: true, dineIn: true, paymentMethod: true, paymentStatus: true, status: true, totalCents: true, createdAt: true },
+      select: { id: true, orderNumber: true, customerName: true, source: true, channel: true, dineIn: true, paymentMethod: true, cashPartCents: true, paymentStatus: true, status: true, totalCents: true, createdAt: true },
     });
 
     const byPayment: Record<HoyPayment, number> = { CASH: 0, CARD_TERMINAL: 0, BIZUM: 0, CARD: 0, IN_STORE: 0 };
@@ -70,7 +71,12 @@ export async function GET(req: NextRequest) {
       }
       sales++;
       totalCents += o.totalCents;
-      if (o.paymentStatus === "PAID") byPayment[o.paymentMethod] += o.totalCents;
+      if (o.paymentStatus === "PAID") {
+        // Pago mixto: la parte en efectivo va al efectivo y el resto a su método.
+        const cashPart = o.paymentMethod === "CASH" ? 0 : o.cashPartCents;
+        byPayment[o.paymentMethod] += o.totalCents - cashPart;
+        byPayment.CASH += cashPart;
+      }
       else pendingCents += o.totalCents;
     }
     const day = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: tz }).format(dayStart);
@@ -90,6 +96,7 @@ export async function GET(req: NextRequest) {
         channel: o.channel === "DELIVERY" ? "DELIVERY" : "TAKEAWAY",
         dineIn: o.dineIn,
         paymentMethod: o.paymentMethod,
+        cashPartCents: o.paymentMethod === "CASH" ? 0 : o.cashPartCents,
         paid: o.paymentStatus === "PAID",
         status: o.status,
         totalCents: o.totalCents,

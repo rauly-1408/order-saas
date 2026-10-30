@@ -60,6 +60,8 @@ export default function CashSessionSheet({ tenant, state, onState, onClose }: { 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [closed, setClosed] = useState<Closed | null>(null);
+  const [partialMsg, setPartialMsg] = useState("");
+  const [byCoins, setByCoins] = useState(false); // contar el cajón por billetes y monedas
 
   useEffect(() => {
     if (state?.reasons?.length && !reason) setReason(state.reasons[0]);
@@ -108,6 +110,22 @@ export default function CashSessionSheet({ tenant, state, onState, onClose }: { 
       setAmount("");
       setNotes("");
       setStep("done");
+    }
+  }
+
+  // Cierre parcial (informe X): sale en la impresora y la caja sigue abierta.
+  async function printPartial() {
+    setBusy(true);
+    setPartialMsg("");
+    try {
+      const res = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "partial" }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "No se pudo imprimir");
+      setPartialMsg(json.printed ? "Cierre parcial enviado a la impresora. La caja sigue abierta." : "No hay impresora de tickets: las cifras de arriba son el cierre parcial.");
+    } catch (e) {
+      setPartialMsg(e instanceof Error ? e.message : "No se pudo imprimir");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -228,10 +246,14 @@ export default function CashSessionSheet({ tenant, state, onState, onClose }: { 
           /* ── Cerrar: contar el cajón (a ciegas: lo esperado se ve después) ── */
           <div className="mt-5">
             <p className="text-sm font-medium">Cuenta el efectivo del cajón</p>
-            <p className="mt-0.5 text-xs text-[var(--p-muted)]">Billetes y monedas, incluido el fondo con el que abriste. Escribe el total.</p>
+            <p className="mt-0.5 text-xs text-[var(--p-muted)]">Billetes y monedas, incluido el fondo con el que abriste. Escribe el total o cuéntalo por billetes.</p>
             <div className="mt-3">
-              <MoneyInput value={amount} onChange={setAmount} label="Efectivo contado" autoFocus />
+              <MoneyInput value={amount} onChange={setAmount} label="Efectivo contado" autoFocus={!byCoins} />
             </div>
+            <button type="button" onClick={() => setByCoins((v) => !v)} aria-expanded={byCoins} className="mt-2 min-h-11 text-sm font-semibold text-[var(--p-brand)]">
+              {byCoins ? "▾ Ocultar el recuento por billetes" : "▸ Contar por billetes y monedas"}
+            </button>
+            {byCoins && <CoinCounter onTotal={(c) => setAmount((c / 100).toFixed(2).replace(".", ","))} />}
             <textarea value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 300))} rows={2} placeholder="Nota (opcional): un billete roto, un vale…" className="mt-3 w-full resize-none rounded-xl border border-[var(--p-line)] bg-transparent px-3 py-2.5 text-sm outline-none focus:border-[var(--p-brand)]" />
             {error && <p className="mt-3 text-sm text-[var(--p-accent)]" role="alert">{error}</p>}
             <div className="mt-5 flex gap-2">
@@ -321,6 +343,16 @@ export default function CashSessionSheet({ tenant, state, onState, onClose }: { 
                 + Entra dinero
               </button>
             </div>
+            {fig && (
+              <button type="button" onClick={printPartial} disabled={busy} className="p-press mt-2 min-h-12 w-full rounded-2xl border border-[var(--p-line)] px-3 text-sm font-semibold disabled:opacity-50">
+                Imprimir cierre parcial
+              </button>
+            )}
+            {partialMsg && (
+              <p className="mt-2 text-center text-xs text-[var(--p-muted)]" role="status">
+                {partialMsg}
+              </p>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -369,6 +401,35 @@ function History({ items }: { items: Closing[] }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+// Recuento por billetes y monedas: cuántos hay de cada uno y la suma se pone sola.
+const DENOMS = [50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
+function CoinCounter({ onTotal }: { onTotal: (cents: number) => void }) {
+  const [n, setN] = useState<Record<number, string>>({});
+  const total = DENOMS.reduce((a, d) => a + d * (parseInt(n[d] || "0", 10) || 0), 0);
+  const set = (d: number, v: string) => {
+    const next = { ...n, [d]: v.replace(/\D/g, "").slice(0, 4) };
+    setN(next);
+    onTotal(DENOMS.reduce((a, x) => a + x * (parseInt(next[x] || "0", 10) || 0), 0));
+  };
+  const label = (d: number) => (d >= 100 ? `${d / 100} €` : `${d} cts`);
+  return (
+    <div className="mt-2 rounded-2xl bg-[var(--p-bg)] p-3">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+        {DENOMS.map((d) => (
+          <label key={d} className="flex items-center justify-between gap-2 text-sm">
+            <span className={d >= 500 ? "font-semibold" : "text-[var(--p-muted)]"}>{label(d)}</span>
+            <input value={n[d] ?? ""} onChange={(e) => set(d, e.target.value)} inputMode="numeric" placeholder="0" aria-label={`Cuántos de ${label(d)}`} className="w-16 rounded-lg border border-[var(--p-line)] bg-[var(--p-surface)] px-2 text-right tabular-nums" />
+          </label>
+        ))}
+      </div>
+      <p className="mt-2 flex justify-between border-t border-[var(--p-line)] pt-2 text-sm font-semibold">
+        <span>Suma</span>
+        <span className="tabular-nums">{euros(total)}</span>
+      </p>
     </div>
   );
 }

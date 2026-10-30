@@ -29,13 +29,16 @@ export async function sessionFigures(session: CashSession & { movements: CashMov
       paymentStatus: "PAID",
       OR: [{ paidAt: window }, { paidAt: null, createdAt: window }],
     },
-    _sum: { totalCents: true },
+    _sum: { totalCents: true, cashPartCents: true },
     _count: { _all: true },
   });
   const byPayment = { ...ZERO };
   let orders = 0;
   for (const g of paid) {
-    byPayment[g.paymentMethod] += g._sum.totalCents ?? 0;
+    // Pago mixto: su parte en efectivo cuenta como efectivo (está en el cajón).
+    const cashPart = g.paymentMethod === "CASH" ? 0 : (g._sum.cashPartCents ?? 0);
+    byPayment[g.paymentMethod] += (g._sum.totalCents ?? 0) - cashPart;
+    byPayment.CASH += cashPart;
     orders += g._count._all;
   }
   const inCents = session.movements.filter((m) => m.kind === "IN").reduce((a, m) => a + m.amountCents, 0);

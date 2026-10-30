@@ -39,6 +39,7 @@ type Body = {
   couponCode?: string;
   paymentMethod?: "CASH" | "CARD_TERMINAL" | "BIZUM" | "IN_STORE";
   cashTenderedCents?: number;
+  cashPartCents?: number; // pago mixto: lo que paga en efectivo (el resto, datáfono o Bizum)
   storeId?: string;
   collaboratorCode?: string; // pedido de un colaborador (la RRPP que llama): se lleva su %
   requestId?: string; // venta guardada sin conexión: no se duplica al reenviarla
@@ -71,7 +72,8 @@ export async function POST(req: NextRequest) {
       const customerName = cleanText(b.customerName, 80) || (source === "PHONE" ? "Teléfono" : "Mostrador");
       const customerAddress = cleanText(b.customerAddress, 200);
       if (channel === "DELIVERY" && !customerAddress) return NextResponse.json({ error: "Escribe la dirección de entrega" }, { status: 400 });
-      const cashTendered = paymentMethod === "CASH" && Number.isInteger(b.cashTenderedCents) && (b.cashTenderedCents as number) >= 0 ? (b.cashTenderedCents as number) : null;
+      const cashPart = (paymentMethod === "CARD_TERMINAL" || paymentMethod === "BIZUM") && Number.isInteger(b.cashPartCents) && (b.cashPartCents as number) > 0 ? (b.cashPartCents as number) : 0;
+      const cashTendered = (paymentMethod === "CASH" || cashPart > 0) && Number.isInteger(b.cashTenderedCents) && (b.cashTenderedCents as number) >= 0 ? (b.cashTenderedCents as number) : null;
 
       // Local: el de la sesión (rol «Pedidos» limitado) o el elegido / el primero.
       const storeId = await storeForSession(tenant.id, session.storeId, b.storeId);
@@ -124,7 +126,8 @@ export async function POST(req: NextRequest) {
       const collabDiscountCents = winner === "collab" ? collabOffer : 0;
       const discountCents = Math.min(loyaltyDiscountCents + promotionDiscountCents + couponDiscountCents + collabDiscountCents, subtotalCents + feesCents);
       const totalCents = subtotalCents + feesCents - discountCents;
-      if (cashTendered != null && cashTendered < totalCents) return NextResponse.json({ error: "El efectivo entregado no llega al total" }, { status: 400 });
+      if (cashPart && cashPart >= totalCents) return NextResponse.json({ error: "La parte en efectivo tiene que ser menor que el total" }, { status: 400 });
+      if (cashTendered != null && cashTendered < (cashPart || totalCents)) return NextResponse.json({ error: "El efectivo entregado no llega" }, { status: 400 });
 
       let order: Awaited<ReturnType<typeof createOrderWithNumber>> | null = null;
       for (let attempt = 0; attempt < RETRIES; attempt++) {
@@ -162,6 +165,7 @@ export async function POST(req: NextRequest) {
             dineIn,
             createdByUserId: session.userId,
             cashTenderedCents: cashTendered,
+            cashPartCents: cashPart,
             collaborator: collab && { id: collab.id, commissionCents: commissionCents(subtotalCents - discountCents, collab.commissionPct) },
           });
           break;
@@ -182,7 +186,7 @@ export async function POST(req: NextRequest) {
         orderNumber: order.orderNumber,
         totalCents: order.totalCents,
         discountCents,
-        changeCents: cashTendered != null ? cashTendered - totalCents : null,
+        changeCents: cashTendered != null ? cashTendered - (cashPart || totalCents) : null,
       });
     });
   } catch (err) {

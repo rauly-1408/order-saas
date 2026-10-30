@@ -254,10 +254,17 @@ export function renderReceipt(o: OrderForPrint, p: Printer, opts: { drawer?: boo
     if (invoice.totalCents !== o.totalCents) t.row("Importe facturado", euros(invoice.totalCents));
   } else if (tax.showOnReceipt) t.row(`IVA ${tax.rate}% incluido`, euros(includedTax(o.totalCents, tax.rate)));
   if (o.paymentStatus === "PAID") {
-    t.line(`Pagado · ${PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}`);
-    if (o.paymentMethod === "CASH" && o.cashTenderedCents != null && o.cashTenderedCents >= o.totalCents) {
+    // Pago mixto: parte en efectivo y el resto con datáfono o Bizum.
+    const cashPart = o.paymentMethod !== "CASH" && o.cashPartCents > 0 ? o.cashPartCents : 0;
+    if (cashPart) {
+      t.line("Pagado · mixto");
+      t.row("Efectivo", euros(cashPart));
+      t.row(PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod, euros(o.totalCents - cashPart));
+    } else t.line(`Pagado · ${PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}`);
+    const cashDue = o.paymentMethod === "CASH" ? o.totalCents : cashPart;
+    if (cashDue && o.cashTenderedCents != null && o.cashTenderedCents >= cashDue) {
       t.row("Entregado", euros(o.cashTenderedCents));
-      t.row("Cambio", euros(o.cashTenderedCents - o.totalCents));
+      t.row("Cambio", euros(o.cashTenderedCents - cashDue));
     }
   } else t.bold(true).line(isTable(o) ? "PENDIENTE DE PAGO" : `PENDIENTE DE PAGO · ${PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}`).bold(false);
   t.rule();
@@ -272,7 +279,7 @@ export function renderReceipt(o: OrderForPrint, p: Printer, opts: { drawer?: boo
   const origin = process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
   if (origin) t.line(`Pide online: ${origin.replace(/^https?:\/\//, "")}/pedir/${o.tenant.slug}`);
   // El cajón solo se abre al cobrar, nunca al reimprimir un ticket.
-  if (opts.drawer !== false && p.drawer && o.paymentMethod === "CASH" && o.paymentStatus === "PAID") t.drawer();
+  if (opts.drawer !== false && p.drawer && (o.paymentMethod === "CASH" || o.cashPartCents > 0) && o.paymentStatus === "PAID") t.drawer();
   t.cut();
   return t.bytes();
 }
@@ -393,11 +400,12 @@ export function renderClosing(
     openedByName: string | null;
     closedByName: string | null;
     openingFloatCents: number;
-    countedCashCents: number;
+    countedCashCents: number | null; // null en el cierre parcial (no se cuenta)
     expectedCashCents: number;
-    differenceCents: number;
+    differenceCents: number | null;
     summary: { orders: number; byPayment: Record<string, number>; totalCents: number; inCents: number; outCents: number };
     notes: string | null;
+    partial?: boolean; // cierre parcial (informe X): las cifras hasta ahora, sin cerrar la caja
     storeName: string;
     tenantName: string;
     tz: string;
@@ -405,12 +413,13 @@ export function renderClosing(
   p: Printer
 ): Uint8Array {
   const t = new Escpos({ width: p.width, codepage: p.codepage });
-  t.align("center").bold(true).size(2, 2).line("CIERRE DE CAJA").size(1, 1).bold(false);
+  t.align("center").bold(true).size(2, 2).line(c.partial ? "CIERRE PARCIAL" : "CIERRE DE CAJA").size(1, 1).bold(false);
+  if (c.partial) t.line("La caja sigue abierta");
   t.line(c.tenantName).line(c.storeName);
   t.align("left").rule();
   t.row("Apertura", `${dmy(c.openedAt, c.tz)} ${hhmm(c.openedAt, c.tz)}`);
   if (c.openedByName) t.row("  por", c.openedByName);
-  t.row("Cierre", `${dmy(c.closedAt, c.tz)} ${hhmm(c.closedAt, c.tz)}`);
+  t.row(c.partial ? "Hasta" : "Cierre", `${dmy(c.closedAt, c.tz)} ${hhmm(c.closedAt, c.tz)}`);
   if (c.closedByName) t.row("  por", c.closedByName);
   t.rule();
   t.bold(true).line("VENTAS COBRADAS").bold(false);
@@ -423,8 +432,10 @@ export function renderClosing(
   if (c.summary.inCents) t.row("+ Entradas", euros(c.summary.inCents));
   if (c.summary.outCents) t.row("- Salidas", euros(c.summary.outCents));
   t.bold(true).row("Debería haber", euros(c.expectedCashCents)).bold(false);
-  t.row("Contado", euros(c.countedCashCents));
-  t.bold(true).size(1, 2).row(c.differenceCents === 0 ? "Cuadra" : c.differenceCents > 0 ? "Sobra" : "Falta", euros(Math.abs(c.differenceCents))).size(1, 1).bold(false);
+  if (c.countedCashCents != null && c.differenceCents != null) {
+    t.row("Contado", euros(c.countedCashCents));
+    t.bold(true).size(1, 2).row(c.differenceCents === 0 ? "Cuadra" : c.differenceCents > 0 ? "Sobra" : "Falta", euros(Math.abs(c.differenceCents))).size(1, 1).bold(false);
+  }
   if (c.notes) t.rule().wrap(`Nota: ${c.notes}`);
   t.cut();
   return t.bytes();
@@ -456,6 +467,41 @@ export async function enqueueClosing(sessionId: string): Promise<number> {
     storeName: store?.name ?? "",
     tenantName: tenant.name,
     tz: tenantTimeZone(tenant.settings),
+  };
+  await prisma.printJob.createMany({ data: printers.map((p) => ({ tenantId: s.tenantId, kind: "CLOSING" as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderClosing(data, p)) })) });
+  return printers.length;
+}
+
+// Cierre parcial (informe X): las ventas y el efectivo esperado hasta ahora, sin
+// cerrar la caja. Devuelve en cuántas impresoras sale.
+export async function enqueuePartialClosing(
+  s: { tenantId: string; storeId: string; openedAt: Date; openedByName: string | null; openingFloatCents: number },
+  fig: { orders: number; byPayment: Record<string, number>; totalCents: number; inCents: number; outCents: number; expectedCashCents: number },
+  byName: string | null
+): Promise<number> {
+  const [tenant, store] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: s.tenantId }, select: { name: true, settings: true } }),
+    prisma.store.findUnique({ where: { id: s.storeId }, select: { name: true } }),
+  ]);
+  if (!tenant) return 0;
+  const cfg = readPrinting(tenant.settings);
+  const printers = cfg.agentToken ? cfg.printers.filter((x) => x.roles.includes("receipt") && (!x.storeId || x.storeId === s.storeId)) : [];
+  if (!printers.length) return 0;
+  const data = {
+    openedAt: s.openedAt,
+    closedAt: new Date(),
+    openedByName: s.openedByName,
+    closedByName: byName,
+    openingFloatCents: s.openingFloatCents,
+    countedCashCents: null,
+    expectedCashCents: fig.expectedCashCents,
+    differenceCents: null,
+    summary: { orders: fig.orders, byPayment: fig.byPayment, totalCents: fig.totalCents, inCents: fig.inCents, outCents: fig.outCents },
+    notes: null,
+    storeName: store?.name ?? "",
+    tenantName: tenant.name,
+    tz: tenantTimeZone(tenant.settings),
+    partial: true,
   };
   await prisma.printJob.createMany({ data: printers.map((p) => ({ tenantId: s.tenantId, kind: "CLOSING" as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderClosing(data, p)) })) });
   return printers.length;

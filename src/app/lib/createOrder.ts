@@ -37,6 +37,7 @@ export type CreateOrderInput = {
   dineIn?: boolean;
   createdByUserId?: string | null;
   cashTenderedCents?: number | null;
+  cashPartCents?: number; // pago mixto (Caja): lo pagado en efectivo
   // Colaborador que trajo el pedido (su código) y lo que se lleva. Ver docs/COLABORADORES.md
   collaborator?: { id: string; commissionCents: number } | null;
   collaboratorDiscountCents?: number;
@@ -145,6 +146,7 @@ export async function createOrderWithNumber(input: CreateOrderInput) {
         dineIn: input.dineIn ?? false,
         createdByUserId: input.createdByUserId ?? null,
         cashTenderedCents: input.cashTenderedCents ?? null,
+        cashPartCents: input.cashPartCents ?? 0,
         collaboratorId: input.collaborator?.id ?? null,
         commissionCents: input.collaborator?.commissionCents ?? 0,
         collaboratorDiscountCents: input.collaboratorDiscountCents ?? 0,

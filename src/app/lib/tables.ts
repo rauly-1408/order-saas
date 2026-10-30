@@ -206,7 +206,7 @@ export async function requestBill(tenantId: string, orderId: string) {
 export async function payTable(
   tenantId: string,
   orderId: string,
-  opts: { method: PayMethod; cashTenderedCents: number | null; units: { lineId: string; qty: number }[] | null; userId: string }
+  opts: { method: PayMethod; cashTenderedCents: number | null; units: { lineId: string; qty: number }[] | null; userId: string; cashPartCents?: number }
 ): Promise<{ paidOrderId: string; orderNumber: number | null; totalCents: number; closed: boolean }> {
   return withRetry(() =>
     prisma.$transaction(async (tx) => {
@@ -227,11 +227,18 @@ export async function payTable(
       const all = lines.every((l) => picks.get(l.id) === l.quantity);
       const paidAt = new Date();
       const paid = { paymentStatus: "PAID" as const, paymentMethod: opts.method, paidAt, status: "DELIVERED" as const };
+      // Pago mixto: parte en efectivo (lo entregado cubre esa parte) y el resto con el método elegido.
+      const cashPart = opts.method === "CASH" ? 0 : Math.max(0, opts.cashPartCents ?? 0);
+      const checkCash = (total: number) => {
+        if (cashPart && cashPart >= total) throw new TableError("La parte en efectivo tiene que ser menor que el total");
+        const due = opts.method === "CASH" ? total : cashPart;
+        if (opts.cashTenderedCents != null && opts.cashTenderedCents < due) throw new TableError("El efectivo entregado no llega");
+      };
 
       if (!picks.size || all) {
         const total = await recompute(tx, orderId);
-        if (opts.cashTenderedCents != null && opts.cashTenderedCents < total) throw new TableError("El efectivo entregado no llega al total");
-        const done = await tx.order.update({ where: { id: orderId }, data: { ...paid, cashTenderedCents: opts.cashTenderedCents } });
+        checkCash(total);
+        const done = await tx.order.update({ where: { id: orderId }, data: { ...paid, cashTenderedCents: opts.cashTenderedCents, cashPartCents: cashPart } });
         return { paidOrderId: done.id, orderNumber: done.orderNumber, totalCents: done.totalCents, closed: true };
       }
 
@@ -247,7 +254,7 @@ export async function payTable(
       // La parte también lleva el descuento y la comisión del colaborador de la mesa.
       const terms = await collabTerms(tx, order.collaboratorId);
       const t = withCollab(total, terms);
-      if (opts.cashTenderedCents != null && opts.cashTenderedCents < t.totalCents) throw new TableError("El efectivo entregado no llega al total");
+      checkCash(t.totalCents);
       const part = await tx.order.create({
         data: {
           tenantId,
@@ -266,6 +273,7 @@ export async function payTable(
           ...t,
           collaboratorId: terms?.id ?? null,
           cashTenderedCents: opts.cashTenderedCents,
+          cashPartCents: cashPart,
           ...paid,
         },
       });

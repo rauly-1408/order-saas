@@ -591,6 +591,8 @@ function PaySheet({ data, send, onClose, onPaid }: { data: Cuenta; send: (body: 
   const [people, setPeople] = useState(Math.max(2, data.order.guests ?? 2));
   const [method, setMethod] = useState<PayMethod>("CASH");
   const [tendered, setTendered] = useState("");
+  const [mixed, setMixed] = useState(false); // pago mixto: parte en efectivo y el resto con «method»
+  const [cashPart, setCashPart] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState<{ total: number; change: number | null; invoice: string | null; closed: boolean; queued: boolean } | null>(null);
@@ -602,10 +604,11 @@ function PaySheet({ data, send, onClose, onPaid }: { data: Cuenta; send: (body: 
   const pickedTotal = pickedGross - (collabPct > 0 ? Math.round((pickedGross * collabPct) / 100) : 0);
   const share = Math.ceil(total / Math.max(1, people));
   const amount = split === "items" ? pickedTotal : total;
-  const tenderedCents = method === "CASH" && tendered.trim() ? parseEuros(tendered) : null;
+  const tenderedCents = method === "CASH" && !mixed && tendered.trim() ? parseEuros(tendered) : null;
+  const cashPartCents = mixed && cashPart.trim() ? (parseEuros(cashPart) ?? 0) : 0;
   const change = tenderedCents != null && tenderedCents >= amount ? tenderedCents - amount : null;
   const short = tenderedCents != null && tenderedCents < amount;
-  const canPay = amount > 0 && !sending && !short;
+  const canPay = amount > 0 && !sending && !short && (!mixed || (cashPartCents > 0 && cashPartCents < amount));
 
   async function pay() {
     if (!canPay) return;
@@ -613,12 +616,13 @@ function PaySheet({ data, send, onClose, onPaid }: { data: Cuenta; send: (body: 
     setError("");
     try {
       const picked = split === "items" ? Object.entries(units).filter(([, q]) => q > 0).map(([lineId, qty]) => ({ lineId, qty })) : null;
-      const label = `Mesa ${data.order.table.name} · cobro de ${euros(amount)} (${PAY_LABEL[method].toLowerCase()})`;
+      const label = `Mesa ${data.order.table.name} · cobro de ${euros(amount)} (${mixed ? `${euros(cashPartCents)} efectivo + ${PAY_LABEL[method].toLowerCase()}` : PAY_LABEL[method].toLowerCase()})`;
       const r = await send(
         {
           action: "pay",
           method,
           ...(tenderedCents != null && { cashTenderedCents: tenderedCents }),
+          ...(mixed && { cashPartCents, cashTenderedCents: cashPartCents }),
           ...(picked && { units: picked }),
           preview: { totalCents: amount }, // para enseñarlo sin conexión
         },
@@ -646,7 +650,7 @@ function PaySheet({ data, send, onClose, onPaid }: { data: Cuenta; send: (body: 
         }
       >
         <div className="py-4 text-center">
-          <p className="text-sm text-[var(--p-muted)]">{PAY_LABEL[method]}</p>
+          <p className="text-sm text-[var(--p-muted)]">{mixed ? `${euros(cashPartCents)} en efectivo · ${euros(done.total - cashPartCents)} con ${PAY_LABEL[method].toLowerCase()}` : PAY_LABEL[method]}</p>
           <p className="text-4xl font-semibold tabular-nums">{euros(done.total)}</p>
           {done.change != null && (
             <p className="mt-3 rounded-2xl bg-emerald-50 py-3 text-lg font-semibold text-emerald-800">
@@ -739,15 +743,41 @@ function PaySheet({ data, send, onClose, onPaid }: { data: Cuenta; send: (body: 
       )}
 
       <p className="mt-5 text-[13px] font-medium text-[var(--p-muted)]">Forma de pago</p>
-      <div className="mt-2 grid grid-cols-3 gap-2">
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {(["CASH", "CARD_TERMINAL", "BIZUM"] as const).map((m) => (
-          <button key={m} type="button" aria-pressed={method === m} onClick={() => setMethod(m)} className={`p-press rounded-2xl border-2 py-3 text-sm font-semibold ${method === m ? "border-[var(--p-ink)] bg-white" : "border-[var(--p-line)]"}`}>
+          <button key={m} type="button" aria-pressed={method === m && !mixed} onClick={() => { setMethod(m); setMixed(false); }} className={`p-press rounded-2xl border-2 py-3 text-sm font-semibold ${method === m && !mixed ? "border-[var(--p-ink)] bg-white" : "border-[var(--p-line)]"}`}>
             {PAY_LABEL[m]}
           </button>
         ))}
+        <button type="button" aria-pressed={mixed} onClick={() => { setMixed(true); if (method === "CASH") setMethod("CARD_TERMINAL"); }} className={`p-press rounded-2xl border-2 py-3 text-sm font-semibold ${mixed ? "border-[var(--p-ink)] bg-white" : "border-[var(--p-line)]"}`}>
+          Mixto
+        </button>
       </div>
 
-      {method === "CASH" && amount > 0 && (
+      {mixed && amount > 0 && (
+        <div className="mt-4">
+          <label className="text-[13px] font-medium text-[var(--p-muted)]" htmlFor="mesa-parte-efectivo">
+            Paga en efectivo
+          </label>
+          <input id="mesa-parte-efectivo" value={cashPart} onChange={(e) => setCashPart(e.target.value.replace(/[^\d,.]/g, ""))} inputMode="decimal" placeholder="0,00" className="mt-1 w-full rounded-xl border border-[var(--p-line)] px-3 py-2.5 text-lg tabular-nums outline-none focus:border-[var(--p-brand)]" />
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-black/[0.04] px-3 py-2 text-sm">
+            <span>
+              Resto con{" "}
+              <span className="inline-flex rounded-full bg-black/[0.05] p-0.5 align-middle">
+                {(["CARD_TERMINAL", "BIZUM"] as const).map((m) => (
+                  <button key={m} type="button" onClick={() => setMethod(m)} aria-pressed={method === m} className={`rounded-full px-3 text-xs font-semibold ${method === m ? "bg-white shadow-sm" : "text-[var(--p-muted)]"}`}>
+                    {PAY_LABEL[m]}
+                  </button>
+                ))}
+              </span>
+            </span>
+            <span className="text-base font-semibold tabular-nums">{euros(Math.max(0, amount - cashPartCents))}</span>
+          </div>
+          {cashPartCents >= amount && <p className="mt-2 text-sm font-semibold text-[var(--p-accent)]">La parte en efectivo tiene que ser menor que el total.</p>}
+        </div>
+      )}
+
+      {method === "CASH" && !mixed && amount > 0 && (
         <div className="mt-4">
           <label className="text-[13px] font-medium text-[var(--p-muted)]" htmlFor="mesa-entregado">
             Entregado (opcional)
