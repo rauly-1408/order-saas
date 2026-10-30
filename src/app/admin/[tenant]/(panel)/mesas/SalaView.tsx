@@ -315,7 +315,7 @@ function TableCard({ t, now, bare, canCharge = true, onAction, onClose }: { t: T
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-black/[0.035] px-2 py-2">
           <p className="text-[10px] uppercase tracking-wide text-[var(--p-muted)]">Total</p>
-          <p className="text-base font-semibold tabular-nums">{euros(o.totalCents)}</p>
+          <p className="text-xl font-bold tabular-nums">{euros(o.totalCents)}</p>
         </div>
         <div className="rounded-xl bg-black/[0.035] px-2 py-2">
           <p className="text-[10px] uppercase tracking-wide text-[var(--p-muted)]">Abierta</p>
@@ -330,19 +330,20 @@ function TableCard({ t, now, bare, canCharge = true, onAction, onClose }: { t: T
         {[o.waiter && `Atiende ${o.waiter}`, o.lastRoundAt && `última ronda hace ${minutesSince(o.lastRoundAt, now)}`, `${o.lines} ${o.lines === 1 ? "producto" : "productos"}`].filter(Boolean).join(" · ")}
       </p>
       {o.billRequested && <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">Ha pedido la cuenta</p>}
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => onAction("round")} className="p-press rounded-2xl bg-[var(--p-brand)] py-3 text-sm font-semibold text-white">
+      {/* Lo que más se hace con una mesa, en grande: nueva ronda y cobrar */}
+      <div className="mt-4 grid grid-cols-2 gap-2.5">
+        <button type="button" onClick={() => onAction("round")} className={`p-press min-h-[72px] rounded-2xl bg-[var(--p-brand)] px-3 text-lg font-bold text-white shadow-[0_10px_24px_-14px_rgba(0,0,0,0.5)] ${canCharge ? "" : "col-span-2"}`}>
           + Nueva ronda
         </button>
         {canCharge && (
-          <button type="button" onClick={() => onAction("pay")} className="p-press rounded-2xl bg-[var(--p-ink)] py-3 text-sm font-semibold text-white">
+          <button type="button" onClick={() => onAction("pay")} className="p-press min-h-[72px] rounded-2xl bg-[var(--p-ink)] px-3 text-lg font-bold text-white shadow-[0_10px_24px_-14px_rgba(0,0,0,0.5)]">
             Cobrar
           </button>
         )}
-        <button type="button" onClick={() => onAction("bill")} className="p-press rounded-2xl bg-black/[0.06] py-3 text-sm font-semibold">
+        <button type="button" onClick={() => onAction("bill")} className="p-press min-h-14 rounded-2xl bg-black/[0.06] px-3 text-base font-semibold">
           Pedir cuenta
         </button>
-        <button type="button" onClick={() => onAction("view")} className="p-press rounded-2xl bg-black/[0.06] py-3 text-sm font-semibold">
+        <button type="button" onClick={() => onAction("view")} className="p-press min-h-14 rounded-2xl bg-black/[0.06] px-3 text-base font-semibold">
           Ver cuenta
         </button>
       </div>
