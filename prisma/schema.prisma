@@ -490,6 +490,7 @@ model Order {
   guests            Int?
   billRequestedAt   DateTime?
   cashTenderedCents Int?
+  cashPartCents     Int           @default(0) // pago mixto: lo pagado en efectivo; el resto, con paymentMethod (datáfono o Bizum)
 
   customerName       String
   customerPhone      String

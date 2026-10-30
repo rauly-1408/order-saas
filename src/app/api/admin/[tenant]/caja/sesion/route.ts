@@ -4,7 +4,7 @@ import { prisma } from "@/app/lib/prisma";
 import { denyUnlessArea, getSessionFromRequest } from "@/app/lib/auth";
 import { storeForSession } from "@/app/lib/stores";
 import { MOVE_REASONS, openSession, sessionFigures } from "@/app/lib/cashSession";
-import { enqueueClosing } from "@/app/lib/printing";
+import { enqueueClosing, enqueuePartialClosing } from "@/app/lib/printing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -107,6 +107,14 @@ export async function POST(req: NextRequest) {
       const reason = (typeof b.reason === "string" && b.reason.trim().slice(0, 80)) || "Otro";
       await prisma.cashMovement.create({ data: { sessionId: current.id, kind, amountCents: amount, reason, userName } });
       return NextResponse.json(await payload(tenant.id, storeId, sees));
+    }
+
+    // Cierre parcial (informe X): cifras hasta ahora en la impresora, sin cerrar.
+    if (b.action === "partial") {
+      if (!sees) return NextResponse.json({ error: "Para ver las cifras hace falta el permiso «Ve lo recaudado»" }, { status: 403 });
+      const fig = await sessionFigures(current, new Date());
+      const printed = await enqueuePartialClosing(current, fig, userName);
+      return NextResponse.json({ printed });
     }
 
     if (b.action === "close") {

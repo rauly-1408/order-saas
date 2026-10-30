@@ -10,6 +10,7 @@ import { modifierLabels, type MenuModifierGroup, type OrderLineModifier } from "
 import { comboChoicesKey, type ChoiceProduct, type ComboChoice, type ComboSlotDef } from "@/app/lib/combos";
 import type { HoyPayment, HoyResponse } from "@/app/api/admin/[tenant]/caja/hoy/route";
 import type { TopResponse } from "@/app/api/admin/[tenant]/caja/top/route";
+import type { ClienteResponse } from "@/app/api/admin/[tenant]/caja/cliente/route";
 import CashSessionSheet, { type CashState } from "./CashSessionSheet";
 import { STORE_VARS } from "../storeVars";
 import { OUTBOX_SENT, loadLocal, saveLocal, sendOrQueue } from "../outbox";
@@ -113,11 +114,13 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   }, [tenant]);
   const [coupon, setCoupon] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [known, setKnown] = useState<ClienteResponse | null>(null); // cliente del teléfono (pedido por teléfono)
   const [payment, setPayment] = useState<Payment>("CASH");
   const [tendered, setTendered] = useState("");
+  const [mixed, setMixed] = useState(false); // pago mixto: «tendered» es la parte en efectivo y el resto va con «payment»
   const [sending, setSending] = useState(false);
   const [step, setStep] = useState<Step>("order");
-  const [done, setDone] = useState<{ orderNumber: number | null; totalCents: number; changeCents: number | null; payment: Payment; invoiceNumber?: string | null; queued?: boolean } | null>(null);
+  const [done, setDone] = useState<{ orderNumber: number | null; totalCents: number; changeCents: number | null; payment: Payment; cashPart?: number; invoiceNumber?: string | null; queued?: boolean } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false); // ticket en el móvil
   const [hoy, setHoy] = useState<HoyResponse | null>(null);
   const [hideTakings, setHideTakings] = useState(false); // ojo tachado: importes tapados
@@ -266,6 +269,31 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const q = query.trim().toLowerCase();
   const found = useMemo(() => (categories && q ? categories.flatMap((c) => c.products.filter((p) => p.name.toLowerCase().includes(q))) : []), [categories, q]);
 
+  // Pedido por teléfono: con el número, el cliente se rellena solo (nombre y sus direcciones).
+  useEffect(() => {
+    const p = phone.replace(/[\s-]/g, "");
+    if (!/^(?:\+34|0034)?[6789]\d{8}$/.test(p)) {
+      setKnown(null);
+      return;
+    }
+    let alive = true;
+    const t = setTimeout(() => {
+      fetch(`/api/admin/${tenant}/caja/cliente?telefono=${encodeURIComponent(p)}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: ClienteResponse | null) => {
+          if (!alive || !d?.found) return setKnown(null);
+          setKnown(d);
+          if (d.name) setName((n) => n || d.name || "");
+          if (d.addresses[0]) setAddress((a) => a || d.addresses[0].address);
+        })
+        .catch(() => {});
+    }, 300);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [phone, tenant]);
+
   const linesTotal = lines.reduce((a, l) => a + lineTotal(l), 0);
   // Colaborador (guía, hotel…): su descuento se ve antes de cobrar. El servidor
   // lo recalcula (si hay una promoción o un cupón mejor, gana ese).
@@ -273,11 +301,12 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const collabOff = collab ? collaboratorDiscountCents(linesTotal, collab.discountPct) : 0;
   const subtotal = linesTotal - collabOff;
   const count = lines.reduce((a, l) => a + l.quantity, 0);
-  const tenderedCents = payment === "CASH" && tendered.trim() ? parseEuros(tendered) : null;
+  const tenderedCents = payment === "CASH" && !mixed && tendered.trim() ? parseEuros(tendered) : null;
+  const cashPartCents = mixed && tendered.trim() ? (parseEuros(tendered) ?? 0) : 0;
   const change = tenderedCents != null && tenderedCents >= subtotal ? tenderedCents - subtotal : null;
   const missing = tenderedCents != null && tenderedCents < subtotal ? subtotal - tenderedCents : null;
   const detailsSummary = [name, phone, coupon && `cupón ${coupon.toUpperCase()}`, collabCode && `de ${collabs.find((c) => c.code === collabCode)?.name ?? collabCode}`, notes && `nota: ${notes}`].filter(Boolean).join(" · ");
-  const canConfirm = lines.length > 0 && !sending && (mode !== "DELIVERY" || address.trim().length > 0) && (payment !== "CASH" || tenderedCents == null || tenderedCents >= subtotal);
+  const canConfirm = lines.length > 0 && !sending && (mode !== "DELIVERY" || address.trim().length > 0) && (payment !== "CASH" || tenderedCents == null || tenderedCents >= subtotal) && (!mixed || (cashPartCents > 0 && cashPartCents < subtotal));
 
   function add(product: Product, extra: { optionIds: string[]; comboChoices?: ComboChoice[]; modifiers: OrderLineModifier[]; unitPriceCents: number; note?: string }) {
     // Con nota, línea aparte (no se suma a la misma sin nota).
@@ -350,6 +379,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     setCoupon("");
     setCollabCode("");
     setTendered("");
+    setMixed(false);
     setMode("TAKEAWAY");
     setPayment("CASH");
     setDetailsOpen(false);
@@ -391,11 +421,12 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           ...(collabCode && { collaboratorCode: collabCode }),
           paymentMethod: payment,
           ...(tenderedCents != null && { cashTenderedCents: tenderedCents }),
+          ...(mixed && { cashPartCents, cashTenderedCents: cashPartCents }),
         },
         `Caja · ${count} ${count === 1 ? "producto" : "productos"} · ${euros(subtotal)}`
       );
-      if (sent.queued) setDone({ orderNumber: null, totalCents: subtotal, changeCents: change, payment, queued: true });
-      else setDone({ orderNumber: sent.data.orderNumber, totalCents: sent.data.totalCents, changeCents: sent.data.changeCents, payment, invoiceNumber: sent.data.invoiceNumber ?? null });
+      if (sent.queued) setDone({ orderNumber: null, totalCents: subtotal, changeCents: change, payment, cashPart: cashPartCents, queued: true });
+      else setDone({ orderNumber: sent.data.orderNumber, totalCents: sent.data.totalCents, changeCents: sent.data.changeCents, payment, cashPart: cashPartCents, invoiceNumber: sent.data.invoiceNumber ?? null });
       reset();
       setStep("done");
       loadHoy();
@@ -466,7 +497,27 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           ))}
         </div>
       </div>
+      {source === "PHONE" && (
+        <div className="mt-3">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono del cliente" inputMode="tel" aria-label="Teléfono del cliente" className="w-full rounded-lg px-3 py-2.5 text-base tabular-nums" />
+          {known && (
+            <p className="mt-1.5 text-xs text-emerald-700">
+              ✓ {known.name ?? "Cliente conocido"}
+              {known.orders > 0 && ` · ${known.orders} ${known.orders === 1 ? "pedido" : "pedidos"}`} · datos rellenados
+            </p>
+          )}
+        </div>
+      )}
       {mode === "DELIVERY" && <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Dirección de entrega (obligatoria)" aria-label="Dirección" className="mt-3 w-full rounded-lg px-3 py-2.5 text-sm" />}
+      {mode === "DELIVERY" && known && known.addresses.length > 1 && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Direcciones del cliente">
+          {known.addresses.map((a) => (
+            <button key={a.address} type="button" onClick={() => setAddress(a.address)} aria-pressed={address === a.address} className={`max-w-full truncate rounded-full px-3 text-xs font-semibold ${address === a.address ? "bg-[var(--p-ink)] text-white" : "bg-black/[0.05]"}`}>
+              {a.address}
+            </button>
+          ))}
+        </div>
+      )}
 
       <ul className="mt-3 flex-1 divide-y divide-[var(--p-line)] overflow-y-auto">
         {lines.length === 0 && (
@@ -665,15 +716,57 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Forma de pago">
-        {(Object.keys(PAYMENT_LABEL) as Payment[]).map((p) => (
-          <button key={p} type="button" role="radio" aria-checked={payment === p} onClick={() => setPayment(p)} className={`p-press flex items-center gap-2.5 rounded-2xl border-2 px-3 py-3 text-left text-sm font-semibold outline-none transition-colors ${payment === p ? "border-[var(--p-ink)] bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "border-transparent bg-black/[0.04] text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)]"}`}>
-            <PayIcon kind={p} />
-            {PAYMENT_LABEL[p]}
-          </button>
-        ))}
+        {(Object.keys(PAYMENT_LABEL) as Payment[]).map((p) => {
+          const on = payment === p && !mixed;
+          return (
+            <button key={p} type="button" role="radio" aria-checked={on} onClick={() => { setPayment(p); setMixed(false); setTendered(""); }} className={`p-press flex items-center gap-2.5 rounded-2xl border-2 px-3 py-3 text-left text-sm font-semibold outline-none transition-colors ${on ? "border-[var(--p-ink)] bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "border-transparent bg-black/[0.04] text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)]"}`}>
+              <PayIcon kind={p} />
+              {PAYMENT_LABEL[p]}
+            </button>
+          );
+        })}
+        {/* Pago mixto: parte en efectivo y el resto con datáfono o Bizum */}
+        <button type="button" role="radio" aria-checked={mixed} onClick={() => { setMixed(true); setPayment("CARD_TERMINAL"); setTendered(""); }} className={`p-press col-span-2 flex items-center justify-center gap-2.5 rounded-2xl border-2 px-3 py-3 text-sm font-semibold outline-none transition-colors ${mixed ? "border-[var(--p-ink)] bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "border-transparent bg-black/[0.04] text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)]"}`}>
+          <PayIcon kind="CASH" />+<PayIcon kind="CARD_TERMINAL" />
+          Mixto: parte en efectivo y el resto con tarjeta
+        </button>
       </div>
 
-      {payment === "CASH" && (
+      {mixed && (
+        <div className="mt-4 flex-1">
+          <div className="flex items-end justify-between">
+            <label htmlFor="caja-cashpart" className="text-xs uppercase tracking-wide text-[var(--p-muted)]">
+              Paga en efectivo
+            </label>
+            {cashPartCents >= subtotal && <span className="text-sm font-semibold text-[var(--p-accent)]">Tiene que ser menos que el total</span>}
+          </div>
+          <div className="mt-1 flex items-baseline gap-1">
+            <input id="caja-cashpart" value={tendered} onChange={(e) => setTendered(e.target.value.replace(/[^\d,.]/g, "").replace(".", ","))} inputMode="decimal" placeholder="0,00" aria-label="Parte en efectivo" className="min-w-0 flex-1 rounded-xl px-3 py-2 text-right text-3xl font-semibold tabular-nums" />
+            <span className="text-xl text-[var(--p-muted)]">€</span>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-black/[0.04] px-3 py-2">
+            <span className="text-sm">
+              Resto con{" "}
+              <span className="inline-flex rounded-full bg-black/[0.05] p-0.5 align-middle">
+                {(["CARD_TERMINAL", "BIZUM"] as const).map((m) => (
+                  <button key={m} type="button" onClick={() => setPayment(m)} aria-pressed={payment === m} className={`rounded-full px-3 text-xs font-semibold ${payment === m ? "bg-white shadow-sm" : "text-[var(--p-muted)]"}`}>
+                    {PAYMENT_LABEL[m]}
+                  </button>
+                ))}
+              </span>
+            </span>
+            <span className="text-lg font-semibold tabular-nums">{euros(Math.max(0, subtotal - cashPartCents))}</span>
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-1.5" aria-label="Teclado">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"].map((k) => (
+              <button key={k} type="button" onClick={() => keypad(k)} aria-label={k === "⌫" ? "Borrar" : k === "," ? "Coma" : k} className="p-press min-h-12 rounded-xl bg-[var(--p-bg)] text-xl font-medium tabular-nums">
+                {k}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {payment === "CASH" && !mixed && (
         <div className="mt-4 flex-1">
           <div className="flex items-end justify-between">
             <label htmlFor="caja-tendered" className="text-xs uppercase tracking-wide text-[var(--p-muted)]">
@@ -703,7 +796,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           </div>
         </div>
       )}
-      {payment !== "CASH" && (
+      {payment !== "CASH" && !mixed && (
         <p className="mt-4 flex-1 text-center text-sm text-[var(--p-muted)]">
           {payment === "CARD_TERMINAL" && "Cobra en el datáfono y confirma aquí."}
           {payment === "BIZUM" && "Cuando llegue el Bizum, confirma aquí."}
@@ -757,7 +850,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         <p className="mt-6 text-lg font-semibold tabular-nums">{euros(done.totalCents)}</p>
       )}
       <p className="mt-2 text-sm text-[var(--p-muted)]">
-        {done.payment === "IN_STORE" ? "Pendiente de cobrar al recoger" : `Pagado · ${PAYMENT_LABEL[done.payment].toLowerCase()}`} · {euros(done.totalCents)}
+        {done.payment === "IN_STORE" ? "Pendiente de cobrar al recoger" : done.cashPart ? `Pagado · ${euros(done.cashPart)} en efectivo y ${euros(done.totalCents - done.cashPart)} con ${PAYMENT_LABEL[done.payment].toLowerCase()}` : `Pagado · ${PAYMENT_LABEL[done.payment].toLowerCase()}`} · {euros(done.totalCents)}
       </p>
       <button type="button" onClick={newOrder} className="p-press mt-8 w-full rounded-full bg-[var(--p-brand)] py-4 text-base font-semibold text-white">
         Nuevo pedido
@@ -1061,7 +1154,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                                 #{o.orderNumber} {o.customerName}
                               </p>
                               <p className="truncate text-xs text-[var(--p-muted)]">
-                                {o.source === "ONLINE" ? "Online" : o.source === "PHONE" ? "Teléfono" : "Mostrador"} · {o.channel === "DELIVERY" ? "a domicilio" : o.dineIn ? "comer aquí" : "para llevar"} · {o.status === "CANCELLED" ? "cancelado" : o.paid ? HOY_PAYMENT_LABEL[o.paymentMethod].toLowerCase() : "sin cobrar"}
+                                {o.source === "ONLINE" ? "Online" : o.source === "PHONE" ? "Teléfono" : "Mostrador"} · {o.channel === "DELIVERY" ? "a domicilio" : o.dineIn ? "comer aquí" : "para llevar"} · {o.status === "CANCELLED" ? "cancelado" : o.paid ? (o.cashPartCents ? "mixto" : HOY_PAYMENT_LABEL[o.paymentMethod].toLowerCase()) : "sin cobrar"}
                                 {o.status !== "CANCELLED" && ` · ${STATUS_LABEL[o.status] ?? o.status}`}
                               </p>
                             </div>

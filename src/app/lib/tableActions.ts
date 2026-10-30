@@ -27,6 +27,7 @@ export type TableActionBody = {
   lineId?: string;
   method?: string;
   cashTenderedCents?: number;
+  cashPartCents?: number; // pago mixto: lo que paga en efectivo (el resto, con method)
   units?: { lineId?: unknown; qty?: unknown }[];
   tableId?: string;
 };
@@ -70,16 +71,17 @@ export async function runTableAction({ tenant, session, order }: Ctx, b: TableAc
     case "pay": {
       const method = PAY_METHODS.find((m) => m === b.method) as PayMethod | undefined;
       if (!method) return NextResponse.json({ error: "Elige cómo paga" }, { status: 400 });
-      const cash = method === "CASH" && Number.isInteger(b.cashTenderedCents) && (b.cashTenderedCents as number) >= 0 ? (b.cashTenderedCents as number) : null;
+      const cashPart = method !== "CASH" && Number.isInteger(b.cashPartCents) && (b.cashPartCents as number) > 0 ? (b.cashPartCents as number) : 0;
+      const cash = (method === "CASH" || cashPart > 0) && Number.isInteger(b.cashTenderedCents) && (b.cashTenderedCents as number) >= 0 ? (b.cashTenderedCents as number) : null;
       const units = Array.isArray(b.units)
         ? b.units.filter((u): u is { lineId: string; qty: number } => typeof u?.lineId === "string" && Number.isInteger(u?.qty)).slice(0, 200)
         : null;
       return once(tenant.id, rid, async () => {
-        const r = await payTable(tenant.id, order.id, { method, cashTenderedCents: cash, units, userId: session.userId });
+        const r = await payTable(tenant.id, order.id, { method, cashTenderedCents: cash, units, userId: session.userId, cashPartCents: cashPart });
         // VeriFactu: la factura simplificada al cobrar (antes de responder, para enseñar el número).
         const invoice = await issueInvoiceSafe(r.paidOrderId);
         after(() => Promise.all([printTablePayment(r.paidOrderId), notifyCollaboratorSale(r.paidOrderId)]));
-        return NextResponse.json({ ...r, invoiceNumber: invoice?.numSerie ?? null, changeCents: cash != null ? cash - r.totalCents : null });
+        return NextResponse.json({ ...r, invoiceNumber: invoice?.numSerie ?? null, changeCents: cash != null ? cash - (cashPart || r.totalCents) : null });
       });
     }
     case "collab": {
