@@ -16,6 +16,10 @@ Hay dos formas de hacer lo mismo:
 
 Solo se puede arrastrar hacia delante (la transición que marca `nextAction`): no se retrocede un pedido ni se cancela arrastrando. Cancelar sigue en el enlace «Cancelar» de la tarjeta, con confirmación.
 
+## Aviso de pedido nuevo
+
+Fuera de Pedidos, cada pedido nuevo de la tienda saca un aviso abajo a la derecha: «Nuevo pedido #24 · Ana María · A domicilio · 10,95 €», con el mismo estilo que los demás avisos del panel. **Tocar cualquier zona del aviso** abre Pedidos con ese pedido a la vista y resaltado un momento (enlace `/pedidos#pedido-<id>`); el botón «Ver pedido» es solo la pista visual. Código: `OrderAlerts.tsx`, y `AdminPanel.tsx` para abrir su columna y llevarlo a la vista.
+
 ## Por qué no se arrastra en el móvil
 
 En una pantalla táctil arrastrar y hacer scroll son el mismo gesto; las apps que lo permiten (Trello) obligan a mantener pulsado y aun así falla a menudo. Los paneles de cocina de referencia (Toast, Square, Deliverect) no arrastran: se toca un botón grande por pedido. Además, la pauta de accesibilidad WCAG 2.5.7 exige que todo lo que se haga arrastrando se pueda hacer también con un toque sencillo. Por eso en móvil y tablet las columnas son pestañas y la única acción es el botón.

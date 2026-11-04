@@ -214,24 +214,26 @@ export default function OrderAlerts({ tenant, canManage }: { tenant: string; can
         </div>
       )}
       {visibleToast && (
-        <div className="p-rise pointer-events-auto flex w-full items-center gap-3 rounded-2xl bg-[var(--p-brand)] p-4 text-white shadow-[0_18px_40px_-12px_rgba(0,0,0,0.45)] sm:w-80">
-          <span className="relative flex h-3 w-3 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
-            <span className="relative inline-flex h-3 w-3 rounded-full bg-white" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold">
-              Nuevo pedido{visibleToast.orderNumber != null ? ` #${visibleToast.orderNumber}` : ""}
-              {pending.length > 1 && <span className="font-normal text-white/80"> · {pending.length} sin aceptar</span>}
-            </p>
-            <p className="truncate text-sm text-white/80">
-              {visibleToast.customerName} · {visibleToast.channel === "DELIVERY" ? "A domicilio" : "Para recoger"} · {euros(visibleToast.totalCents)}
-            </p>
-          </div>
-          <Link href={`/admin/${tenant}/pedidos`} className="p-press shrink-0 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-[var(--p-brand)]">
-            Ver
-          </Link>
-        </div>
+        // Toda la tarjeta lleva al pedido; «Ver pedido» queda como pista visual.
+        <Link
+          href={`/admin/${tenant}/pedidos#pedido-${visibleToast.id}`}
+          role="status"
+          aria-label={`Nuevo pedido${visibleToast.orderNumber != null ? ` número ${visibleToast.orderNumber}` : ""} de ${visibleToast.customerName}: abrir el pedido`}
+          className="p-rise p-press pointer-events-auto block w-full rounded-2xl bg-[var(--p-surface)] p-4 text-[var(--p-ink)] no-underline shadow-[0_18px_40px_-12px_rgba(0,0,0,0.35)] ring-1 ring-[var(--p-line)] hover:ring-[var(--p-brand)] sm:w-80"
+        >
+          <p className="flex items-center gap-2 font-semibold">
+            <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--p-accent)] opacity-60" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[var(--p-accent)]" />
+            </span>
+            Nuevo pedido{visibleToast.orderNumber != null ? ` #${visibleToast.orderNumber}` : ""}
+            {pending.length > 1 && <span className="font-normal text-[var(--p-muted)]"> · {pending.length} sin aceptar</span>}
+          </p>
+          <p className="mt-0.5 truncate text-sm text-[var(--p-muted)]">
+            {visibleToast.customerName} · {visibleToast.channel === "DELIVERY" ? "A domicilio" : "Para recoger"} · {euros(visibleToast.totalCents)}
+          </p>
+          <span className="mt-3 inline-flex rounded-full bg-[var(--p-brand)] px-3 py-1.5 text-sm font-semibold text-white">Ver pedido</span>
+        </Link>
       )}
     </div>
   );

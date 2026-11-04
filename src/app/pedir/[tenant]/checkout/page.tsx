@@ -18,7 +18,7 @@ export default async function CheckoutPage({
   const menu = await loadMenu(tenant, await storeLang(settings), await shopStoreId(), { online: true });
   if (!menu) notFound();
   // El campo de cupón solo aparece si el restaurante tiene el motor de retención.
-  const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { id: true, addons: true, settings: true } });
+  const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { id: true, name: true, addons: true, settings: true } });
   // Tarjetas regalo: el campo solo sale si el restaurante tiene alguna activa.
   const giftCardsEnabled = t ? (await prisma.giftCard.count({ where: { tenantId: t.id, active: true, balanceCents: { gt: 0 } } })) > 0 : false;
   // Formas de pago que el restaurante tiene activadas (su pasarela, Bizum, en el local).
@@ -36,6 +36,7 @@ export default async function CheckoutPage({
       perks={menu.perks}
       productInfo={productInfo}
       deliveryPartners={menu.deliveryPartners}
+      tenantName={t?.name ?? null}
       lang={menu.lang}
       payment={payment}
       checkout={readCheckout(t?.settings)}

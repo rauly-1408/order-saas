@@ -119,6 +119,27 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
     };
   }, [loadOrders]);
 
+  // Llegada desde el aviso «Nuevo pedido» (#pedido-<id>): abrir su columna, llevarlo a la vista y resaltarlo.
+  const focused = useRef(false);
+  useEffect(() => {
+    if (focused.current) return;
+    const id = window.location.hash.startsWith("#pedido-") ? window.location.hash.slice(8) : "";
+    const order = id ? orders.find((o) => o.id === id) : undefined;
+    if (!order) return;
+    focused.current = true;
+    const col = COLUMNS.find((c) => c.statuses.includes(order.status));
+    if (col) setTab(col.key);
+    requestAnimationFrame(() => {
+      const el = [...document.querySelectorAll<HTMLElement>(`[id="pedido-${id}"]`)].find((n) => n.offsetParent !== null);
+      if (!el) return;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      el.style.outline = "3px solid var(--p-brand)";
+      el.style.outlineOffset = "2px";
+      setTimeout(() => { el.style.outline = ""; el.style.outlineOffset = ""; }, 2600);
+    });
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  }, [orders]);
+
   // Pedido nuevo detectado por el aviso global: refrescar el tablero ya.
   useEffect(() => {
     const onNew = () => loadOrders();

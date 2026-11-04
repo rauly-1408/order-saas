@@ -14,7 +14,8 @@ import { captureCollabFromUrl, checkCollab, saveCollab, type Collab } from "../c
 import type { PublicStoreInfo } from "@/app/lib/storeOps";
 import { normalizePostalCode, zoneForPostalCode } from "@/app/lib/storeStatus";
 import type { PublicPerks } from "@/app/lib/perks";
-import DeliveryPartners, { type PartnerLink } from "../DeliveryPartners";
+import { type PartnerLink } from "../DeliveryPartners";
+import DeliveryChooser from "../DeliveryChooser";
 import AddressInput from "./AddressInput";
 import TimePicker from "./TimePicker";
 import { DEFAULT_CHECKOUT, type CheckoutSettings } from "@/app/lib/storePolicies";
@@ -51,6 +52,7 @@ type CheckoutClientProps = {
   payment?: { card: boolean; bizum: boolean; inStore: boolean; test: boolean };
   storeId?: string | null; // sucursales: local elegido en la carta
   storeName?: string | null; // solo si hay más de un local
+  tenantName?: string | null; // para «Con Estafetén» en «¿Con quién quieres tu pedido?»
   checkout?: CheckoutSettings; // Configuración → Pantalla de pago
   giftCardsEnabled?: boolean; // el restaurante tiene tarjetas regalo
 };
@@ -73,7 +75,7 @@ function submitPaymentForm(action: string, fields: Record<string, string>) {
   form.submit();
 }
 
-export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false, perks, productInfo = {}, deliveryPartners = [], lang = "es", payment = { card: false, bizum: false, inStore: true, test: false }, storeId = null, storeName = null, checkout = DEFAULT_CHECKOUT, giftCardsEnabled = false }: CheckoutClientProps) {
+export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false, perks, productInfo = {}, deliveryPartners = [], lang = "es", payment = { card: false, bizum: false, inStore: true, test: false }, storeId = null, storeName = null, tenantName = null, checkout = DEFAULT_CHECKOUT, giftCardsEnabled = false }: CheckoutClientProps) {
   const T = ui(lang);
   const router = useRouter();
   const { items, subtotalCents, clear, inc, dec } = useCart();
@@ -110,9 +112,17 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
     };
   }, [tenant]);
   const [perkState, setPerkState] = useState<PerkState | null>(null);
-  // Sin reparto propio: "A domicilio" muestra las plataformas en vez de un formulario.
-  const [showPartners, setShowPartners] = useState(false);
-  const takeawayOn = channel === "TAKEAWAY" && !showPartners;
+  // «A domicilio» con plataformas: abre «¿Con quién quieres tu pedido?» (como Burger King).
+  const [chooser, setChooser] = useState(false);
+  const takeawayOn = channel === "TAKEAWAY";
+  const pickDelivery = () => (deliveryPartners.length > 0 ? setChooser(true) : setChannel("DELIVERY"));
+  // Si en la carta ya eligió «Con <restaurante>», empezar en «A domicilio».
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("pedir-channel") === "DELIVERY" && settings?.deliveryEnabled) setChannel("DELIVERY");
+      sessionStorage.removeItem("pedir-channel");
+    } catch {}
+  }, [settings?.deliveryEnabled]);
   const hasPerks = !!perks && (perks.promotions.length > 0 || !!perks.loyalty);
 
   // Con un teléfono válido, el servidor dice si es su primer pedido y cuántos sellos lleva.
@@ -463,7 +473,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 {takeawayEnabled && (
                   <button
                     type="button"
-                    onClick={() => { setChannel("TAKEAWAY"); setShowPartners(false); }}
+                    onClick={() => setChannel("TAKEAWAY")}
                     style={{ flex: 1, padding: "12px", borderRadius: "12px", border: `2px solid ${takeawayOn ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: takeawayOn ? `${cssVars["--brand-accent"]}15` : "transparent", color: takeawayOn ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: takeawayOn ? 700 : 400, fontSize: "14px", cursor: "pointer" }}
                   >
                     {T.pickup}
@@ -472,7 +482,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 {deliveryEnabled && (
                   <button
                     type="button"
-                    onClick={() => setChannel("DELIVERY")}
+                    onClick={pickDelivery}
                     style={{ flex: 1, padding: "12px", borderRadius: "12px", border: `2px solid ${channel === "DELIVERY" ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: channel === "DELIVERY" ? `${cssVars["--brand-accent"]}15` : "transparent", color: channel === "DELIVERY" ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: channel === "DELIVERY" ? 700 : 400, fontSize: "14px", cursor: "pointer" }}
                   >
                     {T.deliveryBtn}
@@ -481,22 +491,22 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 {!deliveryEnabled && deliveryPartners.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setShowPartners(!showPartners)}
-                    aria-expanded={showPartners}
-                    style={{ flex: 1, padding: "12px", borderRadius: "12px", border: `2px solid ${showPartners ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: showPartners ? `${cssVars["--brand-accent"]}15` : "transparent", color: showPartners ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: showPartners ? 700 : 400, fontSize: "14px", cursor: "pointer" }}
+                    onClick={() => setChooser(true)}
+                    aria-haspopup="dialog"
+                    style={{ flex: 1, padding: "12px", borderRadius: "12px", border: `2px solid ${cssVars["--border"]}`, backgroundColor: "transparent", color: cssVars["--text-secondary"], fontWeight: 400, fontSize: "14px", cursor: "pointer" }}
                   >
                     {T.homeBtn}
                   </button>
                 )}
               </div>
-              {showPartners && !deliveryEnabled && (
-                <div style={{ marginTop: "12px", padding: "14px", borderRadius: "14px", backgroundColor: cssVars["--surface-1"], boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
-                  <div style={{ fontWeight: 700, fontSize: "14px", marginBottom: "2px" }}>{T.chooseCourier}</div>
-                  <div style={{ fontSize: "12px", color: cssVars["--text-secondary"], marginBottom: "10px" }}>
-                    {T.courierNote}
-                  </div>
-                  <DeliveryPartners partners={deliveryPartners} compact />
-                </div>
+              {chooser && (
+                <DeliveryChooser
+                  partners={deliveryPartners}
+                  ownName={deliveryEnabled ? tenantName || T.delivery : null}
+                  onOwn={() => { setChannel("DELIVERY"); setChooser(false); }}
+                  onClose={() => setChooser(false)}
+                  lang={lang}
+                />
               )}
             </div>
           )}

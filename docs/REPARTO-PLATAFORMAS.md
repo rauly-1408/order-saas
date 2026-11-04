@@ -11,6 +11,7 @@ Para restaurantes **sin repartidores propios**, como Estafetén. Es el mismo mod
   - en el checkout, «A domicilio» abre el mismo selector. «Recoger» sigue pidiendo en nuestra tienda;
   - se ocultan las promociones que solo valen para domicilio (envío gratis, etc.).
 - Si el restaurante sí reparte, los botones salen como «También a domicilio con…».
+- **«¿Con quién quieres tu pedido?»** (como en la app de Burger King): al pulsar «🛵 A domicilio» en la carta o en el pago se abre una ventana con Glovo, Uber Eats y Just Eat (las que tengan enlace). Si el restaurante reparte, su opción va primero: «Con Estafetén · Pides y pagas aquí». Elegirla en la carta deja el pago ya en «A domicilio»; las plataformas abren su app en otra pestaña. Código: `src/app/pedir/[tenant]/DeliveryChooser.tsx`.
 - Limitación: el pedido y el pago se hacen en la app de la plataforma. El carrito no se pasa, y ese cliente y la comisión (25-35 %) se quedan allí.
 
 ## Fase 2 — Pedido propio + repartidor externo (hecha: ver REPARTO-EXTERNO.md)
