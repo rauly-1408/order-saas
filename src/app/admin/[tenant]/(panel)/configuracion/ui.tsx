@@ -163,19 +163,19 @@ export function SaveBarHost() {
   return (
     <>
       {dirty && (
-        <div role="region" aria-label="Cambios sin guardar" className="fixed inset-x-0 top-0 z-50 flex items-center gap-3 bg-[#1a1a1a] px-4 py-2.5 text-white shadow-lg sm:px-8">
+        <div role="region" aria-label="Cambios sin guardar" className="fixed inset-x-0 top-0 z-50 flex items-center gap-3 bg-[var(--p-brand-strong,#1d1d1f)] px-4 py-2.5 text-[var(--p-on-brand-strong,#fff)] shadow-lg sm:px-8">
           <span className="flex-1 text-sm font-medium">⚠️ Cambios sin guardar</span>
-          <button type="button" disabled={busy} onClick={() => dirtyRegs().forEach((r) => r.discard())} className="p-press rounded-lg px-3 py-1.5 text-sm font-medium text-white/80 hover:bg-white/10 disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={() => dirtyRegs().forEach((r) => r.discard())} className="p-press rounded-full px-4 py-1.5 text-sm font-medium opacity-80 hover:bg-[color-mix(in_srgb,var(--p-on-brand-strong,#fff)_12%,transparent)] hover:opacity-100 disabled:opacity-50">
             Descartar
           </button>
-          <button type="button" disabled={busy} onClick={saveAll} className="p-press rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-[#1a1a1a] disabled:opacity-60">
+          <button type="button" disabled={busy} onClick={saveAll} className="p-press rounded-full bg-[var(--p-on-brand-strong,#fff)] px-5 py-1.5 text-sm font-semibold text-[var(--p-brand-strong,#1d1d1f)] disabled:opacity-60">
             {busy ? "Guardando…" : "Guardar"}
           </button>
         </div>
       )}
       {note && (
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
-          <div key={note.id} role="status" className={`p-rise flex max-w-full items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-lg ${note.ok ? "bg-[#1a1a1a]" : "bg-[#b42318]"}`}>
+          <div key={note.id} role="status" className={`p-rise flex max-w-full items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg ${note.ok ? "bg-[var(--p-brand-strong,#1d1d1f)] text-[var(--p-on-brand-strong,#fff)]" : "bg-[#b42318] text-white"}`}>
             <span aria-hidden>{note.ok ? "✓" : "!"}</span>
             {note.text}
           </div>

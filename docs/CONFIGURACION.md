@@ -8,7 +8,7 @@ Panel → **Configuración**, abajo en la barra lateral. Solo gerentes.
 - **Menú de apartados** a la izquierda, con una **tarjeta de la tienda** arriba (logo, nombre y dirección web; abre la tienda).
 - **Móvil**: la portada de Configuración es la lista de apartados. Al entrar en uno aparece «← Configuración» para volver. En el ordenador, la portada abre «Información del negocio».
 - Cada apartado lleva título y explicación, y su contenido va en tarjetas.
-- **Guardar como Shopify**: no hay botones «Guardar» sueltos. Al cambiar algo aparece arriba la barra oscura **«Cambios sin guardar» · Descartar · Guardar**, que guarda todo lo pendiente de la página. Si vuelves al valor original, desaparece. Al guardar sale un aviso flotante abajo («✓ Cambios guardados»). Los errores salen en rojo.
+- **Guardar como Shopify**: no hay botones «Guardar» sueltos. Al cambiar algo aparece arriba la barra **«Cambios sin guardar» · Descartar · Guardar**, en el color de la marca del restaurante (`--p-brand-strong`, con el texto en `--p-on-brand-strong` para que se lea también con marcas claras), que guarda todo lo pendiente de la página. Si vuelves al valor original, desaparece. Al guardar sale un aviso flotante abajo («✓ Cambios guardados»), también en el color de la marca. Los errores salen en rojo.
 - Si intentas salir con cambios sin guardar, te avisa: al cerrar la pestaña o al pulsar otro apartado.
 - Código: `useSaveBar(id, { dirty, save, discard })` y `toast()` en `configuracion/ui.tsx`. `SaveBarHost` va una vez en el layout.
 
