@@ -33,7 +33,14 @@ function mix(a: string, b: string, t: number): string {
   return "#" + pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, "0")).join("");
 }
 
+// Texto que se lee sobre un fondo: oscuro si el color es claro (una marca amarilla), blanco si no.
+function readableOn(hex: string): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? "#1d1d1f" : "#ffffff";
+}
+
 export function panelCssVars(brand: PanelBrand): CSSProperties {
+  const strong = mix(brand.brand, "#000000", 0.25);
   return {
     "--p-bg": "#f5f5f7",
     "--p-surface": "#ffffff",
@@ -42,7 +49,8 @@ export function panelCssVars(brand: PanelBrand): CSSProperties {
     "--p-faint": "#a1a1a6",
     "--p-line": "rgba(0, 0, 0, 0.08)",
     "--p-brand": brand.brand,
-    "--p-brand-strong": mix(brand.brand, "#000000", 0.25),
+    "--p-brand-strong": strong,
+    "--p-on-brand-strong": readableOn(strong), // texto sobre la barra «Cambios sin guardar» y los avisos
     "--p-brand-soft": mix(brand.brand, "#ffffff", 0.88),
     "--p-accent": brand.accent,
     "--p-accent-soft": mix(brand.accent, "#ffffff", 0.9),
