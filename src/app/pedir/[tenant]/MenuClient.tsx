@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { rememberLang, storeMessage, ui, whenText, type Lang } from "@/app/lib/i18n";
 import { rememberStore } from "@/app/lib/shopStore";
 import DeliveryPartners, { type PartnerLink } from "./DeliveryPartners";
+import DeliveryChooser from "./DeliveryChooser";
 import type { ChoiceProduct, ComboSlotDef } from "@/app/lib/combos";
 
 type MenuProduct = {
@@ -234,6 +235,8 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
   const visiblePromos = (perks?.promotions ?? []).filter((p) => settings?.deliveryEnabled || (p.channel !== "DELIVERY" && p.kind !== "FREE_DELIVERY"));
   const canSchedule = !!store?.slots && (store.slots.TAKEAWAY.length > 0 || store.slots.DELIVERY.length > 0);
   const firstSlug = categories[0]?.slug;
+  // «A domicilio» abre «¿Con quién quieres tu pedido?» (como Burger King).
+  const [chooser, setChooser] = useState(false);
 
   // Animaciones al hacer scroll: los bloques con data-reveal aparecen al entrar en pantalla.
   const rootRef = useRef<HTMLDivElement>(null);
@@ -258,6 +261,19 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
 
   return (
     <div ref={rootRef} className="min-h-screen" style={{ backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], fontFamily: cssVars["--font-body"], ...(cssVars as any) }}>
+      {chooser && (
+        <DeliveryChooser
+          partners={deliveryPartners}
+          ownName={settings?.deliveryEnabled ? tenantName : null}
+          onOwn={() => {
+            try { sessionStorage.setItem("pedir-channel", "DELIVERY"); } catch {}
+            setChooser(false);
+            if (firstSlug) scrollToCategory(firstSlug);
+          }}
+          onClose={() => setChooser(false)}
+          lang={lang}
+        />
+      )}
       {/* Aviso de cerrado: franja fina arriba, no un bloque que tape la portada */}
       {store && !store.status.open && (
         <div className="px-4 py-2 text-center text-[13px] font-semibold" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
@@ -312,9 +328,9 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
               </span>
             )}
             {deliveryPartners.length > 0 && !settings?.deliveryEnabled ? (
-              <a href="#a-domicilio" className="p-press hidden rounded-full px-4 py-2 text-[13px] font-bold no-underline sm:inline-block" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
+              <button type="button" onClick={() => setChooser(true)} aria-haspopup="dialog" className="p-press hidden rounded-full px-4 py-2 text-[13px] font-bold sm:inline-block" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
                 🛵 {T.delivery}
-              </a>
+              </button>
             ) : null}
             {/* Idioma: ES / EN (solo si el restaurante tiene la carta traducida) */}
             {languages.includes("en") && (
@@ -372,9 +388,9 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
               </button>
             )}
             {deliveryPartners.length > 0 && (
-              <a href="#a-domicilio" className="p-press rounded-full border-2 px-6 py-3 text-[15px] font-bold no-underline" style={{ borderColor: "currentColor", color: "inherit" }}>
+              <button type="button" onClick={() => setChooser(true)} aria-haspopup="dialog" className="p-press rounded-full border-2 bg-transparent px-6 py-3 text-[15px] font-bold" style={{ borderColor: "currentColor", color: "inherit" }}>
                 🛵 {T.delivery}
-              </a>
+              </button>
             )}
           </div>
         </div>

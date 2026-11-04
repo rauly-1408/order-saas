@@ -92,6 +92,7 @@ export default function OrderCard({ order, perms = ALL_PERMS, estimates, now, bu
 
   return (
     <article
+      id={`pedido-${order.id}`}
       draggable={draggable && !busy}
       onDragStart={(e) => {
         if (!draggable || !onDragStart) return;
@@ -101,7 +102,7 @@ export default function OrderCard({ order, perms = ALL_PERMS, estimates, now, bu
       }}
       onDragEnd={onDragEnd}
       title={draggable ? "Arrastra la tarjeta a la siguiente columna o usa el botón" : undefined}
-      className={`p-lift rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+      className={`p-lift scroll-mt-28 rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
         isNew ? "ring-2 ring-[var(--p-accent)]" : ""
       } ${draggable ? "cursor-grab active:cursor-grabbing" : ""} ${dragging ? "opacity-40" : ""}`}
     >
