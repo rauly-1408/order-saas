@@ -50,10 +50,26 @@ function cleanFixtures(raw: unknown): Fixture[] {
     }];
   });
 }
+// Zonas del local, en su orden. Se guardan en Store.floorPlan bajo ZONES_KEY
+// para que una zona vacía (una terraza aún sin mesas) siga a la vista. Un local
+// que nunca las ha tocado empieza con Interior y Terraza.
+const ZONES_KEY = "__zones";
+const BASE_ZONES = ["Interior", "Terraza"];
+const MAX_ZONES = 12;
+function readZones(raw: unknown, tableZones: string[]): string[] {
+  const saved = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>)[ZONES_KEY] : undefined;
+  // Sin lista guardada: las zonas de sus mesas (Interior y Terraza delante) y una Terraza de base.
+  const rank = (z: string) => { const i = BASE_ZONES.indexOf(z); return i < 0 ? BASE_ZONES.length : i; };
+  const list = Array.isArray(saved) ? saved.flatMap((z) => (typeof z === "string" && cleanText(z, 30) ? [cleanText(z, 30)] : [])) : tableZones.length ? [...tableZones, "Terraza"].sort((a, b) => rank(a) - rank(b)) : BASE_ZONES;
+  const seen = new Set<string>();
+  return [...list, ...tableZones].filter((z) => (seen.has(z.toLowerCase()) ? false : (seen.add(z.toLowerCase()), true))).slice(0, MAX_ZONES);
+}
+const withZones = (plan: Record<string, Fixture[]>, zones: string[]) => ({ ...plan, [ZONES_KEY]: zones });
+
 function readFixtures(raw: unknown): Record<string, Fixture[]> {
   const out: Record<string, Fixture[]> = {};
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
-  for (const [zone, items] of Object.entries(raw as Record<string, unknown>).slice(0, 20)) {
+  for (const [zone, items] of Object.entries(raw as Record<string, unknown>).filter(([k]) => k !== ZONES_KEY).slice(0, 20)) {
     const list = cleanFixtures(items);
     if (list.length) out[zone.slice(0, 30)] = list;
   }
@@ -69,7 +85,7 @@ export async function GET(req: NextRequest) {
     const { tenant, session } = ctx;
     const storeId = await storeForSession(tenant.id, session.storeId, new URL(req.url).searchParams.get("store"));
     const stores = session.storeId ? [] : (await listStores(tenant.id, { activeOnly: true })).map((s) => ({ id: s.id, name: s.name }));
-    if (!storeId) return NextResponse.json({ stores, storeId: null, canManage: canManageTenant(session.role), canCharge: accessOf(session).cobrar, sees: Boolean(session.seesTakings), tables: [], fixtures: {} });
+    if (!storeId) return NextResponse.json({ stores, storeId: null, canManage: canManageTenant(session.role), canCharge: accessOf(session).cobrar, sees: Boolean(session.seesTakings), tables: [], fixtures: {}, zones: [] });
 
     // En paralelo: el plano se refresca cada pocos segundos en todos los móviles de sala.
     const [store, tables, open] = await Promise.all([
@@ -96,6 +112,7 @@ export async function GET(req: NextRequest) {
       canCharge: accessOf(session).cobrar,
       sees: Boolean(session.seesTakings),
       fixtures: readFixtures(store?.floorPlan),
+      zones: readZones(store?.floorPlan, [...new Set(tables.map((t) => t.zone))]),
       tables: tables.map((t) => {
         const o = byTable.get(t.id);
         return {
@@ -131,7 +148,9 @@ export async function GET(req: NextRequest) {
 }
 
 type Body = {
-  action?: "open" | "table" | "add" | "update" | "remove" | "layout" | "fixtures";
+  action?: "open" | "table" | "add" | "update" | "remove" | "layout" | "fixtures" | "zones";
+  zoneOp?: "add" | "rename" | "remove"; // action "zones"
+  newZone?: string; // zoneOp "rename"
   op?: TableActionBody["action"]; // action "table": lo que se hace en la mesa
   toTableId?: string; // op "move"
   method?: string;
@@ -227,8 +246,46 @@ export async function POST(req: NextRequest) {
       const items = cleanFixtures(b.items);
       if (items.length) plan[zone] = items;
       else delete plan[zone];
-      await prisma.store.update({ where: { id: storeId }, data: { floorPlan: plan } });
+      const zones = readZones(store?.floorPlan, [...new Set((await prisma.diningTable.findMany({ where: { storeId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { zone: true } })).map((t) => t.zone))]);
+      await prisma.store.update({ where: { id: storeId }, data: { floorPlan: withZones(plan, zones) } });
       return NextResponse.json({ ok: true, fixtures: plan });
+    }
+
+    // Zonas del local: añadir, cambiar el nombre (sus mesas y su plano la siguen) o quitar una vacía.
+    if (b.action === "zones") {
+      const storeId = await storeForSession(tenant.id, session.storeId, b.storeId);
+      if (!storeId) return NextResponse.json({ error: "No hay ningún local activo" }, { status: 400 });
+      const store = await prisma.store.findUnique({ where: { id: storeId }, select: { floorPlan: true } });
+      const active = await prisma.diningTable.findMany({ where: { storeId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { zone: true } });
+      let zones = readZones(store?.floorPlan, [...new Set(active.map((t) => t.zone))]);
+      const plan = readFixtures(store?.floorPlan);
+      const name = cleanText(b.zone, 30);
+      const has = (z: string) => zones.find((x) => x.toLowerCase() === z.toLowerCase());
+      if (!name) return NextResponse.json({ error: "Escribe el nombre de la zona" }, { status: 400 });
+      if (b.zoneOp === "add") {
+        if (has(name)) return NextResponse.json({ error: `Ya hay una zona «${has(name)}»` }, { status: 400 });
+        if (zones.length >= MAX_ZONES) return NextResponse.json({ error: `Como mucho ${MAX_ZONES} zonas por local` }, { status: 400 });
+        zones = [...zones, name];
+      } else if (b.zoneOp === "rename") {
+        const to = cleanText(b.newZone, 30);
+        const from = has(name);
+        if (!from) return NextResponse.json({ error: "Esa zona ya no existe" }, { status: 404 });
+        if (!to) return NextResponse.json({ error: "Escribe el nombre nuevo" }, { status: 400 });
+        if (to.toLowerCase() !== from.toLowerCase() && has(to)) return NextResponse.json({ error: `Ya hay una zona «${has(to)}»` }, { status: 400 });
+        await prisma.diningTable.updateMany({ where: { storeId, zone: from }, data: { zone: to } });
+        if (plan[from]) { plan[to] = plan[from]; if (to !== from) delete plan[from]; }
+        zones = zones.map((z) => (z === from ? to : z));
+      } else if (b.zoneOp === "remove") {
+        const from = has(name);
+        if (!from) return NextResponse.json({ error: "Esa zona ya no existe" }, { status: 404 });
+        const n = active.filter((t) => t.zone === from).length;
+        if (n) return NextResponse.json({ error: `La zona ${from} tiene ${n} ${n === 1 ? "mesa" : "mesas"}: quítalas o pásalas a otra zona antes` }, { status: 400 });
+        if (zones.length <= 1) return NextResponse.json({ error: "El local necesita al menos una zona" }, { status: 400 });
+        delete plan[from];
+        zones = zones.filter((z) => z !== from);
+      } else return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
+      await prisma.store.update({ where: { id: storeId }, data: { floorPlan: withZones(plan, zones) } });
+      return NextResponse.json({ ok: true, zones });
     }
 
     // Plano: guardar dónde está cada mesa (en % del plano de su zona).
