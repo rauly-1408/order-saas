@@ -54,6 +54,11 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - **+ Barra, + Pared y + Texto**: elementos fijos que se arrastran y se estiran desde la esquina. Al tocarlos se cambia su texto o se quitan. Una barra alta y estrecha escribe su texto en vertical.
   - Si se sale del editor o se cambia de zona con cambios sin guardar, avisa.
   - **Tocar una mesa** para cambiarle el nombre, la zona, las plazas o la forma, o quitarla. Si tiene historial se desactiva en vez de borrarse.
+- **Zonas** (pestañas como Interior o Terraza):
+  - Siempre a la vista, también las que aún no tienen mesas. Un local nuevo empieza con **Interior** y **Terraza**; si ya tenía mesas, salen sus zonas más una Terraza de base.
+  - **«+ Nueva zona»**, junto a las pestañas, solo para el gerente.
+  - En «Editar mesas», **«Editar zona …»** cambia el nombre, y sus mesas y su plano la siguen. También la quita, pero solo si ya no tiene mesas y queda al menos otra.
+  - Una zona vacía muestra «Todavía no hay mesas en Terraza» con «Crear mesas en Terraza».
 
 **Sin conexión.** Si se cae internet se sigue trabajando: ver el plano y las cuentas, abrir mesas, tomar nota, pedir la cuenta, cobrar y cambiar de mesa. Se guarda en el aparato y se envía solo al volver, en orden y sin duplicarse. Ver `docs/SIN-CONEXION.md`.
 
@@ -76,13 +81,14 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - `20261024120000_mesas`.
   - `20261024120100_mesas_una_abierta`: índice único parcial, que Prisma no sabe expresar en el esquema. Si una migración futura intenta borrarlo, hay que quitar esa línea.
   - `20261024120200_mesas_plano`.
+  - `Store.floorPlan` guarda también la lista ordenada de zonas en la clave `__zones` (sin migración).
   - `20261024130000_mesas_elementos`: `Store.floorPlan`, con los elementos fijos por zona: `{ "Interior": [{ id, kind: BAR | WALL | LABEL, x, y, w, h, label }] }` en % del plano. Se guarda la zona entera con la acción `fixtures`.
 - `lib/tables.ts` reúne la lógica:
   - Abrir, añadir ronda, anular, pedir la cuenta, cobrar (entera o por unidades), mover y cerrar.
   - Cálculos puros, probados en `lib/__tests__/tables.test.ts`: `splitLineAmounts`, `equalShares` y `tableNames`.
 - `GET/POST /api/admin/[tenant]/mesas`:
   - El GET devuelve el plano.
-  - El POST admite `open` para cualquier usuario, y `add`, `update`, `remove`, `layout` y `fixtures` solo para el gerente.
+  - El POST admite `open` para cualquier usuario, y `add`, `update`, `remove`, `layout`, `fixtures` y `zones` (`zoneOp`: `add`, `rename` o `remove`) solo para el gerente.
 - `GET/POST /api/admin/[tenant]/mesas/[orderId]`:
   - El GET devuelve la cuenta.
   - El POST admite `round`, `void` (gerente), `bill`, `pay`, `move` y `cancel`.

@@ -43,6 +43,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editTable, setEditTable] = useState<Table | null>(null);
+  const [zoneSheet, setZoneSheet] = useState<"new" | string | null>(null); // nueva zona o la que se edita
   const planDirty = useRef(false); // el editor tiene cambios sin guardar
   const [, setTick] = useState(0);
 
@@ -107,7 +108,8 @@ export default function MesasClient({ tenant }: { tenant: string }) {
       .catch(() => {});
   }, [tenant]);
 
-  const zones = useMemo(() => [...new Set((data?.tables ?? []).map((t) => t.zone))], [data]);
+  // Zonas del local (también las que aún no tienen mesas, como una terraza recién creada).
+  const zones = useMemo(() => [...new Set([...(data?.zones ?? []), ...(data?.tables ?? []).map((t) => t.zone)])], [data]);
   const currentZone = zones.includes(zone) ? zone : (zones[0] ?? "");
   const inZone = useMemo(() => (data?.tables ?? []).filter((t) => t.zone === currentZone), [data, currentZone]);
   const busyCount = (data?.tables ?? []).filter((t) => t.open).length;
@@ -154,7 +156,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
               ))}
             </select>
           )}
-          {data?.canManage && data.tables.length > 0 && (
+          {data?.canManage && (
             <button type="button" onClick={async () => {
                 if (editing && planDirty.current && !(await ask("Hay cambios en el plano sin guardar. ¿Salir sin guardarlos?"))) return;
                 planDirty.current = false;
@@ -175,41 +177,56 @@ export default function MesasClient({ tenant }: { tenant: string }) {
 
       {!data ? (
         !error && <p className="py-16 text-center text-sm text-[var(--p-muted)]">Cargando las mesas…</p>
-      ) : data.tables.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-dashed border-[var(--p-line)] bg-[var(--p-surface)]/60 px-6 py-12 text-center">
-          <p className="text-lg font-semibold">Todavía no hay mesas</p>
-          {data.canManage ? (
-            <>
-              <p className="mx-auto mt-1 max-w-md text-sm text-[var(--p-muted)]">Crea las mesas de cada zona (por ejemplo, Interior del 1 al 11 y Barra del B1 al B3). Después las colocas en el plano arrastrándolas.</p>
-              <button type="button" onClick={() => setAdding(true)} className="p-press mt-5 rounded-full bg-[var(--p-brand)] px-5 py-2.5 text-sm font-semibold text-white">
-                Crear mesas
-              </button>
-            </>
-          ) : (
-            <p className="mt-1 text-sm text-[var(--p-muted)]">Pide al gerente que cree las mesas en esta pantalla.</p>
-          )}
-        </div>
       ) : (
         <>
-          {zones.length > 1 && (
-            <nav className="mt-5 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1" aria-label="Zonas">
-              {zones.map((z) => {
-                const n = (data.tables ?? []).filter((t) => t.zone === z && t.open).length;
-                return (
-                  <button key={z} type="button" onClick={async () => {
-                    if (editing && planDirty.current && !(await ask("Hay cambios en el plano sin guardar. ¿Cambiar de zona sin guardarlos?", { confirm: "Cambiar sin guardar", danger: true }))) return;
-                    planDirty.current = false;
-                    setZone(z);
-                  }} aria-pressed={z === currentZone} className={`p-press shrink-0 rounded-full px-4 py-1.5 text-sm font-medium ${z === currentZone ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"}`}>
-                    {z}
-                    {n > 0 && <span className="ml-1.5 text-xs text-[var(--p-brand)]">{n}</span>}
+          {/* Zonas siempre a la vista; el gerente añade más con «+ Nueva zona» */}
+          {(zones.length > 0 || data.canManage) && (
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <nav className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1" aria-label="Zonas">
+                {zones.map((z) => {
+                  const n = (data.tables ?? []).filter((t) => t.zone === z && t.open).length;
+                  return (
+                    <button key={z} type="button" onClick={async () => {
+                      if (editing && planDirty.current && !(await ask("Hay cambios en el plano sin guardar. ¿Cambiar de zona sin guardarlos?", { confirm: "Cambiar sin guardar", danger: true }))) return;
+                      planDirty.current = false;
+                      setZone(z);
+                    }} aria-pressed={z === currentZone} className={`p-press shrink-0 rounded-full px-4 py-1.5 text-sm font-medium ${z === currentZone ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"}`}>
+                      {z}
+                      {n > 0 && <span className="ml-1.5 text-xs text-[var(--p-brand)]">{n}</span>}
+                    </button>
+                  );
+                })}
+              </nav>
+              {data.canManage && (
+                <>
+                  <button type="button" onClick={() => setZoneSheet("new")} className="p-press shrink-0 rounded-full bg-[var(--p-surface)] px-4 py-2 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                    + Nueva zona
                   </button>
-                );
-              })}
-            </nav>
+                  {editing && currentZone && (
+                    <button type="button" onClick={() => setZoneSheet(currentZone)} className="p-press shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-[var(--p-muted)] hover:bg-black/[0.04]">
+                      Editar zona {currentZone}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           )}
 
-          {editing ? (
+          {inZone.length === 0 && !editing ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-[var(--p-line)] bg-[var(--p-surface)]/60 px-6 py-12 text-center">
+              <p className="text-lg font-semibold">{currentZone ? `Todavía no hay mesas en ${currentZone}` : "Todavía no hay mesas"}</p>
+              {data.canManage ? (
+                <>
+                  <p className="mx-auto mt-1 max-w-md text-sm text-[var(--p-muted)]">Crea sus mesas (por ejemplo, del 1 al 11, o B1 a B3 para la barra). Después las colocas en el plano arrastrándolas.</p>
+                  <button type="button" onClick={() => setAdding(true)} className="p-press mt-5 rounded-full bg-[var(--p-brand)] px-5 py-2.5 text-sm font-semibold text-white">
+                    Crear mesas{currentZone ? ` en ${currentZone}` : ""}
+                  </button>
+                </>
+              ) : (
+                <p className="mt-1 text-sm text-[var(--p-muted)]">Pide al gerente que cree las mesas en esta pantalla.</p>
+              )}
+            </div>
+          ) : editing ? (
             <PlanEditor
               key={`${data.storeId}:${currentZone}`}
               tables={inZone}
@@ -302,6 +319,26 @@ export default function MesasClient({ tenant }: { tenant: string }) {
             setZone(body.zone);
             await load();
             return r;
+          }}
+        />
+      )}
+      {zoneSheet && data && (
+        <ZoneSheet
+          zone={zoneSheet === "new" ? null : zoneSheet}
+          tables={zoneSheet === "new" ? 0 : data.tables.filter((t) => t.zone === zoneSheet).length}
+          onClose={() => setZoneSheet(null)}
+          onSave={async (name) => {
+            const isNew = zoneSheet === "new";
+            await post(api, { action: "zones", storeId: data.storeId, zoneOp: isNew ? "add" : "rename", zone: isNew ? name : zoneSheet, newZone: name });
+            setZoneSheet(null);
+            setZone(name);
+            await load();
+          }}
+          onRemove={async () => {
+            await post(api, { action: "zones", storeId: data.storeId, zoneOp: "remove", zone: zoneSheet });
+            setZoneSheet(null);
+            setZone("");
+            await load();
           }}
         />
       )}
@@ -752,6 +789,52 @@ function EditSheet({ table, zones, onClose, onSave, onRemove }: { table: Table; 
       <p className="mt-4 text-[13px] font-medium text-[var(--p-muted)]">Forma</p>
       <ShapePicker value={shape} onChange={setShape} />
       {zone.trim() !== table.zone && <p className="mt-3 text-xs text-[var(--p-muted)]">Al cambiarla de zona habrá que volver a colocarla en el plano.</p>}
+    </Sheet>
+  );
+}
+
+// Nueva zona, o cambiar el nombre o quitar una (solo si ya no tiene mesas).
+function ZoneSheet({ zone, tables, onClose, onSave, onRemove }: { zone: string | null; tables: number; onClose: () => void; onSave: (name: string) => Promise<void>; onRemove: () => Promise<void> }) {
+  const [name, setName] = useState(zone ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se ha podido hacer");
+      setBusy(false);
+    }
+  };
+  const clean = name.trim();
+  return (
+    <Sheet
+      title={zone ? `Zona ${zone}` : "Nueva zona"}
+      onClose={onClose}
+      footer={
+        <>
+          {error && <p className="mb-2 text-sm text-[var(--p-accent)]">{error}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={busy || !clean || clean === zone} onClick={() => run(() => onSave(clean))} className="p-press flex-1 rounded-2xl bg-[var(--p-brand)] py-3 text-sm font-semibold text-white disabled:opacity-50">
+              {zone ? "Guardar" : "Crear zona"}
+            </button>
+            {zone && tables === 0 && (
+              <button type="button" disabled={busy} onClick={async () => (await ask(`¿Quitar la zona ${zone}?`)) && run(onRemove)} className="p-press whitespace-nowrap rounded-2xl px-4 py-3 text-sm font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">
+                Quitar zona
+              </button>
+            )}
+          </div>
+        </>
+      }
+    >
+      <label className="block text-[13px] font-medium text-[var(--p-muted)]">
+        Nombre
+        <input value={name} onChange={(e) => setName(e.target.value.slice(0, 30))} onKeyDown={(e) => e.key === "Enter" && clean && clean !== zone && !busy && run(() => onSave(clean))} placeholder="Terraza, Salón, Barra, Planta alta…" className={input} autoFocus />
+      </label>
+      {zone && <p className="mt-3 text-xs text-[var(--p-muted)]">Sus mesas y su plano pasan al nombre nuevo.{tables > 0 && ` Para quitar la zona, quita antes sus ${tables} ${tables === 1 ? "mesa" : "mesas"} o pásalas a otra zona.`}</p>}
+      {!zone && <p className="mt-3 text-xs text-[var(--p-muted)]">Después crea sus mesas con «Crear mesas» o desde «Añadir mesas».</p>}
     </Sheet>
   );
 }
