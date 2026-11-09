@@ -6,6 +6,7 @@ import { unitCostCents } from "@/app/lib/costs";
 import { prepCost } from "@/app/lib/preps";
 import { UNIT_LABEL, euros, type BaseUnit, type Ingredient, type Overview } from "./types";
 import AllergenIcon from "./AllergenIcon";
+import { BTN } from "../buttons";
 
 // Elaboraciones: recetas por lotes (salsa boloñesa, cochinita, caldo, pico de
 // gallo…). Ingredientes del lote + otros costes (mano de obra, horno, envases,
@@ -321,7 +322,7 @@ function Editor({
           );
         })}
       </ul>
-      <button type="button" onClick={() => set({ lines: [...form.lines, { ingredientId: "", qty: "", shown: "g" }] })} className="mt-2 text-sm font-semibold text-[var(--p-brand)]">
+      <button type="button" onClick={() => set({ lines: [...form.lines, { ingredientId: "", qty: "", shown: "g" }] })} className={`${BTN.add} mt-2`}>
         + Añadir ingrediente
       </button>
 

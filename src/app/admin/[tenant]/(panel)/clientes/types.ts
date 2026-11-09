@@ -1,4 +1,5 @@
 import type { Segment } from "@/app/lib/retention";
+import { BTN } from "../buttons";
 
 export type CustomerRow = {
   id: string;
@@ -96,5 +97,5 @@ export const SEGMENT_STYLE: Record<Segment, string> = {
 export const card = "rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
 export const input = "w-full rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm outline-none focus:border-[var(--p-brand)]";
 export const label = "mb-1 block text-[13px] font-medium text-[var(--p-muted)]";
-export const primaryBtn = "p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50";
-export const ghostBtn = "p-press rounded-full px-4 py-2 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.04]";
+export const primaryBtn = BTN.primary;
+export const ghostBtn = BTN.secondary;

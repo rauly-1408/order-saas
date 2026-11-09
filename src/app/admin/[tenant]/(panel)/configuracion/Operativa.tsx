@@ -4,6 +4,7 @@ import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { toast, useSaveBar } from "./ui";
 import { DAY_KEYS, DAY_LABEL, type DayKey, type TimeRange, type WeeklyHours } from "@/app/lib/storeStatus";
+import { BTN } from "../buttons";
 
 // Configuración operativa de la tienda online: horario semanal, cierres
 // programados y zonas de reparto. Se guarda en el local (Store).
@@ -14,8 +15,8 @@ type Ops = { hours: WeeklyHours; closures: Closure[]; zones: Zone[] };
 
 const card = "rounded-[18px] bg-[var(--p-surface)] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-6";
 const input = "rounded-lg px-3 py-2 text-sm text-[var(--p-ink)]";
-const btn = "p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50";
-const ghost = "p-press rounded-full px-3 py-1.5 text-sm text-[var(--p-muted)] hover:bg-black/[0.04]";
+const btn = BTN.primary;
+const ghost = BTN.secondary;
 const euros = (c: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(c / 100);
 const toCents = (v: string) => Math.round(Number(v.replace(",", ".")) * 100);
 const DEFAULT_RANGE: TimeRange = { from: "13:00", to: "16:00" };
@@ -95,13 +96,13 @@ function Horario({ api, initial, onSaved }: { api: string; initial: WeeklyHours;
                       <span className="text-[var(--p-muted)]">–</span>
                       <input type="time" value={r.to} onChange={(e) => setDay(d, ranges.map((x, j) => (j === i ? { ...x, to: e.target.value } : x)))} className={input} aria-label={`${DAY_LABEL[d]}: cierre`} />
                       {ranges.length > 1 && (
-                        <button onClick={() => setDay(d, ranges.filter((_, j) => j !== i))} aria-label="Quitar franja" className="px-1 text-[var(--p-faint)] hover:text-[var(--p-accent)]">✕</button>
+                        <button onClick={() => setDay(d, ranges.filter((_, j) => j !== i))} aria-label="Quitar franja" className="p-press inline-flex h-11 w-11 items-center justify-center rounded-full text-[var(--p-faint)] hover:bg-black/[0.05] hover:text-[var(--p-accent)]">✕</button>
                       )}
                     </span>
                   ))}
                   {ranges.length < 2 && (
-                    <button onClick={() => setDay(d, [...ranges, { from: "20:00", to: "23:30" }])} className="text-sm font-medium text-[var(--p-brand)]">
-                      + franja
+                    <button onClick={() => setDay(d, [...ranges, { from: "20:00", to: "23:30" }])} className={BTN.add}>
+                      + Añadir franja
                     </button>
                   )}
                 </div>
@@ -110,6 +111,16 @@ function Horario({ api, initial, onSaved }: { api: string; initial: WeeklyHours;
           );
         })}
       </ul>
+      {/* Copiar el horario del primer día abierto a toda la semana: un toque en vez de siete. */}
+      {(() => {
+        const from = DAY_KEYS.find((d) => hours[d].length > 0);
+        const same = from && DAY_KEYS.every((d) => JSON.stringify(hours[d]) === JSON.stringify(hours[from]));
+        return from && !same ? (
+          <button type="button" onClick={() => setHours(Object.fromEntries(DAY_KEYS.map((d) => [d, hours[from].map((r) => ({ ...r }))])) as typeof hours)} className={`${BTN.secondary} mt-3`}>
+            Copiar el horario del {DAY_LABEL[from].toLowerCase()} a todos los días
+          </button>
+        ) : null;
+      })()}
       <p className="mt-2 text-xs text-[var(--p-muted)]">Para cerrar después de medianoche pon, por ejemplo, 20:00 – 02:00.</p>
     </section>
   );
@@ -169,7 +180,7 @@ function Cierres({ api, closures, onSaved }: { api: string; closures: Closure[];
           {error && <p className="text-sm text-[var(--p-accent)] sm:col-span-3">{error}</p>}
         </div>
       ) : (
-        <button onClick={() => setForm({ from: "", to: "", reason: "" })} className="text-sm font-semibold text-[var(--p-brand)]">+ Programar un cierre</button>
+        <button onClick={() => setForm({ from: "", to: "", reason: "" })} className={BTN.add}>+ Programar un cierre</button>
       )}
     </section>
   );
@@ -223,7 +234,7 @@ function Zonas({ api, zones, onSaved }: { api: string; zones: Zone[]; onSaved: (
                 </p>
               </div>
               <div className="flex gap-1">
-                <button onClick={() => edit(z)} className="p-press rounded-full px-3 py-1.5 text-sm font-semibold text-[var(--p-brand)] hover:bg-black/[0.04]">Editar</button>
+                <button onClick={() => edit(z)} className={BTN.secondary}>Editar</button>
                 <button onClick={() => remove(z)} className={ghost}>Borrar</button>
               </div>
             </li>
@@ -247,7 +258,7 @@ function Zonas({ api, zones, onSaved }: { api: string; zones: Zone[]; onSaved: (
           {error && <p className="text-sm text-[var(--p-accent)] sm:col-span-2">{error}</p>}
         </div>
       ) : (
-        <button onClick={() => { setError(""); setForm({ id: null, name: "", postalCodes: "", fee: "", min: "", active: true }); }} className="text-sm font-semibold text-[var(--p-brand)]">
+        <button onClick={() => { setError(""); setForm({ id: null, name: "", postalCodes: "", fee: "", min: "", active: true }); }} className={BTN.add}>
           + Nueva zona de reparto
         </button>
       )}

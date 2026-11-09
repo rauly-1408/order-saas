@@ -5,6 +5,7 @@ import { unitCostCents } from "@/app/lib/costs";
 import { UNIT_LABEL, euros, linesCost, typicalPlate, type Ingredient, type Overview, type Product, type RecipeLine } from "./types";
 import { netOfVat } from "@/app/lib/costs";
 import { dishVerdict, withPrepMarkup, type CostSettings } from "@/app/lib/pricing";
+import { BTN } from "../buttons";
 
 type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToIngredients: () => void };
 
@@ -94,7 +95,7 @@ function ProductRecipes({
 
   return (
     <div className="space-y-4">
-      <button onClick={onBack} className="text-sm font-semibold text-[var(--p-brand)] lg:hidden">← Todos los platos</button>
+      <button onClick={onBack} className={`${BTN.back} lg:hidden`}>‹ Todos los platos</button>
       <RecipeEditor
         title={`${product.name} · receta base`}
         subtitle={`Precio en carta ${euros(product.basePriceCents)}. Lo que lleva siempre, sin contar pan, guarnición ni extras.`}
@@ -239,7 +240,7 @@ function RecipeEditor({
         })}
       </ul>
 
-      <button onClick={() => setDraft([...draft, { ingredientId: "", quantity: "" }])} className="mt-3 text-sm font-semibold text-[var(--p-brand)]">
+      <button onClick={() => setDraft([...draft, { ingredientId: "", quantity: "" }])} className={`${BTN.add} mt-3`}>
         + Añadir ingrediente
       </button>
 

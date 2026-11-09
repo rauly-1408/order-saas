@@ -7,6 +7,7 @@ import { nextDeliveryText } from "./Proveedores";
 import Albaran from "./Albaran";
 import FacturasProveedor from "./FacturasProveedor";
 import { UNIT_LABEL, euros, formatQty, type Ingredient, type Overview, type PurchaseOrder, type PurchaseStatus, type Supplier } from "./types";
+import { BTN } from "../buttons";
 
 type Props = { data: Overview; api: string; onSaved: () => Promise<void> };
 type DraftLine = { ingredientId: string; quantity: string };
@@ -245,7 +246,7 @@ function PurchaseEditor({
           );
         })}
       </ul>
-      <button onClick={() => setLines([...lines, { ingredientId: "", quantity: "" }])} className="mt-3 text-sm font-semibold text-[var(--p-brand)]">+ Añadir ingrediente</button>
+      <button onClick={() => setLines([...lines, { ingredientId: "", quantity: "" }])} className={`${BTN.add} mt-3`}>+ Añadir ingrediente</button>
       <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notas para el proveedor (hora de entrega…)" className="mt-3 block min-h-16 w-full rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm" />
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--p-line)] pt-3">
         <span className="text-sm">Coste estimado: <span className="font-bold">{euros(total)}</span></span>

@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ask } from "@/app/lib/dialog";
+import { BTN } from "../buttons";
 
 // Piezas comunes de los apartados de Configuración (estilo Shopify: tarjetas
 // blancas con título, explicación y botón de guardar).
 export const card = "rounded-[18px] bg-[var(--p-surface)] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-6";
 export const input = "mt-1 w-full rounded-lg border border-[var(--p-line)] bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--p-brand)]";
-export const primaryBtn = "p-press rounded-full bg-[var(--p-brand)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50";
-export const ghostBtn = "p-press rounded-full border border-[var(--p-line)] px-4 py-2 text-sm font-medium disabled:opacity-50";
+export const primaryBtn = BTN.primary;
+export const ghostBtn = BTN.secondary;
 export const euros = (c: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(c / 100);
 
 export function Card({ title, description, children, footer }: { title: string; description?: React.ReactNode; children?: React.ReactNode; footer?: React.ReactNode }) {
