@@ -9,8 +9,8 @@ import { Sheet, Stepper } from "../mesas/shared";
 // o no vino, cancelar y apuntar las que llegan por teléfono. Se refresca sola
 // para ver las nuevas de la tienda. Ver docs/RESERVAS.md
 type Status = "PENDING" | "CONFIRMED" | "SEATED" | "NO_SHOW" | "CANCELLED";
-type Reservation = { id: string; startsAt: string; guests: number; name: string; phone: string; email: string | null; notes: string | null; status: Status; source: "ONLINE" | "PHONE" | "WALKIN" };
-type Data = { date: string; today: string; tz: string; storeId: string; stores: { id: string; name: string }[]; capacity: number; settings: { enabled: boolean; autoConfirm: boolean; durationMinutes: number }; reservations: Reservation[] };
+type Reservation = { id: string; startsAt: string; guests: number; name: string; phone: string; email: string | null; notes: string | null; status: Status; source: "ONLINE" | "PHONE" | "WALKIN"; tableIds: string[] };
+type Data = { date: string; today: string; tz: string; storeId: string; stores: { id: string; name: string }[]; capacity: number; settings: { enabled: boolean; autoConfirm: boolean; durationMinutes: number }; reservations: Reservation[]; tableNames: Record<string, string> };
 
 const STATUS: Record<Status, { label: string; cls: string }> = {
   PENDING: { label: "Pendiente", cls: "bg-amber-100 text-amber-800" },
@@ -40,6 +40,8 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
   const [busy, setBusy] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [tableFor, setTableFor] = useState<Reservation | null>(null);
+  const [notice, setNotice] = useState<{ text: string; link?: boolean } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -84,6 +86,8 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
       const res = await fetch(`${api}/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error ?? "No se pudo cambiar");
+      if (d.opened) setNotice({ text: `Mesa ${d.opened.table} abierta para ${r.name}`, link: true });
+      else if (d.notice) setNotice({ text: d.notice, link: true });
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cambiar");
@@ -126,6 +130,13 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
               <Link href={`/admin/${tenant}/configuracion/reservas`} className="font-semibold underline">Activar las reservas online</Link>
             </>
           )}
+        </p>
+      )}
+      {notice && (
+        <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+          {notice.text}
+          {notice.link && <Link href={`/admin/${tenant}/mesas`} className="font-semibold underline">Ir a Mesas</Link>}
+          <button type="button" onClick={() => setNotice(null)} className="ml-auto text-xs font-semibold">Cerrar</button>
         </p>
       )}
       {error && <p className="mt-4 rounded-2xl bg-[var(--p-accent-soft)] px-4 py-3 text-sm text-[var(--p-accent)]" role="alert">{error}</p>}
@@ -173,12 +184,16 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
                       </div>
                       <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
                     </div>
+                    <p className="mt-2 text-sm font-medium">
+                      {r.tableIds.length ? `${r.tableIds.length > 1 ? "Mesas" : "Mesa"} ${r.tableIds.map((id) => data.tableNames[id] ?? "?").join(" + ")}` : <span className="text-amber-700">Sin mesa</span>}
+                    </p>
                     {r.notes && <p className="mt-2 rounded-xl bg-[var(--p-warm,#f5f5f7)] px-3 py-2 text-sm">{r.notes}</p>}
                     <p className="mt-2 text-xs text-[var(--p-muted)]">{SOURCE[r.source]}{r.email ? ` · ${r.email}` : ""}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {r.status === "PENDING" && (
                         <>
                           <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CONFIRMED")} className={primary}>Confirmar</button>
+                          <button type="button" disabled={busy === r.id} onClick={() => setTableFor(r)} className={secondary}>Mesa</button>
                           <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CANCELLED", `¿Rechazar la reserva de ${r.name}?${r.email ? " Le avisaremos por email." : ""}`)} className={secondary}>Rechazar</button>
                         </>
                       )}
@@ -186,6 +201,7 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
                         <>
                           <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "SEATED")} className={primary}>Llegó</button>
                           <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "NO_SHOW")} className={secondary}>No vino</button>
+                          <button type="button" disabled={busy === r.id} onClick={() => setTableFor(r)} className={secondary}>Mesa</button>
                           <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CANCELLED", `¿Cancelar la reserva de ${r.name}?${r.email ? " Le avisaremos por email." : ""}`)} className={secondary}>Cancelar</button>
                         </>
                       )}
@@ -220,6 +236,17 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
         </div>
       )}
 
+      {tableFor && (
+        <TableSheet
+          api={`${api}/${tableFor.id}`}
+          r={tableFor}
+          onClose={() => setTableFor(null)}
+          onSaved={async () => {
+            setTableFor(null);
+            await load();
+          }}
+        />
+      )}
       {adding && data && (
         <NewSheet
           api={api}
@@ -341,6 +368,75 @@ function NewSheet({ api, storeId, date, onClose, onSaved }: { api: string; store
         Nota (opcional)
         <input value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value.slice(0, 300) })} placeholder="Cumpleaños, trona, terraza…" className={input} />
       </label>
+    </Sheet>
+  );
+}
+
+// Elegir la mesa de una reserva: primero la sugerida, después el resto de
+// mesas y combinaciones libres a esa hora; al final, las que se quedan cortas.
+function TableSheet({ api, r, onClose, onSaved }: { api: string; r: Reservation; onClose: () => void; onSaved: () => Promise<void> }) {
+  const [options, setOptions] = useState<{ tableIds: string[]; label: string; seats: number; combo: boolean; fits: boolean }[] | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    fetch(api, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((d) => setOptions(d.options ?? []))
+      .catch(() => setError("No se pudieron cargar las mesas"));
+  }, [api]);
+  const current = r.tableIds.join(",");
+  async function pick(tableIds: string[]) {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(api, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tableIds }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error ?? "No se pudo guardar");
+      await onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo guardar");
+      setBusy(false);
+    }
+  }
+  const fits = (options ?? []).filter((o) => o.fits);
+  const short = (options ?? []).filter((o) => !o.fits);
+  const row = (o: { tableIds: string[]; label: string; seats: number; combo: boolean }, best: boolean) => (
+    <li key={o.tableIds.join(",")}>
+      <button type="button" disabled={busy} onClick={() => pick(o.tableIds)} aria-pressed={o.tableIds.join(",") === current} className={`p-press flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-sm ${o.tableIds.join(",") === current ? "bg-[var(--p-brand)] text-white" : "bg-black/[0.04]"}`}>
+        <span className="flex-1 font-semibold">{o.label}</span>
+        <span className="text-xs opacity-80">{o.combo ? `hasta ${o.seats}` : `${o.seats} plazas`}</span>
+        {best && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">Sugerida</span>}
+      </button>
+    </li>
+  );
+  return (
+    <Sheet
+      title={`Mesa para ${r.name} · ${r.guests} pax`}
+      onClose={onClose}
+      footer={
+        <>
+          {error && <p className="mb-2 text-sm text-[var(--p-accent)]" role="alert">{error}</p>}
+          {r.tableIds.length > 0 && (
+            <button type="button" disabled={busy} onClick={() => pick([])} className="p-press w-full rounded-2xl py-3 text-sm font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">Quitar la mesa</button>
+          )}
+        </>
+      }
+    >
+      {options === null ? (
+        <p className="text-sm text-[var(--p-muted)]">Buscando mesas libres…</p>
+      ) : options.length === 0 ? (
+        <p className="text-sm text-[var(--p-muted)]">No hay mesas libres a esa hora. Crea las mesas en Mesas → Editar mesas.</p>
+      ) : (
+        <>
+          {fits.length > 0 ? <ul className="space-y-1.5">{fits.map((o, i) => row(o, i === 0))}</ul> : <p className="text-sm text-amber-700">Ninguna mesa libre tiene sitio para {r.guests}. Puedes crear una combinación en Mesas → Editar mesas.</p>}
+          {short.length > 0 && (
+            <>
+              <p className="mt-4 mb-1.5 text-[13px] font-medium text-[var(--p-muted)]">Más pequeñas (para juntar a mano)</p>
+              <ul className="space-y-1.5">{short.map((o) => row(o, false))}</ul>
+            </>
+          )}
+        </>
+      )}
     </Sheet>
   );
 }

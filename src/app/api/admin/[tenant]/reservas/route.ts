@@ -31,10 +31,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       prisma.reservation.findMany({
         where: { storeId, startsAt: { gte: startOfDayIn(ctx.tz, ymd), lt: startOfDayIn(ctx.tz, addDays(ymd, 1)) } },
         orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
-        select: { id: true, startsAt: true, durationMinutes: true, guests: true, name: true, phone: true, email: true, notes: true, status: true, source: true, code: true, createdAt: true },
+        select: { id: true, startsAt: true, durationMinutes: true, guests: true, name: true, phone: true, email: true, notes: true, status: true, source: true, code: true, createdAt: true, tableIds: true },
       }),
       a.session.storeId ? Promise.resolve([]) : listStores(a.tenant.id, { activeOnly: true }),
     ]);
+    const tables = await prisma.diningTable.findMany({ where: { storeId }, select: { id: true, name: true } });
     return NextResponse.json({
       date: ymd,
       today: localParts(new Date(), ctx.tz).ymd,
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       capacity: ctx.capacity,
       settings: { enabled: ctx.settings.enabled, autoConfirm: ctx.settings.autoConfirm, durationMinutes: ctx.settings.durationMinutes },
       reservations: list,
+      tableNames: Object.fromEntries(tables.map((t) => [t.id, t.name])),
     });
   } catch (err) {
     console.error("[GET /api/admin/reservas]", err);

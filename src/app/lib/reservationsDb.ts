@@ -8,6 +8,7 @@ import { addDays, localParts, startOfDayIn, tenantTimeZone } from "@/app/lib/tim
 import { readBusiness } from "@/app/lib/business";
 import { emailConfigured, reservationCustomerEmail, reservationRestaurantEmail, sendEmail } from "@/app/lib/email";
 import { FALLBACK_CAPACITY, readReservationSettings, reservationLabel, reservationSlots, type ReservationSettings } from "@/app/lib/reservations";
+import { readCombos, tableOptions } from "@/app/lib/tableCombos";
 
 export const ACTIVE: ReservationStatus[] = ["PENDING", "CONFIRMED", "SEATED"];
 
@@ -41,6 +42,29 @@ export async function slotsFor(ctx: Ctx, ymd: string, guests: number, opts: { ig
   return reservationSlots({ ymd, hours: parseHours(store?.openingHours), closures: store?.closures ?? [], tz: ctx.tz, now, settings: ctx.settings, capacity: ctx.capacity, bookings, guests, ignoreNotice: opts.ignoreNotice });
 }
 
+// Mesas ocupadas a una hora: las de otras reservas que se solapan y, si la
+// reserva empieza en la próxima hora y media, las que tienen la cuenta abierta.
+async function busyTables(storeId: string, startsAt: Date, durationMinutes: number, excludeId: string | null, db: Prisma.TransactionClient = prisma): Promise<Set<string>> {
+  const from = new Date(startsAt.getTime() - 6 * 3_600_000), to = new Date(startsAt.getTime() + durationMinutes * 60_000);
+  const [others, open] = await Promise.all([
+    db.reservation.findMany({ where: { storeId, status: { in: ACTIVE }, startsAt: { gte: from, lt: to }, ...(excludeId && { id: { not: excludeId } }) }, select: { startsAt: true, durationMinutes: true, tableIds: true } }),
+    startsAt.getTime() < Date.now() + 90 * 60_000 ? db.order.findMany({ where: { storeId, status: "OPEN", tableId: { not: null } }, select: { tableId: true } }) : Promise.resolve([]),
+  ]);
+  const busy = new Set(open.map((o) => o.tableId!));
+  for (const r of others) if (r.startsAt.getTime() + r.durationMinutes * 60_000 > startsAt.getTime()) r.tableIds.forEach((id) => busy.add(id));
+  return busy;
+}
+
+// Opciones de mesa para una reserva (la primera es la sugerida).
+export async function optionsFor(storeId: string, startsAt: Date, durationMinutes: number, guests: number, excludeId: string | null = null, db: Prisma.TransactionClient = prisma) {
+  const [store, tables, busy] = await Promise.all([
+    db.store.findUnique({ where: { id: storeId }, select: { tableCombos: true } }),
+    db.diningTable.findMany({ where: { storeId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, name: true, seats: true, zone: true } }),
+    busyTables(storeId, startsAt, durationMinutes, excludeId, db),
+  ]);
+  return tableOptions(tables, readCombos(store?.tableCombos, new Set(tables.map((t) => t.id))), guests, busy);
+}
+
 export type NewReservation = { startsAt: Date; guests: number; name: string; phone: string; email: string | null; notes: string | null };
 
 // Crea la reserva comprobando el aforo dentro de una transacción con candado
@@ -62,8 +86,11 @@ export async function createReservation(ctx: Ctx, input: NewReservation, opts: {
       }, 0);
       if (used + input.guests > ctx.capacity) throw new ReservationError(opts.staff ? `A esa hora solo quedan ${Math.max(0, ctx.capacity - used)} plazas` : "Ya no queda sitio a esa hora: elige otra");
     }
+    // Mesa: la mejor libre a esa hora (se puede cambiar en Reservas).
+    const best = (await optionsFor(ctx.storeId, input.startsAt, ctx.settings.durationMinutes, input.guests, null, tx)).find((o) => o.fits);
     return tx.reservation.create({
       data: {
+        tableIds: best?.tableIds ?? [],
         tenantId: ctx.tenantId,
         storeId: ctx.storeId,
         code: randomBytes(12).toString("base64url"),

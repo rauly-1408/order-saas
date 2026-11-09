@@ -9,9 +9,12 @@ import { STORE_VARS } from "../storeVars";
 export type Shape = "SQUARE" | "ROUND";
 // orderId null: abierta sin conexión, aún sin cuenta en el servidor. pending: tiene algo sin enviar.
 export type TableOpen = { orderId: string | null; orderNumber: number | null; label?: string | null; guests: number | null; totalCents: number; openedAt: string; billRequested: boolean; waiter: string | null; lines: number; rounds: number; lastRoundAt: string | null; pending?: boolean };
-export type Table = { id: string; name: string; zone: string; seats: number; shape: Shape; posX: number | null; posY: number | null; open: TableOpen | null };
+// reservation: la próxima reserva de hoy con esa mesa asignada (Reservas). Ver docs/RESERVAS.md
+export type TableBooking = { id: string; at: string; name: string; guests: number; pending: boolean };
+export type Table = { id: string; name: string; zone: string; seats: number; shape: Shape; posX: number | null; posY: number | null; open: TableOpen | null; reservation?: TableBooking | null };
+export type TableCombo = { id: string; tables: string[]; min: number; max: number; priority: number };
 export type Fixture = { id: string; kind: "BAR" | "WALL" | "LABEL"; x: number; y: number; w: number; h: number; label: string };
-export type MapData = { stores: { id: string; name: string }[]; storeId: string | null; canManage: boolean; canCharge?: boolean; sees: boolean; tables: Table[]; fixtures: Record<string, Fixture[]>; zones?: string[] };
+export type MapData = { stores: { id: string; name: string }[]; storeId: string | null; canManage: boolean; canCharge?: boolean; sees: boolean; tables: Table[]; fixtures: Record<string, Fixture[]>; zones?: string[]; combos?: TableCombo[] };
 
 export type CuentaLine = { id: string; name: string; quantity: number; totalCents: number; discountCents: number; modifiers: string[]; note: string | null; ready?: boolean }; // ready: la cocina o la barra lo marcó listo
 export type Round = { round: number; at: string; by: string | null; lines: CuentaLine[] };
