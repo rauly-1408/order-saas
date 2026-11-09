@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { readPanelCache, writePanelCache } from "../panelCache";
 import { Sheet } from "../mesas/shared";
 import { Switch } from "./CartaClient";
+import { BTN } from "../buttons";
 
 // Carta → Opciones: lo que el cliente elige al pedir (pan, guarnición, extras,
 // salsas…). Cada grupo tiene sus opciones con precio y se aplica a los productos
@@ -249,7 +250,7 @@ export default function Opciones({ tenant }: { tenant: string }) {
                   </li>
                 ))}
               </ul>
-              <button type="button" onClick={() => setForm({ ...form, options: [...form.options, { name: "", priceDeltaCents: 0, isAvailable: true, price: "", key: newKey() }] })} className="mt-2 text-sm font-semibold text-[var(--p-brand)]">
+              <button type="button" onClick={() => setForm({ ...form, options: [...form.options, { name: "", priceDeltaCents: 0, isAvailable: true, price: "", key: newKey() }] })} className={`${BTN.add} mt-2`}>
                 + Añadir opción
               </button>
             </div>

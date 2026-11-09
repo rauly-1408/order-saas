@@ -3,6 +3,7 @@
 import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { toast, useSaveBar } from "./ui";
+import { BTN } from "../buttons";
 
 // Configuración → Envío y entrega: el pedido se hace en nuestra tienda y
 // solo se contrata el repartidor (Glovo On-Demand). Modo prueba para probarlo
@@ -149,7 +150,7 @@ export default function RepartoExterno({ tenant }: { tenant: string }) {
             {view.publicKeyPem && (
               <div className="mt-2">
                 <textarea readOnly value={view.publicKeyPem} rows={5} className={`${input} font-mono text-[11px]`} aria-label="Clave pública para Glovo" />
-                <button onClick={() => navigator.clipboard?.writeText(view.publicKeyPem ?? "")} className="mt-1 text-xs font-semibold text-[var(--p-brand)]">
+                <button onClick={() => navigator.clipboard?.writeText(view.publicKeyPem ?? "")} className={`${BTN.secondary} mt-2`}>
                   Copiar clave pública
                 </button>
               </div>

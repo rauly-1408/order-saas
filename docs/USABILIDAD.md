@@ -80,3 +80,16 @@ El panel se usará en pantallas táctiles (tablet o TPV), así que todo lo que s
 - **Enlaces de texto sueltos** («Ver todos ›», «Carta en inglés →», «Factura» en el historial de pedidos): `inline-flex min-h-11`.
 - **Enlaces dentro de una frase**: `py-3 -my-3`, para agrandar la zona del dedo sin mover el texto.
 - **Medición**: antes había entre 1 y 36 elementos por página por debajo de 40 px (pestañas de 32 px, «Abrir caja» de 28 px, casillas de 16 px, enlaces de 16-20 px). Ahora solo quedan las excepciones, en todas las páginas y a 1024 y 375 px.
+
+## Botones iguales en todo el panel (2026-11-09)
+
+- Estilos únicos en `(panel)/buttons.ts` (`BTN`):
+  - `primary`: acción principal, píldora del color de la marca;
+  - `secondary`: acción normal, píldora gris;
+  - `add`: «+ Añadir algo» dentro de una tarjeta, píldora suave de la marca;
+  - `back`: «‹ Volver»;
+  - `link`: enlace dentro de un texto.
+- `primaryBtn` y `ghostBtn` de `configuracion/ui.tsx` y `clientes/types.ts` apuntan a estos.
+- Los «+ Añadir…» que eran texto suelto ahora usan `add`: cierres, zonas de reparto, franjas, opciones, ingredientes y emails de proveedor.
+- Al pasar el ratón, solo los botones con forma (clase `rounded`) se elevan con sombra. Los de texto (enlaces, ✕, cabeceras de tabla) solo cambian de tono: antes salía una caja con sombra alrededor del texto.
+- Horario: botón «Copiar el horario del lunes a todos los días».

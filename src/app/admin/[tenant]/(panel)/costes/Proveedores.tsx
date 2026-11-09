@@ -4,6 +4,7 @@ import { ask } from "@/app/lib/dialog";
 import { useState } from "react";
 import { DAY_SHORT, deliveryDateText, deliverySummary, nextDeliveryOffset } from "@/app/lib/purchasing";
 import type { Overview, Supplier, SupplierOrderMethod } from "./types";
+import { BTN } from "../buttons";
 
 type Form = {
   id: string | null;
@@ -169,7 +170,7 @@ export default function Proveedores({ data, api, onSaved }: { data: Overview; ap
                 </div>
               ))}
               {form.extraEmails.length < 5 && (
-                <button type="button" onClick={() => setForm({ ...form, extraEmails: [...form.extraEmails, ""] })} className="mt-2 text-sm font-medium text-[var(--p-brand)]">
+                <button type="button" onClick={() => setForm({ ...form, extraEmails: [...form.extraEmails, ""] })} className={`${BTN.add} mt-2`}>
                   + Añadir email en copia
                 </button>
               )}
