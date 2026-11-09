@@ -6,7 +6,7 @@ import { ui, type Lang } from "@/app/lib/i18n";
 // Reserva en tres pasos en una sola pantalla: personas, día y hora, y datos.
 // Usa las CSS vars del tema del restaurante. Ver docs/RESERVAS.md
 type Slot = { at: string; time: string; available: boolean };
-type Props = { tenant: string; name: string; logoUrl: string | null; cssVars: Record<string, string>; lang: Lang; enabled: boolean; storeId: string | null; maxGuests: number; note: string; days: string[]; phone: string | null };
+type Props = { tenant: string; name: string; logoUrl: string | null; cssVars: Record<string, string>; lang: Lang; enabled: boolean; storeId: string | null; maxGuests: number; note: string; days: string[]; phone: string | null; initialDay?: string; initialGuests?: number };
 
 const pill = (on: boolean) =>
   `p-press shrink-0 rounded-2xl border-2 px-4 py-2.5 text-[15px] font-bold ${on ? "border-[var(--brand-accent)] bg-[var(--brand-accent)] text-[var(--on-accent)]" : "border-[var(--border)] bg-[var(--surface-0)] text-[var(--text-primary)]"}`;
@@ -14,9 +14,10 @@ const field = "mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--su
 
 export default function ReservarClient(p: Props) {
   const T = ui(p.lang);
-  const [guests, setGuests] = useState(2);
-  const [day, setDay] = useState(p.days[0]);
+  const [guests, setGuests] = useState(p.initialGuests ?? 2);
+  const [day, setDay] = useState(p.initialDay ?? p.days[0]);
   const [slots, setSlots] = useState<Slot[] | null>(null);
+  const [canWait, setCanWait] = useState(false);
   const [at, setAt] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", email: "", notes: "" });
   const [busy, setBusy] = useState(false);
@@ -30,7 +31,11 @@ export default function ReservarClient(p: Props) {
     setAt(null);
     fetch(`/api/reservas/${p.tenant}?fecha=${day}&personas=${guests}${p.storeId ? `&local=${p.storeId}` : ""}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : { slots: [] }))
-      .then((d) => alive && setSlots(d.slots ?? []))
+      .then((d) => {
+        if (!alive) return;
+        setSlots(d.slots ?? []);
+        setCanWait(d.waitlist === true);
+      })
       .catch(() => alive && setSlots([]));
     return () => {
       alive = false;
@@ -51,6 +56,9 @@ export default function ReservarClient(p: Props) {
     ].filter((g) => g.items.length);
   }, [slots, T]);
   const chosen = slots?.find((s) => s.at === at) ?? null;
+  // Hora completa elegida = apuntarse a la lista de espera.
+  const waiting = !!chosen && !chosen.available;
+  const anyFull = !!slots?.some((s) => !s.available);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,7 +66,7 @@ export default function ReservarClient(p: Props) {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`/api/reservas/${p.tenant}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ at, guests, ...form, storeId: p.storeId, lang: p.lang }) });
+      const res = await fetch(`/api/reservas/${p.tenant}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ at, guests, ...form, storeId: p.storeId, lang: p.lang, waitlist: waiting }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error ?? "No se pudo reservar");
       setDone(d);
@@ -85,11 +93,11 @@ export default function ReservarClient(p: Props) {
       <main className="mx-auto max-w-2xl px-4 pb-16 pt-8 sm:px-6">
         {done ? (
           <section className="rounded-[26px] bg-[var(--surface-0)] p-6 text-center shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:p-8" role="status">
-            <p className="text-[44px]" aria-hidden>{done.status === "PENDING" ? "🕓" : "✅"}</p>
-            <h1 className="mt-2 text-[28px] font-bold">{done.status === "PENDING" ? T.bookPending : T.bookDone}</h1>
+            <p className="text-[44px]" aria-hidden>{done.status === "PENDING" || done.status === "WAITLIST" ? "🕓" : "✅"}</p>
+            <h1 className="mt-2 text-[28px] font-bold">{done.status === "WAITLIST" ? T.bookWaitDone : done.status === "PENDING" ? T.bookPending : T.bookDone}</h1>
             <p className="mt-2 text-[17px] font-semibold first-letter:uppercase">{when}</p>
             <p className="text-[15px] text-[var(--text-secondary)]">{T.bookPeopleN(guests)} · {form.name}</p>
-            <p className="mt-4 text-[15px]">{done.status === "PENDING" ? T.bookPendingText : T.bookSeeYou}</p>
+            <p className="mt-4 text-[15px]">{done.status === "WAITLIST" ? T.bookWaitDoneText : done.status === "PENDING" ? T.bookPendingText : T.bookSeeYou}</p>
             <a href={`/pedir/${p.tenant}/reserva/${done.code}`} className="p-press mt-6 inline-flex rounded-full bg-[var(--brand-accent)] px-6 py-3.5 text-[15px] font-bold text-[var(--on-accent)] no-underline">
               {T.bookViewLink}
             </a>
@@ -142,12 +150,13 @@ export default function ReservarClient(p: Props) {
                 <p className="rounded-2xl bg-[var(--surface-0)] px-4 py-4 text-[15px] text-[var(--text-secondary)]">{T.bookNoSlots}</p>
               ) : (
                 <div className="space-y-4">
+                  {canWait && anyFull && <p className="text-[14px] text-[var(--text-secondary)]">{T.bookWaitHint}</p>}
                   {groups.map((g) => (
                     <div key={g.title}>
                       <p className="mb-2 text-[13px] font-bold uppercase tracking-[0.08em] text-[var(--text-secondary)]">{g.title}</p>
                       <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                         {g.items.map((s) => (
-                          <button key={s.at} type="button" disabled={!s.available} onClick={() => setAt(s.at)} aria-pressed={at === s.at} className={`${pill(at === s.at)} px-0 tabular-nums disabled:cursor-not-allowed disabled:opacity-35 disabled:line-through`}>
+                          <button key={s.at} type="button" disabled={!s.available && !canWait} onClick={() => setAt(s.at)} aria-pressed={at === s.at} className={`${pill(at === s.at)} px-0 tabular-nums disabled:cursor-not-allowed disabled:opacity-35 ${s.available ? "" : at === s.at ? "line-through" : "line-through opacity-45"}`}>
                             {s.time}
                           </button>
                         ))}
@@ -160,8 +169,9 @@ export default function ReservarClient(p: Props) {
 
             {at && (
               <section aria-labelledby="b-data" className="space-y-3 rounded-[26px] bg-[var(--surface-0)] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:p-6">
-                <h2 id="b-data" className="text-[18px] font-bold">{T.bookYourData}</h2>
+                <h2 id="b-data" className="text-[18px] font-bold">{waiting ? T.bookWaitTitle : T.bookYourData}</h2>
                 <p className="text-[15px] font-semibold text-[var(--text-secondary)] first-letter:uppercase">{when} · {T.bookPeopleN(guests)}</p>
+                {waiting && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-[14px] text-amber-900">{T.bookWaitText}</p>}
                 <label className="block text-[14px] font-semibold">
                   {T.yourName}
                   <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoComplete="name" className={field} />
@@ -171,8 +181,8 @@ export default function ReservarClient(p: Props) {
                   <input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} inputMode="tel" autoComplete="tel" placeholder="6XX XXX XXX" className={field} />
                 </label>
                 <label className="block text-[14px] font-semibold">
-                  {T.bookEmailOpt}
-                  <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoComplete="email" className={field} />
+                  {waiting ? T.bookEmailReq : T.bookEmailOpt}
+                  <input type="email" required={waiting} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoComplete="email" className={field} />
                 </label>
                 <label className="block text-[14px] font-semibold">
                   {T.bookNotes}
@@ -180,7 +190,7 @@ export default function ReservarClient(p: Props) {
                 </label>
                 {error && <p className="text-[14px] font-semibold text-red-600" role="alert">{error}</p>}
                 <button type="submit" disabled={busy} className="p-press w-full rounded-full bg-[var(--brand-accent)] py-4 text-[16px] font-bold text-[var(--on-accent)] disabled:opacity-60">
-                  {busy ? T.bookSending : `${T.bookConfirm} · ${T.bookPeopleN(guests)}`}
+                  {busy ? T.bookSending : waiting ? T.bookWaitJoin : `${T.bookConfirm} · ${T.bookPeopleN(guests)}`}
                 </button>
               </section>
             )}

@@ -14,6 +14,8 @@ export type ReservationSettings = {
   capacity: number; // comensales a la vez; 0 = suma de plazas de las mesas
   stepMinutes: number; // cada cuánto se ofrece una hora
   notifyEmail: boolean; // aviso por email al restaurante
+  remindEmail: boolean; // recordatorio al cliente el día antes, con «confirmo que voy»
+  waitlist: boolean; // si no hay sitio, el cliente se apunta a la lista de espera
   customerNote: string; // texto que ve el cliente al reservar
 };
 
@@ -27,6 +29,8 @@ export const DEFAULT_RESERVATIONS: ReservationSettings = {
   capacity: 0,
   stepMinutes: 15,
   notifyEmail: true,
+  remindEmail: true,
+  waitlist: true,
   customerNote: "",
 };
 export const FALLBACK_CAPACITY = 30; // sin mesas creadas ni aforo puesto
@@ -49,6 +53,8 @@ export function readReservationSettings(settings: unknown): ReservationSettings 
     capacity: int(r.capacity, 0, 2000, d.capacity),
     stepMinutes: [15, 30].includes(Number(r.stepMinutes)) ? Number(r.stepMinutes) : d.stepMinutes,
     notifyEmail: r.notifyEmail !== false,
+    remindEmail: r.remindEmail !== false,
+    waitlist: r.waitlist !== false,
     customerNote: typeof r.customerNote === "string" ? r.customerNote.trim().slice(0, 300) : "",
   };
 }

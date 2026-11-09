@@ -47,6 +47,8 @@ export default function Reservas({ tenant }: { tenant: string }) {
           <Toggle checked={r.enabled} onChange={(v) => set({ enabled: v })} label="Aceptar reservas desde la tienda" hint="Sale el botón «Reservar mesa» en tu carta. Las reservas por teléfono las apuntas en Reservas aunque esto esté apagado." />
           <Toggle checked={r.autoConfirm} onChange={(v) => set({ autoConfirm: v })} label="Confirmarlas al momento" hint="Si lo apagas, cada reserva queda pendiente hasta que la aceptes en Reservas." />
           <Toggle checked={r.notifyEmail} onChange={(v) => set({ notifyEmail: v })} label="Avisarme por email de cada reserva" hint="Al email de Información del negocio." />
+          <Toggle checked={r.remindEmail} onChange={(v) => set({ remindEmail: v })} label="Recordatorio al cliente el día antes" hint="Le llega un email por la mañana con «Confirmo que vamos» o «Cancelar». En Reservas verás quién confirmó." />
+          <Toggle checked={r.waitlist} onChange={(v) => set({ waitlist: v })} label="Lista de espera cuando esté completo" hint="El cliente puede apuntarse a una hora llena. Si alguien cancela, le avisamos por email para que reserve." />
         </div>
         {r.enabled && (
           <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl bg-black/[0.03] px-3 py-2.5">

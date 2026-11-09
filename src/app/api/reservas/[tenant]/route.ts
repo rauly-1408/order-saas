@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const ymd = /^\d{4}-\d{2}-\d{2}$/.test(q.get("fecha") ?? "") ? q.get("fecha")! : localParts(new Date(), ctx.tz).ymd;
   const guests = Math.min(ctx.settings.maxGuestsOnline, Math.max(1, Math.floor(Number(q.get("personas")) || 2)));
   const slots = await slotsFor(ctx, ymd, guests);
-  return NextResponse.json({ date: ymd, guests, slots: slots.map(({ at, time, available }) => ({ at, time, available })) });
+  return NextResponse.json({ date: ymd, guests, waitlist: ctx.settings.waitlist, slots: slots.map(({ at, time, available }) => ({ at, time, available })) });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
@@ -49,10 +49,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     if (!name) return NextResponse.json({ error: "Escribe tu nombre" }, { status: 400 });
     if (!isValidSpanishPhone(phone)) return NextResponse.json({ error: "Escribe un teléfono válido (9 cifras)" }, { status: 400 });
     if (email && !isValidEmail(email)) return NextResponse.json({ error: "El email no es válido" }, { status: 400 });
+    const waitlist = b.waitlist === true;
+    if (waitlist && !ctx.settings.waitlist) return NextResponse.json({ error: "Este restaurante no tiene lista de espera" }, { status: 400 });
+    if (waitlist && !email) return NextResponse.json({ error: "Deja tu email para avisarte si queda sitio" }, { status: 400 });
     let r;
     for (let i = 0; ; i++) {
       try {
-        r = await createReservation(ctx, { startsAt, guests, name, phone, email, notes }, { source: "ONLINE" });
+        r = await createReservation(ctx, { startsAt, guests, name, phone, email, notes }, { source: "ONLINE", waitlist });
         break;
       } catch (err) {
         if (i < 2 && isDuplicateCode(err)) continue;

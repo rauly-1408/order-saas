@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       prisma.reservation.findMany({
         where: { storeId, startsAt: { gte: startOfDayIn(ctx.tz, ymd), lt: startOfDayIn(ctx.tz, addDays(ymd, 1)) } },
         orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
-        select: { id: true, startsAt: true, durationMinutes: true, guests: true, name: true, phone: true, email: true, notes: true, status: true, source: true, code: true, createdAt: true, tableIds: true },
+        select: { id: true, startsAt: true, durationMinutes: true, guests: true, name: true, phone: true, email: true, notes: true, status: true, source: true, code: true, createdAt: true, tableIds: true, customerConfirmedAt: true, reminderSentAt: true },
       }),
       a.session.storeId ? Promise.resolve([]) : listStores(a.tenant.id, { activeOnly: true }),
     ]);

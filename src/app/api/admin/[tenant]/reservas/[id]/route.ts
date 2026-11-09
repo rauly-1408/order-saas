@@ -2,7 +2,8 @@ import { NextRequest, NextResponse, after } from "next/server";
 import type { ReservationStatus } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { reservationsAuth } from "@/app/lib/reservationsApi";
-import { notifyReservation, optionsFor } from "@/app/lib/reservationsDb";
+import { ACTIVE, notifyReservation, notifyWaitlist, optionsFor, reservationContext } from "@/app/lib/reservationsDb";
+import { guestsAt } from "@/app/lib/reservations";
 import { TableError, openTable, setTableLabel } from "@/app/lib/tables";
 
 export const runtime = "nodejs";
@@ -18,6 +19,7 @@ const NEXT: Record<ReservationStatus, ReservationStatus[]> = {
   SEATED: ["CONFIRMED"], // deshacer «Llegó»
   NO_SHOW: ["CONFIRMED"], // deshacer «No vino»
   CANCELLED: ["CONFIRMED"], // recuperar
+  WAITLIST: ["CONFIRMED", "CANCELLED"], // lista de espera: dar mesa o quitar
 };
 
 async function find(req: NextRequest, params: Promise<{ tenant: string; id: string }>) {
@@ -52,12 +54,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ te
 
     const to = b.status as ReservationStatus;
     if (!NEXT[r.status]?.includes(to)) return NextResponse.json({ error: "Ese cambio no se puede hacer" }, { status: 400 });
+
+    // Dar mesa a la lista de espera: comprobar el sitio (se puede forzar) y buscarle mesa.
+    let tableIds: string[] | undefined;
+    if (r.status === "WAITLIST" && to === "CONFIRMED") {
+      const ctx = await reservationContext(tenant, r.storeId);
+      const others = await prisma.reservation.findMany({ where: { storeId: r.storeId, status: { in: ACTIVE }, startsAt: { gte: new Date(r.startsAt.getTime() - 6 * 3_600_000), lt: new Date(r.startsAt.getTime() + r.durationMinutes * 60_000) } }, select: { startsAt: true, durationMinutes: true, guests: true } });
+      const free = ctx.capacity - guestsAt(others, r.startsAt, r.durationMinutes);
+      if (free < r.guests && b.force !== true) return NextResponse.json({ error: `A esa hora solo quedan ${Math.max(0, free)} plazas`, full: true }, { status: 409 });
+      tableIds = (await optionsFor(r.storeId, r.startsAt, r.durationMinutes, r.guests, r.id)).find((o) => o.fits)?.tableIds ?? [];
+    }
     await prisma.reservation.update({
       where: { id: r.id },
-      data: { status: to, ...(to === "CANCELLED" ? { cancelledAt: new Date(), cancelledBy: "RESTAURANT" } : { cancelledAt: null, cancelledBy: null }) },
+      data: { status: to, ...(tableIds && { tableIds }), ...(to === "CANCELLED" ? { cancelledAt: new Date(), cancelledBy: "RESTAURANT" } : { cancelledAt: null, cancelledBy: null }) },
     });
-    if (r.status === "PENDING" && to === "CONFIRMED") after(() => notifyReservation(r.id, "confirmed"));
-    if (to === "CANCELLED") after(() => notifyReservation(r.id, "cancelled"));
+    if ((r.status === "PENDING" || r.status === "WAITLIST") && to === "CONFIRMED") after(() => notifyReservation(r.id, "confirmed"));
+    if (to === "CANCELLED" && r.status !== "WAITLIST") after(() => notifyReservation(r.id, "cancelled"));
+    // Se libera sitio: avisar a la lista de espera de ese día.
+    if ((to === "CANCELLED" || to === "NO_SHOW") && ACTIVE.includes(r.status)) {
+      const t = await prisma.tenant.findUnique({ where: { id: tenant.id }, select: { id: true, slug: true, name: true, settings: true } });
+      if (t) after(() => notifyWaitlist(t, r.storeId, r.startsAt));
+    }
 
     // «Llegó»: abrir su mesa (la primera si es una combinación) con su nombre.
     let opened: { orderId: string; table: string } | null = null;

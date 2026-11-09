@@ -1,6 +1,6 @@
 # Reservas
 
-Reservas de mesa desde la tienda y apuntadas por el restaurante. Entrega 1: reservar y gestionar. Entrega 2: mesas, combinaciones y plano. La entrega 3 (recordatorios y lista de espera) está en «Pendiente».
+Reservas de mesa desde la tienda y apuntadas por el restaurante. Entrega 1: reservar y gestionar. Entrega 2: mesas, combinaciones y plano. Entrega 3: recordatorio el día antes y lista de espera.
 
 ## Qué ve el cliente
 
@@ -52,6 +52,20 @@ Reservas de mesa desde la tienda y apuntadas por el restaurante. Entrega 1: rese
   - prioridad: Primero, Normal o Último;
   - no se repite la misma combinación.
 
+## Recordatorio y lista de espera (entrega 3)
+
+- **Recordatorio:**
+  - cada mañana a las 9:00 UTC un cron de Vercel (`/api/cron/reservas-recordatorio`) manda un email a las reservas confirmadas con email de hoy (con más de 2 h por delante) y de mañana;
+  - el email lleva el enlace a su reserva, con «Confirmo que vamos» y «Cancelar»;
+  - en Reservas sale «Recordatorio enviado» y, si confirma, «✓ Confirmó que viene»;
+  - se manda una sola vez (`reminderSentAt`).
+- **Lista de espera:**
+  - en la tienda, las horas completas salen tachadas pero se pueden tocar; el cliente se apunta con email obligatorio;
+  - la reserva queda en estado WAITLIST: no ocupa sitio ni mesa;
+  - cuando se cancela una reserva o se marca «No vino», se avisa por email a la gente en espera de ese día que ahora cabe, una vez por persona (`waitlistNotifiedAt`), con un enlace a reservar con el día y las personas ya elegidos;
+  - en el panel, «Lista de espera (n)» con «Dar mesa» (comprueba el aforo, pregunta si está lleno y le busca mesa) y «Quitar».
+- **Necesita:** la variable `CRON_SECRET` en Vercel (la misma del resumen diario) y el email configurado.
+
 ## Configuración → Reservas
 
 | Ajuste | Por defecto |
@@ -59,6 +73,8 @@ Reservas de mesa desde la tienda y apuntadas por el restaurante. Entrega 1: rese
 | Aceptar reservas desde la tienda | Apagado |
 | Confirmarlas al momento (si no, pendientes) | Encendido |
 | Avisarme por email | Encendido |
+| Recordatorio al cliente el día antes | Encendido |
+| Lista de espera cuando esté completo | Encendido |
 | Duración de cada mesa | 90 min |
 | Aforo para reservas (0 = suma de plazas de las mesas; sin mesas, 30) | 0 |
 | Máximo de personas por reserva online | 8 |
@@ -73,9 +89,10 @@ Las horas salen del **horario del local** (Horario y zonas): abierto al llegar y
 
 - **Esquema:**
   - modelo `Reservation` (local, mesa opcional para la entrega 2, `code` público, `startsAt`, `durationMinutes`, personas, datos, estado y origen);
-  - enums `ReservationStatus` (PENDING, CONFIRMED, SEATED, NO_SHOW, CANCELLED) y `ReservationSource` (ONLINE, PHONE, WALKIN);
+  - enums `ReservationStatus` (PENDING, CONFIRMED, SEATED, NO_SHOW, CANCELLED, WAITLIST) y `ReservationSource` (ONLINE, PHONE, WALKIN);
   - migración `20261109161514_reservas`;
   - ajustes en `Tenant.settings.reservations`;
+  - entrega 3: `WAITLIST`, `reminderSentAt`, `customerConfirmedAt` y `waitlistNotifiedAt`, migración `*_reservas_recordatorio`;
   - entrega 2: `Reservation.tableIds` (mesa o mesas) y `Store.tableCombos` (`[{ id, tables, min, max, priority }]`), migración `*_reservas_mesas`.
 - **Lógica:**
   - `lib/reservations.ts` (puro, con pruebas en `__tests__/reservations.test.ts`): ajustes, horas libres (`reservationSlots`) y ocupación (`guestsAt`).
@@ -84,7 +101,9 @@ Las horas salen del **horario del local** (Horario y zonas): abierto al llegar y
   - `lib/tableCombos.ts` (puro, con pruebas): `readCombos` y `tableOptions`. `optionsFor` en `reservationsDb.ts` añade las mesas ocupadas.
 - **API pública:**
   - `GET/POST /api/reservas/[tenant]`: horas libres y reservar (8 por minuto por IP);
-  - `POST /api/reservas/[tenant]/[code]` `{ action: "cancel" }`.
+  - `POST /api/reservas/[tenant]` con `waitlist: true` apunta a la lista de espera;
+  - `POST /api/reservas/[tenant]/[code]` `{ action: "cancel" | "confirm" }`;
+  - `GET /api/cron/reservas-recordatorio` con `Authorization: Bearer CRON_SECRET` (`sendReminders`).
 - **API del panel:**
   - `GET/POST /api/admin/[tenant]/reservas`: día, horas para apuntar y nueva reserva (`force` para pasar del aforo);
   - `GET /api/admin/[tenant]/reservas/[id]`: opciones de mesa;
@@ -97,8 +116,6 @@ Las horas salen del **horario del local** (Horario y zonas): abierto al llegar y
 ## Pendiente
 
 - Juntar en una sola cuenta todas las mesas de una combinación al sentar (hoy se abre la primera).
-- **Entrega 3:**
-  - recordatorio el día antes con confirmar o cancelar;
-  - lista de espera cuando no hay sitio;
-  - tarjeta en garantía o pago por adelantado para grupos.
+- Tarjeta en garantía o pago por adelantado para grupos.
+- Recordatorio por SMS o WhatsApp (hoy solo email).
 - **Reservar con Google:** Google tiene que aprobar a NorApp como socio.

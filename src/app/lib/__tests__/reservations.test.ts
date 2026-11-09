@@ -62,3 +62,23 @@ describe("readReservationSettings", () => {
     expect(r).toMatchObject({ enabled: true, durationMinutes: 30, maxGuestsOnline: 50, stepMinutes: 15 });
   });
 });
+
+describe("entrega 3: recordatorio y lista de espera", () => {
+  it("recordatorio y lista de espera vienen encendidos y se pueden apagar", () => {
+    expect(readReservationSettings({}).remindEmail).toBe(true);
+    expect(readReservationSettings({}).waitlist).toBe(true);
+    const off = readReservationSettings({ reservations: { remindEmail: false, waitlist: false } });
+    expect(off.remindEmail).toBe(false);
+    expect(off.waitlist).toBe(false);
+  });
+
+  it("el email del recordatorio lleva el enlace para confirmar o cancelar", async () => {
+    const { reservationReminderEmail, waitlistEmail } = await import("../email");
+    const m = reservationReminderEmail({ restaurant: "Estafetén", when: "jueves 12 de noviembre · 21:00", guests: 4, address: "Calle Mayor 1", link: "https://x/pedir/e/reserva/abc", lang: "es" });
+    expect(m.subject).toContain("Estafetén");
+    expect(m.html).toContain("https://x/pedir/e/reserva/abc");
+    expect(m.text).toContain("4 personas");
+    const w = waitlistEmail({ restaurant: "Estafetén", when: "hoy · 21:00", guests: 2, kind: "spot", link: "https://x/pedir/e/reservar?fecha=2026-11-12&personas=2", lang: "es" });
+    expect(w.html).toContain("personas=2");
+  });
+});

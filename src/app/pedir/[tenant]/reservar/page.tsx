@@ -11,8 +11,9 @@ import ReservarClient from "./ReservarClient";
 export const dynamic = "force-dynamic";
 
 // «Reserva tu mesa»: personas, día, hora y datos. Ver docs/RESERVAS.md
-export default async function ReservarPage({ params }: { params: Promise<{ tenant: string }> }) {
+export default async function ReservarPage({ params, searchParams }: { params: Promise<{ tenant: string }>; searchParams: Promise<{ fecha?: string; personas?: string }> }) {
   const { tenant } = await params;
+  const q = await searchParams;
   const t = await prisma.tenant.findUnique({ where: { slug: tenant }, select: { id: true, name: true, branding: true, settings: true } });
   if (!t) notFound();
   const lang = await storeLang(t.settings);
@@ -36,6 +37,9 @@ export default async function ReservarPage({ params }: { params: Promise<{ tenan
       note={settings.customerNote}
       days={days}
       phone={readBusiness(t.settings).phone}
+      // Enlace del aviso de la lista de espera: día y personas ya elegidos.
+      initialDay={q.fecha && days.includes(q.fecha) ? q.fecha : undefined}
+      initialGuests={Number(q.personas) >= 1 && Number(q.personas) <= settings.maxGuestsOnline ? Math.floor(Number(q.personas)) : undefined}
     />
   );
 }

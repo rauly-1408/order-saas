@@ -191,18 +191,54 @@ export function reservationRestaurantEmail(p: {
   phone: string;
   notes: string | null;
   pending: boolean;
+  waitlist?: boolean;
   cancelled: boolean;
   panelUrl: string;
 }): { subject: string; html: string; text: string } {
-  const head = p.cancelled ? "Reserva cancelada por el cliente" : p.pending ? "Reserva nueva pendiente de confirmar" : "Reserva nueva";
+  const head = p.cancelled ? "Reserva cancelada por el cliente" : p.waitlist ? "Lista de espera: piden mesa" : p.pending ? "Reserva nueva pendiente de confirmar" : "Reserva nueva";
   const html = layout(
     `${head} · ${p.guests} pax`,
     `<p style="margin:0 0 4px"><b>${esc(p.name)}</b> · ${esc(p.phone)}</p>
      <p style="margin:0 0 12px;color:#5d6b64">${esc(p.when)} · ${p.guests} ${p.guests === 1 ? "persona" : "personas"}</p>
      ${p.notes ? `<p style="margin:0 0 12px">Nota: ${esc(p.notes)}</p>` : ""}
-     <p style="margin:0">${btn(p.panelUrl, p.pending ? "Confirmar en el panel" : "Ver las reservas del día")}</p>`,
+     <p style="margin:0">${btn(p.panelUrl, p.pending || p.waitlist ? "Ver en el panel" : "Ver las reservas del día")}</p>`,
     `Aviso automático de ${esc(p.restaurant)}. Puedes apagarlo en Configuración → Reservas.`
   );
   const text = [`${head}`, `${p.name} · ${p.phone}`, `${p.when} · ${p.guests} pax`, p.notes ? `Nota: ${p.notes}` : "", p.panelUrl].filter(Boolean).join("\n");
   return { subject: `${head}: ${p.name} · ${p.when} · ${p.guests} pax`, html, text };
+}
+
+export function reservationReminderEmail(p: { restaurant: string; when: string; guests: number; address: string | null; link: string; lang: "es" | "en" }): { subject: string; html: string; text: string } {
+  const en = p.lang === "en";
+  const people = en ? `${p.guests} ${p.guests === 1 ? "person" : "people"}` : `${p.guests} ${p.guests === 1 ? "persona" : "personas"}`;
+  const title = en ? `See you soon at ${p.restaurant}` : `Te esperamos en ${p.restaurant}`;
+  const ask = en ? "Can you confirm you're coming? If you can't make it, cancel so another table can use it." : "¿Nos confirmas que venís? Si al final no podéis, cancela para que otra mesa pueda aprovecharla.";
+  const html = layout(
+    title,
+    `<p style="margin:0 0 8px;font-size:17px"><b>${esc(p.when)}</b><br>${esc(people)}</p>
+     ${p.address ? `<p style="margin:0 0 12px;color:#5d6b64">${esc(p.address)}</p>` : ""}
+     <p style="margin:0 0 16px">${esc(ask)}</p>
+     <p style="margin:0">${btn(p.link, en ? "Confirm or cancel" : "Confirmar o cancelar")}</p>`,
+    esc(p.restaurant)
+  );
+  return { subject: `${title} · ${p.when}`, html, text: [title, p.when, people, ask, p.link].join("\n") };
+}
+
+export function waitlistEmail(p: { restaurant: string; when: string; guests: number; kind: "joined" | "spot"; link: string; lang: "es" | "en" }): { subject: string; html: string; text: string } {
+  const en = p.lang === "en";
+  const people = en ? `${p.guests} ${p.guests === 1 ? "person" : "people"}` : `${p.guests} ${p.guests === 1 ? "persona" : "personas"}`;
+  const title =
+    p.kind === "joined" ? (en ? "You're on the waiting list" : "Estás en la lista de espera") : en ? "A table has opened up!" : "¡Ha quedado sitio!";
+  const intro =
+    p.kind === "joined"
+      ? en ? "If a table frees up, the restaurant will give it to you or we'll email you." : "Si se libera una mesa, el restaurante te la dará o te avisaremos por email."
+      : en ? "Book it before someone else does." : "Resérvala antes de que lo haga otro.";
+  const html = layout(
+    `${title} · ${p.restaurant}`,
+    `<p style="margin:0 0 8px;font-size:17px"><b>${esc(p.when)}</b><br>${esc(people)}</p>
+     <p style="margin:0 0 16px">${esc(intro)}</p>
+     <p style="margin:0">${btn(p.link, p.kind === "spot" ? (en ? "Book now" : "Reservar ahora") : en ? "View my request" : "Ver mi solicitud")}</p>`,
+    esc(p.restaurant)
+  );
+  return { subject: `${title} · ${p.restaurant}`, html, text: [title, p.when, people, intro, p.link].join("\n") };
 }
