@@ -262,7 +262,7 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
       </button>
       {!offline && (
         <button type="button" onClick={() => setJoining(true)} disabled={busy} className={`p-press min-h-11 font-medium ${cls}`}>
-          Juntar con otra mesa
+          Juntar mesas
         </button>
       )}
       {!offline && (
@@ -286,7 +286,7 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
       <div className="mt-1 flex flex-wrap items-end justify-between gap-2">
         <div className="min-w-0">
           <h1 className="text-3xl font-semibold tracking-tight">
-            Mesa {o.table.name}
+            {o.joined?.length ? `Mesas ${[o.table.name, ...o.joined.map((t) => t.name)].join(" + ")}` : `Mesa ${o.table.name}`}
             {o.label && <span className="ml-2 align-middle text-xl font-semibold text-[var(--p-brand)]">· {o.label}</span>}
           </h1>
           <p className="mt-1 text-sm text-[var(--p-muted)]">
@@ -453,8 +453,54 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
       )}
       {naming && <NameSheet table={o.table.name} current={o.label ?? ""} busy={busy} onClose={() => setNaming(false)} onSave={async (label) => (await act({ action: "label", label }, label ? `Mesa ${o.table.name}: «${label}»` : "Nombre quitado")) && setNaming(false)} />}
       {joining && (
-        <Sheet title={`Juntar la mesa ${o.table.name} con…`} onClose={() => setJoining(false)}>
-          <p className="mb-3 text-sm text-[var(--p-muted)]">Lo pedido en la mesa {o.table.name} pasa a la cuenta de la mesa que elijas, y la {o.table.name} queda libre.</p>
+        <Sheet title={`Juntar mesas con la ${o.table.name}`} onClose={() => setJoining(false)}>
+          {!!o.joined?.length && (
+            <section className="mb-5">
+              <h3 className="text-sm font-semibold">Juntas en esta cuenta</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {o.joined.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    disabled={busy}
+                    onClick={async () => {
+                      if (!(await ask(`¿Separar la mesa ${t.name}? Queda libre; lo pedido sigue en la cuenta de la ${o.table.name}.`, { confirm: "Separar" }))) return;
+                      await act({ action: "detach", tableId: t.id }, `Mesa ${t.name} separada: ya está libre`);
+                    }}
+                    className="p-press inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--p-brand-soft)] px-4 text-sm font-semibold text-[var(--p-brand-strong)]"
+                  >
+                    {t.name} <span className="text-xs font-medium opacity-80">Separar</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+          <section className="mb-5">
+            <h3 className="text-sm font-semibold">Añadir una mesa libre</h3>
+            <p className="mb-2 text-sm text-[var(--p-muted)]">Llega más gente: la mesa se une a esta cuenta y en el plano sale ocupada con la {o.table.name}.</p>
+            {data.freeTables.length === 0 ? (
+              <p className="py-3 text-center text-sm text-[var(--p-muted)]">No hay mesas libres.</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {data.freeTables.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    disabled={busy}
+                    onClick={async () => {
+                      if (await act({ action: "attach", tableId: t.id }, `Mesa ${t.name} junta a esta cuenta`)) setJoining(false);
+                    }}
+                    className="p-press flex flex-col items-center rounded-2xl border border-[var(--p-line)] px-2 py-3"
+                  >
+                    <span className="text-lg font-semibold">{t.name}</span>
+                    <span className="truncate text-[11px] text-[var(--p-muted)]">{t.zone}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+          <h3 className="text-sm font-semibold">Pasar todo a otra mesa abierta</h3>
+          <p className="mb-2 text-sm text-[var(--p-muted)]">Lo pedido en la mesa {o.table.name} pasa a la cuenta de la mesa que elijas, y la {o.table.name} queda libre.</p>
           {!data.busyTables?.length ? (
             <p className="py-6 text-center text-sm text-[var(--p-muted)]">No hay otras mesas abiertas.</p>
           ) : (

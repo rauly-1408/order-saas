@@ -76,16 +76,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ te
       if (t) after(() => notifyWaitlist(t, r.storeId, r.startsAt));
     }
 
-    // «Llegó»: abrir su mesa (la primera si es una combinación) con su nombre.
+    // «Llegó»: abrir su mesa con su nombre. Si es una combinación, una sola
+    // cuenta con todas sus mesas (si alguna sigue ocupada, solo la primera).
     let opened: { orderId: string; table: string } | null = null;
     let notice: string | null = null;
     if (to === "SEATED" && r.tableIds[0]) {
+      const currency = ((tenant.settings as Record<string, unknown>)?.currency as string) ?? "EUR";
+      const names = new Map((await prisma.diningTable.findMany({ where: { id: { in: r.tableIds } }, select: { id: true, name: true } })).map((t) => [t.id, t.name]));
+      const open = (joined: string[]) => openTable(tenant.id, r.tableIds[0], r.guests, session.userId, currency, joined);
       try {
-        const currency = ((tenant.settings as Record<string, unknown>)?.currency as string) ?? "EUR";
-        const order = await openTable(tenant.id, r.tableIds[0], r.guests, session.userId, currency);
+        let order;
+        let ids = r.tableIds;
+        try {
+          order = await open(r.tableIds.slice(1));
+        } catch (err) {
+          if (!(err instanceof TableError) || r.tableIds.length < 2) throw err;
+          order = await open([]);
+          ids = r.tableIds.slice(0, 1);
+          notice = `${err.message}: se ha abierto solo la mesa ${names.get(r.tableIds[0]) ?? ""}`;
+        }
         await setTableLabel(tenant.id, order.id, r.name);
-        const t = await prisma.diningTable.findUnique({ where: { id: r.tableIds[0] }, select: { name: true } });
-        opened = { orderId: order.id, table: t?.name ?? "" };
+        opened = { orderId: order.id, table: ids.map((id) => names.get(id) ?? "?").join(" + ") };
       } catch (err) {
         if (!(err instanceof TableError)) throw err;
         notice = `${err.message}: ábrela a mano en Mesas`;

@@ -45,7 +45,7 @@ export async function kitchenTickets(tenantId: string, storeId: string | null, w
     }),
     prisma.order.findMany({
       where: { tenantId, ...byStore, tableId: { not: null }, status: "OPEN" },
-      select: { id: true, customerName: true, guests: true, table: { select: { name: true } }, items: { where: { readyAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, productId: true, productName: true, quantity: true, modifiers: true, note: true, round: true, createdAt: true } } },
+      select: { id: true, customerName: true, guests: true, joinedTableIds: true, table: { select: { name: true } }, items: { where: { readyAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, productId: true, productName: true, quantity: true, modifiers: true, note: true, round: true, createdAt: true } } },
     }),
   ]);
   // Sección de cada producto, para repartir entre cocina y barra.
@@ -61,10 +61,14 @@ export async function kitchenTickets(tenantId: string, storeId: string | null, w
     const how = o.channel === "DELIVERY" ? "A domicilio" : o.dineIn ? "Comer aquí" : "Para llevar";
     tickets.push({ key: `order:${o.id}`, kind: "order", orderId: o.id, round: null, title: `#${o.orderNumber ?? "?"}`, subtitle: [how, o.customerName].filter(Boolean).join(" · "), status: o.status, createdAt: (o.scheduledFor ?? o.createdAt).toISOString(), lines });
   }
+  // Mesas juntas: la comanda dice «Mesa 1 + 2».
+  const joinedIds = [...new Set(tables.flatMap((t) => t.joinedTableIds))];
+  const joinedName = new Map((joinedIds.length ? await prisma.diningTable.findMany({ where: { id: { in: joinedIds } }, select: { id: true, name: true } }) : []).map((x) => [x.id, x.name]));
   for (const t of tables) {
     const rounds = new Map<number, typeof t.items>();
     for (const l of t.items) if (mine(l.productId)) rounds.set(l.round, [...(rounds.get(l.round) ?? []), l]);
-    const name = t.table?.name ?? "";
+    const main = t.table?.name ?? "";
+    const name = [main, ...t.joinedTableIds.map((id) => joinedName.get(id) ?? "?")].join(" + ");
     for (const [round, ls] of rounds) {
       tickets.push({
         key: `round:${t.id}:${round}`,
@@ -72,7 +76,7 @@ export async function kitchenTickets(tenantId: string, storeId: string | null, w
         orderId: t.id,
         round,
         title: `Mesa ${name} · Ronda ${round}`,
-        subtitle: [tableLabel(t.customerName, name), t.guests ? `${t.guests} pax` : null].filter(Boolean).join(" · "),
+        subtitle: [tableLabel(t.customerName, main), t.guests ? `${t.guests} pax` : null].filter(Boolean).join(" · "),
         status: "OPEN",
         createdAt: ls[0].createdAt.toISOString(),
         lines: ls.map(line),

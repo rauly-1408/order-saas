@@ -5,7 +5,7 @@ import { getSessionFromRequest } from "@/app/lib/auth";
 import { accessOf, canManageTenant } from "@/app/lib/roles";
 import { listStores, storeForSession } from "@/app/lib/stores";
 import { cleanText } from "@/app/lib/text";
-import { MAX_TABLES_PER_STORE, TableError, addRound, openTable, tableLabel, tableNames } from "@/app/lib/tables";
+import { MAX_TABLES_PER_STORE, TableError, addRound, openOn, openTable, tableLabel, tableNames } from "@/app/lib/tables";
 import { once, requestIdOf } from "@/app/lib/idempotency";
 import { prepareRound, type RoundInput } from "@/app/lib/tableRound";
 import { enqueueTablePrint } from "@/app/lib/printing";
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
       prisma.diningTable.findMany({ where: { tenantId: tenant.id, storeId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
       prisma.order.findMany({
         where: { tenantId: tenant.id, storeId, status: "OPEN", tableId: { not: null } },
-        select: { id: true, orderNumber: true, tableId: true, guests: true, totalCents: true, createdAt: true, billRequestedAt: true, createdByUserId: true, customerName: true },
+        select: { id: true, orderNumber: true, tableId: true, joinedTableIds: true, guests: true, totalCents: true, createdAt: true, billRequestedAt: true, createdByUserId: true, customerName: true },
       }),
       prisma.reservation.findMany({
         where: { storeId, status: { in: ["PENDING", "CONFIRMED"] }, startsAt: { gte: new Date(Date.now() - 60 * 60_000), lt: endOfDay }, NOT: { tableIds: { isEmpty: true } } },
@@ -117,6 +117,9 @@ export async function GET(req: NextRequest) {
     const users = new Map(userRows.map((u) => [u.id, u]));
     const stats = new Map(lineStats.map((l) => [l.orderId, l]));
     const byTable = new Map(open.map((o) => [o.tableId, o]));
+    // Mesas juntas: salen ocupadas con la cuenta de su mesa principal.
+    const nameById = new Map(tables.map((t) => [t.id, t.name]));
+    const joinedTo = new Map(open.flatMap((o) => o.joinedTableIds.map((id) => [id, o] as const)));
     return NextResponse.json({
       stores,
       storeId,
@@ -127,7 +130,9 @@ export async function GET(req: NextRequest) {
       zones: readZones(store?.floorPlan, [...new Set(tables.map((t) => t.zone))]),
       combos: readCombos(store?.tableCombos, new Set(tables.map((t) => t.id))),
       tables: tables.map((t) => {
-        const o = byTable.get(t.id);
+        const main = byTable.get(t.id);
+        const o = main ?? joinedTo.get(t.id);
+        const mainName = o && !main ? (nameById.get(o.tableId!) ?? "?") : null;
         return {
           id: t.id,
           name: t.name,
@@ -141,7 +146,9 @@ export async function GET(req: NextRequest) {
             ? {
                 orderId: o.id,
                 orderNumber: o.orderNumber,
-                label: tableLabel(o.customerName, t.name),
+                label: tableLabel(o.customerName, mainName ?? t.name),
+                joinedTo: mainName,
+                joined: main ? o.joinedTableIds.map((id) => nameById.get(id) ?? "?") : [],
                 guests: o.guests,
                 totalCents: o.totalCents,
                 openedAt: o.createdAt,
@@ -200,7 +207,7 @@ export async function POST(req: NextRequest) {
       if (typeof b.tableId !== "string") return NextResponse.json({ error: "Mesa no válida" }, { status: 400 });
       if (!["round", "bill", "pay", "move"].includes(b.op ?? "")) return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
       const order = await prisma.order.findFirst({
-        where: { tableId: b.tableId, tenantId: tenant.id, status: "OPEN" },
+        where: { tenantId: tenant.id, ...openOn(b.tableId) },
         select: { id: true, tableId: true, orderNumber: true, storeId: true, table: { select: { name: true } } },
       });
       if (!order) {
@@ -228,7 +235,7 @@ export async function POST(req: NextRequest) {
         const prepared = await prepareRound(tenant.id, round, accessOf(session).anular); // bajar el precio: gerente o encargado
         if ("error" in prepared) return NextResponse.json({ error: prepared.error }, { status: 400 });
         // Si otro camarero la abrió mientras no había conexión, la ronda se suma a esa cuenta.
-        const openOrder = () => prisma.order.findFirst({ where: { tableId, status: "OPEN" }, select: { id: true, orderNumber: true } });
+        const openOrder = () => prisma.order.findFirst({ where: { tenantId: tenant.id, ...openOn(tableId) }, select: { id: true, orderNumber: true } });
         let order = await openOrder();
         if (!order) {
           try {
@@ -360,7 +367,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (b.action === "remove") {
-      const open = await prisma.order.count({ where: { tableId: table.id, status: "OPEN" } });
+      const open = await prisma.order.count({ where: openOn(table.id) });
       if (open) return NextResponse.json({ error: `La mesa ${table.name} tiene una cuenta abierta` }, { status: 400 });
       // Con historial se desactiva (las cuentas antiguas la siguen nombrando).
       const used = await prisma.order.count({ where: { tableId: table.id } });

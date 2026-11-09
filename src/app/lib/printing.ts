@@ -303,10 +303,17 @@ export function renderTest(p: Printer, tenantName: string): Uint8Array {
 }
 
 async function loadOrder(orderId: string): Promise<OrderForPrint | null> {
-  return prisma.order.findUnique({
+  const o = await prisma.order.findUnique({
     where: { id: orderId },
     include: { items: { orderBy: { createdAt: "asc" } }, invoices: true, table: { select: { name: true } }, tenant: { select: { name: true, slug: true, settings: true } }, store: { select: { name: true, address: true, phone: true } } },
   });
+  // Mesas juntas: en la comanda y el ticket sale «MESA 1 + 2».
+  if (o?.table && o.joinedTableIds.length) {
+    const rows = await prisma.diningTable.findMany({ where: { id: { in: o.joinedTableIds } }, select: { id: true, name: true } });
+    const names = o.joinedTableIds.flatMap((id) => rows.filter((r) => r.id === id).map((r) => r.name));
+    o.table = { name: [o.table.name, ...names].join(" + ") };
+  }
+  return o;
 }
 
 // Encola la comanda y/o el ticket de un pedido en las impresoras con ese uso.

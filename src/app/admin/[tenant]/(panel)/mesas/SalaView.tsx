@@ -72,13 +72,14 @@ function TableTile({ t, now, selected, dimmed, onTap }: { t: Table; now: number;
   const o = t.open;
   const m = o ? mins(o.openedAt, now) : 0;
   const round = t.shape === "ROUND";
+  const joined = Boolean(o?.joinedTo); // junta a otra mesa: los datos van en la principal
   const surface = !o ? "bg-white text-[var(--p-ink)] ring-1 ring-black/10" : o.billRequested ? "bg-amber-300 text-amber-950 ring-2 ring-amber-500" : "bg-[var(--p-brand)] text-white";
   return (
     <button
       type="button"
       onClick={onTap}
       aria-pressed={selected}
-      aria-label={`Mesa ${t.name}${o?.label ? ` (${o.label})` : ""}: ${o ? `${o.billRequested ? "pide la cuenta" : "ocupada"}, ${o.guests ?? "?"} comensales, ${m} minutos, ${euros(o.totalCents)}` : `libre, ${t.seats} plazas${t.reservation ? `, reservada a las ${hhmm(t.reservation.at)} para ${t.reservation.name}` : ""}`}`}
+      aria-label={`Mesa ${t.name}${o?.label ? ` (${o.label})` : ""}${o?.joinedTo ? `, junta con la mesa ${o.joinedTo}` : ""}: ${o ? `${o.billRequested ? "pide la cuenta" : "ocupada"}, ${o.guests ?? "?"} comensales, ${m} minutos, ${euros(o.totalCents)}` : `libre, ${t.seats} plazas${t.reservation ? `, reservada a las ${hhmm(t.reservation.at)} para ${t.reservation.name}` : ""}`}`}
       style={{ left: `${t.posX}%`, top: `${t.posY}%` }}
       className={`p-press absolute aspect-square -translate-x-1/2 -translate-y-1/2 transition-opacity ${round ? "w-[7%] min-w-[44px] max-w-[80px]" : "w-[10%] min-w-[56px] max-w-[120px]"} ${dimmed ? "opacity-30" : ""}`}
     >
@@ -88,7 +89,7 @@ function TableTile({ t, now, selected, dimmed, onTap }: { t: Table; now: number;
       >
         <span className="text-[13px] font-bold leading-none sm:text-base">{t.name}</span>
         {o ? (
-          <span className="mt-0.5 flex items-center gap-0.5 text-[9px] font-semibold leading-none opacity-90 sm:text-[11px]">
+          !joined && <span className="mt-0.5 flex items-center gap-0.5 text-[9px] font-semibold leading-none opacity-90 sm:text-[11px]">
             <PersonIcon />
             {o.guests ?? "?"}
           </span>
@@ -99,13 +100,15 @@ function TableTile({ t, now, selected, dimmed, onTap }: { t: Table; now: number;
       {!o && t.reservation && (
         <span className="absolute -top-1 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--p-brand)] px-1.5 py-0.5 text-[9px] font-bold tabular-nums leading-none text-white shadow sm:text-[10px]">📅 {hhmm(t.reservation.at)}</span>
       )}
-      {o?.label && (
+      {o?.joinedTo ? (
+        <span className="absolute -bottom-2 left-1/2 z-10 max-w-[140%] -translate-x-1/2 truncate whitespace-nowrap rounded-full bg-[var(--p-ink)] px-1.5 py-0.5 text-[9px] font-semibold leading-none text-white shadow sm:text-[10px]">con {o.joinedTo}</span>
+      ) : o?.label && (
         <span className="absolute -bottom-2 left-1/2 z-10 max-w-[140%] -translate-x-1/2 truncate rounded-full bg-[var(--p-ink)] px-1.5 py-0.5 text-[9px] font-semibold leading-none text-white shadow sm:text-[10px]">{o.label}</span>
       )}
-      {o && (
+      {o && !joined && (
         <span className={`absolute -top-1 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums leading-none shadow sm:text-[10px] ${timeTone(m)}`}>{m < 60 ? `${m}′` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`}</span>
       )}
-      {o?.waiter && !round && (
+      {o?.waiter && !round && !joined && (
         <span title={o.waiter} className="absolute -bottom-1 -right-1 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--p-ink)] px-1 text-[9px] font-bold text-white shadow ring-2 ring-white">
           {initials(o.waiter)}
         </span>
@@ -147,7 +150,8 @@ export default function SalaView({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sheetFor, setSheetFor] = useState<string | null>(null); // ficha en el móvil
 
-  const busy = allTables.filter((t) => t.open);
+  // Las mesas juntas a otra cuenta no cuentan dos veces: va la principal.
+  const busy = allTables.filter((t) => t.open && !t.open.joinedTo);
   const guests = busy.reduce((a, t) => a + (t.open?.guests ?? 0), 0);
   const seats = allTables.reduce((a, t) => a + t.seats, 0);
   const billing = busy.filter((t) => t.open?.billRequested).length;
@@ -169,7 +173,7 @@ export default function SalaView({
   }
 
   const kpis: { label: string; value: string; tone?: string }[] = [
-    { label: "Ocupadas", value: `${busy.length}/${allTables.length}` },
+    { label: "Ocupadas", value: `${allTables.filter((t) => t.open).length}/${allTables.length}` },
     { label: "Comensales", value: seats ? `${guests}/${seats}` : `${guests}` },
     { label: "Piden la cuenta", value: String(billing), tone: billing ? "text-amber-600" : undefined },
     { label: "Más tiempo", value: oldest ? `${oldest.name} · ${minutesSince(oldest.open!.openedAt, now)}` : "—", tone: oldest && mins(oldest.open!.openedAt, now) >= 90 ? "text-red-600" : undefined },
@@ -260,6 +264,7 @@ export default function SalaView({
                         <span className={`flex h-10 w-10 shrink-0 items-center justify-center text-sm font-bold ${t.shape === "ROUND" ? "rounded-full" : "rounded-xl"} ${o.billRequested ? "bg-amber-300 text-amber-950" : "bg-[var(--p-brand)] text-white"}`}>{t.name}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">
+                            {!!o.joined?.length && <span className="font-semibold">+ {o.joined.join(" + ")} · </span>}
                             {o.label && <span className="font-semibold text-[var(--p-brand)]">{o.label} · </span>}
                             {o.guests ?? "?"} pax · {o.lines} {o.lines === 1 ? "producto" : "productos"}
                           </span>
@@ -314,6 +319,8 @@ function TableCard({ t, now, bare, canCharge = true, onAction, onClose }: { t: T
             </p>
           )}
           {bare && o.label && <p className="text-base font-semibold text-[var(--p-brand)]">{o.label}</p>}
+          {o.joinedTo && <p className="text-sm font-semibold">Va junta con la mesa {o.joinedTo}: es la misma cuenta</p>}
+          {!!o.joined?.length && <p className="text-sm font-semibold">Con {o.joined.length === 1 ? "la mesa" : "las mesas"} {o.joined.join(" + ")} en la misma cuenta</p>}
           <p className="text-sm text-[var(--p-muted)]">
             {t.zone} · {o.guests ?? "?"} {o.guests === 1 ? "comensal" : "comensales"} · {o.orderNumber != null ? `cuenta nº ${o.orderNumber}` : "cuenta sin número aún"}
           </p>

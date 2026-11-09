@@ -44,7 +44,7 @@ Reservas de mesa desde la tienda y apuntadas por el restaurante. Entrega 1: rese
   - el resto de mesas y combinaciones libres;
   - al final, las que se quedan cortas, por si se quieren juntar a mano;
   - «Quitar la mesa».
-- **«Llegó»** abre la mesa con el nombre del cliente y sus comensales (la primera, si es una combinación). Si ya estaba ocupada, avisa para abrirla a mano.
+- **«Llegó»** abre la mesa con el nombre del cliente y sus comensales Si es una combinación, abre una sola cuenta con todas sus mesas («Mesas 1 + 2»); si alguna sigue ocupada, abre solo la primera y lo avisa. Si la primera ya estaba ocupada, avisa para abrirla a mano.
 - **En el plano de Mesas**: una mesa libre con reserva hoy lleva **📅 21:00**. Al tocarla aparece la reserva con **«Sentar a Ana · 4 pax»**, que confirma si estaba pendiente, la marca como «Llegó», abre la mesa y pasa a tomar nota. **«Abrir para otros clientes»** la abre sin tocar la reserva.
 - **Combinaciones** (Mesas → Editar mesas → **Combinaciones**):
   - elegir las mesas que se pueden unir (de cualquier zona);
@@ -115,7 +115,6 @@ Las horas salen del **horario del local** (Horario y zonas): abierto al llegar y
 
 ## Pendiente
 
-- Juntar en una sola cuenta todas las mesas de una combinación al sentar (hoy se abre la primera).
 - Tarjeta en garantía o pago por adelantado para grupos.
 - Recordatorio por SMS o WhatsApp (hoy solo email).
 - **Reservar con Google:** Google tiene que aprobar a NorApp como socio.
