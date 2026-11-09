@@ -63,6 +63,7 @@ type MenuClientProps = {
   perks?: PublicPerks;
   online?: OnlinePresence;
   deliveryPartners?: PartnerLink[];
+  reservations?: boolean; // «Reservar mesa» en la portada (Configuración → Reservas)
   business: BusinessInfo;
   hours: WeeklyHours | null;
   lang?: Lang;
@@ -74,7 +75,7 @@ type MenuClientProps = {
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online, deliveryPartners = [], business, hours, lang = "es", languages = ["es"], stores = [], storeId = null }: MenuClientProps) {
+export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online, deliveryPartners = [], business, hours, lang = "es", languages = ["es"], stores = [], storeId = null, reservations = false }: MenuClientProps) {
   const T = ui(lang);
   const router = useRouter();
   // Cambiar de idioma: se guarda la elección y se vuelve a pedir la página.
@@ -391,6 +392,11 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
               <button type="button" onClick={() => setChooser(true)} aria-haspopup="dialog" className="p-press rounded-full border-2 bg-transparent px-6 py-3 text-[15px] font-bold" style={{ borderColor: "currentColor", color: "inherit" }}>
                 🛵 {T.delivery}
               </button>
+            )}
+            {reservations && (
+              <a href={`/pedir/${tenant}/reservar`} className="p-press rounded-full border-2 px-6 py-3 text-[15px] font-bold no-underline" style={{ borderColor: "currentColor", color: "inherit" }}>
+                📅 {T.bookTable}
+              </a>
             )}
           </div>
         </div>

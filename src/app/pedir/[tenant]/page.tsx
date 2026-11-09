@@ -3,6 +3,7 @@ import MenuClient from "./MenuClient";
 import { loadMenu } from "@/app/lib/menu";
 import { prisma } from "@/app/lib/prisma";
 import { shopStoreId, storeLang } from "@/app/lib/storeLang";
+import { readReservationSettings } from "@/app/lib/reservations";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,7 @@ export default async function PedirPage({
       languages={menu.languages}
       stores={menu.stores}
       storeId={menu.storeId}
+      reservations={readReservationSettings(t?.settings).enabled}
     />
   );
 }

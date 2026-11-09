@@ -212,6 +212,7 @@ model Tenant {
   users          User[]
   stores         Store[]
   diningTables   DiningTable[]
+  reservations   Reservation[]
   categories     Category[]
   products       Product[]
   modifierGroups ModifierGroup[]
@@ -278,6 +279,7 @@ model Store {
   closures      StoreClosure[]
   deliveryZones DeliveryZone[]
   diningTables  DiningTable[]
+  reservations  Reservation[]
   // Mesas: elementos fijos del plano por zona (barra, paredes, textos).
   // { "Interior": [{ id, kind: "BAR"|"WALL"|"LABEL", x, y, w, h, label }] }, en % del plano
   floorPlan     Json           @default("{}")
@@ -580,6 +582,49 @@ model OrderLine {
   updatedAt DateTime @updatedAt
 }
 
+// Reservas de mesa. Ver docs/RESERVAS.md
+enum ReservationStatus {
+  PENDING // pendiente de que el restaurante la acepte
+  CONFIRMED
+  SEATED // el cliente ha llegado
+  NO_SHOW
+  CANCELLED
+}
+
+enum ReservationSource {
+  ONLINE // desde la tienda / la web
+  PHONE // la apunta el restaurante
+  WALKIN
+}
+
+model Reservation {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  storeId   String
+  store     Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  tableId   String? // mesa asignada (entrega 2)
+  table     DiningTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  code      String  @unique // enlace del cliente para ver o cancelar su reserva
+  startsAt  DateTime
+  durationMinutes Int @default(90)
+  guests    Int
+  name      String
+  phone     String
+  email     String?
+  notes     String?
+  status    ReservationStatus @default(CONFIRMED)
+  source    ReservationSource @default(ONLINE)
+  createdByUserId String?
+  cancelledAt DateTime?
+  cancelledBy String? // "CUSTOMER" | "RESTAURANT"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, storeId, startsAt])
+}
+
 enum TableShape {
   SQUARE // mesa
   ROUND // taburete de barra o mesa redonda
@@ -603,7 +648,8 @@ model DiningTable {
   posY      Float?
   shape     TableShape @default(SQUARE)
 
-  orders Order[]
+  orders       Order[]
+  reservations Reservation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

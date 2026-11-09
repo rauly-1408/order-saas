@@ -99,4 +99,4 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
 
 - Pasar parte de una cuenta a otra mesa.
 - Propinas por camarero y un informe por camarero.
-- Reservas.
+- Reservas en el plano y combinaciones de mesas: ver RESERVAS.md, entrega 2.
