@@ -1,6 +1,6 @@
 # Reservas
 
-Reservas de mesa desde la tienda y apuntadas por el restaurante. Entrega 1: reservar y gestionar. Las entregas 2 (mesas y combinaciones) y 3 (recordatorios y lista de espera) están en «Pendiente».
+Reservas de mesa desde la tienda y apuntadas por el restaurante. Entrega 1: reservar y gestionar. Entrega 2: mesas, combinaciones y plano. La entrega 3 (recordatorios y lista de espera) está en «Pendiente».
 
 ## Qué ve el cliente
 
@@ -32,6 +32,26 @@ Reservas de mesa desde la tienda y apuntadas por el restaurante. Entrega 1: rese
 - **Avisos por email** al email de Información del negocio: reserva nueva online (o pendiente de confirmar) y reserva cancelada por el cliente.
 - **Al cliente** (si dejó email): confirmación, «pendiente», confirmada por el restaurante y cancelada.
 
+## Mesas de cada reserva (entrega 2)
+
+- **Asignación automática**: al crear la reserva (online o en el panel) se le da la mejor opción libre a esa hora:
+  1. la mesa suelta más ajustada al número de personas;
+  2. si no hay, una **combinación** (por prioridad y tamaño);
+  3. si nada encaja, queda «Sin mesa» (en ámbar) para elegirla a mano.
+- **Ocupación**: una mesa está ocupada si la tiene otra reserva que se solapa. Si la reserva empieza en la próxima hora y media, también cuenta una mesa con la cuenta abierta.
+- **En Reservas**: cada tarjeta dice «Mesa 5» o «Mesas 5 + 6». El botón **«Mesa»** abre la lista:
+  - la sugerida, marcada;
+  - el resto de mesas y combinaciones libres;
+  - al final, las que se quedan cortas, por si se quieren juntar a mano;
+  - «Quitar la mesa».
+- **«Llegó»** abre la mesa con el nombre del cliente y sus comensales (la primera, si es una combinación). Si ya estaba ocupada, avisa para abrirla a mano.
+- **En el plano de Mesas**: una mesa libre con reserva hoy lleva **📅 21:00**. Al tocarla aparece la reserva con **«Sentar a Ana · 4 pax»**, que confirma si estaba pendiente, la marca como «Llegó», abre la mesa y pasa a tomar nota. **«Abrir para otros clientes»** la abre sin tocar la reserva.
+- **Combinaciones** (Mesas → Editar mesas → **Combinaciones**):
+  - elegir las mesas que se pueden unir (de cualquier zona);
+  - mínimo y máximo de personas;
+  - prioridad: Primero, Normal o Último;
+  - no se repite la misma combinación.
+
 ## Configuración → Reservas
 
 | Ajuste | Por defecto |
@@ -55,27 +75,28 @@ Las horas salen del **horario del local** (Horario y zonas): abierto al llegar y
   - modelo `Reservation` (local, mesa opcional para la entrega 2, `code` público, `startsAt`, `durationMinutes`, personas, datos, estado y origen);
   - enums `ReservationStatus` (PENDING, CONFIRMED, SEATED, NO_SHOW, CANCELLED) y `ReservationSource` (ONLINE, PHONE, WALKIN);
   - migración `20261109161514_reservas`;
-  - ajustes en `Tenant.settings.reservations`.
+  - ajustes en `Tenant.settings.reservations`;
+  - entrega 2: `Reservation.tableIds` (mesa o mesas) y `Store.tableCombos` (`[{ id, tables, min, max, priority }]`), migración `*_reservas_mesas`.
 - **Lógica:**
   - `lib/reservations.ts` (puro, con pruebas en `__tests__/reservations.test.ts`): ajustes, horas libres (`reservationSlots`) y ocupación (`guestsAt`).
   - `lib/reservationsDb.ts`: contexto y aforo, horas del día y `createReservation`. Comprueba el aforo dentro de una transacción con `pg_advisory_xact_lock` por local, para que dos reservas a la vez no se pasen.
   - Avisos por email con `notifyReservation` (plantillas en `lib/email.ts`).
+  - `lib/tableCombos.ts` (puro, con pruebas): `readCombos` y `tableOptions`. `optionsFor` en `reservationsDb.ts` añade las mesas ocupadas.
 - **API pública:**
   - `GET/POST /api/reservas/[tenant]`: horas libres y reservar (8 por minuto por IP);
   - `POST /api/reservas/[tenant]/[code]` `{ action: "cancel" }`.
 - **API del panel:**
   - `GET/POST /api/admin/[tenant]/reservas`: día, horas para apuntar y nueva reserva (`force` para pasar del aforo);
-  - `PATCH /api/admin/[tenant]/reservas/[id]` `{ status }`, con transiciones cerradas.
+  - `GET /api/admin/[tenant]/reservas/[id]`: opciones de mesa;
+  - `PATCH /api/admin/[tenant]/reservas/[id]` `{ status }` (transiciones cerradas; «Llegó» abre la mesa) o `{ tableIds }`;
+  - Mesas: el GET de `/api/admin/[tenant]/mesas` trae `combos` y `reservation` en cada mesa; el POST admite `combos`.
 - **Pantallas:**
   - tienda: `pedir/[tenant]/reservar` y `pedir/[tenant]/reserva/[code]`;
   - panel: `(panel)/reservas` y `configuracion/reservas`.
 
 ## Pendiente
 
-- **Entrega 2:**
-  - asignar mesa con sugerencia por personas;
-  - combinaciones de mesas (mínimo, máximo y prioridad);
-  - ver las reservadas en el plano y «Sentar» para abrir la mesa.
+- Juntar en una sola cuenta todas las mesas de una combinación al sentar (hoy se abre la primera).
 - **Entrega 3:**
   - recordatorio el día antes con confirmar o cancelar;
   - lista de espera cuando no hay sitio;

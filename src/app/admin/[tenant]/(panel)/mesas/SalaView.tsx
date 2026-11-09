@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sheet, euros, minutesSince, type Fixture, type Table } from "./shared";
+import { Sheet, euros, hhmm, minutesSince, type Fixture, type Table } from "./shared";
 
 // La sala en servicio: resumen arriba, filtros, el plano con las mesas dibujadas
 // (sillas por plaza, comensales, tiempo con color y camarero) y, al lado, la
@@ -78,7 +78,7 @@ function TableTile({ t, now, selected, dimmed, onTap }: { t: Table; now: number;
       type="button"
       onClick={onTap}
       aria-pressed={selected}
-      aria-label={`Mesa ${t.name}${o?.label ? ` (${o.label})` : ""}: ${o ? `${o.billRequested ? "pide la cuenta" : "ocupada"}, ${o.guests ?? "?"} comensales, ${m} minutos, ${euros(o.totalCents)}` : `libre, ${t.seats} plazas`}`}
+      aria-label={`Mesa ${t.name}${o?.label ? ` (${o.label})` : ""}: ${o ? `${o.billRequested ? "pide la cuenta" : "ocupada"}, ${o.guests ?? "?"} comensales, ${m} minutos, ${euros(o.totalCents)}` : `libre, ${t.seats} plazas${t.reservation ? `, reservada a las ${hhmm(t.reservation.at)} para ${t.reservation.name}` : ""}`}`}
       style={{ left: `${t.posX}%`, top: `${t.posY}%` }}
       className={`p-press absolute aspect-square -translate-x-1/2 -translate-y-1/2 transition-opacity ${round ? "w-[7%] min-w-[44px] max-w-[80px]" : "w-[10%] min-w-[56px] max-w-[120px]"} ${dimmed ? "opacity-30" : ""}`}
     >
@@ -96,6 +96,9 @@ function TableTile({ t, now, selected, dimmed, onTap }: { t: Table; now: number;
           !round && <span className="mt-0.5 text-[9px] leading-none text-[var(--p-faint)] sm:text-[11px]">{t.seats} pax</span>
         )}
       </span>
+      {!o && t.reservation && (
+        <span className="absolute -top-1 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--p-brand)] px-1.5 py-0.5 text-[9px] font-bold tabular-nums leading-none text-white shadow sm:text-[10px]">📅 {hhmm(t.reservation.at)}</span>
+      )}
       {o?.label && (
         <span className="absolute -bottom-2 left-1/2 z-10 max-w-[140%] -translate-x-1/2 truncate rounded-full bg-[var(--p-ink)] px-1.5 py-0.5 text-[9px] font-semibold leading-none text-white shadow sm:text-[10px]">{o.label}</span>
       )}

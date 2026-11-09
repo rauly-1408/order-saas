@@ -10,6 +10,8 @@ import { once, requestIdOf } from "@/app/lib/idempotency";
 import { prepareRound, type RoundInput } from "@/app/lib/tableRound";
 import { enqueueTablePrint } from "@/app/lib/printing";
 import { runTableAction, type TableActionBody } from "@/app/lib/tableActions";
+import { readCombos } from "@/app/lib/tableCombos";
+import { addDays, localParts, startOfDayIn, tenantTimeZone } from "@/app/lib/time";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,17 +87,27 @@ export async function GET(req: NextRequest) {
     const { tenant, session } = ctx;
     const storeId = await storeForSession(tenant.id, session.storeId, new URL(req.url).searchParams.get("store"));
     const stores = session.storeId ? [] : (await listStores(tenant.id, { activeOnly: true })).map((s) => ({ id: s.id, name: s.name }));
-    if (!storeId) return NextResponse.json({ stores, storeId: null, canManage: canManageTenant(session.role), canCharge: accessOf(session).cobrar, sees: Boolean(session.seesTakings), tables: [], fixtures: {}, zones: [] });
+    if (!storeId) return NextResponse.json({ stores, storeId: null, canManage: canManageTenant(session.role), canCharge: accessOf(session).cobrar, sees: Boolean(session.seesTakings), tables: [], fixtures: {}, zones: [], combos: [] });
 
     // En paralelo: el plano se refresca cada pocos segundos en todos los móviles de sala.
-    const [store, tables, open] = await Promise.all([
-      prisma.store.findUnique({ where: { id: storeId }, select: { floorPlan: true } }),
+    // Reservas de hoy que aún no han llegado: la mesa lo muestra en el plano.
+    const tz = tenantTimeZone(tenant.settings);
+    const endOfDay = startOfDayIn(tz, addDays(localParts(new Date(), tz).ymd, 1));
+    const [store, tables, open, booked] = await Promise.all([
+      prisma.store.findUnique({ where: { id: storeId }, select: { floorPlan: true, tableCombos: true } }),
       prisma.diningTable.findMany({ where: { tenantId: tenant.id, storeId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
       prisma.order.findMany({
         where: { tenantId: tenant.id, storeId, status: "OPEN", tableId: { not: null } },
         select: { id: true, orderNumber: true, tableId: true, guests: true, totalCents: true, createdAt: true, billRequestedAt: true, createdByUserId: true, customerName: true },
       }),
+      prisma.reservation.findMany({
+        where: { storeId, status: { in: ["PENDING", "CONFIRMED"] }, startsAt: { gte: new Date(Date.now() - 60 * 60_000), lt: endOfDay }, NOT: { tableIds: { isEmpty: true } } },
+        orderBy: { startsAt: "asc" },
+        select: { id: true, startsAt: true, name: true, guests: true, status: true, tableIds: true },
+      }),
     ]);
+    const nextBooking = new Map<string, { id: string; at: string; name: string; guests: number; pending: boolean }>();
+    for (const r of booked) for (const id of r.tableIds) if (!nextBooking.has(id)) nextBooking.set(id, { id: r.id, at: r.startsAt.toISOString(), name: r.name, guests: r.guests, pending: r.status === "PENDING" });
     const userIds = [...new Set(open.flatMap((o) => (o.createdByUserId ? [o.createdByUserId] : [])))];
     const orderIds = open.map((o) => o.id);
     const [userRows, lineStats] = await Promise.all([
@@ -113,6 +125,7 @@ export async function GET(req: NextRequest) {
       sees: Boolean(session.seesTakings),
       fixtures: readFixtures(store?.floorPlan),
       zones: readZones(store?.floorPlan, [...new Set(tables.map((t) => t.zone))]),
+      combos: readCombos(store?.tableCombos, new Set(tables.map((t) => t.id))),
       tables: tables.map((t) => {
         const o = byTable.get(t.id);
         return {
@@ -123,6 +136,7 @@ export async function GET(req: NextRequest) {
           shape: t.shape,
           posX: t.posX,
           posY: t.posY,
+          reservation: nextBooking.get(t.id) ?? null,
           open: o
             ? {
                 orderId: o.id,
@@ -148,7 +162,8 @@ export async function GET(req: NextRequest) {
 }
 
 type Body = {
-  action?: "open" | "table" | "add" | "update" | "remove" | "layout" | "fixtures" | "zones";
+  action?: "open" | "table" | "add" | "update" | "remove" | "layout" | "fixtures" | "zones" | "combos";
+  combos?: unknown[]; // action "combos": la lista entera
   zoneOp?: "add" | "rename" | "remove"; // action "zones"
   newZone?: string; // zoneOp "rename"
   op?: TableActionBody["action"]; // action "table": lo que se hace en la mesa
@@ -249,6 +264,16 @@ export async function POST(req: NextRequest) {
       const zones = readZones(store?.floorPlan, [...new Set((await prisma.diningTable.findMany({ where: { storeId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { zone: true } })).map((t) => t.zone))]);
       await prisma.store.update({ where: { id: storeId }, data: { floorPlan: withZones(plan, zones) } });
       return NextResponse.json({ ok: true, fixtures: plan });
+    }
+
+    // Combinaciones de mesas para reservas: se guarda la lista entera.
+    if (b.action === "combos") {
+      const storeId = await storeForSession(tenant.id, session.storeId, b.storeId);
+      if (!storeId) return NextResponse.json({ error: "No hay ningún local activo" }, { status: 400 });
+      const ids = new Set((await prisma.diningTable.findMany({ where: { storeId, isActive: true }, select: { id: true } })).map((t) => t.id));
+      const combos = readCombos(b.combos, ids);
+      await prisma.store.update({ where: { id: storeId }, data: { tableCombos: combos } });
+      return NextResponse.json({ ok: true, combos });
     }
 
     // Zonas del local: añadir, cambiar el nombre (sus mesas y su plano la siguen) o quitar una vacía.

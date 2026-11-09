@@ -283,6 +283,8 @@ model Store {
   // Mesas: elementos fijos del plano por zona (barra, paredes, textos).
   // { "Interior": [{ id, kind: "BAR"|"WALL"|"LABEL", x, y, w, h, label }] }, en % del plano
   floorPlan     Json           @default("{}")
+  // Reservas: mesas que se pueden unir para grupos. [{ id, tables: [ids], min, max, priority }]. Ver docs/RESERVAS.md
+  tableCombos   Json           @default("[]")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -603,8 +605,9 @@ model Reservation {
   tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   storeId   String
   store     Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  tableId   String? // mesa asignada (entrega 2)
+  tableId   String? // sin uso: las mesas van en tableIds
   table     DiningTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  tableIds  String[] @default([]) // mesa o mesas asignadas (una combinación)
   code      String  @unique // enlace del cliente para ver o cancelar su reserva
   startsAt  DateTime
   durationMinutes Int @default(90)

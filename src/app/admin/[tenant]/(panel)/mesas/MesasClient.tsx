@@ -7,7 +7,7 @@ import RoundComposer from "./RoundComposer";
 import { OUTBOX_SENT, loadLocal, pendingList, saveLocal, sendOrQueue, subscribe } from "../outbox";
 import { applyQueue, isOffline, planKey } from "./offline";
 import SalaView from "./SalaView";
-import { Sheet, Stepper, post, type Fixture, type MapData, type Shape, type Table } from "./shared";
+import { Sheet, Stepper, hhmm, post, type Fixture, type MapData, type Shape, type Table, type TableCombo } from "./shared";
 
 // Mesas: el plano de la sala por zonas (Interior, Terraza, Barra…). Libre en
 // blanco, ocupada en el color de la marca y «pide la cuenta» en ámbar. Tocar una
@@ -44,6 +44,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
   const [adding, setAdding] = useState(false);
   const [editTable, setEditTable] = useState<Table | null>(null);
   const [zoneSheet, setZoneSheet] = useState<"new" | string | null>(null); // nueva zona o la que se edita
+  const [combosOpen, setCombosOpen] = useState(false); // combinaciones de mesas para reservas
   const planDirty = useRef(false); // el editor tiene cambios sin guardar
   const [, setTick] = useState(0);
 
@@ -202,6 +203,11 @@ export default function MesasClient({ tenant }: { tenant: string }) {
                   <button type="button" onClick={() => setZoneSheet("new")} className="p-press shrink-0 rounded-full bg-[var(--p-surface)] px-4 py-2 text-sm font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                     + Nueva zona
                   </button>
+                  {editing && data.tables.length > 1 && (
+                    <button type="button" onClick={() => setCombosOpen(true)} className="p-press shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-[var(--p-muted)] hover:bg-black/[0.04]">
+                      Combinaciones{data.combos?.length ? ` (${data.combos.length})` : ""}
+                    </button>
+                  )}
                   {editing && currentZone && (
                     <button type="button" onClick={() => setZoneSheet(currentZone)} className="p-press shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-[var(--p-muted)] hover:bg-black/[0.04]">
                       Editar zona {currentZone}
@@ -276,6 +282,22 @@ export default function MesasClient({ tenant }: { tenant: string }) {
         <OpenSheet
           table={opening}
           onClose={() => setOpening(null)}
+          onSeat={async () => {
+            // Llega la reserva: «Llegó» en Reservas abre la mesa con su nombre.
+            const r = opening.reservation!;
+            const patch = (status: string) => fetch(`/api/admin/${tenant}/reservas/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) }).then(async (res) => {
+              const d = await res.json().catch(() => ({}));
+              if (!res.ok) throw new Error(d.error ?? "No se pudo sentar");
+              return d as { opened?: { orderId: string } | null; notice?: string | null };
+            });
+            if (r.pending) await patch("CONFIRMED");
+            const d = await patch("SEATED");
+            if (!d.opened) throw new Error(d.notice ?? "No se pudo abrir la mesa");
+            setOpening(null);
+            await load();
+            setViewAction("round");
+            setView(opening.id);
+          }}
           onOpen={async (guests) => {
             try {
               await post<{ orderId: string }>(api, { action: "open", tableId: opening.id, guests });
@@ -319,6 +341,17 @@ export default function MesasClient({ tenant }: { tenant: string }) {
             setZone(body.zone);
             await load();
             return r;
+          }}
+        />
+      )}
+      {combosOpen && data && (
+        <CombosSheet
+          tables={data.tables}
+          combos={data.combos ?? []}
+          onClose={() => setCombosOpen(false)}
+          onSave={async (combos) => {
+            await post(api, { action: "combos", storeId: data.storeId, combos });
+            await load();
           }}
         />
       )}
@@ -592,8 +625,9 @@ function FixtureSheet({ f, onClose, onSave, onRemove }: { f: Fixture; onClose: (
   );
 }
 
-function OpenSheet({ table, onClose, onOpen }: { table: Table; onClose: () => void; onOpen: (guests: number) => Promise<void> }) {
+function OpenSheet({ table, onClose, onOpen, onSeat }: { table: Table; onClose: () => void; onOpen: (guests: number) => Promise<void>; onSeat: () => Promise<void> }) {
   const [guests, setGuests] = useState(Math.min(2, table.seats || 2));
+  const r = table.reservation;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   return (
@@ -603,6 +637,25 @@ function OpenSheet({ table, onClose, onOpen }: { table: Table; onClose: () => vo
       footer={
         <>
           {error && <p className="mb-2 text-sm text-[var(--p-accent)]">{error}</p>}
+          {r && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError("");
+                try {
+                  await onSeat();
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "No se pudo sentar");
+                  setBusy(false);
+                }
+              }}
+              className="p-press mb-2 w-full rounded-2xl bg-[var(--p-brand)] py-3.5 text-base font-semibold text-white disabled:opacity-50"
+            >
+              {busy ? "Abriendo…" : `Sentar a ${r.name} · ${r.guests} pax`}
+            </button>
+          )}
           <button
             type="button"
             disabled={busy}
@@ -616,14 +669,19 @@ function OpenSheet({ table, onClose, onOpen }: { table: Table; onClose: () => vo
                 setBusy(false);
               }
             }}
-            className="p-press w-full rounded-2xl bg-[var(--p-brand)] py-3.5 text-base font-semibold text-white disabled:opacity-50"
+            className={`p-press w-full rounded-2xl py-3.5 text-base font-semibold disabled:opacity-50 ${r ? "bg-black/[0.05] text-[var(--p-ink)]" : "bg-[var(--p-brand)] text-white"}`}
           >
-            {busy ? "Abriendo…" : "Abrir y tomar nota"}
+            {busy ? "Abriendo…" : r ? "Abrir para otros clientes" : "Abrir y tomar nota"}
           </button>
         </>
       }
     >
       <p className="text-sm text-[var(--p-muted)]">{table.zone} · {table.seats} plazas</p>
+      {r && (
+        <p className="mt-3 rounded-xl bg-[var(--p-brand-soft)] px-3 py-2.5 text-sm text-[var(--p-brand-strong)]">
+          <b>Reservada a las {hhmm(r.at)}</b> · {r.name} · {r.guests} {r.guests === 1 ? "persona" : "personas"}{r.pending ? " · pendiente de confirmar" : ""}
+        </p>
+      )}
       <div className="mt-4 flex items-center justify-between gap-3">
         <span className="font-medium">Comensales</span>
         <Stepper value={guests} min={1} max={50} onChange={setGuests} label="comensales" />
@@ -835,6 +893,116 @@ function ZoneSheet({ zone, tables, onClose, onSave, onRemove }: { zone: string |
       </label>
       {zone && <p className="mt-3 text-xs text-[var(--p-muted)]">Sus mesas y su plano pasan al nombre nuevo.{tables > 0 && ` Para quitar la zona, quita antes sus ${tables} ${tables === 1 ? "mesa" : "mesas"} o pásalas a otra zona.`}</p>}
       {!zone && <p className="mt-3 text-xs text-[var(--p-muted)]">Después crea sus mesas con «Crear mesas» o desde «Añadir mesas».</p>}
+    </Sheet>
+  );
+}
+
+// Combinaciones de mesas para reservas: qué mesas se pueden unir y para
+// cuántas personas. Reservas las sugiere cuando ninguna mesa suelta tiene sitio.
+const PRIORITY = [
+  { v: 1, label: "Primero" },
+  { v: 2, label: "Normal" },
+  { v: 3, label: "Último" },
+];
+function CombosSheet({ tables, combos, onClose, onSave }: { tables: Table[]; combos: TableCombo[]; onClose: () => void; onSave: (combos: TableCombo[]) => Promise<void> }) {
+  const [list, setList] = useState(combos);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [min, setMin] = useState(2);
+  const [max, setMax] = useState(4);
+  const [priority, setPriority] = useState(2);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const name = (id: string) => tables.find((t) => t.id === id)?.name ?? "?";
+  const zones = [...new Set(tables.map((t) => t.zone))];
+  const seatsOf = (ids: string[]) => ids.reduce((a, id) => a + (tables.find((t) => t.id === id)?.seats ?? 0), 0);
+  async function persist(next: TableCombo[]) {
+    setBusy(true);
+    setError("");
+    try {
+      await onSave(next);
+      setList(next);
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo guardar");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+  const toggle = (id: string) => {
+    const next = picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id];
+    setPicked(next);
+    const seats = seatsOf(next);
+    if (seats) setMax(seats);
+  };
+  return (
+    <Sheet
+      title="Combinaciones de mesas"
+      wide
+      onClose={onClose}
+      footer={
+        <>
+          {error && <p className="mb-2 text-sm text-[var(--p-accent)]" role="alert">{error}</p>}
+          <button
+            type="button"
+            disabled={busy || picked.length < 2}
+            onClick={async () => {
+              if (await persist([...list, { id: `c${Date.now()}`, tables: picked, min, max: Math.max(min, max), priority }])) setPicked([]);
+            }}
+            className="p-press w-full rounded-2xl bg-[var(--p-brand)] py-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {picked.length < 2 ? "Elige 2 mesas o más para unirlas" : `Añadir ${picked.length > 1 ? "Mesas" : "Mesa"} ${picked.map(name).join(" + ")} · ${min}–${Math.max(min, max)} personas`}
+          </button>
+        </>
+      }
+    >
+      <p className="text-sm text-[var(--p-muted)]">Para grupos que no caben en una mesa: Reservas propone estas mesas juntas cuando ninguna suelta tiene sitio.</p>
+      {list.length > 0 && (
+        <ul className="mt-4 divide-y divide-[var(--p-line)] rounded-2xl bg-black/[0.03]">
+          {list.map((c) => (
+            <li key={c.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 text-sm">
+              <span className="min-w-0 flex-1 font-semibold">Mesas {c.tables.map(name).join(" + ")}</span>
+              <span className="text-[var(--p-muted)]">{c.min}–{c.max} pax · {PRIORITY.find((p) => p.v === c.priority)?.label}</span>
+              <button type="button" disabled={busy} onClick={async () => (await ask(`¿Quitar la combinación ${c.tables.map(name).join(" + ")}?`)) && persist(list.filter((x) => x.id !== c.id))} className="p-press rounded-full px-3 py-1.5 text-sm font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]">
+                Quitar
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-5 text-sm font-semibold">Nueva combinación</p>
+      {zones.map((z) => (
+        <div key={z} className="mt-3">
+          <p className="text-[13px] font-medium text-[var(--p-muted)]">{z}</p>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {tables.filter((t) => t.zone === z).map((t) => (
+              <button key={t.id} type="button" onClick={() => toggle(t.id)} aria-pressed={picked.includes(t.id)} className={`p-press h-11 min-w-11 rounded-xl px-3 text-sm font-semibold ${picked.includes(t.id) ? "bg-[var(--p-brand)] text-white" : "bg-black/[0.05]"}`}>
+                {t.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-medium">Mínimo</span>
+          <Stepper value={min} min={1} max={200} onChange={(v) => (setMin(v), setMax((m) => Math.max(m, v)))} label="personas como mínimo" />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-medium">Máximo</span>
+          <Stepper value={max} min={min} max={200} onChange={setMax} label="personas como máximo" />
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium">Prioridad</span>
+        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1" role="radiogroup" aria-label="Prioridad">
+          {PRIORITY.map((p) => (
+            <button key={p.v} type="button" role="radio" aria-checked={priority === p.v} onClick={() => setPriority(p.v)} className={`p-press rounded-full px-3 py-1.5 text-sm font-semibold ${priority === p.v ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"}`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
     </Sheet>
   );
 }

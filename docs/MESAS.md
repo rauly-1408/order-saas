@@ -54,6 +54,7 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
   - **+ Barra, + Pared y + Texto**: elementos fijos que se arrastran y se estiran desde la esquina. Al tocarlos se cambia su texto o se quitan. Una barra alta y estrecha escribe su texto en vertical.
   - Si se sale del editor o se cambia de zona con cambios sin guardar, avisa.
   - **Tocar una mesa** para cambiarle el nombre, la zona, las plazas o la forma, o quitarla. Si tiene historial se desactiva en vez de borrarse.
+- **Reservas**: una mesa libre con reserva hoy lleva 📅 y la hora; al tocarla, «Sentar a …». Las **Combinaciones** de mesas para grupos están en Editar mesas. Ver `docs/RESERVAS.md`.
 - **Zonas** (pestañas como Interior o Terraza):
   - Siempre a la vista, también las que aún no tienen mesas. Un local nuevo empieza con **Interior** y **Terraza**; si ya tenía mesas, salen sus zonas más una Terraza de base.
   - **«+ Nueva zona»**, junto a las pestañas, solo para el gerente.
@@ -99,4 +100,3 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
 
 - Pasar parte de una cuenta a otra mesa.
 - Propinas por camarero y un informe por camarero.
-- Reservas en el plano y combinaciones de mesas: ver RESERVAS.md, entrega 2.
