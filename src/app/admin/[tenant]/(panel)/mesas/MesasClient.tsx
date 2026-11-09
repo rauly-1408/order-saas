@@ -115,14 +115,16 @@ export default function MesasClient({ tenant }: { tenant: string }) {
   const inZone = useMemo(() => (data?.tables ?? []).filter((t) => t.zone === currentZone), [data, currentZone]);
   const busyCount = (data?.tables ?? []).filter((t) => t.open).length;
 
-  const viewTable = view ? data?.tables.find((t) => t.id === view) : undefined;
+  const tapped = view ? data?.tables.find((t) => t.id === view) : undefined;
+  // Una mesa junta a otra abre la cuenta de su mesa principal.
+  const viewTable = tapped?.open?.joinedTo ? (data?.tables.find((t) => t.open?.orderId === tapped.open?.orderId && !t.open?.joinedTo) ?? tapped) : tapped;
   if (view && viewTable && data)
     return (
       <CuentaView
-        key={view}
+        key={viewTable.id}
         tenant={tenant}
         table={viewTable}
-        overlay={overlay.get(view)}
+        overlay={overlay.get(viewTable.id)}
         offlineFreeTables={offline ? data.tables.filter((t) => !t.open).map((t) => ({ id: t.id, name: t.name, zone: t.zone })) : null}
         canCharge={data.canCharge !== false}
         initialAction={viewAction}

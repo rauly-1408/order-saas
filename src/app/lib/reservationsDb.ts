@@ -48,9 +48,9 @@ async function busyTables(storeId: string, startsAt: Date, durationMinutes: numb
   const from = new Date(startsAt.getTime() - 6 * 3_600_000), to = new Date(startsAt.getTime() + durationMinutes * 60_000);
   const [others, open] = await Promise.all([
     db.reservation.findMany({ where: { storeId, status: { in: ACTIVE }, startsAt: { gte: from, lt: to }, ...(excludeId && { id: { not: excludeId } }) }, select: { startsAt: true, durationMinutes: true, tableIds: true } }),
-    startsAt.getTime() < Date.now() + 90 * 60_000 ? db.order.findMany({ where: { storeId, status: "OPEN", tableId: { not: null } }, select: { tableId: true } }) : Promise.resolve([]),
+    startsAt.getTime() < Date.now() + 90 * 60_000 ? db.order.findMany({ where: { storeId, status: "OPEN", tableId: { not: null } }, select: { tableId: true, joinedTableIds: true } }) : Promise.resolve([]),
   ]);
-  const busy = new Set(open.map((o) => o.tableId!));
+  const busy = new Set(open.flatMap((o) => [o.tableId!, ...o.joinedTableIds]));
   for (const r of others) if (r.startsAt.getTime() + r.durationMinutes * 60_000 > startsAt.getTime()) r.tableIds.forEach((id) => busy.add(id));
   return busy;
 }

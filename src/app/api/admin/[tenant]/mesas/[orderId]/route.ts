@@ -66,17 +66,21 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "asc" },
       select: { customerName: true, totalCents: true, table: { select: { id: true, name: true, zone: true } } },
     });
+    // Libres = sin cuenta propia y sin estar juntas a otra.
+    const joinedElsewhere = (await prisma.order.findMany({ where: { tenantId: tenant.id, storeId: o.storeId, status: "OPEN", NOT: { joinedTableIds: { isEmpty: true } } }, select: { joinedTableIds: true } })).flatMap((x) => x.joinedTableIds);
     const free = await prisma.diningTable.findMany({
-      where: { tenantId: tenant.id, storeId: o.storeId, isActive: true, orders: { none: { status: "OPEN" } } },
+      where: { tenantId: tenant.id, storeId: o.storeId, isActive: true, orders: { none: { status: "OPEN" } }, id: { notIn: joinedElsewhere } },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true, zone: true },
     });
+    const joined = o.joinedTableIds.length ? await prisma.diningTable.findMany({ where: { id: { in: o.joinedTableIds } }, select: { id: true, name: true, zone: true } }) : [];
     return NextResponse.json({
       order: {
         id: o.id,
         orderNumber: o.orderNumber,
         status: o.status,
         table: o.table,
+        joined: o.joinedTableIds.flatMap((id) => joined.filter((t) => t.id === id)),
         label: tableLabel(o.customerName, o.table.name),
         guests: o.guests,
         openedAt: o.createdAt,

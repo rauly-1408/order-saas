@@ -114,16 +114,39 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-// Abre la cuenta de una mesa libre.
-export async function openTable(tenantId: string, tableId: string, guests: number, userId: string, currency: string) {
+// Cuenta abierta que ocupa una mesa: la suya (tableId) o en la que está junta.
+export function openOn(tableId: string) {
+  return { status: "OPEN" as const, OR: [{ tableId }, { joinedTableIds: { has: tableId } }] };
+}
+
+// Mesas libres para juntar: activas, del mismo local y sin cuenta (ni propia ni junta).
+async function checkFree(tx: Tx, tenantId: string, storeId: string, ids: string[]) {
+  if (!ids.length) return [];
+  const tables = await tx.diningTable.findMany({ where: { id: { in: ids }, tenantId, storeId, isActive: true }, select: { id: true, name: true } });
+  if (tables.length !== new Set(ids).size) throw new TableError("Alguna de esas mesas no existe o es de otro local");
+  for (const t of tables) {
+    if (await tx.order.findFirst({ where: { tenantId, ...openOn(t.id) }, select: { id: true } })) throw new TableError(`La mesa ${t.name} ya está ocupada`);
+  }
+  return tables;
+}
+
+// Candado por local al ocupar mesas: dos camareros no juntan la misma mesa a la vez.
+const lockStoreTables = (tx: Tx, storeId: string) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"mesas:" + storeId}))`;
+
+// Abre la cuenta de una mesa libre. joined: otras mesas libres que van en la
+// misma cuenta (una reserva en una combinación de mesas).
+export async function openTable(tenantId: string, tableId: string, guests: number, userId: string, currency: string, joined: string[] = []) {
   const table = await prisma.diningTable.findUnique({ where: { id: tableId } });
   if (!table || table.tenantId !== tenantId || !table.isActive) throw new TableError("Mesa no encontrada");
   const g = Math.max(1, Math.min(Math.floor(guests) || 1, MAX_GUESTS));
+  const extra = [...new Set(joined.filter((id) => id !== tableId))];
   try {
     return await withRetry(() =>
       prisma.$transaction(async (tx) => {
-        const busy = await tx.order.findFirst({ where: { tableId, status: "OPEN" }, select: { id: true } });
+        await lockStoreTables(tx, table.storeId);
+        const busy = await tx.order.findFirst({ where: { tenantId, ...openOn(tableId) }, select: { id: true } });
         if (busy) throw new TableError(`La mesa ${table.name} ya está abierta`);
+        await checkFree(tx, tenantId, table.storeId, extra);
         return tx.order.create({
           data: {
             tenantId,
@@ -140,6 +163,7 @@ export async function openTable(tenantId: string, tableId: string, guests: numbe
             currency,
             estimatedReadyAt: new Date(),
             tableId,
+            joinedTableIds: extra,
             guests: g,
             createdByUserId: userId,
           },
@@ -329,7 +353,7 @@ export async function setTableLabel(tenantId: string, orderId: string, label: st
 export async function joinTables(tenantId: string, fromOrderId: string, toTableId: string) {
   return prisma.$transaction(async (tx) => {
     const from = await lockOpen(tx, fromOrderId, tenantId);
-    const target = await tx.order.findFirst({ where: { tenantId, tableId: toTableId, status: "OPEN" }, select: { id: true } });
+    const target = await tx.order.findFirst({ where: { tenantId, ...openOn(toTableId) }, select: { id: true } });
     if (!target) throw new TableError("Esa mesa ya no está abierta");
     if (target.id === from.id) throw new TableError("Elige otra mesa");
     const to = await lockOpen(tx, target.id, tenantId);
@@ -358,12 +382,39 @@ export async function moveTable(tenantId: string, orderId: string, toTableId: st
       const order = await lockOpen(tx, orderId, tenantId);
       if (to.storeId !== order.storeId) throw new TableError("Esa mesa es de otro local");
       if (to.id === order.tableId) return order;
-      const busy = await tx.order.findFirst({ where: { tableId: to.id, status: "OPEN" }, select: { id: true } });
-      if (busy) throw new TableError(`La mesa ${to.name} está ocupada`);
-      return tx.order.update({ where: { id: orderId }, data: { tableId: to.id, customerName: `Mesa ${to.name}` } });
+      await lockStoreTables(tx, order.storeId);
+      // A una mesa junta de esta misma cuenta: se cambian los papeles.
+      const joined = order.joinedTableIds.includes(to.id) ? order.joinedTableIds.map((id) => (id === to.id ? order.tableId! : id)) : order.joinedTableIds;
+      if (!order.joinedTableIds.includes(to.id)) {
+        const busy = await tx.order.findFirst({ where: { tenantId, ...openOn(to.id) }, select: { id: true } });
+        if (busy) throw new TableError(`La mesa ${to.name} está ocupada`);
+      }
+      return tx.order.update({ where: { id: orderId }, data: { tableId: to.id, joinedTableIds: joined, customerName: `Mesa ${to.name}` } });
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw new TableError(`La mesa ${to.name} está ocupada`);
     throw err;
   }
+}
+
+// Juntar una mesa libre a esta cuenta (llega más gente) o separarla otra vez.
+export async function attachTable(tenantId: string, orderId: string, tableId: string) {
+  return prisma.$transaction(async (tx) => {
+    const order = await lockOpen(tx, orderId, tenantId);
+    await lockStoreTables(tx, order.storeId);
+    if (tableId === order.tableId || order.joinedTableIds.includes(tableId)) return { joinedTableIds: order.joinedTableIds };
+    await checkFree(tx, tenantId, order.storeId, [tableId]);
+    const joinedTableIds = [...order.joinedTableIds, tableId];
+    await tx.order.update({ where: { id: order.id }, data: { joinedTableIds } });
+    return { joinedTableIds };
+  });
+}
+
+export async function detachTable(tenantId: string, orderId: string, tableId: string) {
+  return prisma.$transaction(async (tx) => {
+    const order = await lockOpen(tx, orderId, tenantId);
+    const joinedTableIds = order.joinedTableIds.filter((id) => id !== tableId);
+    await tx.order.update({ where: { id: order.id }, data: { joinedTableIds } });
+    return { joinedTableIds };
+  });
 }

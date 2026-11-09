@@ -37,7 +37,10 @@ Primera versión (2026-10-24), hecha para Estafetén, que tiene sala. Mesas y ba
     - En tablet y ordenador, cuando la cuenta tiene 42rem o más, hay un **panel de cobro fijo a la derecha**. Muestra el total en grande y debajo, de 80 px de alto, «+ Nueva ronda» y «Cobrar»; luego «Pedir cuenta» y, aparte y en pequeño, «Cambiar de mesa» y «Cerrar sin cobrar».
     - Las rondas hacen scroll y el panel no se mueve. En pantallas grandes (1536 px o más) el panel se ensancha a 24rem y los botones suben a 96 px.
     - En el móvil, una barra fija abajo con el total, «Pedir cuenta» y, de 64 px, «+ Nueva ronda» y «Cobrar».
-  - **Juntar con otra mesa**: lo pedido pasa a la cuenta de otra mesa abierta. Sus rondas van detrás de las de esa mesa, y también pasan su stock y sus comensales. La mesa queda libre y su cuenta se guarda como «Unida a la mesa N». No se puede si ya se cobró una parte por separado (`joinTables` en `lib/tables.ts`).
+  - **Juntar mesas** (un solo botón, tres cosas):
+    - **Añadir una mesa libre**: llega más gente y la mesa se une a esta cuenta. En el plano sale ocupada con «con N» y, al tocarla, abre la cuenta de la principal. La comanda, la pantalla de cocina y el ticket dicen «Mesa 1 + 2». Las mesas juntas se guardan en `Order.joinedTableIds` (`attachTable` en `lib/tables.ts`).
+    - **Separar**: la mesa junta queda libre otra vez; lo pedido sigue en la cuenta (`detachTable`).
+    - **Pasar todo a otra mesa abierta**: lo pedido pasa a la cuenta de otra mesa abierta. Sus rondas van detrás de las de esa mesa, y también pasan su stock y sus comensales. La mesa queda libre y su cuenta se guarda como «Unida a la mesa N». No se puede si ya se cobró una parte por separado (`joinTables` en `lib/tables.ts`).
   - **Ponerle nombre**: por ejemplo «Cumpleaños» o «Empresa». Sale en el plano (etiqueta bajo la mesa), en «Mesas abiertas», en la ficha, en la comanda y en el ticket. Al cerrar la cuenta la mesa vuelve a su nombre (va en `Order.customerName`).
   - **Pedir cuenta** imprime la cuenta («No es una factura») y marca la mesa como «pide la cuenta». Arriba sale «Cuenta pedida · hora» y el botón pasa a «Repetir cuenta».
   - **Anular** una línea ya enviada (solo el gerente) imprime en cocina «ANULADO · NO PREPARAR». El stock no vuelve, porque puede estar hecho.

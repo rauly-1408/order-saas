@@ -8,7 +8,7 @@ import { enqueueTablePrint, printTablePayment } from "@/app/lib/printing";
 import { issueInvoiceSafe } from "@/app/lib/verifactu";
 import { cancelOrder } from "@/app/lib/cancelOrder";
 import { notifyCollaboratorSale } from "@/app/lib/push";
-import { PAY_METHODS, addRound, joinTables, moveTable, payTable, requestBill, setTableCollaborator, setTableLabel, voidLine, type PayMethod } from "@/app/lib/tables";
+import { PAY_METHODS, addRound, attachTable, detachTable, joinTables, moveTable, payTable, requestBill, setTableCollaborator, setTableLabel, voidLine, type PayMethod } from "@/app/lib/tables";
 
 // Acciones sobre la cuenta de una mesa (ronda, anular, cuenta, cobrar, cambiar
 // de mesa, cerrar, colaborador). Las usan POST /mesas/[orderId] y, para lo
@@ -19,7 +19,7 @@ import { PAY_METHODS, addRound, joinTables, moveTable, payTable, requestBill, se
 export const partNote = (n: number | null) => `Parte de la cuenta nº ${n ?? "?"}`;
 
 export type TableActionBody = {
-  action?: "round" | "void" | "bill" | "pay" | "move" | "cancel" | "collab" | "label" | "join";
+  action?: "round" | "void" | "bill" | "pay" | "move" | "cancel" | "collab" | "label" | "join" | "attach" | "detach";
   label?: string;
   code?: string;
   items?: OrderLineInput[];
@@ -107,6 +107,13 @@ export async function runTableAction({ tenant, session, order }: Ctx, b: TableAc
       if (typeof b.tableId !== "string") return NextResponse.json({ error: "Elige la mesa" }, { status: 400 });
       const to = b.tableId;
       return once(tenant.id, rid, async () => NextResponse.json(await joinTables(tenant.id, order.id, to)));
+    }
+    case "attach":
+    case "detach": {
+      // Juntar una mesa libre a esta cuenta, o separarla.
+      if (typeof b.tableId !== "string") return NextResponse.json({ error: "Elige la mesa" }, { status: 400 });
+      const id = b.tableId;
+      return NextResponse.json(await (b.action === "attach" ? attachTable : detachTable)(tenant.id, order.id, id));
     }
     case "cancel": {
       const lines = await prisma.orderLine.count({ where: { orderId: order.id } });

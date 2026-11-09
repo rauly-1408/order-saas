@@ -95,7 +95,7 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
         d = await res.json().catch(() => ({}));
       }
       if (!res.ok) throw new Error(d.error ?? "No se pudo cambiar");
-      if (d.opened) setNotice({ text: `Mesa ${d.opened.table} abierta para ${r.name}`, link: true });
+      if (d.opened) setNotice({ text: d.notice ?? `${d.opened.table.includes("+") ? "Mesas" : "Mesa"} ${d.opened.table} ${d.opened.table.includes("+") ? "abiertas en una sola cuenta" : "abierta"} para ${r.name}`, link: true });
       else if (d.notice) setNotice({ text: d.notice, link: true });
       await load();
     } catch (e) {

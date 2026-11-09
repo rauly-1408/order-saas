@@ -490,6 +490,8 @@ model Order {
   commissionCents   Int           @default(0)
   // Mesas: la mesa, los comensales y cuándo se imprimió la cuenta (pidiendo la cuenta)
   tableId           String?
+  // Mesas juntas en esta cuenta además de tableId (combinación o «Juntar mesa libre»). Ver docs/MESAS.md
+  joinedTableIds    String[]      @default([])
   table             DiningTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
   guests            Int?
   billRequestedAt   DateTime?
