@@ -60,7 +60,7 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
           </p>
         </div>
         {hidden.size > 0 && cards.some((c) => hidden.has(c.id)) && (
-          <button type="button" onClick={reset} className="text-sm font-medium text-[var(--p-brand)] hover:underline">
+          <button type="button" onClick={reset} className="p-press inline-flex min-h-11 shrink-0 items-center rounded-full bg-black/[0.05] px-4 text-sm font-semibold text-[var(--p-ink)] hover:bg-black/[0.08]">
             Mostrar las ocultas
           </button>
         )}

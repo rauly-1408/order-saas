@@ -144,10 +144,10 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
 
       {/* Últimos pedidos: lista agrupada al estilo iOS */}
       <section className="mt-10">
-        <div className="mb-3 flex items-baseline justify-between px-1">
+        <div className="mb-3 flex items-center justify-between gap-3 px-1">
           <h2 className="text-xl font-semibold tracking-tight">Últimos pedidos</h2>
-          <Link href={`/admin/${tenant}/pedidos`} className="inline-flex min-h-11 items-center rounded-full text-sm font-medium text-[var(--p-brand)] hover:underline">
-            Ver todos ›
+          <Link href={`/admin/${tenant}/pedidos`} className="p-press inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-sm font-semibold text-[var(--p-ink)] no-underline hover:bg-black/[0.08]">
+            Ver todos los pedidos
           </Link>
         </div>
         {recentOrders.length === 0 ? (

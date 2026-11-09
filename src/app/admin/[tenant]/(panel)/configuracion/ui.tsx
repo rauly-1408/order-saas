@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ask } from "@/app/lib/dialog";
 
@@ -23,14 +24,17 @@ export function Card({ title, description, children, footer }: { title: string; 
   );
 }
 
+// Interruptor con su texto, como los de la Carta: toda la fila lo cambia.
 export function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
   return (
-    <label className="flex cursor-pointer items-start justify-between gap-4 py-2">
+    <label className="flex cursor-pointer items-start justify-between gap-4 py-2.5">
       <span className="text-sm">
         <span className="font-medium">{label}</span>
         {hint && <span className="mt-0.5 block text-xs text-[var(--p-muted)]">{hint}</span>}
       </span>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--p-brand)]" />
+      <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className={`relative mt-0.5 h-6 w-10 shrink-0 rounded-full transition-colors ${checked ? "bg-[var(--p-brand)]" : "bg-black/15"}`}>
+        <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-all ${checked ? "left-5" : "left-1"}`} />
+      </button>
     </label>
   );
 }
@@ -147,6 +151,10 @@ export function SaveBarHost() {
     };
   }, [dirty, router]);
 
+  // Se pinta en el contenedor del panel: dentro de la página, un padre con
+  // animación la desplazaba fuera de la pantalla.
+  const [portal] = useState<HTMLElement | null>(() => (typeof document === "undefined" ? null : ((document.querySelector(".panel") as HTMLElement | null) ?? document.body)));
+
   async function saveAll() {
     setBusy(true);
     let ok = true;
@@ -162,25 +170,37 @@ export function SaveBarHost() {
 
   return (
     <>
+      {/* Tarjeta flotante abajo, como los avisos del panel: a mano del pulgar en la tablet.
+          El hueco de abajo evita que tape lo último de la página. */}
+      {dirty && <div aria-hidden className="h-24" />}
+      {portal && createPortal(<>
       {dirty && (
-        <div role="region" aria-label="Cambios sin guardar" className="fixed inset-x-0 top-0 z-50 flex items-center gap-3 bg-[var(--p-brand-strong,#1d1d1f)] px-4 py-2.5 text-[var(--p-on-brand-strong,#fff)] shadow-lg sm:px-8">
-          <span className="flex-1 text-sm font-medium">⚠️ Cambios sin guardar</span>
-          <button type="button" disabled={busy} onClick={() => dirtyRegs().forEach((r) => r.discard())} className="p-press rounded-full px-4 py-1.5 text-sm font-medium opacity-80 hover:bg-[color-mix(in_srgb,var(--p-on-brand-strong,#fff)_12%,transparent)] hover:opacity-100 disabled:opacity-50">
-            Descartar
-          </button>
-          <button type="button" disabled={busy} onClick={saveAll} className="p-press rounded-full bg-[var(--p-on-brand-strong,#fff)] px-5 py-1.5 text-sm font-semibold text-[var(--p-brand-strong,#1d1d1f)] disabled:opacity-60">
-            {busy ? "Guardando…" : "Guardar"}
-          </button>
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-[max(16px,env(safe-area-inset-bottom))]">
+          <div role="region" aria-label="Cambios sin guardar" className="p-rise pointer-events-auto flex w-full max-w-xl flex-wrap items-center gap-x-2 gap-y-2 rounded-2xl bg-[var(--p-surface)] p-3 pl-4 text-[var(--p-ink)] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.35)] ring-1 ring-[var(--p-line)]">
+            <p className="flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap text-sm font-semibold">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
+              Cambios sin guardar
+            </p>
+            <div className="flex gap-2">
+              <button type="button" disabled={busy} onClick={() => dirtyRegs().forEach((r) => r.discard())} className="p-press min-h-11 rounded-full bg-black/[0.05] px-3.5 text-sm font-semibold disabled:opacity-50 sm:px-4">
+                Descartar
+              </button>
+              <button type="button" disabled={busy} onClick={saveAll} className="p-press min-h-11 rounded-full bg-[var(--p-brand)] px-4 text-sm font-semibold text-white disabled:opacity-60 sm:px-5">
+                {busy ? "Guardando…" : "Guardar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
-      {note && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
-          <div key={note.id} role="status" className={`p-rise flex max-w-full items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg ${note.ok ? "bg-[var(--p-brand-strong,#1d1d1f)] text-[var(--p-on-brand-strong,#fff)]" : "bg-[#b42318] text-white"}`}>
-            <span aria-hidden>{note.ok ? "✓" : "!"}</span>
+      {note && !dirty && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-[max(16px,env(safe-area-inset-bottom))]">
+          <div key={note.id} role="status" className="p-rise flex max-w-full items-center gap-2 rounded-2xl bg-[var(--p-surface)] px-4 py-3 text-sm font-semibold text-[var(--p-ink)] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.35)] ring-1 ring-[var(--p-line)]">
+            <span aria-hidden className={`flex h-5 w-5 items-center justify-center rounded-full text-xs text-white ${note.ok ? "bg-emerald-600" : "bg-[#b42318]"}`}>{note.ok ? "✓" : "!"}</span>
             {note.text}
           </div>
         </div>
       )}
+      </>, portal)}
     </>
   );
 }
