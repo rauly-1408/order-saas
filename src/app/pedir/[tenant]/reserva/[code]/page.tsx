@@ -6,6 +6,7 @@ import { storeLang } from "@/app/lib/storeLang";
 import { tenantTimeZone } from "@/app/lib/time";
 import { ui } from "@/app/lib/i18n";
 import CancelReservation from "./CancelReservation";
+import ConfirmAttendance from "./ConfirmAttendance";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,9 @@ export default async function ReservaPage({ params }: { params: Promise<{ tenant
   const r = t ? await prisma.reservation.findFirst({ where: { code, tenantId: t.id }, include: { store: { select: { name: true, address: true } } } }) : null;
   const biz = readBusiness(t?.settings);
   const tz = tenantTimeZone(t?.settings);
-  const canCancel = !!r && ["PENDING", "CONFIRMED"].includes(r.status) && isUpcoming(r.startsAt);
-  const tone = r?.status === "CANCELLED" || r?.status === "NO_SHOW" ? "bg-red-100 text-red-800" : r?.status === "PENDING" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800";
+  const canCancel = !!r && ["PENDING", "CONFIRMED", "WAITLIST"].includes(r.status) && isUpcoming(r.startsAt);
+  const canConfirm = !!r && r.status === "CONFIRMED" && !r.customerConfirmedAt && isUpcoming(r.startsAt);
+  const tone = r?.status === "CANCELLED" || r?.status === "NO_SHOW" ? "bg-red-100 text-red-800" : r?.status === "PENDING" || r?.status === "WAITLIST" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800";
   const address = r?.store.address || [biz.street, biz.city].filter(Boolean).join(", ");
   return (
     <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)]" style={{ ...(cssVars as React.CSSProperties), fontFamily: cssVars["--font-body"] }}>
@@ -41,7 +43,10 @@ export default async function ReservaPage({ params }: { params: Promise<{ tenant
             <span className={`mt-4 inline-flex rounded-full px-3 py-1 text-[13px] font-bold ${tone}`}>{T.bookStatus[r.status] ?? r.status}</span>
             {(address || biz.phone) && <p className="mt-5 text-[15px]">{[address, biz.phone].filter(Boolean).join(" · ")}</p>}
             {r.notes && <p className="mt-2 text-[14px] text-[var(--text-secondary)]">{r.notes}</p>}
-            {canCancel && <CancelReservation tenant={tenant} code={code} lang={lang} />}
+            {r.status === "WAITLIST" && <p className="mt-4 text-[15px]">{T.bookWaitDoneText}</p>}
+            {r.status === "CONFIRMED" && r.customerConfirmedAt && <p className="mt-4 text-[15px] font-semibold text-emerald-700">✓ {T.bookGoConfirmed}</p>}
+            {canConfirm && <ConfirmAttendance tenant={tenant} code={code} lang={lang} />}
+            {canCancel && <CancelReservation tenant={tenant} code={code} lang={lang} waitlist={r.status === "WAITLIST"} tight={canConfirm} />}
             {r.status === "CANCELLED" && (
               <a href={`/pedir/${tenant}/reservar`} className="p-press mt-6 inline-flex rounded-full bg-[var(--brand-accent)] px-6 py-3.5 text-[15px] font-bold text-[var(--on-accent)] no-underline">{T.bookAgain}</a>
             )}

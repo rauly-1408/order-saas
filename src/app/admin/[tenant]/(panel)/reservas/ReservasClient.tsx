@@ -8,8 +8,8 @@ import { Sheet, Stepper } from "../mesas/shared";
 // Reservas de un día, por horas: confirmar las pendientes, marcar quién llegó
 // o no vino, cancelar y apuntar las que llegan por teléfono. Se refresca sola
 // para ver las nuevas de la tienda. Ver docs/RESERVAS.md
-type Status = "PENDING" | "CONFIRMED" | "SEATED" | "NO_SHOW" | "CANCELLED";
-type Reservation = { id: string; startsAt: string; guests: number; name: string; phone: string; email: string | null; notes: string | null; status: Status; source: "ONLINE" | "PHONE" | "WALKIN"; tableIds: string[] };
+type Status = "PENDING" | "CONFIRMED" | "SEATED" | "NO_SHOW" | "CANCELLED" | "WAITLIST";
+type Reservation = { id: string; startsAt: string; guests: number; name: string; phone: string; email: string | null; notes: string | null; status: Status; source: "ONLINE" | "PHONE" | "WALKIN"; tableIds: string[]; customerConfirmedAt: string | null; reminderSentAt: string | null };
 type Data = { date: string; today: string; tz: string; storeId: string; stores: { id: string; name: string }[]; capacity: number; settings: { enabled: boolean; autoConfirm: boolean; durationMinutes: number }; reservations: Reservation[]; tableNames: Record<string, string> };
 
 const STATUS: Record<Status, { label: string; cls: string }> = {
@@ -18,6 +18,7 @@ const STATUS: Record<Status, { label: string; cls: string }> = {
   SEATED: { label: "Llegó", cls: "bg-emerald-100 text-emerald-800" },
   NO_SHOW: { label: "No vino", cls: "bg-red-100 text-red-700" },
   CANCELLED: { label: "Cancelada", cls: "bg-black/[0.06] text-[var(--p-muted)]" },
+  WAITLIST: { label: "En espera", cls: "bg-amber-100 text-amber-800" },
 };
 const SOURCE = { ONLINE: "Online", PHONE: "Teléfono", WALKIN: "Sin reserva" };
 const POLL_MS = 30_000;
@@ -65,7 +66,8 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
   const day = data?.date ?? date;
   const tz = data?.tz;
   const time = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: tz });
-  const active = useMemo(() => (data?.reservations ?? []).filter((r) => r.status !== "CANCELLED"), [data]);
+  const active = useMemo(() => (data?.reservations ?? []).filter((r) => r.status !== "CANCELLED" && r.status !== "WAITLIST"), [data]);
+  const waitlist = (data?.reservations ?? []).filter((r) => r.status === "WAITLIST");
   const cancelled = (data?.reservations ?? []).filter((r) => r.status === "CANCELLED");
   const groups = useMemo(() => {
     const m = new Map<string, Reservation[]>();
@@ -83,8 +85,15 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
     if (confirmText && !(await ask(confirmText, { danger: status === "CANCELLED" }))) return;
     setBusy(r.id);
     try {
-      const res = await fetch(`${api}/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
-      const d = await res.json().catch(() => ({}));
+      const patch = (force: boolean) => fetch(`${api}/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, force }) });
+      let res = await patch(false);
+      let d = await res.json().catch(() => ({}));
+      // Dar mesa a la lista de espera sin sitio: preguntar y forzar.
+      if (res.status === 409 && d.full) {
+        if (!(await ask(`${d.error}. ¿Dar mesa a ${r.name} igualmente?`, { confirm: "Dar mesa", danger: false }))) return;
+        res = await patch(true);
+        d = await res.json().catch(() => ({}));
+      }
       if (!res.ok) throw new Error(d.error ?? "No se pudo cambiar");
       if (d.opened) setNotice({ text: `Mesa ${d.opened.table} abierta para ${r.name}`, link: true });
       else if (d.notice) setNotice({ text: d.notice, link: true });
@@ -184,6 +193,15 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
                       </div>
                       <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
                     </div>
+                    {r.status === "CONFIRMED" && (r.customerConfirmedAt || r.reminderSentAt) && (
+                      <p className="mt-2">
+                        {r.customerConfirmedAt ? (
+                          <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">✓ Confirmó que viene</span>
+                        ) : (
+                          <span className="inline-flex rounded-full bg-black/[0.05] px-2.5 py-1 text-xs font-semibold text-[var(--p-muted)]">Recordatorio enviado</span>
+                        )}
+                      </p>
+                    )}
                     <p className="mt-2 text-sm font-medium">
                       {r.tableIds.length ? `${r.tableIds.length > 1 ? "Mesas" : "Mesa"} ${r.tableIds.map((id) => data.tableNames[id] ?? "?").join(" + ")}` : <span className="text-amber-700">Sin mesa</span>}
                     </p>
@@ -215,6 +233,35 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
             </section>
           ))}
         </div>
+      )}
+
+      {waitlist.length > 0 && (
+        <section className="mt-6" aria-labelledby="r-wait">
+          <h2 id="r-wait" className="text-lg font-semibold">Lista de espera ({waitlist.length})</h2>
+          <p className="text-sm text-[var(--p-muted)]">Piden mesa a una hora completa. Si se cancela una reserva, les avisamos por email solos.</p>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {waitlist.map((r) => (
+              <li key={r.id} className="rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                <div className="flex items-start gap-3">
+                  <span className="text-lg font-semibold tabular-nums">{time(r.startsAt)}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[16px] font-semibold">{r.name}</p>
+                    <p className="text-sm text-[var(--p-muted)]">
+                      <span className="font-semibold text-[var(--p-ink)]">{r.guests} {r.guests === 1 ? "persona" : "personas"}</span> · <a href={`tel:${r.phone}`} className="select-all underline-offset-2 hover:underline">{r.phone}</a>
+                    </p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS.WAITLIST.cls}`}>{STATUS.WAITLIST.label}</span>
+                </div>
+                {r.notes && <p className="mt-2 rounded-xl bg-[var(--p-warm,#f5f5f7)] px-3 py-2 text-sm">{r.notes}</p>}
+                {r.email && <p className="mt-2 text-xs text-[var(--p-muted)]">{r.email}</p>}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CONFIRMED")} className={primary}>Dar mesa</button>
+                  <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CANCELLED", `¿Quitar a ${r.name} de la lista de espera?`)} className={secondary}>Quitar</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {cancelled.length > 0 && (

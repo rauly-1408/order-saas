@@ -591,6 +591,7 @@ enum ReservationStatus {
   SEATED // el cliente ha llegado
   NO_SHOW
   CANCELLED
+  WAITLIST // lista de espera: no ocupa sitio hasta que el restaurante le da mesa
 }
 
 enum ReservationSource {
@@ -621,6 +622,9 @@ model Reservation {
   createdByUserId String?
   cancelledAt DateTime?
   cancelledBy String? // "CUSTOMER" | "RESTAURANT"
+  reminderSentAt      DateTime? // recordatorio por email enviado
+  customerConfirmedAt DateTime? // el cliente confirmó que va (botón del recordatorio)
+  waitlistNotifiedAt  DateTime? // lista de espera: se le avisó de que quedó sitio
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

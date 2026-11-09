@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ui, type Lang } from "@/app/lib/i18n";
 
 // Cancelar en dos toques: «Cancelar la reserva» y luego «Sí, cancelar».
-export default function CancelReservation({ tenant, code, lang }: { tenant: string; code: string; lang: Lang }) {
+export default function CancelReservation({ tenant, code, lang, waitlist = false, tight = false }: { tenant: string; code: string; lang: Lang; waitlist?: boolean; tight?: boolean }) {
   const T = ui(lang);
   const router = useRouter();
   const [sure, setSure] = useState(false);
@@ -24,10 +24,10 @@ export default function CancelReservation({ tenant, code, lang }: { tenant: stri
     router.refresh();
   }
   return (
-    <div className="mt-6">
+    <div className={tight ? "mt-3" : "mt-6"}>
       {!sure ? (
         <button type="button" onClick={() => setSure(true)} className="p-press w-full rounded-full border-2 border-[var(--border)] py-3.5 text-[15px] font-bold text-[var(--text-primary)] sm:w-auto sm:px-6">
-          {T.bookCancel}
+          {waitlist ? T.bookWaitLeave : T.bookCancel}
         </button>
       ) : (
         <div className="rounded-2xl bg-black/[0.04] p-4" role="alertdialog" aria-label={T.bookCancelSure}>
