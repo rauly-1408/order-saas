@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ConfigIcon from "./ConfigIcon";
 import { CONFIG_SECTIONS } from "./sections";
+import { BTN } from "../buttons";
 
 // Menú de Configuración como el de Shopify: tarjeta de la tienda arriba y la
 // lista de apartados. En el móvil, la lista es la portada de Configuración y
-// cada apartado tiene «← Configuración» para volver.
+// cada apartado tiene «‹ Configuración» para volver (como «‹ Mesas»).
 export default function ConfigNav({ tenant, name, logoUrl, storeUrl }: { tenant: string; name: string; logoUrl: string | null; storeUrl: string }) {
   const pathname = usePathname();
   const base = `/admin/${tenant}/configuracion`;
@@ -15,8 +16,8 @@ export default function ConfigNav({ tenant, name, logoUrl, storeUrl }: { tenant:
   return (
     <>
       {!onIndex && (
-        <Link href={base} className="p-press mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--p-muted)] lg:hidden">
-          <span aria-hidden>←</span> Configuración
+        <Link href={base} className={`${BTN.back} mb-2 lg:hidden`}>
+          ‹ Configuración
         </Link>
       )}
       <nav aria-label="Apartados de configuración" className={`${onIndex ? "block" : "hidden"} lg:sticky lg:top-20 lg:block`}>

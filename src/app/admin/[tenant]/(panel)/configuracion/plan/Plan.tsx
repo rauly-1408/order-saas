@@ -62,7 +62,7 @@ export default function Plan({ tenant }: { tenant: string }) {
             <tbody className="divide-y divide-[var(--p-line)] tabular-nums">
               {data.months.map((m) => (
                 <tr key={m.month}>
-                  <td className="px-5 py-2.5 capitalize sm:px-6">{monthName(m.month)}</td>
+                  <td className="px-5 py-2.5 first-letter:uppercase sm:px-6">{monthName(m.month)}</td>
                   <td className="px-2 py-2.5 text-right">{m.orders}</td>
                   <td className="px-2 py-2.5 text-right">{euros(m.totalCents)}</td>
                   <td className="px-5 py-2.5 text-right font-semibold sm:px-6">{euros(m.feeCents)}</td>

@@ -93,3 +93,11 @@ El panel se usará en pantallas táctiles (tablet o TPV), así que todo lo que s
 - Los «+ Añadir…» que eran texto suelto ahora usan `add`: cierres, zonas de reparto, franjas, opciones, ingredientes y emails de proveedor.
 - Al pasar el ratón, solo los botones con forma (clase `rounded`) se elevan con sombra. Los de texto (enlaces, ✕, cabeceras de tabla) solo cambian de tono: antes salía una caja con sombra alrededor del texto.
 - Horario: botón «Copiar el horario del lunes a todos los días».
+
+## Revisión completa en móvil y pantalla grande (2026-11-09)
+
+- Revisadas todas las páginas del panel (los 19 apartados de Configuración incluidos) y de la tienda a 375, 1024, 1366 y 2056 px. También los flujos con interacción: producto, carrito, checkout, editor de la carta, nueva reserva, caja y abrir mesa. Nada se sale de la pantalla y no hay botones cortados.
+- Arreglado:
+  - «Pedido mínimo» y «Envío general» se pedían en céntimos; ahora se escriben en euros («2,50 €»).
+  - La vuelta de cada apartado de Configuración usa el mismo «‹ Volver» que el resto del panel.
+  - Plan y facturación: «Noviembre de 2026» en vez de «Noviembre De 2026».
