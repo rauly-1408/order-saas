@@ -32,15 +32,29 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   );
 }
 
-function NumField({ label, value, onChange, hint }: { label: string; value: number; onChange: (v: number) => void; hint?: string }) {
-  const fmt = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
+// Importe en euros («2,50»); se guarda en céntimos.
+function MoneyField({ label, cents, onChange }: { label: string; cents: number; onChange: (v: number) => void }) {
+  const [text, setText] = useState<string | null>(null);
+  const shown = text ?? (cents ? (cents / 100).toFixed(2).replace(".", ",") : "0");
   return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>{label}</div>
-      <input type="number" min={0} value={value} onChange={e => onChange(Number(e.target.value))}
-        style={{ width: '100%', padding: '8px 12px', fontSize: 14, border: `1px solid ${S.border}`, borderRadius: 4, outline: 'none', fontFamily: 'inherit', color: S.textDark, boxSizing: 'border-box' }} />
-      {hint && <div style={{ fontSize: 11, color: S.textMid, marginTop: 3 }}>= {fmt.format(value / 100)}</div>}
-    </div>
+    <label className="block">
+      <span className="mb-1.5 block text-[13px] font-medium text-[var(--p-muted)]">{label}</span>
+      <span className="relative block">
+        <input
+          inputMode="decimal"
+          value={shown}
+          onChange={(e) => {
+            const v = e.target.value.replace(/[^\d.,]/g, "");
+            setText(v);
+            const n = Number(v.replace(",", "."));
+            if (Number.isFinite(n) && n >= 0) onChange(Math.round(n * 100));
+          }}
+          onBlur={() => setText(null)}
+          className="w-full rounded-xl border border-[var(--p-line)] px-3 py-2 pr-8 text-sm"
+        />
+        <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--p-muted)]">€</span>
+      </span>
+    </label>
   );
 }
 
@@ -163,8 +177,8 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
 
       <Section title="Precios y tiempos">
         <div className="grid gap-4 sm:grid-cols-2">
-          <NumField label="Pedido mínimo a domicilio (céntimos)" value={form.minimumOrderCents} onChange={v => setForm({ ...form, minimumOrderCents: v })} hint="cents" />
-          <NumField label="Envío general (céntimos)" value={form.deliveryFeeCents} onChange={v => setForm({ ...form, deliveryFeeCents: v })} hint="cents" />
+          <MoneyField label="Pedido mínimo a domicilio" cents={form.minimumOrderCents} onChange={v => setForm({ ...form, minimumOrderCents: v })} />
+          <MoneyField label="Envío general" cents={form.deliveryFeeCents} onChange={v => setForm({ ...form, deliveryFeeCents: v })} />
           <div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--p-muted)', marginBottom: 6 }}>Tiempo delivery (min)</div>
             <input type="number" min={1} value={form.estimatedDeliveryMinutes} onChange={e => setForm({ ...form, estimatedDeliveryMinutes: Number(e.target.value) })}
