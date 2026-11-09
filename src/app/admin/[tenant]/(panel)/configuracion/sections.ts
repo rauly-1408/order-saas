@@ -1,7 +1,7 @@
 // Apartados de Configuración, en el orden de Shopify. Sin React: lo usan el
 // menú (cliente) y las páginas (servidor).
 export type IconName =
-  | "store" | "plan" | "users" | "card" | "cart" | "truck" | "tax" | "pin" | "clock" | "gift" | "globe" | "brush" | "bell" | "lang" | "doc" | "printer" | "receipt" | "plug";
+  | "store" | "plan" | "users" | "card" | "cart" | "truck" | "tax" | "pin" | "clock" | "gift" | "globe" | "brush" | "bell" | "lang" | "doc" | "printer" | "receipt" | "plug" | "calendar";
 
 export const CONFIG_SECTIONS: { slug: string; label: string; icon: IconName; description: string }[] = [
   { slug: "negocio", label: "Información del negocio", icon: "store", description: "Razón social, NIF, dirección y contacto. Salen en el pie de tu tienda y en los textos legales." },
@@ -14,6 +14,7 @@ export const CONFIG_SECTIONS: { slug: string; label: string; icon: IconName; des
   { slug: "impuestos", label: "Impuestos", icon: "tax", description: "El IVA de tus precios y cómo se muestra al cliente." },
   { slug: "facturacion", label: "Facturación · VeriFactu", icon: "receipt", description: "Facturas simplificadas con numeración legal, huella encadenada y QR de Hacienda (obligatorio desde 2027)." },
   { slug: "sucursales", label: "Sucursales", icon: "pin", description: "Tus locales: cada uno con su horario y sus zonas de reparto." },
+  { slug: "reservas", label: "Reservas", icon: "calendar", description: "Reservas de mesa desde tu tienda: horas, aforo, duración y avisos." },
   { slug: "horario", label: "Horario y zonas", icon: "clock", description: "Horario semanal, cierres puntuales y zonas de reparto de cada local." },
   { slug: "tarjetas-regalo", label: "Tarjetas regalo", icon: "gift", description: "Crea tarjetas con saldo que tus clientes canjean al pedir." },
   { slug: "dominios", label: "Dominios", icon: "globe", description: "La dirección web de tu tienda y tu dominio propio." },

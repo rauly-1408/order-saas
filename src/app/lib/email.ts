@@ -144,3 +144,65 @@ export function dailySummaryEmail(p: {
   const text = [`Resumen del ${p.dayLabel} · ${p.restaurant}`, `Pedidos: ${p.orders}`, `Ingresos: ${euros(p.revenueCents)}`, `Ticket medio: ${euros(avg)}`, `A domicilio / recoger: ${p.delivery} / ${p.takeaway}`, `Cancelados: ${p.cancelled}`, "", "Lo más vendido:", ...p.top.map((t, i) => `${i + 1}. ${t.name} · ${t.units} ud`), "", `Informes: ${p.reportsUrl}`].join("\n");
   return { subject: `Resumen del ${p.dayLabel}: ${p.orders} pedidos · ${euros(p.revenueCents)}`, html, text };
 }
+
+// ─── Reservas (ver docs/RESERVAS.md) ───────────────────────────────────────
+const btn = (href: string, label: string) => `<a href="${esc(href)}" style="display:inline-block;background:#0d3328;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:600">${esc(label)}</a>`;
+
+export function reservationCustomerEmail(p: {
+  restaurant: string;
+  when: string;
+  guests: number;
+  status: string;
+  event: "created" | "confirmed" | "cancelled";
+  address: string | null;
+  phone: string | null;
+  link: string;
+  lang: "es" | "en";
+}): { subject: string; html: string; text: string } {
+  const en = p.lang === "en";
+  const pending = p.status === "PENDING";
+  const people = en ? `${p.guests} ${p.guests === 1 ? "person" : "people"}` : `${p.guests} ${p.guests === 1 ? "persona" : "personas"}`;
+  const title =
+    p.event === "cancelled" ? (en ? "Your booking has been cancelled" : "Tu reserva está cancelada")
+    : pending ? (en ? "Booking request received" : "Hemos recibido tu solicitud de reserva")
+    : en ? "Your table is booked" : "Tu mesa está reservada";
+  const intro =
+    p.event === "cancelled" ? (en ? "If it was a mistake, you can book again on our website." : "Si ha sido un error, puedes volver a reservar en nuestra web.")
+    : pending ? (en ? "The restaurant will confirm it shortly. We will email you." : "El restaurante la confirmará en breve. Te avisaremos por email.")
+    : en ? "See you soon!" : "¡Te esperamos!";
+  const where = [p.address, p.phone].filter(Boolean).join(" · ");
+  const html = layout(
+    `${title} · ${p.restaurant}`,
+    `<p style="margin:0 0 8px;font-size:17px"><b>${esc(p.when)}</b><br>${esc(people)}</p>
+     ${where ? `<p style="margin:0 0 12px;color:#5d6b64">${esc(where)}</p>` : ""}
+     <p style="margin:0 0 16px">${esc(intro)}</p>
+     ${p.event !== "cancelled" ? `<p style="margin:0">${btn(p.link, en ? "View or cancel my booking" : "Ver o cancelar mi reserva")}</p>` : ""}`,
+    esc(p.restaurant)
+  );
+  const text = [`${title} · ${p.restaurant}`, p.when, people, where, intro, p.event !== "cancelled" ? p.link : ""].filter(Boolean).join("\n");
+  return { subject: `${title} · ${p.restaurant}`, html, text };
+}
+
+export function reservationRestaurantEmail(p: {
+  restaurant: string;
+  when: string;
+  guests: number;
+  name: string;
+  phone: string;
+  notes: string | null;
+  pending: boolean;
+  cancelled: boolean;
+  panelUrl: string;
+}): { subject: string; html: string; text: string } {
+  const head = p.cancelled ? "Reserva cancelada por el cliente" : p.pending ? "Reserva nueva pendiente de confirmar" : "Reserva nueva";
+  const html = layout(
+    `${head} · ${p.guests} pax`,
+    `<p style="margin:0 0 4px"><b>${esc(p.name)}</b> · ${esc(p.phone)}</p>
+     <p style="margin:0 0 12px;color:#5d6b64">${esc(p.when)} · ${p.guests} ${p.guests === 1 ? "persona" : "personas"}</p>
+     ${p.notes ? `<p style="margin:0 0 12px">Nota: ${esc(p.notes)}</p>` : ""}
+     <p style="margin:0">${btn(p.panelUrl, p.pending ? "Confirmar en el panel" : "Ver las reservas del día")}</p>`,
+    `Aviso automático de ${esc(p.restaurant)}. Puedes apagarlo en Configuración → Reservas.`
+  );
+  const text = [`${head}`, `${p.name} · ${p.phone}`, `${p.when} · ${p.guests} pax`, p.notes ? `Nota: ${p.notes}` : "", p.panelUrl].filter(Boolean).join("\n");
+  return { subject: `${head}: ${p.name} · ${p.when} · ${p.guests} pax`, html, text };
+}
