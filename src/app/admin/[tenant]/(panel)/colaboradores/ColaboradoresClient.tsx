@@ -200,7 +200,6 @@ export default function ColaboradoresClient({ tenant }: { tenant: string }) {
   );
   const unpaid = isCurrent ? [] : all.filter((c) => !c.paid && c.commissionCents > 0);
   const unpaidCents = unpaid.reduce((a, c) => a + c.commissionCents, 0);
-  const topSales = Math.max(1, ...all.map((c) => c.salesCents));
   const q = query.trim().toLowerCase();
   const shown = all
     .filter((c) => (filter === "active" ? c.active : filter === "paused" ? !c.active : filter === "unpaid" ? !c.paid && c.commissionCents > 0 && !isCurrent : true))
@@ -303,39 +302,35 @@ export default function ColaboradoresClient({ tenant }: { tenant: string }) {
                     </div>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    <button onClick={() => copy(shopLink(c), `Enlace de ${c.name.split(" ")[0]} copiado`)} title="Copiar su enlace de la tienda" className="flex items-center gap-1 rounded-full bg-[var(--p-bg)] px-2.5 py-1 text-xs font-bold tracking-wider hover:bg-black/[0.06]">
+                  {/* Código y condiciones: chips de la misma altura, con el texto centrado */}
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <button onClick={() => copy(shopLink(c), `Enlace de ${c.name.split(" ")[0]} copiado`)} title="Copiar su enlace de la tienda" className="p-press inline-flex h-10 min-h-0 items-center gap-1.5 rounded-full bg-[var(--p-bg)] px-3.5 text-xs font-bold tracking-wider hover:bg-black/[0.06]">
                       {c.code}
                       <CopyIcon />
                     </button>
-                    <span className="rounded-full bg-[var(--p-brand-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--p-brand-strong)]">Se lleva {pctText(c.commissionPct)}</span>
+                    <span className="inline-flex h-10 items-center rounded-full px-3.5 text-xs bg-[var(--p-brand-soft)] font-semibold text-[var(--p-brand-strong)]">Se lleva {pctText(c.commissionPct)}</span>
                     {c.discountPct > 0 ? (
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Cliente −{pctText(c.discountPct)}</span>
+                      <span className="inline-flex h-10 items-center rounded-full px-3.5 text-xs bg-emerald-50 font-semibold text-emerald-700">Cliente −{pctText(c.discountPct)}</span>
                     ) : (
-                      <span className="rounded-full bg-[var(--p-bg)] px-2.5 py-1 text-xs text-[var(--p-muted)]">Sin descuento al cliente</span>
+                      <span className="inline-flex h-10 items-center rounded-full px-3.5 text-xs bg-[var(--p-bg)] text-[var(--p-muted)]">Sin descuento al cliente</span>
                     )}
                   </div>
 
-                  <div className="mt-3">
-                    <div className="flex justify-between gap-2 text-xs text-[var(--p-muted)] tabular-nums">
-                      <span>
-                        {c.orders} {c.orders === 1 ? "pedido" : "pedidos"} · {euros(c.salesCents)}
-                      </span>
-                      <span>{ago(c.lastOrderAt)}</span>
-                    </div>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-black/[0.05]" aria-hidden>
-                      <div className="h-full rounded-full bg-[var(--p-brand)]" style={{ width: `${(c.salesCents / topSales) * 100}%` }} />
-                    </div>
-                  </div>
+                  <p className="mt-3 flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-xs text-[var(--p-muted)] tabular-nums">
+                    <span>
+                      <b className="font-semibold text-[var(--p-ink)]">{c.orders} {c.orders === 1 ? "pedido" : "pedidos"}</b> · {euros(c.salesCents)} vendidos
+                    </span>
+                    <span>{ago(c.lastOrderAt)}</span>
+                  </p>
 
                   {/* Pago del mes */}
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
                     {isCurrent ? null : c.paid ? (
                       <>
-                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        <span className="inline-flex h-10 items-center rounded-full bg-emerald-50 px-3.5 text-xs font-semibold text-emerald-700">
                           ✓ Pagado {euros(c.paid.amountCents)} el {new Date(c.paid.paidAt).toLocaleDateString("es-ES")}
                         </span>
-                        <button onClick={() => undoPaid(c, m)} className="text-xs text-[var(--p-muted)] underline">
+                        <button onClick={() => undoPaid(c, m)} className="p-press inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-xs font-semibold hover:bg-black/[0.08]">
                           Deshacer
                         </button>
                       </>
@@ -344,7 +339,7 @@ export default function ColaboradoresClient({ tenant }: { tenant: string }) {
                         Marcar pagado {euros(c.commissionCents)}
                       </button>
                     ) : null}
-                    {c.pendingBeforeCents > 0 && <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">Le debes {euros(c.pendingBeforeCents)} de meses anteriores</span>}
+                    {c.pendingBeforeCents > 0 && <span className="inline-flex h-10 items-center rounded-full bg-amber-50 px-3.5 text-xs font-semibold text-amber-800">Le debes {euros(c.pendingBeforeCents)} de meses anteriores</span>}
                   </div>
 
                   <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[var(--p-line)] pt-3 [&:not(:first-child)]:mt-3">

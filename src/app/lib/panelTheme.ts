@@ -50,7 +50,7 @@ export function panelCssVars(brand: PanelBrand): CSSProperties {
     "--p-line": "rgba(0, 0, 0, 0.08)",
     "--p-brand": brand.brand,
     "--p-brand-strong": strong,
-    "--p-on-brand-strong": readableOn(strong), // texto sobre la barra «Cambios sin guardar» y los avisos
+    "--p-on-brand-strong": readableOn(strong), // texto legible sobre --p-brand-strong
     "--p-brand-soft": mix(brand.brand, "#ffffff", 0.88),
     "--p-accent": brand.accent,
     "--p-accent-soft": mix(brand.accent, "#ffffff", 0.9),
