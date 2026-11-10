@@ -40,6 +40,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     invoiceNumber: invoice?.numSerie ?? null,
     paidAt: a.order.paidAt,
     notes: a.order.notes,
+    customer: {
+      name: a.order.customerName,
+      phone: a.order.customerPhone,
+      address: [a.order.customerAddress, a.order.customerPostalCode].filter(Boolean).join(", ") || null,
+      email: a.order.customerId ? ((await prisma.customer.findUnique({ where: { id: a.order.customerId }, select: { email: true } }))?.email ?? null) : null,
+    },
+    channel: a.order.channel,
+    dineIn: a.order.dineIn,
+    source: a.order.source,
   });
 }
 
