@@ -44,7 +44,7 @@ export async function kitchenTickets(tenantId: string, storeId: string | null, w
   const since = new Date(Date.now() - DONE_WINDOW_MS);
   const [orders, tables] = await Promise.all([
     prisma.order.findMany({
-      where: { tenantId, ...byStore, tableId: null, ...(done ? { status: "READY", updatedAt: { gte: since } } : { status: { in: ["CREATED", "ACCEPTED", "PREPARING"] } }) },
+      where: { tenantId, ...byStore, tableId: null, ...(done ? { status: "READY", updatedAt: { gte: since } } : { status: { in: ["CREATED", "ACCEPTED", "PREPARING"] }, OR: [{ kitchenAt: null }, { kitchenAt: { lte: new Date() } }] }) },
       orderBy: done ? { updatedAt: "desc" } : { createdAt: "asc" },
       take: 60,
       select: { id: true, orderNumber: true, status: true, channel: true, dineIn: true, customerName: true, createdAt: true, updatedAt: true, scheduledFor: true, items: { select: { id: true, productId: true, productName: true, quantity: true, modifiers: true, note: true, readyAt: true } } },

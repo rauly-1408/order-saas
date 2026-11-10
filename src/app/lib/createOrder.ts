@@ -31,6 +31,7 @@ export type CreateOrderInput = {
   loyaltyDiscountCents: number;
   estimatedReadyAt: Date;
   scheduledFor: Date | null;
+  kitchenAt?: Date | null; // programado: cuándo empieza la cocina
   payment: { method: "IN_STORE" | "CARD" | "BIZUM" | "CASH" | "CARD_TERMINAL"; provider: string | null; paid?: boolean };
   // Caja: origen del pedido, «para comer aquí», quién lo tomó y efectivo entregado.
   source?: "ONLINE" | "COUNTER" | "PHONE";
@@ -177,6 +178,7 @@ export async function createOrderWithNumber(input: CreateOrderInput) {
         loyaltyDiscountCents: input.loyaltyDiscountCents,
         estimatedReadyAt: input.estimatedReadyAt,
         scheduledFor: input.scheduledFor,
+        kitchenAt: input.kitchenAt ?? null,
         items: { create: input.lines },
       },
       include: { items: true },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
+import { releaseScheduledKitchen } from "@/app/lib/printing";
 import { denyUnlessArea, getSessionFromRequest } from "@/app/lib/auth";
 import { kitchenTickets, markRoundReady, undoReady, type KitchenView } from "@/app/lib/kitchen";
 
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
   try {
     const c = await ctx(req);
     if ("error" in c) return c.error;
+    await releaseScheduledKitchen(c.tenant.id); // programados que ya toca empezar
     const q = new URL(req.url).searchParams;
     const r = await kitchenTickets(c.tenant.id, c.session.storeId ?? null, c.session, viewOf(q.get("vista")), q.get("hechos") === "1");
     return NextResponse.json(r);

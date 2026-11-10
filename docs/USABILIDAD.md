@@ -101,3 +101,10 @@ El panel se usará en pantallas táctiles (tablet o TPV), así que todo lo que s
   - «Pedido mínimo» y «Envío general» se pedían en céntimos; ahora se escriben en euros («2,50 €»).
   - La vuelta de cada apartado de Configuración usa el mismo «‹ Volver» que el resto del panel.
   - Plan y facturación: «Noviembre de 2026» en vez de «Noviembre De 2026».
+
+## Puntitos con número en el menú (2026-11-10)
+
+- **Pedidos:** número de pedidos nuevos sin aceptar, online o por teléfono, de las últimas 24 h.
+- **Reservas:** número de reservas por confirmar y en lista de espera, de ahora en adelante.
+- **Botón de menú del móvil:** un punto si hay algo en cualquiera de los dos.
+- **Cómo se calcula:** `GET /api/admin/[tenant]/avisos`. Se refresca cada 20 s, al cambiar de pantalla y al volver a la pestaña. Cada número solo sale si el puesto ve esa parte.

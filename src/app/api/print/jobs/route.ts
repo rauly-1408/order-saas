@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { readPrinting } from "@/app/lib/printing";
+import { readPrinting, releaseScheduledKitchen } from "@/app/lib/printing";
 import { rateLimit } from "@/app/lib/rateLimit";
 
 export const runtime = "nodejs";
@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
 
     // «Visto por última vez»: se guarda como mucho una vez por minuto.
     const cfg = readPrinting(tenant.settings);
+    await releaseScheduledKitchen(tenant.id); // comandas de programados que ya toca empezar
     const seen = cfg.agentSeenAt ? Date.parse(cfg.agentSeenAt) : 0;
     if (Date.now() - seen > 60_000) {
       // Solo esa clave: reescribir toda la configuración podría deshacer un

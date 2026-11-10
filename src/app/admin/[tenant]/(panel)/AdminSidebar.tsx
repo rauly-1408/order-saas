@@ -173,6 +173,28 @@ export default function AdminSidebar({
   const nav = buildNav(tenant).filter((item) => (canManage || !item.managerOnly) && (seesTakings || !item.takingsOnly) && (!item.area || areas[item.area]));
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
+  // Puntitos con número: pedidos nuevos sin aceptar y reservas por confirmar o en espera.
+  const [counts, setCounts] = useState<{ pedidos: number; reservas: number }>({ pedidos: 0, reservas: 0 });
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      if (document.hidden) return;
+      fetch(`/api/admin/${tenant}/avisos`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => alive && d && setCounts({ pedidos: d.pedidos ?? 0, reservas: d.reservas ?? 0 }))
+        .catch(() => {});
+    };
+    load();
+    const t = setInterval(load, 20_000);
+    document.addEventListener("visibilitychange", load);
+    return () => {
+      alive = false;
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", load);
+    };
+  }, [tenant, pathname]);
+  const badgeOf = (href: string) => (href.endsWith("/pedidos") ? counts.pedidos : href.endsWith("/reservas") ? counts.reservas : 0);
+  const anyBadge = counts.pedidos + counts.reservas > 0;
   const menuRef = useRef<HTMLDivElement>(null);
 
   // El menú del restaurante se cierra al tocar fuera o con Escape.
@@ -211,7 +233,8 @@ export default function AdminSidebar({
     <>
       {/* Móvil: barra superior translúcida con botón de menú */}
       <div className="p-glass fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-[var(--p-line)] px-4 lg:hidden">
-        <button onClick={() => setOpen(true)} aria-label="Abrir menú" className="p-press flex h-9 w-9 items-center justify-center rounded-full text-[var(--p-ink)] hover:bg-black/5">
+        <button onClick={() => setOpen(true)} aria-label={anyBadge ? "Abrir menú (hay avisos)" : "Abrir menú"} className="p-press relative flex h-9 w-9 items-center justify-center rounded-full text-[var(--p-ink)] hover:bg-black/5">
+          {anyBadge && <span aria-hidden className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-[var(--p-accent)] ring-2 ring-white" />}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
             <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
@@ -259,7 +282,12 @@ export default function AdminSidebar({
                     <span className={active ? "text-white" : "text-[var(--p-muted)]"}>
                       <Icon name={item.icon} />
                     </span>
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {badgeOf(item.href) > 0 && (
+                      <span aria-label={`${badgeOf(item.href)} por atender`} className={`min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-bold tabular-nums ${active ? "bg-white text-[var(--p-brand)]" : "bg-[var(--p-accent)] text-white"}`}>
+                        {badgeOf(item.href)}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );
