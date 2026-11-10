@@ -9,6 +9,7 @@ import { readBusiness } from "@/app/lib/business";
 import { emailConfigured, reservationCustomerEmail, reservationReminderEmail, reservationRestaurantEmail, sendEmail, waitlistEmail } from "@/app/lib/email";
 import { FALLBACK_CAPACITY, readReservationSettings, reservationLabel, reservationSlots, type ReservationSettings } from "@/app/lib/reservations";
 import { readCombos, tableOptions } from "@/app/lib/tableCombos";
+import { sendPush } from "@/app/lib/push";
 
 export const ACTIVE: ReservationStatus[] = ["PENDING", "CONFIRMED", "SEATED"];
 
@@ -106,6 +107,7 @@ export async function createReservation(ctx: Ctx, input: NewReservation, opts: {
         email: input.email,
         notes: input.notes,
         status: opts.waitlist ? "WAITLIST" : opts.source === "ONLINE" && !ctx.settings.autoConfirm ? "PENDING" : "CONFIRMED",
+        seenAt: opts.source === "ONLINE" ? null : new Date(), // las de la web: puntito y «Nueva» hasta que se vean
         source: opts.source,
         createdByUserId: opts.userId ?? null,
       },
@@ -121,6 +123,26 @@ export const reservationLink = (slug: string, code: string) => `${appOrigin()}/p
 
 // Avisos por email: al cliente (si dejó email) y al restaurante. Nunca lanza.
 export async function notifyReservation(id: string, event: "created" | "confirmed" | "cancelled", lang: "es" | "en" = "es"): Promise<void> {
+  // Aviso al móvil del restaurante (aunque no haya email configurado).
+  if (event === "created") {
+    try {
+      const r = await prisma.reservation.findUnique({ where: { id }, select: { source: true, status: true, name: true, guests: true, startsAt: true, tenantId: true, tenant: { select: { slug: true, settings: true } } } });
+      if (r && r.source === "ONLINE") {
+        const tz = tenantTimeZone(r.tenant.settings);
+        await sendPush(
+          { tenantId: r.tenantId, audience: "PANEL" },
+          {
+            title: r.status === "WAITLIST" ? "Lista de espera: piden mesa" : r.status === "PENDING" ? "Reserva por confirmar" : "Nueva reserva",
+            body: `${r.name} · ${r.guests} ${r.guests === 1 ? "persona" : "personas"} · ${reservationLabel(r.startsAt, tz)}`,
+            url: `/admin/${r.tenant.slug}/reservas?fecha=${localParts(r.startsAt, tz).ymd}`,
+            tag: `reserva-${id}`,
+          }
+        );
+      }
+    } catch (err) {
+      console.error("[notifyReservation push]", err);
+    }
+  }
   if (!emailConfigured()) return;
   try {
     const r = await prisma.reservation.findUnique({ where: { id }, include: { tenant: { select: { slug: true, name: true, settings: true } }, store: { select: { name: true, address: true } } } });

@@ -632,6 +632,7 @@ model Reservation {
   reminderSentAt      DateTime? // recordatorio por email enviado
   customerConfirmedAt DateTime? // el cliente confirmó que va (botón del recordatorio)
   waitlistNotifiedAt  DateTime? // lista de espera: se le avisó de que quedó sitio
+  seenAt              DateTime? // el restaurante la vio en Reservas (las de la web llegan sin ver: puntito y «Nueva»)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

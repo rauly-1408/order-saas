@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { playOrderChime, repeatUntilAccepted, setRepeatUntilAccepted, setSoundEnabled, soundEnabled, unlockAudio } from "../../sound";
 import { readBusiness } from "@/app/lib/business";
 import { Card, Toggle, ghostBtn, toast, useSaveBar, useTenantSettings } from "../ui";
+import AvisosMovil from "../../AvisosMovil";
 
 // Notificaciones: cómo te avisa el panel de un pedido (en este dispositivo),
 // los avisos por email al restaurante y cómo se entera el cliente de su pedido.
@@ -90,6 +91,9 @@ export default function Notificaciones({ tenant }: { tenant: string }) {
           {perm === "denied" && " Este navegador tiene bloqueadas las notificaciones."}
         </p>
       </Card>
+
+      {/* Notificaciones del sistema (push), aunque el panel esté cerrado */}
+      <AvisosMovil tenant={tenant} what="de cada reserva nueva desde la web y de lo que baje de su mínimo en el inventario" />
 
       <Card
         title="Avisos por email"

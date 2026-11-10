@@ -4,11 +4,12 @@ Avisos que llegan al móvil aunque la app esté cerrada. Hecho el 2026-10-27 (ra
 
 ## Qué avisa
 - **App del colaborador** («Mis ventas»): «¡Nueva venta! +2,45 € para ti · Este mes llevas 18,40 €» con cada pedido que trae su código. Si el pedido es online, el aviso llega cuando ya está pagado (va en `notifyNewOrder`, que solo corre con pedidos pagados o en tienda). Al tocarlo se abre su app.
+- **Panel: reserva nueva desde la web** (2026-11-10): «Nueva reserva · Raúl · 2 personas · miércoles 11 de noviembre a las 19:30» (o «Reserva por confirmar» / «Lista de espera»). Al tocarlo se abre Reservas en ese día. Va en `notifyReservation(…, "created")` y no necesita email configurado.
 - **Panel (dueño/encargado)**: «Queda poco: Cochinita · Quedan 45 kg (mínimo 50)» en el momento en que un ingrediente baja de su mínimo (lo detecta `applyStockDeltas` al mover el stock). Al tocarlo se abre Costes → Compras.
 
 ## Cómo se activa
 - Colaborador: en su app, «Avisarme de cada venta».
-- Dueño: en Costes → Inventario, tarjeta «Avisos en este móvil» → Activar (sale si hay algún mínimo puesto). Cada móvil u ordenador se activa por separado.
+- Dueño: en **Configuración → Notificaciones**, tarjeta «Avisos en este móvil» → Activar. También en Costes → Inventario si hay algún mínimo puesto. Cada móvil u ordenador se activa por separado.
 - **iPhone**: solo funciona con la app añadida a la pantalla de inicio (iOS 16.4 o posterior); si no, se explica cómo hacerlo. Android y ordenador: directo desde el navegador.
 
 ## Requisito: SESSION_SECRET largo

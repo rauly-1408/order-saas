@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { disablePush, enablePush, pushState, type PushState } from "@/app/lib/pushClient";
 
-// «Avisos en este móvil»: el dueño recibe el aviso de stock bajo aunque tenga el
-// panel cerrado. Cada dispositivo se activa por separado. Ver docs/AVISOS-MOVIL.md
-export default function AvisosMovil({ tenant }: { tenant: string }) {
+// «Avisos en este móvil»: el dueño recibe avisos (reservas nuevas desde la web,
+// stock bajo) aunque tenga el panel cerrado. Cada dispositivo se activa por
+// separado. Ver docs/AVISOS-MOVIL.md
+export default function AvisosMovil({ tenant, what = "cuando un ingrediente baje de su mínimo" }: { tenant: string; what?: string }) {
   const api = `/api/admin/${tenant}/push`;
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,12 +35,12 @@ export default function AvisosMovil({ tenant }: { tenant: string }) {
         <p className="font-semibold">Avisos en este móvil</p>
         <p className="text-xs text-[var(--p-muted)]">
           {state === "on"
-            ? "Activados: te avisamos cuando un ingrediente baje de su mínimo, aunque tengas el panel cerrado."
+            ? `Activados: te avisamos ${what}, aunque tengas el panel cerrado.`
             : state === "ios-install"
               ? "En iPhone, primero añade el panel a tu pantalla de inicio (Compartir → «Añadir a pantalla de inicio») y ábrelo desde ahí."
               : state === "denied"
                 ? "Los tienes bloqueados para esta página: actívalos en los ajustes del navegador."
-                : "Recibe el aviso de stock bajo aunque tengas el panel cerrado."}
+                : `Te avisamos ${what}, aunque tengas el panel cerrado.`}
         </p>
         {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
       </div>

@@ -135,3 +135,12 @@ Las horas salen del **horario del local** (Horario y zonas): abierto al llegar y
   - el panel pide las horas con `stepMinutes: 1`, y en la tienda siguen siendo de 15 en 15;
   - el restaurante puede apuntar hasta la hora de cierre (la tienda, hasta media hora antes);
   - debajo dice cuántas plazas quedan a esa hora.
+
+## Avisos de reservas nuevas desde la web (2026-11-10)
+
+- **Reservas confirmadas al momento:** antes no avisaban de ninguna forma. Ahora:
+  - **Puntito con número** en «Reservas» del menú: las de la web aún sin ver (`Reservation.seenAt`, migración `*_reservas_vistas`), más las que están por confirmar o en lista de espera.
+  - **Aviso flotante con sonido** en cualquier pantalla del panel, con «Ver en Reservas», que abre ese día.
+  - **Notificación push** al móvil u ordenador que tenga activados los avisos (Configuración → Notificaciones).
+- **Al abrir el día en Reservas** se marcan como vistas. Siguen con la etiqueta «Nueva · desde la web» 15 minutos más. En la tira de días, los días con reservas nuevas sin ver llevan el punto.
+- Las que apunta el propio restaurante nacen vistas.
