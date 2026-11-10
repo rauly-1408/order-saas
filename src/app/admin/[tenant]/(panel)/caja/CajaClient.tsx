@@ -12,6 +12,7 @@ import type { HoyPayment, HoyResponse } from "@/app/api/admin/[tenant]/caja/hoy/
 import type { TopResponse } from "@/app/api/admin/[tenant]/caja/top/route";
 import type { ClienteResponse } from "@/app/api/admin/[tenant]/caja/cliente/route";
 import CashSessionSheet, { type CashState } from "./CashSessionSheet";
+import CajaDia from "./CajaDia";
 import { STORE_VARS } from "../storeVars";
 import { OUTBOX_SENT, loadLocal, saveLocal, sendOrQueue } from "../outbox";
 import { ask } from "@/app/lib/dialog";
@@ -41,7 +42,6 @@ const STAT_VALUE = "text-sm font-semibold";
 const MODE_LABEL: Record<Mode, string> = { TAKEAWAY: "Para llevar", DINE_IN: "Comer aquí", DELIVERY: "A domicilio" };
 const PAYMENT_LABEL: Record<Payment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", IN_STORE: "Pagar al recoger" };
 const HOY_PAYMENT_LABEL: Record<HoyPayment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
-const STATUS_LABEL: Record<string, string> = { OPEN: "Mesa abierta", CREATED: "Nuevo", PAID: "Nuevo", SENT_TO_POS: "Nuevo", ACCEPTED: "Preparando", PREPARING: "Preparando", READY: "Listo", DELIVERING: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
 // Color por categoría: los que eligió el restaurante, por el nombre de la
 // categoría (vegano verde, carne granate, mar celeste, burger rojo…); las que no
 // encajan toman uno libre. La mano aprende dónde está cada cosa sin leer.
@@ -1095,78 +1095,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
               </div>
             )}
             {cashOpen && <CashSessionSheet tenant={tenant} state={cash} onState={setCash} onClose={() => setCashOpen(false)} />}
-            {hoyOpen && canSeeTakings && (
-              <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label="Hoy en caja">
-                <button type="button" aria-label="Cerrar" onClick={() => setHoyOpen(false)} className="absolute inset-0 bg-black/40" />
-                <div className="relative flex max-h-[92vh] w-full flex-col overflow-y-auto rounded-t-[24px] bg-[var(--p-surface)] p-4 pb-[max(16px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-xl lg:rounded-[24px] lg:p-6">
-                  <div aria-hidden className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-full bg-black/15 lg:hidden" />
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold">Hoy en caja</h2>
-                      <p className="text-xs text-[var(--p-muted)]">{hoy && hoy.day.charAt(0).toUpperCase() + hoy.day.slice(1)}</p>
-                    </div>
-                    <button type="button" onClick={() => setHoyOpen(false)} className="rounded-full px-3 py-1 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
-                      Cerrar
-                    </button>
-                  </div>
-                  {!hoy ? (
-                    <p className="py-8 text-center text-sm text-[var(--p-muted)]">Cargando…</p>
-                  ) : (
-                    <>
-                      <div className="mt-4 rounded-2xl bg-[var(--p-bg)] p-4">
-                        <p className="text-xs uppercase tracking-wide text-[var(--p-muted)]">Ventas de hoy</p>
-                        <p className="text-4xl font-semibold tabular-nums tracking-tight">{euros(hoy.totalCents)}</p>
-                        <p className="mt-1 text-sm text-[var(--p-muted)]">
-                          {hoy.sales} {hoy.sales === 1 ? "pedido" : "pedidos"}
-                          {hoy.cancelled > 0 && ` · ${hoy.cancelled} ${hoy.cancelled === 1 ? "cancelado" : "cancelados"}`}
-                        </p>
-                      </div>
-                      <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {(Object.keys(HOY_PAYMENT_LABEL) as HoyPayment[])
-                          .filter((k) => hoy.byPayment[k] > 0)
-                          .map((k) => (
-                            <li key={k} className="rounded-xl bg-black/[0.04] px-3 py-2.5">
-                              <p className="text-xs text-[var(--p-muted)]">{HOY_PAYMENT_LABEL[k]}</p>
-                              <p className="text-lg font-semibold tabular-nums">{euros(hoy.byPayment[k])}</p>
-                            </li>
-                          ))}
-                        {hoy.pendingCents > 0 && (
-                          <li className="rounded-xl bg-amber-50 px-3 py-2.5 text-amber-900">
-                            <p className="text-xs">Pendiente de cobrar</p>
-                            <p className="text-lg font-semibold tabular-nums">{euros(hoy.pendingCents)}</p>
-                          </li>
-                        )}
-                        {hoy.refundedCents > 0 && (
-                          <li className="rounded-xl bg-black/[0.04] px-3 py-2.5">
-                            <p className="text-xs text-[var(--p-muted)]">Devuelto</p>
-                            <p className="text-lg font-semibold tabular-nums">{euros(hoy.refundedCents)}</p>
-                          </li>
-                        )}
-                      </ul>
-                      <p className="mt-2 text-xs text-[var(--p-muted)]">El efectivo que debe haber en el cajón es la venta en efectivo más el fondo con el que abriste.</p>
-                      <ul className="mt-4 divide-y divide-[var(--p-line)]">
-                        {hoy.orders.length === 0 && <li className="py-8 text-center text-sm text-[var(--p-muted)]">Todavía no hay pedidos hoy.</li>}
-                        {hoy.orders.map((o) => (
-                          <li key={o.id} className={`flex items-center gap-3 py-2.5 ${o.status === "CANCELLED" ? "opacity-50" : ""}`}>
-                            <span className="w-12 shrink-0 text-xs tabular-nums text-[var(--p-muted)]">{hourOf(o.createdAt)}</span>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium">
-                                #{o.orderNumber} {o.customerName}
-                              </p>
-                              <p className="truncate text-xs text-[var(--p-muted)]">
-                                {o.source === "ONLINE" ? "Online" : o.source === "PHONE" ? "Teléfono" : "Mostrador"} · {o.channel === "DELIVERY" ? "a domicilio" : o.dineIn ? "comer aquí" : "para llevar"} · {o.status === "CANCELLED" ? "cancelado" : o.paid ? (o.cashPartCents ? "mixto" : HOY_PAYMENT_LABEL[o.paymentMethod].toLowerCase()) : "sin cobrar"}
-                                {o.status !== "CANCELLED" && ` · ${STATUS_LABEL[o.status] ?? o.status}`}
-                              </p>
-                            </div>
-                            <span className={`text-sm font-semibold tabular-nums ${o.status === "CANCELLED" ? "line-through" : ""}`}>{euros(o.totalCents)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
+            {hoyOpen && canSeeTakings && <CajaDia tenant={tenant} onClose={() => setHoyOpen(false)} onChanged={loadHoy} />}
             {optionsFor && (
               <ProductOptionsSheet
                 product={optionsFor as SheetProduct}

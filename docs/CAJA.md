@@ -48,6 +48,19 @@ En el móvil, con productos en el pedido, abajo hay dos botones: **«Ver (n)»**
 
 Las promociones automáticas y los cupones se aplican igual que en la tienda. No hay propina ni tarjeta regalo en la Caja (de momento).
 
+## Tickets del día y cambiar la forma de pago (2026-11-10)
+
+- **«Hoy en caja»** tiene ‹ Hoy › para ver los tickets de días anteriores (`GET /api/admin/[tenant]/caja/hoy?fecha=YYYY-MM-DD`; nunca un día futuro).
+- **Cada ticket se abre** (`caja/CajaDia.tsx`) y muestra lo que se cobró, el número de factura y estas acciones:
+  - **«Reimprimir el ticket»** usa `POST /print/[orderId]` con `RECEIPT`.
+  - **«¿Cómo pagó?»**: cambia la forma de pago entre efectivo, datáfono y Bizum, por si dijo tarjeta y pagó de otra forma (`PATCH /api/admin/[tenant]/caja/ticket/[orderId] { method }`).
+- **Cambiar la forma de pago:**
+  - Solo puede quien tiene permiso de cobrar.
+  - Solo en pedidos cobrados en el local; no en los pagados online ni en los cancelados.
+  - Un pago mixto pasa a ser de una sola forma.
+  - El importe y la factura no cambian, porque la forma de pago no va en la factura simplificada.
+  - El cuadre de la caja abierta se recalcula solo. Si la caja de ese día ya se cerró, su cierre guardado no cambia.
+
 ## Pantallas táctiles
 
 El software se recomienda con pantalla táctil (tablet de 10–13″ en horizontal o TPV táctil de 15,6″). Por eso:
