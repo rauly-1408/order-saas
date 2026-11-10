@@ -19,8 +19,12 @@ export type KitchenTicket = {
   subtitle: string; // «Cumpleaños · 4 pax» o «Para llevar · Marta»
   status: string; // pedido: CREATED | ACCEPTED | PREPARING; ronda: OPEN
   createdAt: string;
+  doneAt?: string; // «Hechos»: cuándo se marcó listo
   lines: KitchenLine[];
 };
+
+// «Hechos»: lo marcado listo en las últimas 3 horas, para poder deshacerlo.
+export const DONE_WINDOW_MS = 3 * 3_600_000;
 
 type Who = { role: string; position?: string | null; stationCategoryIds?: string[] };
 
@@ -33,19 +37,21 @@ async function sectionsFor(tenantId: string, who: Who, view: KitchenView): Promi
   return { station, ids: new Set(defaultStationCategories(station, cats)) };
 }
 
-export async function kitchenTickets(tenantId: string, storeId: string | null, who: Who, view: KitchenView): Promise<{ station: "COCINA" | "BARRA" | null; tickets: KitchenTicket[] }> {
+// done = true → los «Hechos» (listos hace menos de 3 h), del más reciente al más antiguo.
+export async function kitchenTickets(tenantId: string, storeId: string | null, who: Who, view: KitchenView, done = false): Promise<{ station: "COCINA" | "BARRA" | null; tickets: KitchenTicket[] }> {
   const { station, ids } = await sectionsFor(tenantId, who, view);
   const byStore = storeId ? { storeId } : {};
+  const since = new Date(Date.now() - DONE_WINDOW_MS);
   const [orders, tables] = await Promise.all([
     prisma.order.findMany({
-      where: { tenantId, ...byStore, tableId: null, status: { in: ["CREATED", "ACCEPTED", "PREPARING"] } },
-      orderBy: { createdAt: "asc" },
+      where: { tenantId, ...byStore, tableId: null, ...(done ? { status: "READY", updatedAt: { gte: since } } : { status: { in: ["CREATED", "ACCEPTED", "PREPARING"] } }) },
+      orderBy: done ? { updatedAt: "desc" } : { createdAt: "asc" },
       take: 60,
-      select: { id: true, orderNumber: true, status: true, channel: true, dineIn: true, customerName: true, createdAt: true, scheduledFor: true, items: { select: { id: true, productId: true, productName: true, quantity: true, modifiers: true, note: true, readyAt: true } } },
+      select: { id: true, orderNumber: true, status: true, channel: true, dineIn: true, customerName: true, createdAt: true, updatedAt: true, scheduledFor: true, items: { select: { id: true, productId: true, productName: true, quantity: true, modifiers: true, note: true, readyAt: true } } },
     }),
     prisma.order.findMany({
       where: { tenantId, ...byStore, tableId: { not: null }, status: "OPEN" },
-      select: { id: true, customerName: true, guests: true, joinedTableIds: true, table: { select: { name: true } }, items: { where: { readyAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, productId: true, productName: true, quantity: true, modifiers: true, note: true, round: true, createdAt: true } } },
+      select: { id: true, customerName: true, guests: true, joinedTableIds: true, table: { select: { name: true } }, items: { where: done ? { readyAt: { gte: since } } : { readyAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, productId: true, productName: true, quantity: true, modifiers: true, note: true, round: true, createdAt: true, readyAt: true } } },
     }),
   ]);
   // Sección de cada producto, para repartir entre cocina y barra.
@@ -59,7 +65,7 @@ export async function kitchenTickets(tenantId: string, storeId: string | null, w
     const lines = o.items.filter((l) => mine(l.productId)).map(line);
     if (!lines.length) continue;
     const how = o.channel === "DELIVERY" ? "A domicilio" : o.dineIn ? "Comer aquí" : "Para llevar";
-    tickets.push({ key: `order:${o.id}`, kind: "order", orderId: o.id, round: null, title: `#${o.orderNumber ?? "?"}`, subtitle: [how, o.customerName].filter(Boolean).join(" · "), status: o.status, createdAt: (o.scheduledFor ?? o.createdAt).toISOString(), lines });
+    tickets.push({ key: `order:${o.id}`, kind: "order", orderId: o.id, round: null, title: `#${o.orderNumber ?? "?"}`, subtitle: [how, o.customerName].filter(Boolean).join(" · "), status: o.status, createdAt: (o.scheduledFor ?? o.createdAt).toISOString(), ...(done && { doneAt: o.updatedAt.toISOString() }), lines });
   }
   // Mesas juntas: la comanda dice «Mesa 1 + 2».
   const joinedIds = [...new Set(tables.flatMap((t) => t.joinedTableIds))];
@@ -79,12 +85,32 @@ export async function kitchenTickets(tenantId: string, storeId: string | null, w
         subtitle: [tableLabel(t.customerName, main), t.guests ? `${t.guests} pax` : null].filter(Boolean).join(" · "),
         status: "OPEN",
         createdAt: ls[0].createdAt.toISOString(),
+        ...(done && { doneAt: new Date(Math.max(...ls.map((l) => l.readyAt?.getTime() ?? 0))).toISOString() }),
         lines: ls.map(line),
       });
     }
   }
-  tickets.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  return { station, tickets };
+  if (done) tickets.sort((a, b) => (b.doneAt ?? "").localeCompare(a.doneAt ?? ""));
+  else tickets.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return { station, tickets: done ? tickets.slice(0, 60) : tickets };
+}
+
+// Deshacer «Listo» (por error): la comanda vuelve a la pantalla.
+// Ronda de mesa: sus líneas de esta pantalla marcadas en las últimas 3 h.
+// Pedido (online o Caja): de «Listo» vuelve a «Preparando» si aún no se ha entregado.
+export async function undoReady(tenantId: string, orderId: string, round: number | null, who: Who, view: KitchenView): Promise<{ ok: true } | { error: string }> {
+  if (round == null) {
+    const r = await prisma.order.updateMany({ where: { id: orderId, tenantId, tableId: null, status: "READY" }, data: { status: "PREPARING" } });
+    return r.count ? { ok: true } : { error: "Ese pedido ya se ha entregado o ha cambiado: no se puede volver a cocina" };
+  }
+  const order = await prisma.order.findFirst({ where: { id: orderId, tenantId, status: "OPEN", tableId: { not: null } }, select: { items: { where: { round, readyAt: { gte: new Date(Date.now() - DONE_WINDOW_MS) } }, select: { id: true, productId: true } } } });
+  if (!order) return { error: "Esa mesa ya está cobrada o cerrada" };
+  const { station, ids } = await sectionsFor(tenantId, who, view);
+  const cat = new Map((await prisma.product.findMany({ where: { id: { in: order.items.map((l) => l.productId) } }, select: { id: true, categoryId: true } })).map((p) => [p.id, p.categoryId]));
+  const lineIds = order.items.filter((l) => (!station ? true : cat.has(l.productId) ? ids.has(cat.get(l.productId)!) : station === "COCINA")).map((l) => l.id);
+  if (!lineIds.length) return { error: "No hay nada de esa ronda que volver a cocina" };
+  await prisma.orderLine.updateMany({ where: { id: { in: lineIds } }, data: { readyAt: null } });
+  return { ok: true };
 }
 
 // «Listo» en una ronda de mesa: solo las líneas de esta pantalla (lo de barra

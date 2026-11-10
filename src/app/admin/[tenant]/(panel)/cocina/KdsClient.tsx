@@ -7,8 +7,9 @@ import type { KitchenTicket, KitchenView } from "@/app/lib/kitchen";
 
 // Pantalla de cocina (KDS): comandas en tarjetas grandes, de la más antigua a
 // la más nueva, con el tiempo que llevan en color (verde, ámbar, rojo). Tocar
-// una línea la tacha (solo en esta pantalla); «Listo» la quita. Se refresca
-// sola y suena cuando entra una comanda nueva. Ver docs/PANTALLA-COCINA.md
+// una línea la tacha (solo en esta pantalla); «Listo» la quita, con «Deshacer»
+// unos segundos y «Hechos» (las últimas 3 h) para volverla a cocina si fue un
+// error. Se refresca sola y suena cuando entra una comanda nueva. Ver docs/PANTALLA-COCINA.md
 
 const VIEWS: { key: KitchenView; label: string }[] = [
   { key: "TODO", label: "Todo" },
@@ -55,6 +56,10 @@ export default function KdsClient({ tenant, station }: { tenant: string; station
   const [sound, setSound] = useState(false);
   const [portal, setPortal] = useState<HTMLElement | null>(null);
   const seen = useRef<Set<string> | null>(null);
+  const [showDone, setShowDone] = useState(false); // «Hechos»: lo marcado listo
+  const [doneList, setDoneList] = useState<KitchenTicket[] | null>(null);
+  const [undo, setUndo] = useState<{ t: KitchenTicket; until: number } | null>(null); // «Deshacer» tras marcar listo
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setPortal((document.querySelector(".panel") as HTMLElement | null) ?? document.body);
@@ -80,6 +85,42 @@ export default function KdsClient({ tenant, station }: { tenant: string; station
     }
   }, [tenant, view, sound]);
 
+  const loadDone = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/${tenant}/cocina?vista=${view}&hechos=1`, { cache: "no-store" });
+      if (!res.ok) throw new Error();
+      setDoneList(((await res.json()) as { tickets: KitchenTicket[] }).tickets);
+    } catch {
+      setError("Sin conexión: no se pueden ver los hechos");
+    }
+  }, [tenant, view]);
+  useEffect(() => {
+    if (!showDone) return;
+    loadDone();
+    const t = setInterval(() => !document.hidden && loadDone(), POLL_MS * 2);
+    return () => clearInterval(t);
+  }, [showDone, loadDone]);
+
+  // Volver a cocina una comanda marcada lista por error.
+  async function backToKitchen(t: KitchenTicket) {
+    setBusy(`undo:${t.key}`);
+    try {
+      const res = await fetch(`/api/admin/${tenant}/cocina`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ undo: true, orderId: t.orderId, round: t.kind === "round" ? t.round : null, vista: view }) });
+      const d = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(d.error ?? "No se ha podido volver a cocina");
+        return;
+      }
+      setUndo(null);
+      setError("");
+      await Promise.all([load(), showDone ? loadDone() : Promise.resolve()]);
+    } catch {
+      setError("Sin conexión: no se ha podido volver a cocina");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   useEffect(() => {
     seen.current = null;
     load();
@@ -104,6 +145,12 @@ export default function KdsClient({ tenant, station }: { tenant: string; station
         return;
       }
       setTickets((ts) => ts && ts.filter((x) => x.key !== t.key || t.kind === "order" && t.status !== "PREPARING"));
+      // Marcada lista: unos segundos para deshacer si fue sin querer.
+      if (t.kind === "round" || t.status === "PREPARING") {
+        if (undoTimer.current) clearTimeout(undoTimer.current);
+        setUndo({ t, until: Date.now() + 10_000 });
+        undoTimer.current = setTimeout(() => setUndo(null), 10_000);
+      }
       await load();
     } catch {
       setError("Sin conexión: no se ha podido marcar");
@@ -155,6 +202,14 @@ export default function KdsClient({ tenant, station }: { tenant: string; station
         )}
         <button
           type="button"
+          onClick={() => setShowDone((v) => !v)}
+          aria-pressed={showDone}
+          className={`min-h-11 rounded-full px-4 text-sm font-semibold ${showDone ? "bg-white text-[#111214]" : "bg-white/10 text-white"}`}
+        >
+          {showDone ? "‹ Volver a pendientes" : "↩ Hechos"}
+        </button>
+        <button
+          type="button"
           onClick={() => {
             const on = !sound;
             setSound(on);
@@ -175,7 +230,45 @@ export default function KdsClient({ tenant, station }: { tenant: string; station
       {error && <p className="bg-amber-400 px-4 py-1.5 text-center text-sm font-semibold text-[#111214]" role="status">{error}</p>}
 
       <main className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
-        {!tickets ? (
+        {showDone ? (
+          <section aria-label="Hechos">
+            <p className="mb-3 text-white/70">Lo marcado listo en las últimas 3 horas, lo último primero. Si fue un error, «↩ Volver a cocina» lo devuelve a pendientes.</p>
+            {!doneList ? (
+              <p className="py-20 text-center text-white/60">Cargando…</p>
+            ) : doneList.length === 0 ? (
+              <p className="py-20 text-center text-white/60">Nada marcado listo en las últimas 3 horas.</p>
+            ) : (
+              <ul className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] items-start gap-3 sm:gap-4">
+                {doneList.map((t) => (
+                  <li key={t.key} className="flex flex-col overflow-hidden rounded-2xl bg-[#1c1d21] ring-1 ring-white/10">
+                    <div className="flex items-start justify-between gap-3 bg-white/10 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-xl font-extrabold leading-tight">{t.title}</p>
+                        {t.subtitle && <p className="truncate text-sm font-semibold opacity-80">{t.subtitle}</p>}
+                      </div>
+                      <span className="shrink-0 rounded-full bg-emerald-500/20 px-2.5 py-1 text-sm font-bold text-emerald-300">✓ hace {t.doneAt ? minutes(t.doneAt, now) : 0} min</span>
+                    </div>
+                    <ul className="divide-y divide-white/5">
+                      {t.lines.map((l) => (
+                        <li key={l.id} className="flex items-start gap-3 px-4 py-2 opacity-80">
+                          <span className="w-9 shrink-0 text-xl font-extrabold tabular-nums">{l.quantity}×</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-base font-bold leading-snug">{l.name}</span>
+                            {l.modifiers.length > 0 && <span className="block text-sm text-white/70">{l.modifiers.join(" · ")}</span>}
+                            {l.note && <span className="block text-sm font-bold text-amber-300 wrap-anywhere">» {l.note}</span>}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button type="button" disabled={busy === `undo:${t.key}`} onClick={() => backToKitchen(t)} className="m-3 min-h-14 rounded-xl bg-white/10 text-lg font-extrabold disabled:opacity-50">
+                      {busy === `undo:${t.key}` ? "…" : "↩ Volver a cocina"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ) : !tickets ? (
           <p className="py-20 text-center text-white/60">Cargando comandas…</p>
         ) : tickets.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
@@ -228,6 +321,16 @@ export default function KdsClient({ tenant, station }: { tenant: string; station
           </ul>
         )}
       </main>
+      {undo && !showDone && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-3" role="status">
+          <div className="pointer-events-auto flex items-center gap-4 rounded-2xl bg-white px-5 py-3 text-[#111214] shadow-2xl">
+            <span className="text-base font-semibold">✓ {undo.t.title} lista</span>
+            <button type="button" disabled={busy === `undo:${undo.t.key}`} onClick={() => backToKitchen(undo.t)} className="min-h-12 rounded-xl bg-[#111214] px-5 text-base font-bold text-white disabled:opacity-50">
+              Deshacer
+            </button>
+          </div>
+        </div>
+      )}
     </div>,
     portal
   );
