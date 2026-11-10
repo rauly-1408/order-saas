@@ -11,7 +11,7 @@ import TimeWheel from "./TimeWheel";
 // lista de espera). Cada fila tiene su acción principal en un botón grande y,
 // al tocarla, una ficha con todo. Se refresca sola. Ver docs/RESERVAS.md
 type Status = "PENDING" | "CONFIRMED" | "SEATED" | "NO_SHOW" | "CANCELLED" | "WAITLIST";
-type Reservation = { id: string; startsAt: string; guests: number; name: string; phone: string; email: string | null; notes: string | null; status: Status; source: "ONLINE" | "PHONE" | "WALKIN"; tableIds: string[]; customerConfirmedAt: string | null; reminderSentAt: string | null };
+type Reservation = { id: string; startsAt: string; guests: number; name: string; phone: string; email: string | null; notes: string | null; status: Status; source: "ONLINE" | "PHONE" | "WALKIN"; tableIds: string[]; customerConfirmedAt: string | null; reminderSentAt: string | null; isNew?: boolean };
 type Data = { date: string; today: string; days: Record<string, { count: number; guests: number; pending: number }>; tz: string; storeId: string; stores: { id: string; name: string }[]; capacity: number; settings: { enabled: boolean; autoConfirm: boolean; durationMinutes: number }; reservations: Reservation[]; tableNames: Record<string, string> };
 
 const STATUS: Record<Status, { label: string; cls: string }> = {
@@ -57,6 +57,7 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
       setData(d);
       setError("");
       setNow(Date.now());
+      window.dispatchEvent(new Event("panel-avisos")); // las nuevas ya se han visto: el menú se actualiza
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudieron cargar las reservas");
     }
@@ -126,6 +127,7 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
 
   function Row({ r }: { r: Reservation }) {
     const chips = [
+      r.isNew && { t: "Nueva · desde la web", c: "bg-[var(--p-accent)] text-white" },
       r.status === "CONFIRMED" && r.customerConfirmedAt && { t: "✓ Confirmó que viene", c: "bg-emerald-100 text-emerald-800" },
       late(r) && { t: "Llega tarde", c: "bg-red-100 text-red-700" },
       r.notes && { t: "📝 Nota", c: "bg-black/[0.05] text-[var(--p-ink)]" },
@@ -192,7 +194,7 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
               <span className={`text-xs font-semibold first-letter:uppercase ${on ? "text-white/85" : "text-[var(--p-muted)]"}`}>{top}</span>
               <span className="text-xl font-semibold tabular-nums">{d.getDate()}</span>
               <span className={`text-[11px] tabular-nums ${on ? "text-white/85" : c.count ? "text-[var(--p-ink)]" : "text-[var(--p-faint)]"}`}>{c.count ? `${c.count} res.` : "—"}</span>
-              {c.pending > 0 && <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white" aria-label="Con reservas por confirmar" />}
+              {c.pending > 0 && <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white" aria-label="Con reservas por confirmar o nuevas" />}
             </button>
           );
         })}

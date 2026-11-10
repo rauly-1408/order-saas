@@ -1,5 +1,6 @@
 "use client";
 
+import { playOrderChime, soundEnabled } from "./sound";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -175,22 +176,36 @@ export default function AdminSidebar({
   const [menu, setMenu] = useState(false);
   // Puntitos con número: pedidos nuevos sin aceptar y reservas por confirmar o en espera.
   const [counts, setCounts] = useState<{ pedidos: number; reservas: number }>({ pedidos: 0, reservas: 0 });
+  // Reserva nueva desde la web: aviso flotante con sonido (una vez por reserva).
+  const [nueva, setNueva] = useState<{ id: string; name: string; guests: number; startsAt: string; status: string } | null>(null);
+  const shown = useRef<Set<string>>(new Set());
   useEffect(() => {
     let alive = true;
     const load = () => {
       if (document.hidden) return;
       fetch(`/api/admin/${tenant}/avisos`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => alive && d && setCounts({ pedidos: d.pedidos ?? 0, reservas: d.reservas ?? 0 }))
+        .then((d) => {
+          if (!alive || !d) return;
+          setCounts({ pedidos: d.pedidos ?? 0, reservas: d.reservas ?? 0 });
+          const n = d.nuevaReserva;
+          if (n && !shown.current.has(n.id) && !window.location.pathname.endsWith("/reservas")) {
+            shown.current.add(n.id);
+            setNueva(n);
+            if (soundEnabled()) playOrderChime();
+          }
+        })
         .catch(() => {});
     };
     load();
     const t = setInterval(load, 20_000);
     document.addEventListener("visibilitychange", load);
+    window.addEventListener("panel-avisos", load); // otra pantalla acaba de atender algo
     return () => {
       alive = false;
       clearInterval(t);
       document.removeEventListener("visibilitychange", load);
+      window.removeEventListener("panel-avisos", load);
     };
   }, [tenant, pathname]);
   const badgeOf = (href: string) => (href.endsWith("/pedidos") ? counts.pedidos : href.endsWith("/reservas") ? counts.reservas : 0);
@@ -229,8 +244,22 @@ export default function AdminSidebar({
   );
 
   if (inSettings) return null;
+  const nuevaWhen = nueva ? new Date(nueva.startsAt) : null;
   return (
     <>
+      {nueva && nuevaWhen && (
+        <div role="status" className="p-rise fixed inset-x-3 bottom-3 z-[60] flex items-center gap-3 rounded-2xl bg-[var(--p-surface)] p-4 text-[var(--p-ink)] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.35)] ring-2 ring-[var(--p-brand)] sm:inset-x-auto sm:left-5 sm:bottom-5 sm:w-80">
+          <span aria-hidden className="text-2xl">📅</span>
+          <Link href={`/admin/${tenant}/reservas?fecha=${nuevaWhen.toLocaleDateString("sv")}`} onClick={() => setNueva(null)} className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">{nueva.status === "WAITLIST" ? "Lista de espera" : nueva.status === "PENDING" ? "Reserva por confirmar" : "Nueva reserva"} · {nueva.name}</span>
+            <span className="block text-xs text-[var(--p-muted)] first-letter:uppercase">
+              {nueva.guests} {nueva.guests === 1 ? "persona" : "personas"} · {nuevaWhen.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "short" })} · {nuevaWhen.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+            <span className="mt-1 block text-xs font-semibold text-[var(--p-brand)]">Ver en Reservas ›</span>
+          </Link>
+          <button type="button" onClick={() => setNueva(null)} aria-label="Cerrar el aviso" className="shrink-0 rounded-full px-2 py-1 text-sm text-[var(--p-muted)] hover:bg-black/[0.05]">✕</button>
+        </div>
+      )}
       {/* Móvil: barra superior translúcida con botón de menú */}
       <div className="p-glass fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-[var(--p-line)] px-4 lg:hidden">
         <button onClick={() => setOpen(true)} aria-label={anyBadge ? "Abrir menú (hay avisos)" : "Abrir menú"} className="p-press relative flex h-9 w-9 items-center justify-center rounded-full text-[var(--p-ink)] hover:bg-black/5">

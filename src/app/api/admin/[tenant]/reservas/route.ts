@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       prisma.reservation.findMany({
         where: { storeId, startsAt: { gte: startOfDayIn(ctx.tz, ymd), lt: startOfDayIn(ctx.tz, addDays(ymd, 1)) } },
         orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
-        select: { id: true, startsAt: true, durationMinutes: true, guests: true, name: true, phone: true, email: true, notes: true, status: true, source: true, code: true, createdAt: true, tableIds: true, customerConfirmedAt: true, reminderSentAt: true },
+        select: { id: true, startsAt: true, durationMinutes: true, guests: true, name: true, phone: true, email: true, notes: true, status: true, source: true, code: true, createdAt: true, tableIds: true, customerConfirmedAt: true, reminderSentAt: true, seenAt: true },
       }),
       a.session.storeId ? Promise.resolve([]) : listStores(a.tenant.id, { activeOnly: true }),
     ]);
@@ -42,17 +42,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     const stripFrom = addDays(today, -1);
     const strip = await prisma.reservation.findMany({
       where: { storeId, status: { in: ["PENDING", "CONFIRMED", "SEATED"] }, startsAt: { gte: startOfDayIn(ctx.tz, stripFrom), lt: startOfDayIn(ctx.tz, addDays(today, 14)) } },
-      select: { startsAt: true, guests: true, status: true },
+      select: { startsAt: true, guests: true, status: true, source: true, seenAt: true },
     });
     const days: Record<string, { count: number; guests: number; pending: number }> = {};
     for (let i = 0; i < 15; i++) days[addDays(stripFrom, i)] = { count: 0, guests: 0, pending: 0 };
+    // pending: por confirmar o de la web aún sin ver (punto en la tira de días; el día que se ve, no)
     for (const r of strip) {
       const d = days[localParts(r.startsAt, ctx.tz).ymd];
       if (!d) continue;
       d.count++;
       d.guests += r.guests;
-      if (r.status === "PENDING") d.pending++;
+      if (r.status === "PENDING" || (r.source === "ONLINE" && !r.seenAt && localParts(r.startsAt, ctx.tz).ymd !== ymd)) d.pending++;
     }
+    // Se han visto: dejan de contar en el puntito del menú.
+    await prisma.reservation.updateMany({ where: { id: { in: list.filter((r) => r.source === "ONLINE" && !r.seenAt).map((r) => r.id) } }, data: { seenAt: new Date() } });
     return NextResponse.json({
       date: ymd,
       today,
@@ -62,7 +65,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       stores: stores.map((s) => ({ id: s.id, name: s.name })),
       capacity: ctx.capacity,
       settings: { enabled: ctx.settings.enabled, autoConfirm: ctx.settings.autoConfirm, durationMinutes: ctx.settings.durationMinutes },
-      reservations: list,
+      // «Nueva»: las de la web que aún no se habían visto. Al verlas aquí se marcan.
+      // Sigue saliendo «Nueva» un rato después de verla (15 min), para que no desaparezca al momento.
+      reservations: list.map(({ seenAt, ...r }) => ({ ...r, isNew: r.source === "ONLINE" && (!seenAt || seenAt.getTime() > Date.now() - 15 * 60_000) })),
       tableNames: Object.fromEntries(tables.map((t) => [t.id, t.name])),
     });
   } catch (err) {
