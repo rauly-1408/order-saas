@@ -109,11 +109,11 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
       {/* Lo más importante: cuánto llevamos hoy y a qué horas */}
       <section className="mt-5 grid gap-6 overflow-hidden rounded-[28px] bg-[var(--p-warm)] p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] lg:items-end lg:gap-10">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-[var(--p-brand)]/70">{canSeeTakings ? "Ingresos de hoy" : "Pedidos de hoy"}</p>
+          <p className="text-sm font-medium text-[var(--p-brand)] opacity-80">{canSeeTakings ? "Ingresos de hoy" : "Pedidos de hoy"}</p>
           <p className="mt-1 text-5xl font-semibold tracking-[-0.03em] text-[var(--p-brand)] tabular-nums sm:text-6xl">
             {canSeeTakings ? <CountUp value={revenueCents} format="euros" /> : <CountUp value={ordersToday} />}
           </p>
-          <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-[var(--p-brand)]/75">
+          <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-[var(--p-brand)] opacity-80">
             {deltaPct !== null && (
               <span className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${deltaPct >= 0 ? "bg-emerald-600/10 text-emerald-700" : "bg-red-600/10 text-red-700"}`}>
                 {deltaPct >= 0 ? "▲" : "▼"} {Math.abs(deltaPct)} %
@@ -195,7 +195,7 @@ function modeOf(o: { channel: string; source: string; dineIn: boolean }): string
 
 function Stat({ label, value, sub, urgent = false, href }: { label: string; value: React.ReactNode; sub?: string; urgent?: boolean; href?: string }) {
   const body = (
-    <div className={`group flex h-full flex-col bg-[var(--p-surface)] p-5 transition-colors ${href ? "hover:bg-[color-mix(in_srgb,var(--p-surface)_96%,black)]" : ""}`}>
+    <div className={`group flex h-full flex-col bg-[var(--p-surface)] p-5 transition-colors ${href ? "hover:bg-black/[0.03]" : ""}`}>
       <p className="flex items-center gap-2 text-sm text-[var(--p-muted)]">
         {urgent && (
           <span className="relative flex h-2 w-2" aria-hidden>

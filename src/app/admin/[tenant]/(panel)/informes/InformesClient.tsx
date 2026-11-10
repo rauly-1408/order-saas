@@ -1,5 +1,6 @@
 "use client";
 
+import { tintOverWhite } from "@/app/lib/cssCompat";
 import { useEffect, useMemo, useState } from "react";
 import type { Report, Totals } from "@/app/lib/reports";
 import { changePct } from "@/app/lib/reports";
@@ -394,7 +395,7 @@ function Heatmap({ heatmap }: { heatmap: number[][] }) {
                             onClick={() => setActive({ d, h })}
                             aria-label={`${WEEKDAYS[d]} ${hh(h)}: ${n} pedidos`}
                             className={`block h-7 min-h-0 w-full min-w-6 rounded-[4px] ${n ? "" : "bg-black/[0.04]"} ${isActive ? "ring-2 ring-[var(--p-ink)]" : ""}`}
-                            style={n ? { backgroundColor: `color-mix(in srgb, var(--p-brand) ${pct}%, var(--p-surface))` } : undefined}
+                            style={n ? tintOverWhite("var(--p-brand)", pct) : undefined}
                           />
                         </td>
                       );
@@ -407,7 +408,7 @@ function Heatmap({ heatmap }: { heatmap: number[][] }) {
           <div className="mt-3 flex items-center gap-2 text-[11px] text-[var(--p-muted)]">
             <span>Menos</span>
             {[15, 40, 65, 100].map((p) => (
-              <span key={p} className="h-3 w-5 rounded-[3px]" style={{ backgroundColor: `color-mix(in srgb, var(--p-brand) ${p}%, var(--p-surface))` }} />
+              <span key={p} className="h-3 w-5 rounded-[3px]" style={tintOverWhite("var(--p-brand)", p)} />
             ))}
             <span>Más</span>
           </div>

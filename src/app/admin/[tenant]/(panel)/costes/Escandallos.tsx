@@ -19,7 +19,7 @@ export default function Escandallos({ data, api, onSaved, onGoToIngredients }: P
 
   if (data.ingredients.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center">
+      <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-6 text-center">
         <p className="font-semibold">Primero crea tus ingredientes</p>
         <p className="mt-1 text-sm text-[var(--p-muted)]">Un escandallo dice cuánto de cada ingrediente lleva un plato.</p>
         <button onClick={onGoToIngredients} className="mt-4 p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
@@ -65,7 +65,7 @@ export default function Escandallos({ data, api, onSaved, onGoToIngredients }: P
       {/* Editor */}
       <div className={selected ? "" : "hidden lg:block"}>
         {!selected ? (
-          <div className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-10 text-center text-sm text-[var(--p-muted)]">
+          <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-10 text-center text-sm text-[var(--p-muted)]">
             Elige un plato para escandallarlo.
           </div>
         ) : (

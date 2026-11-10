@@ -256,7 +256,7 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
         </ul>
       )}
       {data.lists.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[var(--p-line)] bg-[var(--p-surface)]/60 px-6 py-10 text-center">
+        <div className="rounded-2xl border border-dashed border-[var(--p-line)] bg-white/60 px-6 py-10 text-center">
           <p className="text-lg font-semibold">Todavía no hay cartas de delivery</p>
           <p className="mt-1 text-sm text-[var(--p-muted)]">La primera empieza con los precios del local; luego cambias los que quieras.</p>
           <button type="button" disabled={busy} onClick={() => create()} className={`${BTN.primary} mt-4`}>+ Nueva carta</button>

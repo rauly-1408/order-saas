@@ -251,7 +251,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
               const isOpen = open === d.p.id;
               return (
                 <li key={d.p.id} id={`plato-${d.p.id}`} className="scroll-mt-24">
-                  <button type="button" onClick={() => setOpen(isOpen ? null : d.p.id)} aria-expanded={isOpen} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[var(--p-bg)]/60 sm:px-5">
+                  <button type="button" onClick={() => setOpen(isOpen ? null : d.p.id)} aria-expanded={isOpen} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-black/[0.02] sm:px-5">
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-semibold">{d.p.name}</div>
                       <div className="text-xs text-[var(--p-muted)]">
@@ -282,7 +282,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
           </ul>
         )}
         {listed.length < shown.length && (
-          <button type="button" onClick={() => setAllDishes(true)} className="p-press w-full border-t border-[var(--p-line)] px-4 py-3 text-sm font-semibold text-[var(--p-brand)] hover:bg-[var(--p-bg)]/60">
+          <button type="button" onClick={() => setAllDishes(true)} className="p-press w-full border-t border-[var(--p-line)] px-4 py-3 text-sm font-semibold text-[var(--p-brand)] hover:bg-black/[0.02]">
             Ver los {shown.length - listed.length} platos restantes
           </button>
         )}
@@ -293,7 +293,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
               setAllDishes(false);
               document.getElementById("tus-platos")?.scrollIntoView({ block: "start" });
             }}
-            className="p-press w-full border-t border-[var(--p-line)] px-4 py-3 text-sm font-semibold text-[var(--p-muted)] hover:bg-[var(--p-bg)]/60"
+            className="p-press w-full border-t border-[var(--p-line)] px-4 py-3 text-sm font-semibold text-[var(--p-muted)] hover:bg-black/[0.02]"
           >
             Ver menos
           </button>
@@ -336,7 +336,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
           </div>
         )}
         {data.orders.length > ORDERS_FIRST && (
-          <button type="button" onClick={() => setAllOrders((a) => !a)} className="p-press w-full border-t border-[var(--p-line)] px-4 py-3 text-sm font-semibold text-[var(--p-brand)] hover:bg-[var(--p-bg)]/60">
+          <button type="button" onClick={() => setAllOrders((a) => !a)} className="p-press w-full border-t border-[var(--p-line)] px-4 py-3 text-sm font-semibold text-[var(--p-brand)] hover:bg-black/[0.02]">
             {allOrders ? "Ver menos" : `Ver los ${data.orders.length} pedidos`}
           </button>
         )}
@@ -353,7 +353,7 @@ type Dish = { p: Product; parts: Part[]; cost: number; price: number; noRecipe: 
 function DishDetail({ d, form, ingredients, onGoToRecipes, onApply }: { d: Dish; form: CostSettings; ingredients: Map<string, Ingredient>; onGoToRecipes: () => void; onApply: () => void }) {
   const row = "flex items-baseline justify-between gap-3 py-1 text-sm";
   return (
-    <div className="grid gap-4 bg-[var(--p-bg)]/60 px-4 pt-1 pb-4 sm:px-5 lg:grid-cols-2">
+    <div className="grid gap-4 bg-[var(--p-bg)] px-4 pt-1 pb-4 sm:px-5 lg:grid-cols-2">
       <div className="min-w-0 rounded-xl bg-[var(--p-surface)] p-3">
         <p className="text-xs font-semibold tracking-wide text-[var(--p-muted)] uppercase">De dónde sale el coste</p>
         {d.parts.map((part) => (

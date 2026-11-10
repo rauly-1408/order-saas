@@ -120,6 +120,7 @@ summary {
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
 }
 .p-glass {
+  background: var(--p-surface); /* reserva para Safari sin color-mix */
   background: color-mix(in srgb, var(--p-surface) 92%, transparent);
   /* Primero el prefijo de Safari y después el estándar: al revés, el
      compilador de CSS se quedaba solo con el de Safari y Chrome no desenfocaba. */
@@ -265,6 +266,7 @@ summary {
 .panel textarea:focus {
   outline: none;
   background-color: var(--p-surface) !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12); /* reserva para Safari sin color-mix */
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--p-brand) 22%, transparent);
 }
 .panel input[type="color"] {

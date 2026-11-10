@@ -59,7 +59,7 @@ export default function ImagePicker({ tenant, value, onChange }: { tenant: strin
       >
         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-black/[0.05] text-2xl text-[var(--p-faint)]">
           {uploading ? (
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--p-brand)]/30 border-t-[var(--p-brand)]" aria-label="Subiendo" />
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--p-brand-soft)] border-t-[var(--p-brand)]" aria-label="Subiendo" />
           ) : value ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={value} alt="" className="h-full w-full object-cover" />

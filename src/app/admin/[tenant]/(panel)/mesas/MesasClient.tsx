@@ -221,7 +221,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
           )}
 
           {inZone.length === 0 && !editing ? (
-            <div className="mt-6 rounded-2xl border border-dashed border-[var(--p-line)] bg-[var(--p-surface)]/60 px-6 py-12 text-center">
+            <div className="mt-6 rounded-2xl border border-dashed border-[var(--p-line)] bg-white/60 px-6 py-12 text-center">
               <p className="text-lg font-semibold">{currentZone ? `Todavía no hay mesas en ${currentZone}` : "Todavía no hay mesas"}</p>
               {data.canManage ? (
                 <>
@@ -541,7 +541,7 @@ function PlanEditor({ tables, fixtures, zone, storeId, api, onSaved, onTapTable,
             onPointerDown={(e) => start("move", f.id, e, f)}
             onKeyDown={(e) => e.key === "Enter" && setEditFx(f)}
             style={{ left: `${f.x}%`, top: `${f.y}%`, width: `${f.w}%`, height: `${f.h}%` }}
-            className={`absolute flex cursor-grab touch-none select-none items-center justify-center text-center text-[10px] font-semibold uppercase tracking-wide ring-2 ring-[var(--p-brand)]/40 sm:text-sm ${f.kind === "BAR" ? "rounded-md bg-[var(--p-brand)]/75 text-white" : f.kind === "WALL" ? "rounded-sm bg-neutral-600" : "rounded-md bg-black/[0.03] text-[var(--p-muted)]"}`}
+            className={`absolute flex cursor-grab touch-none select-none items-center justify-center text-center text-[10px] font-semibold uppercase tracking-wide ring-2 ring-[var(--p-brand-soft)] sm:text-sm ${f.kind === "BAR" ? "rounded-md bg-[var(--p-brand)] opacity-75 text-white" : f.kind === "WALL" ? "rounded-sm bg-neutral-600" : "rounded-md bg-black/[0.03] text-[var(--p-muted)]"}`}
           >
             {f.kind !== "WALL" && <span className={f.kind === "BAR" && isTall(f) ? "[writing-mode:vertical-rl]" : ""}>{f.label}</span>}
             {f.kind !== "LABEL" && (

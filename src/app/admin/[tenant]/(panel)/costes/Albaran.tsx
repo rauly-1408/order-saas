@@ -325,7 +325,7 @@ export default function Albaran({ data, api, onSaved, onInvoice }: { data: Overv
               const pct = ing && r.price.trim() && price >= 0 ? priceChangePct({ oldPackSize: ing.packSize, oldPackPriceCents: ing.packPriceCents, newPackSize: ing.packSize, newPackPriceCents: Math.round(price * 100) }) : 0;
               const mismatch = ing ? lineMismatch({ quantity: parseNum(r.quantity), packPriceCents: Math.round(price * 100), lineTotalCents: r.lineTotalCents }, ing.packSize) : false;
               return (
-                <li key={i} className={`rounded-xl border p-3 ${r.include ? "border-[var(--p-brand)]/30 bg-[var(--p-brand-soft)]/40" : "border-[var(--p-line)]"}`}>
+                <li key={i} className={`rounded-xl border p-3 ${r.include ? "border-[var(--p-brand-soft)] bg-[var(--p-brand-soft)]" : "border-[var(--p-line)]"}`}>
                   <div className="flex items-start gap-2">
                     {r.kind === "INGREDIENT" ? (
                       <input type="checkbox" checked={r.include} onChange={(e) => update(i, { include: e.target.checked })} aria-label={`Meter «${r.description}» en el stock`} className="mt-1 h-4 w-4 shrink-0 accent-[var(--p-brand)]" />

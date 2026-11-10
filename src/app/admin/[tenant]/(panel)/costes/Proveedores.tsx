@@ -268,7 +268,7 @@ export default function Proveedores({ data, api, onSaved }: { data: Overview; ap
       )}
 
       {form ? null : data.suppliers.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center text-sm text-[var(--p-muted)]">
+        <p className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-6 text-center text-sm text-[var(--p-muted)]">
           Añade a quién le compras para tener sus datos a mano y hacerle pedidos desde Compras.
         </p>
       ) : (

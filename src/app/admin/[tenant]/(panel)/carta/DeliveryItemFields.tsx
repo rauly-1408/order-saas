@@ -35,7 +35,7 @@ export default function DeliveryItemFields({
   const [custom, setCustom] = useState(!!(item.description || item.imageUrl));
   const where = item.channels.length ? item.channels.map((c) => PLATFORM[c] ?? c).join(", ") : "sin plataforma asignada";
   return (
-    <div className={`rounded-2xl border-2 transition-colors ${item.offered ? "border-[var(--p-brand)] bg-[var(--p-brand-soft)]/40" : "border-[var(--p-line)]"}`}>
+    <div className={`rounded-2xl border-2 transition-colors ${item.offered ? "border-[var(--p-brand)] bg-[var(--p-brand-soft)]" : "border-[var(--p-line)]"}`}>
       <label className="flex cursor-pointer items-center gap-3 px-4 py-3">
         <input type="checkbox" checked={item.offered} onChange={(e) => onChange({ offered: e.target.checked })} className="h-5 w-5 shrink-0 accent-[var(--p-brand)]" />
         <span className="min-w-0 flex-1">

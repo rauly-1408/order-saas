@@ -1,5 +1,6 @@
 "use client";
 
+import { mixBg } from "@/app/lib/cssCompat";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { slotDay, ui, type Lang } from "@/app/lib/i18n";
@@ -144,7 +145,7 @@ function Panel({ slots, value, onChange, lang }: { slots: Slot[]; value: string;
               className="flex-1 rounded-xl px-1.5 py-2.5 text-[14px] outline-none"
               style={{
                 border: `2px solid ${on ? "var(--brand-accent)" : "var(--border)"}`,
-                backgroundColor: on ? "color-mix(in srgb, var(--brand-accent) 10%, transparent)" : "transparent",
+                ...(on ? mixBg("color-mix(in srgb, var(--brand-accent) 10%, transparent)", "rgba(0,0,0,0.06)") : { backgroundColor: "transparent" }),
                 color: on ? "var(--brand-accent)" : "var(--text-secondary)",
                 fontWeight: on ? 700 : 400,
               }}
@@ -156,8 +157,8 @@ function Panel({ slots, value, onChange, lang }: { slots: Slot[]; value: string;
       </div>
 
       {/* Rueda: hora · minutos. La banda del centro marca la elegida. */}
-      <div className="relative flex items-center rounded-2xl px-3" style={{ backgroundColor: "color-mix(in srgb, var(--text-primary) 4%, transparent)" }}>
-        <div aria-hidden className="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-xl" style={{ height: ITEM, backgroundColor: "color-mix(in srgb, var(--text-primary) 9%, transparent)" }} />
+      <div className="relative flex items-center rounded-2xl px-3" style={mixBg("color-mix(in srgb, var(--text-primary) 4%, transparent)", "rgba(0,0,0,0.04)")}>
+        <div aria-hidden className="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-xl" style={{ height: ITEM, ...mixBg("color-mix(in srgb, var(--text-primary) 9%, transparent)", "rgba(0,0,0,0.08)") }} />
         <Wheel items={hours} index={hourIdx} onPick={pickHour} label={lang === "en" ? "Hour" : "Hora"} />
         <span aria-hidden className="relative pb-1 text-[26px] font-semibold" style={{ color: "var(--text-primary)" }}>
           :
@@ -229,10 +230,10 @@ export default function TimePicker({ slots, value, onChange, lang, title }: { sl
           <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title} style={vars}>
             <button type="button" aria-label={T.cancel} onClick={() => setOpen(false)} className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
             <div className="relative w-full max-w-md rounded-t-[28px] px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[28px] sm:p-5" style={{ backgroundColor: "var(--surface-1)", color: "var(--text-primary)" }}>
-              <div aria-hidden className="mx-auto mb-3 h-1.5 w-10 rounded-full sm:hidden" style={{ backgroundColor: "color-mix(in srgb, var(--text-secondary) 40%, transparent)" }} />
+              <div aria-hidden className="mx-auto mb-3 h-1.5 w-10 rounded-full sm:hidden" style={mixBg("color-mix(in srgb, var(--text-secondary) 40%, transparent)", "rgba(0,0,0,0.25)")} />
               {/* Cabecera: ✕ · título · ✓ */}
               <div className="mb-4 flex items-center justify-between">
-                <button type="button" onClick={() => setOpen(false)} aria-label={T.cancel} className="p-press flex h-11 w-11 items-center justify-center rounded-full text-[20px]" style={{ backgroundColor: "color-mix(in srgb, var(--text-primary) 8%, transparent)" }}>
+                <button type="button" onClick={() => setOpen(false)} aria-label={T.cancel} className="p-press flex h-11 w-11 items-center justify-center rounded-full text-[20px]" style={mixBg("color-mix(in srgb, var(--text-primary) 8%, transparent)", "rgba(0,0,0,0.07)")}>
                   ✕
                 </button>
                 <p className="text-[17px] font-semibold">{title}</p>

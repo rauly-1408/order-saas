@@ -1,5 +1,6 @@
 "use client";
 
+import { mixBg } from "@/app/lib/cssCompat";
 import type { CSSProperties } from "react";
 import DietBadges from "./DietBadges";
 import { AllergenRow } from "./FoodIcons";
@@ -76,7 +77,7 @@ export function ComboCard({
       className="p-lift group relative flex h-full flex-col overflow-hidden rounded-[26px] p-6 sm:p-7 @max-[420px]:p-4"
       // backgroundColor primero: en navegadores sin color-mix (Safari de iPad antiguos)
       // el degradado no se aplica y queda el color de la marca, no un fondo vacío.
-      style={{ backgroundColor: "var(--brand-accent)", backgroundImage: "linear-gradient(135deg, var(--brand-accent) 0%, color-mix(in srgb, var(--brand-accent) 78%, black) 100%)", color: "var(--on-accent)" }}
+      style={{ /* compat-ok: backgroundColor es la reserva */ backgroundColor: "var(--brand-accent)", backgroundImage: "linear-gradient(135deg, var(--brand-accent) 0%, color-mix(in srgb, var(--brand-accent) 78%, black) 100%)", color: "var(--on-accent)" }}
     >
       {/* Foto del menú (Carta → editar el menú → Imagen), arriba como en los productos. */}
       {imageUrl && (
@@ -100,7 +101,7 @@ export function ComboCard({
       <ol className="relative mt-5 flex flex-wrap items-center gap-1.5 @max-[420px]:mt-3 @max-[420px]:gap-1" aria-label={T.menuSteps}>
         {steps.map((s, i) => (
           <li key={i} className="flex items-center gap-1.5">
-            <span className="flex items-center gap-1 whitespace-nowrap rounded-full py-0.5 pr-2.5 pl-0.5 text-[12px] font-semibold @max-[420px]:pr-2 @max-[420px]:text-[11px]" style={{ background: "rgba(255,255,255,0.18)", backgroundColor: "color-mix(in srgb, var(--bg-base) 18%, transparent)" }}>
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-full py-0.5 pr-2.5 pl-0.5 text-[12px] font-semibold @max-[420px]:pr-2 @max-[420px]:text-[11px]" style={mixBg("color-mix(in srgb, var(--bg-base) 18%, transparent)", "rgba(255,255,255,0.18)")}>
               <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ backgroundColor: "var(--bg-base)", color: "var(--brand-accent)" }}>
                 {i + 1}
               </span>
@@ -183,7 +184,7 @@ export function ProductCard({
       )}
       {/* Sin foto: un recuadro con la inicial, para que la rejilla quede pareja */}
       {!imageUrl && (
-        <div aria-hidden className="hidden aspect-square w-full items-center sm:flex justify-center bg-[color-mix(in_srgb,var(--brand-accent)_7%,var(--surface-1))]">
+        <div aria-hidden className="hidden aspect-square w-full items-center sm:flex justify-center" style={mixBg("color-mix(in srgb, var(--brand-accent) 7%, var(--surface-1))", "var(--surface-1)")}>
           <span className="text-[56px] leading-none text-[var(--brand-accent)] opacity-25" style={{ fontFamily: "var(--font-heading)" }}>
             {name.trim().charAt(0).toUpperCase()}
           </span>

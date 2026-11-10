@@ -34,7 +34,7 @@ export default function ResetForm({ tenant, tenantName, token, valid }: { tenant
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--p-warm)] px-4 py-10">
       <div className="p-rise w-full max-w-sm">
-        <p className="text-center text-sm font-medium text-[var(--p-brand)]/70">Panel del restaurante</p>
+        <p className="text-center text-sm font-medium text-[var(--p-brand)] opacity-80">Panel del restaurante</p>
         <h1 className="p-display mt-2 text-center text-6xl text-[var(--p-brand)] [overflow-wrap:anywhere]">{tenantName}</h1>
 
         <div className="mt-8 rounded-[28px] bg-[var(--p-surface)] p-6 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.35)] sm:p-8">

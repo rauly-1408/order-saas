@@ -46,7 +46,7 @@ function Chair({ side, at, busy }: { side: "t" | "b" | "l" | "r"; at: number; bu
   const pos =
     side === "t" ? { left: `${at}%`, top: "2%", transform: "translateX(-50%)" } : side === "b" ? { left: `${at}%`, bottom: "2%", transform: "translateX(-50%)" } : side === "l" ? { top: `${at}%`, left: "2%", transform: "translateY(-50%)" } : { top: `${at}%`, right: "2%", transform: "translateY(-50%)" };
   const size = side === "t" || side === "b" ? "h-[11%] w-[26%]" : "h-[26%] w-[11%]";
-  return <span aria-hidden style={pos} className={`absolute rounded-full ${size} ${busy ? "bg-[var(--p-brand)]/35" : "bg-black/12"}`} />;
+  return <span aria-hidden style={pos} className={`absolute rounded-full ${size} ${busy ? "bg-[var(--p-brand)] opacity-35" : "bg-black/12"}`} />;
 }
 
 // Elementos fijos dibujados en el plano (barra con aspecto de madera, pared, texto).

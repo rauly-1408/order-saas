@@ -281,7 +281,7 @@ export default function Consumibles({ data, api, onSaved }: { data: Overview; ap
       )}
 
       {!form && list.length === 0 && (
-        <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center text-sm text-[var(--p-muted)]">
+        <p className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-6 text-center text-sm text-[var(--p-muted)]">
           Aún no hay consumibles. Empieza por el packaging: la caja y el envoltorio del mollete, el papel de las patatas y la bolsa.
         </p>
       )}
