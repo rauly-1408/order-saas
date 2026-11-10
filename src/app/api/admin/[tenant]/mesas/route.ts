@@ -5,7 +5,7 @@ import { getSessionFromRequest } from "@/app/lib/auth";
 import { accessOf, canManageTenant } from "@/app/lib/roles";
 import { listStores, storeForSession } from "@/app/lib/stores";
 import { cleanText } from "@/app/lib/text";
-import { MAX_TABLES_PER_STORE, TableError, addRound, openOn, openTable, tableLabel, tableNames } from "@/app/lib/tables";
+import { MAX_TABLES_PER_STORE, TableError, addRound, openOn, openTable, setTableLabel, tableLabel, tableNames } from "@/app/lib/tables";
 import { once, requestIdOf } from "@/app/lib/idempotency";
 import { prepareRound, type RoundInput } from "@/app/lib/tableRound";
 import { enqueueTablePrint } from "@/app/lib/printing";
@@ -183,6 +183,7 @@ type Body = {
   positions?: { id?: unknown; posX?: unknown; posY?: unknown }[];
   tableId?: string;
   guests?: number;
+  label?: string; // action «open»: a nombre de quién (opcional)
   storeId?: string;
   zone?: string;
   prefix?: string;
@@ -225,9 +226,11 @@ export async function POST(req: NextRequest) {
       if (!table || table.tenantId !== tenant.id) return NextResponse.json({ error: "Mesa no encontrada" }, { status: 404 });
       if (session.storeId && session.storeId !== table.storeId) return NextResponse.json({ error: "Esa mesa es de otro local" }, { status: 403 });
       const currency = ((tenant.settings as Record<string, unknown>)?.currency as string) ?? "EUR";
+      const openLabel = typeof b.label === "string" ? b.label.replace(/\s+/g, " ").trim().slice(0, 30) : "";
       const round = b.round;
       if (!round) {
         const order = await openTable(tenant.id, b.tableId, Number(b.guests) || 1, session.userId, currency);
+        if (openLabel) await setTableLabel(tenant.id, order.id, openLabel);
         return NextResponse.json({ orderId: order.id, orderNumber: order.orderNumber });
       }
       const tableId = b.tableId;
@@ -240,6 +243,7 @@ export async function POST(req: NextRequest) {
         if (!order) {
           try {
             order = await openTable(tenant.id, tableId, Number(b.guests) || 1, session.userId, currency);
+            if (openLabel) await setTableLabel(tenant.id, order.id, openLabel);
           } catch (err) {
             if (!(err instanceof TableError)) throw err;
             order = await openOrder();

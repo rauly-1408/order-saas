@@ -36,7 +36,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
   const [storeId, setStoreId] = useState<string | null>(null);
   const [zone, setZone] = useState<string>("");
   const [view, setView] = useState<string | null>(null); // cuenta abierta (id de la mesa)
-  const [offlineOpen, setOfflineOpen] = useState<{ table: Table; guests: number } | null>(null); // abrir mesa sin conexión
+  const [offlineOpen, setOfflineOpen] = useState<{ table: Table; guests: number; label: string } | null>(null); // abrir mesa sin conexión
   const [viewAction, setViewAction] = useState<"round" | "pay" | undefined>(undefined);
   const [notice, setNotice] = useState("");
   const [opening, setOpening] = useState<Table | null>(null);
@@ -300,13 +300,13 @@ export default function MesasClient({ tenant }: { tenant: string }) {
             setViewAction("round");
             setView(opening.id);
           }}
-          onOpen={async (guests) => {
+          onOpen={async (guests, label) => {
             try {
-              await post<{ orderId: string }>(api, { action: "open", tableId: opening.id, guests });
+              await post<{ orderId: string }>(api, { action: "open", tableId: opening.id, guests, label });
             } catch (e) {
               // Sin conexión: se toma nota igual; la mesa se abre al enviar la ronda.
               if (!(e instanceof TypeError)) throw e;
-              setOfflineOpen({ table: opening, guests });
+              setOfflineOpen({ table: opening, guests, label });
               setOpening(null);
               return;
             }
@@ -321,7 +321,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
         <RoundComposer
           tenant={tenant}
           orderId={null}
-          opening={{ tableId: offlineOpen.table.id, guests: offlineOpen.guests }}
+          opening={{ tableId: offlineOpen.table.id, guests: offlineOpen.guests, label: offlineOpen.label }}
           tableName={offlineOpen.table.name}
           onClose={() => setOfflineOpen(null)}
           onSent={(round) => {
@@ -627,8 +627,9 @@ function FixtureSheet({ f, onClose, onSave, onRemove }: { f: Fixture; onClose: (
   );
 }
 
-function OpenSheet({ table, onClose, onOpen, onSeat }: { table: Table; onClose: () => void; onOpen: (guests: number) => Promise<void>; onSeat: () => Promise<void> }) {
+function OpenSheet({ table, onClose, onOpen, onSeat }: { table: Table; onClose: () => void; onOpen: (guests: number, label: string) => Promise<void>; onSeat: () => Promise<void> }) {
   const [guests, setGuests] = useState(Math.min(2, table.seats || 2));
+  const [label, setLabel] = useState("");
   const r = table.reservation;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -665,7 +666,7 @@ function OpenSheet({ table, onClose, onOpen, onSeat }: { table: Table; onClose: 
               setBusy(true);
               setError("");
               try {
-                await onOpen(guests);
+                await onOpen(guests, label.replace(/\s+/g, " ").trim().slice(0, 30));
               } catch (e) {
                 setError(e instanceof Error ? e.message : "No se pudo abrir la mesa");
                 setBusy(false);
@@ -695,6 +696,11 @@ function OpenSheet({ table, onClose, onOpen, onSeat }: { table: Table; onClose: 
           </button>
         ))}
       </div>
+      <label className="mt-5 block">
+        <span className="font-medium">¿A nombre de quién?</span> <span className="text-sm text-[var(--p-muted)]">(opcional)</span>
+        <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={30} placeholder="Raúl" aria-label="A nombre de quién" className="mt-2 w-full rounded-xl border border-[var(--p-line)] px-4 py-3 text-base" />
+        <span className="mt-1 block text-xs text-[var(--p-muted)]">Sale en el plano, en la comanda y en el ticket.</span>
+      </label>
     </Sheet>
   );
 }

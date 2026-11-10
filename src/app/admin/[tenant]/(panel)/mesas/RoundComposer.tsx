@@ -8,7 +8,7 @@ import ComboSheet, { type ComboProduct } from "@/app/pedir/[tenant]/ComboSheet";
 import { modifierLabels, type MenuModifierGroup, type OrderLineModifier } from "@/app/lib/menuOptions";
 import { comboChoicesKey, type ChoiceProduct, type ComboChoice, type ComboSlotDef } from "@/app/lib/combos";
 import { STORE_VARS } from "../storeVars";
-import { Sheet, Stepper, euros, parseEuros, usePortal } from "./shared";
+import { NameSheet, Sheet, Stepper, euros, parseEuros, usePortal } from "./shared";
 import { loadLocal, saveLocal, sendOrQueue } from "../outbox";
 
 // Tomar una ronda, pensado para pantalla táctil: la carta a la izquierda (o
@@ -50,7 +50,10 @@ let menuCache: { tenant: string; cats: Category[] } | null = null;
 
 // orderId null + opening: mesa abierta sin conexión (se abre y se manda la ronda a la vez).
 // onSent(null): sin conexión, la ronda queda guardada y se enviará sola.
-export default function RoundComposer({ tenant, orderId, opening, tableName, onClose, onSent, canDiscount = false }: { tenant: string; orderId: string | null; opening?: { tableId: string; guests: number }; tableName: string; onClose: () => void; onSent: (round: number | null) => void; canDiscount?: boolean }) {
+// label/onLabel: «A nombre de…» de la mesa, para ponerlo sin salir de la ronda.
+export default function RoundComposer({ tenant, orderId, opening, tableName, label: tableLabel = null, onLabel, onClose, onSent, canDiscount = false }: { tenant: string; orderId: string | null; opening?: { tableId: string; guests: number; label?: string }; tableName: string; label?: string | null; onLabel?: (label: string) => Promise<unknown>; onClose: () => void; onSent: (round: number | null) => void; canDiscount?: boolean }) {
+  const [naming, setNaming] = useState(false);
+  const [namingBusy, setNamingBusy] = useState(false);
   const portal = usePortal();
   const [categories, setCategories] = useState<Category[] | null>(menuCache?.tenant === tenant ? menuCache.cats : null);
   const [cat, setCat] = useState(categories?.[0]?.slug ?? "");
@@ -150,7 +153,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
       const preview = { lines: lines.map((l) => ({ name: l.name, quantity: l.quantity, totalCents: lineTotal(l), modifiers: modifierLabels(l.modifiers), note: l.note.trim() || null })) };
       const r = orderId
         ? await sendOrQueue<{ round: number }>(`/api/admin/${tenant}/mesas/${orderId}`, { action: "round", ...round, preview }, label)
-        : await sendOrQueue<{ round: number }>(`/api/admin/${tenant}/mesas`, { action: "open", tableId: opening?.tableId, guests: opening?.guests ?? 1, round, preview }, label);
+        : await sendOrQueue<{ round: number }>(`/api/admin/${tenant}/mesas`, { action: "open", tableId: opening?.tableId, guests: opening?.guests ?? 1, label: opening?.label, round, preview }, label);
       onSent(r.queued ? null : r.data.round);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo enviar la ronda");
@@ -270,6 +273,11 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
         <button type="button" onClick={close} className="p-press min-h-12 shrink-0 rounded-full bg-black/[0.06] px-5 text-base font-semibold hover:bg-black/[0.09]">
           ‹ Volver a la mesa {tableName}
         </button>
+        {onLabel && (
+          <button type="button" onClick={() => setNaming(true)} className="p-press min-h-12 max-w-[40%] shrink-0 truncate rounded-full bg-[var(--p-brand-soft)] px-4 text-sm font-semibold text-[var(--p-brand-strong)]">
+            {tableLabel ? `✎ ${tableLabel}` : "+ A nombre de…"}
+          </button>
+        )}
         <h2 className="hidden min-w-0 flex-1 truncate text-base font-semibold text-[var(--p-muted)] sm:block">Nueva ronda</h2>
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="ml-auto w-full min-w-0 max-w-sm rounded-full border border-[var(--p-line)] bg-[var(--p-bg)] px-4 py-3 text-base outline-none focus:border-[var(--p-brand)]" />
       </header>
@@ -416,6 +424,23 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, onC
           onAdd={(c) => {
             pushLine({ key: `libre:${c.name.toLowerCase()}:${c.priceCents}:${c.free ? 1 : 0}`, productId: null, name: c.name, unitPriceCents: c.priceCents, quantity: c.quantity, optionIds: [], modifiers: [], note: c.note, free: c.free });
             setCustomOpen(false);
+          }}
+        />
+      )}
+      {naming && onLabel && (
+        <NameSheet
+          table={tableName}
+          current={tableLabel ?? ""}
+          busy={namingBusy}
+          onClose={() => setNaming(false)}
+          onSave={async (l) => {
+            setNamingBusy(true);
+            try {
+              await onLabel(l);
+              setNaming(false);
+            } finally {
+              setNamingBusy(false);
+            }
           }}
         />
       )}
