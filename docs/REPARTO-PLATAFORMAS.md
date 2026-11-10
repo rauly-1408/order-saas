@@ -23,3 +23,22 @@ El cliente pide y paga en nuestra tienda (nos quedamos el cliente, sin comisión
 - `src/app/lib/deliveryPartners.ts`: validación de enlaces por dominio (`parsePartners`, `partnersProblem`) y lista activa.
 - Se guarda en `Tenant.settings.deliveryPartners` (sin migración), validado en `PATCH /api/admin/[tenant]`.
 - `loadMenu` expone `deliveryPartners`. Componente `src/app/pedir/[tenant]/DeliveryPartners.tsx`.
+
+## Cartas delivery: precios para cada plataforma (2026-11-10)
+
+Carta → **Cartas delivery**. Las plataformas suelen llevar otros precios que el local.
+
+- **Crear cartas:** tantas como se quiera (hasta 30).
+  - **«+ Nueva carta»** empieza con los precios del local copiados; después se cambian a mano.
+  - **«Duplicar»** copia otra carta (precios y platos quitados) para editar sobre ella. La copia no se lleva las plataformas.
+- **Editar una carta:**
+  - el nombre;
+  - el precio de cada plato (vacío = el del local);
+  - un interruptor para quitar los platos que no se venden en esas plataformas.
+  - Todo se guarda solo, al salir del campo.
+- **Asignar plataformas:** solo aparecen las **añadidas**, es decir, las que tienen su enlace en Configuración → Envío y entrega. Cada plataforma usa **una sola carta**: al asignarla a otra, se quita de la anterior. En la lista se ve qué carta usa cada plataforma y avisa si alguna está «sin carta».
+- **Aún no se envía a las plataformas.** Cuando conectemos los pedidos de las plataformas (HubRise, ver docs/INTEGRACIONES.md), esta carta es la que se enviará a cada una y con la que se valorarán sus pedidos. Hasta entonces sirve de lista de precios de referencia.
+- **Técnica:**
+  - modelo `PriceList` con `name`, `channels`, `prices { productId: céntimos }` y `hidden`; migración `*_cartas_delivery`;
+  - API `GET/POST /api/admin/[tenant]/cartas-delivery` y `PATCH/DELETE …/[id]`, solo el gerente; utilidades en `lib/priceLists.ts`;
+  - pantalla `carta/CartasDelivery.tsx`.

@@ -238,6 +238,7 @@ model Tenant {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  priceLists PriceList[]
 }
 
 // ─────────────────────────────────────────────
@@ -1525,4 +1526,21 @@ model PasswordReset {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+}
+
+// Cartas de delivery: precios a mano para las plataformas de reparto (Glovo,
+// Uber Eats, Just Eat). Cada plataforma usa una sola carta. Ver docs/REPARTO-PLATAFORMAS.md
+model PriceList {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name     String
+  channels String[] @default([]) // "glovo" | "ubereats" | "justeat"
+  prices   Json     @default("{}") // { productId: céntimos }; sin precio = el del local
+  hidden   String[] @default([]) // platos que no se ofrecen en esta carta
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
 }
