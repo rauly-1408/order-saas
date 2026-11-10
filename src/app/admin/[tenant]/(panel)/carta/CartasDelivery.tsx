@@ -10,8 +10,8 @@ import { BTN } from "../buttons";
 // se asigna a las plataformas que quieras (cada plataforma usa una sola carta).
 // Se guarda solo. Ver docs/REPARTO-PLATAFORMAS.md
 type Platform = { key: "glovo" | "ubereats" | "justeat"; label: string; added: boolean };
-type List = { id: string; name: string; channels: string[]; prices: Record<string, number>; hidden: string[] };
-type Category = { id: string; name: string; products: { id: string; name: string; basePriceCents: number; isActive: boolean }[] };
+type List = { id: string; name: string; channels: string[]; prices: Record<string, number>; descriptions: Record<string, string>; hidden: string[] };
+type Category = { id: string; name: string; products: { id: string; name: string; description: string | null; basePriceCents: number; isActive: boolean }[] };
 type Data = { platforms: Platform[]; lists: List[]; categories: Category[] };
 
 const euros = (c: number) => (c / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -29,6 +29,7 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [descFor, setDescFor] = useState<string | null>(null); // plato con la descripción abierta
   const queue = useRef(Promise.resolve());
 
   const load = useCallback(async () => {
@@ -163,7 +164,7 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
           )}
         </section>
 
-        <p className="text-sm text-[var(--p-muted)]">Escribe el precio de cada plato en esta carta. Vacío = el mismo que en el local. Quita los platos que no vendes en estas plataformas.</p>
+        <p className="text-sm text-[var(--p-muted)]">Escribe el precio y, si quieres, la descripción de cada plato en esta carta. Vacío = lo mismo que en el local. Quita los platos que no vendes en estas plataformas.</p>
         {data.categories.map((c) => (
           <section key={c.id} className="overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]" aria-label={c.name}>
             <h3 className="border-b border-[var(--p-line)] px-4 py-2.5 text-sm font-semibold">{c.name}</h3>
@@ -171,11 +172,17 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
               {c.products.map((p) => {
                 const offered = !list.hidden.includes(p.id);
                 const price = list.prices[p.id];
+                const desc = list.descriptions[p.id];
+                const openDesc = descFor === p.id;
                 return (
-                  <li key={p.id} className={`flex items-center gap-3 px-4 py-2.5 ${offered ? "" : "opacity-50"}`}>
+                  <li key={p.id} className={offered ? "" : "opacity-50"}>
+                  <div className="flex items-center gap-3 px-4 py-2.5">
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">{p.name}</span>
                       <span className="block text-xs text-[var(--p-muted)]">Local {euros(p.basePriceCents)} €{!p.isActive && " · oculto en la carta"}</span>
+                      <button type="button" disabled={!offered} onClick={() => setDescFor(openDesc ? null : p.id)} aria-expanded={openDesc} className="mt-0.5 block max-w-full truncate text-left text-xs font-medium text-[var(--p-brand)]">
+                        {desc ? `✎ ${desc}` : p.description ? "✎ Cambiar la descripción" : "+ Añadir descripción"}
+                      </button>
                     </span>
                     <label className="relative block w-24 shrink-0 sm:w-28">
                       <span className="sr-only">Precio de {p.name} en esta carta</span>
@@ -217,6 +224,34 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
                     >
                       <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-all ${offered ? "left-5" : "left-1"}`} />
                     </button>
+                  </div>
+                  {openDesc && (
+                    <div className="px-4 pb-3">
+                      <label className="block text-xs font-medium text-[var(--p-muted)]" htmlFor={`d-${p.id}`}>Descripción en esta carta</label>
+                      <textarea
+                        id={`d-${p.id}`}
+                        key={`${list.id}-${p.id}-d`}
+                        defaultValue={desc ?? ""}
+                        placeholder={p.description || "Sin descripción en el local"}
+                        maxLength={500}
+                        rows={2}
+                        autoFocus
+                        onBlur={(e) => {
+                          const v = e.target.value.replace(/\s+/g, " ").trim();
+                          if (v === (desc ?? "")) return;
+                          patchList(list.id, (l) => {
+                            const descriptions = { ...l.descriptions };
+                            if (v) descriptions[p.id] = v;
+                            else delete descriptions[p.id];
+                            return { ...l, descriptions };
+                          });
+                          save(list.id, { productId: p.id, description: v }, v ? `${p.name}: descripción guardada` : `${p.name}: usa la descripción del local`);
+                        }}
+                        className="mt-1 w-full rounded-xl bg-black/[0.04] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--p-brand)]"
+                      />
+                      <p className="mt-1 text-xs text-[var(--p-muted)]">Vacía = la misma que en el local. Se guarda sola.</p>
+                    </div>
+                  )}
                   </li>
                 );
               })}
