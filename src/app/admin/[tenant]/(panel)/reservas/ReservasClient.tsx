@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ask } from "@/app/lib/dialog";
 import { Sheet, Stepper } from "../mesas/shared";
+import TimeWheel from "./TimeWheel";
 
-// Reservas de un día, por horas: confirmar las pendientes, marcar quién llegó
-// o no vino, cancelar y apuntar las que llegan por teléfono. Se refresca sola
-// para ver las nuevas de la tienda. Ver docs/RESERVAS.md
+// Reservas: tira de días arriba (con cuántas tiene cada uno), el día en una
+// línea y las reservas en grupos (por confirmar, por llegar, en el local,
+// lista de espera). Cada fila tiene su acción principal en un botón grande y,
+// al tocarla, una ficha con todo. Se refresca sola. Ver docs/RESERVAS.md
 type Status = "PENDING" | "CONFIRMED" | "SEATED" | "NO_SHOW" | "CANCELLED" | "WAITLIST";
 type Reservation = { id: string; startsAt: string; guests: number; name: string; phone: string; email: string | null; notes: string | null; status: Status; source: "ONLINE" | "PHONE" | "WALKIN"; tableIds: string[]; customerConfirmedAt: string | null; reminderSentAt: string | null };
-type Data = { date: string; today: string; tz: string; storeId: string; stores: { id: string; name: string }[]; capacity: number; settings: { enabled: boolean; autoConfirm: boolean; durationMinutes: number }; reservations: Reservation[]; tableNames: Record<string, string> };
+type Data = { date: string; today: string; days: Record<string, { count: number; guests: number; pending: number }>; tz: string; storeId: string; stores: { id: string; name: string }[]; capacity: number; settings: { enabled: boolean; autoConfirm: boolean; durationMinutes: number }; reservations: Reservation[]; tableNames: Record<string, string> };
 
 const STATUS: Record<Status, { label: string; cls: string }> = {
   PENDING: { label: "Pendiente", cls: "bg-amber-100 text-amber-800" },
@@ -40,9 +42,11 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [showCancelled, setShowCancelled] = useState(false);
+  const [showDone, setShowDone] = useState(false);
+  const [open, setOpen] = useState<Reservation | null>(null); // ficha de una reserva
   const [tableFor, setTableFor] = useState<Reservation | null>(null);
   const [notice, setNotice] = useState<{ text: string; link?: boolean } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const load = useCallback(async () => {
     try {
@@ -52,6 +56,7 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
       if (!res.ok) throw new Error(d.error ?? "No se pudieron cargar las reservas");
       setData(d);
       setError("");
+      setNow(Date.now());
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudieron cargar las reservas");
     }
@@ -66,23 +71,21 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
   const day = data?.date ?? date;
   const tz = data?.tz;
   const time = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: tz });
-  const active = useMemo(() => (data?.reservations ?? []).filter((r) => r.status !== "CANCELLED" && r.status !== "WAITLIST"), [data]);
-  const waitlist = (data?.reservations ?? []).filter((r) => r.status === "WAITLIST");
-  const cancelled = (data?.reservations ?? []).filter((r) => r.status === "CANCELLED");
-  const groups = useMemo(() => {
-    const m = new Map<string, Reservation[]>();
-    for (const r of active) m.set(time(r.startsAt), [...(m.get(time(r.startsAt)) ?? []), r]);
-    return [...m.entries()];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, tz]);
-  const guests = active.filter((r) => r.status !== "NO_SHOW").reduce((a, r) => a + r.guests, 0);
-  const pending = active.filter((r) => r.status === "PENDING").length;
-  const dayTitle = day
-    ? `${day === data?.today ? "Hoy, " : day === (data && addDays(data.today, 1)) ? "Mañana, " : ""}${new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}`
-    : "";
+  const all = data?.reservations ?? [];
+  const pending = all.filter((r) => r.status === "PENDING");
+  const upcoming = all.filter((r) => r.status === "CONFIRMED");
+  const seated = all.filter((r) => r.status === "SEATED");
+  const waitlist = all.filter((r) => r.status === "WAITLIST");
+  const finished = all.filter((r) => r.status === "NO_SHOW" || r.status === "CANCELLED");
+  const active = [...pending, ...upcoming, ...seated];
+  const guests = active.reduce((a, r) => a + r.guests, 0);
+  const isToday = day === data?.today;
+  const late = (r: Reservation) => isToday && r.status === "CONFIRMED" && now - new Date(r.startsAt).getTime() > 15 * 60_000;
+  const tableText = (r: Reservation) => (r.tableIds.length ? `${r.tableIds.length > 1 ? "Mesas" : "Mesa"} ${r.tableIds.map((id) => data?.tableNames[id] ?? "?").join(" + ")}` : "Sin mesa");
+  const dayTitle = day ? new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" }) : "";
 
   async function setStatus(r: Reservation, status: Status, confirmText?: string) {
-    if (confirmText && !(await ask(confirmText, { danger: status === "CANCELLED" }))) return;
+    if (confirmText && !(await ask(confirmText, { danger: status === "CANCELLED" || status === "NO_SHOW" }))) return false;
     setBusy(r.id);
     try {
       const patch = (force: boolean) => fetch(`${api}/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, force }) });
@@ -90,23 +93,82 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
       let d = await res.json().catch(() => ({}));
       // Dar mesa a la lista de espera sin sitio: preguntar y forzar.
       if (res.status === 409 && d.full) {
-        if (!(await ask(`${d.error}. ¿Dar mesa a ${r.name} igualmente?`, { confirm: "Dar mesa", danger: false }))) return;
+        if (!(await ask(`${d.error}. ¿Dar mesa a ${r.name} igualmente?`, { confirm: "Dar mesa", danger: false }))) return false;
         res = await patch(true);
         d = await res.json().catch(() => ({}));
       }
       if (!res.ok) throw new Error(d.error ?? "No se pudo cambiar");
-      if (d.opened) setNotice({ text: d.notice ?? `${d.opened.table.includes("+") ? "Mesas" : "Mesa"} ${d.opened.table} ${d.opened.table.includes("+") ? "abiertas en una sola cuenta" : "abierta"} para ${r.name}`, link: true });
+      if (d.opened) setNotice({ text: `${d.opened.table.includes("+") ? "Mesas" : "Mesa"} ${d.opened.table} abierta para ${r.name}`, link: true });
       else if (d.notice) setNotice({ text: d.notice, link: true });
+      else if (status === "SEATED") setNotice({ text: `${r.name} ya está en el local. No tenía mesa asignada: ábrele una en Mesas`, link: true });
       await load();
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cambiar");
+      return false;
     } finally {
       setBusy(null);
     }
   }
 
+  // La acción principal de cada reserva, en un botón grande a la derecha.
+  function mainAction(r: Reservation) {
+    const b = (label: string, onClick: () => void, cls = primary) => (
+      <button type="button" disabled={busy === r.id} onClick={(e) => { e.stopPropagation(); onClick(); }} className={`${cls} shrink-0`}>
+        {busy === r.id ? "…" : label}
+      </button>
+    );
+    if (r.status === "PENDING") return b("Confirmar", () => setStatus(r, "CONFIRMED"));
+    if (r.status === "CONFIRMED") return b("Llegó", () => setStatus(r, "SEATED"));
+    if (r.status === "WAITLIST") return b("Dar mesa", () => setStatus(r, "CONFIRMED"));
+    return null;
+  }
+
+  function Row({ r }: { r: Reservation }) {
+    const chips = [
+      r.status === "CONFIRMED" && r.customerConfirmedAt && { t: "✓ Confirmó que viene", c: "bg-emerald-100 text-emerald-800" },
+      late(r) && { t: "Llega tarde", c: "bg-red-100 text-red-700" },
+      r.notes && { t: "📝 Nota", c: "bg-black/[0.05] text-[var(--p-ink)]" },
+    ].filter(Boolean) as { t: string; c: string }[];
+    return (
+      <li>
+        <div role="button" tabIndex={0} onClick={() => setOpen(r)} onKeyDown={(e) => e.key === "Enter" && setOpen(r)} className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-black/[0.02] sm:gap-4 sm:px-5">
+          <span className={`w-14 shrink-0 text-xl font-semibold tabular-nums ${late(r) ? "text-red-600" : ""}`}>{time(r.startsAt)}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-base font-semibold">{r.name}</span>
+            <span className="block truncate text-sm text-[var(--p-muted)]">
+              <b className="font-semibold text-[var(--p-ink)]">{r.guests} {r.guests === 1 ? "persona" : "personas"}</b> · <span className={r.tableIds.length ? "" : "font-semibold text-amber-700"}>{tableText(r)}</span>
+            </span>
+            {chips.length > 0 && (
+              <span className="mt-1 flex flex-wrap gap-1">
+                {chips.map((c) => <span key={c.t} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.c}`}>{c.t}</span>)}
+              </span>
+            )}
+          </span>
+          {mainAction(r)}
+          <span aria-hidden className="text-lg text-[var(--p-faint)]">›</span>
+        </div>
+      </li>
+    );
+  }
+
+  const Group = ({ title, hint, tone, items }: { title: string; hint?: string; tone?: string; items: Reservation[] }) =>
+    items.length ? (
+      <section className="mt-5">
+        <h2 className={`mb-2 flex items-baseline gap-2 text-sm font-semibold uppercase tracking-wide ${tone ?? "text-[var(--p-muted)]"}`}>
+          {title} <span className="tabular-nums">({items.length})</span>
+          {hint && <span className="text-xs font-normal normal-case tracking-normal text-[var(--p-muted)]">{hint}</span>}
+        </h2>
+        <ul className="divide-y divide-[var(--p-line)] overflow-hidden rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          {items.map((r) => <Row key={r.id} r={r} />)}
+        </ul>
+      </section>
+    ) : null;
+
+  const strip = data ? Object.entries(data.days) : [];
+
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full max-w-4xl">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="mr-auto text-[28px] font-semibold tracking-tight">Reservas</h1>
         {data && data.stores.length > 1 && (
@@ -119,16 +181,36 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
         <button type="button" onClick={() => setAdding(true)} className={primary}>+ Nueva reserva</button>
       </div>
 
-      {/* Día: anterior / hoy / siguiente y calendario */}
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 rounded-full bg-black/[0.05] p-1">
-          <button type="button" aria-label="Día anterior" disabled={!day} onClick={() => day && setDate(addDays(day, -1))} className="p-press h-10 w-10 rounded-full text-lg font-semibold hover:bg-[var(--p-surface)]">‹</button>
-          <button type="button" onClick={() => data && setDate(data.today)} className={`p-press h-10 rounded-full px-4 text-sm font-semibold ${day === data?.today ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : ""}`}>Hoy</button>
-          <button type="button" aria-label="Día siguiente" disabled={!day} onClick={() => day && setDate(addDays(day, 1))} className="p-press h-10 w-10 rounded-full text-lg font-semibold hover:bg-[var(--p-surface)]">›</button>
-        </div>
-        <input type="date" value={day ?? ""} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Elegir día" className="min-h-11 rounded-full border border-[var(--p-line)] bg-[var(--p-surface)] px-3 text-sm" />
-        <p className="text-[15px] font-semibold first-letter:uppercase">{dayTitle}</p>
+      {/* Tira de días: toca un día; el número es cuántas reservas tiene */}
+      <div className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+        {strip.map(([ymd, c]) => {
+          const d = new Date(`${ymd}T12:00:00`);
+          const on = ymd === day;
+          const top = ymd === data?.today ? "Hoy" : data && ymd === addDays(data.today, 1) ? "Mañana" : ymd === (data && addDays(data.today, -1)) ? "Ayer" : d.toLocaleDateString("es-ES", { weekday: "short" });
+          return (
+            <button key={ymd} type="button" onClick={() => setDate(ymd)} aria-pressed={on} className={`p-press relative flex w-[72px] shrink-0 flex-col items-center rounded-2xl px-2 py-2.5 ${on ? "bg-[var(--p-brand)] text-white" : "bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"}`}>
+              <span className={`text-xs font-semibold first-letter:uppercase ${on ? "text-white/85" : "text-[var(--p-muted)]"}`}>{top}</span>
+              <span className="text-xl font-semibold tabular-nums">{d.getDate()}</span>
+              <span className={`text-[11px] tabular-nums ${on ? "text-white/85" : c.count ? "text-[var(--p-ink)]" : "text-[var(--p-faint)]"}`}>{c.count ? `${c.count} res.` : "—"}</span>
+              {c.pending > 0 && <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white" aria-label="Con reservas por confirmar" />}
+            </button>
+          );
+        })}
+        <label className="p-press relative flex w-[72px] shrink-0 cursor-pointer flex-col items-center justify-center rounded-2xl bg-[var(--p-surface)] px-2 py-2.5 text-xs font-semibold text-[var(--p-muted)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          📅<span className="mt-1">Otro día</span>
+          <input type="date" value={day ?? ""} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Elegir otro día" className="absolute inset-0 cursor-pointer opacity-0" />
+        </label>
       </div>
+
+      {/* El día elegido, en una línea */}
+      {data && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <p className="mr-2 text-lg font-semibold first-letter:uppercase">{isToday ? "Hoy, " : ""}{dayTitle}</p>
+          <span className="rounded-full bg-[var(--p-surface)] px-3 py-1 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)]"><b className="tabular-nums">{active.length}</b> {active.length === 1 ? "reserva" : "reservas"} · <b className="tabular-nums">{guests}</b> comensales</span>
+          {pending.length > 0 && <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-900">{pending.length} por confirmar</span>}
+          {waitlist.length > 0 && <span className="rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-900">{waitlist.length} en espera</span>}
+        </div>
+      )}
 
       {data && !data.settings.enabled && (
         <p className="mt-4 rounded-2xl bg-[var(--p-brand-soft)] px-4 py-3 text-sm text-[var(--p-brand-strong)]">
@@ -150,139 +232,47 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
       )}
       {error && <p className="mt-4 rounded-2xl bg-[var(--p-accent-soft)] px-4 py-3 text-sm text-[var(--p-accent)]" role="alert">{error}</p>}
 
-      {/* Resumen del día */}
-      {data && (
-        <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
-          {[
-            ["Reservas", String(active.length)],
-            ["Comensales", `${guests}`],
-            ["Pendientes", String(pending)],
-          ].map(([k, v]) => (
-            <div key={k} className={`rounded-2xl bg-[var(--p-surface)] px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${k === "Pendientes" && pending > 0 ? "ring-2 ring-amber-300" : ""}`}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--p-muted)]">{k}</p>
-              <p className="text-xl font-semibold tabular-nums">{v}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
       {!data ? (
         !error && <p className="py-16 text-center text-sm text-[var(--p-muted)]">Cargando las reservas…</p>
-      ) : active.length === 0 ? (
+      ) : active.length === 0 && waitlist.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-[var(--p-line)] bg-[var(--p-surface)]/60 px-6 py-12 text-center">
           <p className="text-lg font-semibold">No hay reservas este día</p>
           <p className="mt-1 text-sm text-[var(--p-muted)]">Las que hagan tus clientes en la tienda aparecen aquí solas.</p>
+          <button type="button" onClick={() => setAdding(true)} className={`${primary} mt-4`}>+ Apuntar una reserva</button>
         </div>
       ) : (
-        <div className="mt-6 space-y-5">
-          {groups.map(([t, list]) => (
-            <section key={t} aria-label={`${t}`}>
-              <h2 className="mb-2 flex items-baseline gap-2 text-lg font-semibold tabular-nums">
-                {t}
-                <span className="text-sm font-normal text-[var(--p-muted)]">{list.reduce((a, r) => a + r.guests, 0)} pax</span>
-              </h2>
-              <ul className="grid gap-2 sm:grid-cols-2">
-                {list.map((r) => (
-                  <li key={r.id} className={`rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${r.status === "PENDING" ? "ring-2 ring-amber-300" : ""} ${r.status === "NO_SHOW" ? "opacity-70" : ""}`}>
-                    <div className="flex items-start gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[16px] font-semibold">{r.name}</p>
-                        <p className="text-sm text-[var(--p-muted)]">
-                          <span className="font-semibold text-[var(--p-ink)]">{r.guests} {r.guests === 1 ? "persona" : "personas"}</span> · <a href={`tel:${r.phone}`} className="select-all underline-offset-2 hover:underline">{r.phone}</a>
-                        </p>
-                      </div>
-                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
-                    </div>
-                    {r.status === "CONFIRMED" && (r.customerConfirmedAt || r.reminderSentAt) && (
-                      <p className="mt-2">
-                        {r.customerConfirmedAt ? (
-                          <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">✓ Confirmó que viene</span>
-                        ) : (
-                          <span className="inline-flex rounded-full bg-black/[0.05] px-2.5 py-1 text-xs font-semibold text-[var(--p-muted)]">Recordatorio enviado</span>
-                        )}
-                      </p>
-                    )}
-                    <p className="mt-2 text-sm font-medium">
-                      {r.tableIds.length ? `${r.tableIds.length > 1 ? "Mesas" : "Mesa"} ${r.tableIds.map((id) => data.tableNames[id] ?? "?").join(" + ")}` : <span className="text-amber-700">Sin mesa</span>}
-                    </p>
-                    {r.notes && <p className="mt-2 rounded-xl bg-[var(--p-warm,#f5f5f7)] px-3 py-2 text-sm">{r.notes}</p>}
-                    <p className="mt-2 text-xs text-[var(--p-muted)]">{SOURCE[r.source]}{r.email ? ` · ${r.email}` : ""}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {r.status === "PENDING" && (
-                        <>
-                          <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CONFIRMED")} className={primary}>Confirmar</button>
-                          <button type="button" disabled={busy === r.id} onClick={() => setTableFor(r)} className={secondary}>Mesa</button>
-                          <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CANCELLED", `¿Rechazar la reserva de ${r.name}?${r.email ? " Le avisaremos por email." : ""}`)} className={secondary}>Rechazar</button>
-                        </>
-                      )}
-                      {r.status === "CONFIRMED" && (
-                        <>
-                          <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "SEATED")} className={primary}>Llegó</button>
-                          <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "NO_SHOW")} className={secondary}>No vino</button>
-                          <button type="button" disabled={busy === r.id} onClick={() => setTableFor(r)} className={secondary}>Mesa</button>
-                          <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CANCELLED", `¿Cancelar la reserva de ${r.name}?${r.email ? " Le avisaremos por email." : ""}`)} className={secondary}>Cancelar</button>
-                        </>
-                      )}
-                      {(r.status === "SEATED" || r.status === "NO_SHOW") && (
-                        <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CONFIRMED")} className={secondary}>Deshacer</button>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
+        <>
+          <Group title="Por confirmar" hint="Acéptalas o recházalas" tone="text-amber-800" items={pending} />
+          <Group title={isToday ? "Por llegar" : "Reservas"} items={upcoming} />
+          <Group title="En el local" items={seated} />
+          <Group title="Lista de espera" hint="Piden mesa a una hora llena; si alguien cancela les avisamos solos" items={waitlist} />
+        </>
       )}
 
-      {waitlist.length > 0 && (
-        <section className="mt-6" aria-labelledby="r-wait">
-          <h2 id="r-wait" className="text-lg font-semibold">Lista de espera ({waitlist.length})</h2>
-          <p className="text-sm text-[var(--p-muted)]">Piden mesa a una hora completa. Si se cancela una reserva, les avisamos por email solos.</p>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {waitlist.map((r) => (
-              <li key={r.id} className="rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-                <div className="flex items-start gap-3">
-                  <span className="text-lg font-semibold tabular-nums">{time(r.startsAt)}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[16px] font-semibold">{r.name}</p>
-                    <p className="text-sm text-[var(--p-muted)]">
-                      <span className="font-semibold text-[var(--p-ink)]">{r.guests} {r.guests === 1 ? "persona" : "personas"}</span> · <a href={`tel:${r.phone}`} className="select-all underline-offset-2 hover:underline">{r.phone}</a>
-                    </p>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS.WAITLIST.cls}`}>{STATUS.WAITLIST.label}</span>
-                </div>
-                {r.notes && <p className="mt-2 rounded-xl bg-[var(--p-warm,#f5f5f7)] px-3 py-2 text-sm">{r.notes}</p>}
-                {r.email && <p className="mt-2 text-xs text-[var(--p-muted)]">{r.email}</p>}
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CONFIRMED")} className={primary}>Dar mesa</button>
-                  <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CANCELLED", `¿Quitar a ${r.name} de la lista de espera?`)} className={secondary}>Quitar</button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {cancelled.length > 0 && (
+      {finished.length > 0 && (
         <div className="mt-6">
-          <button type="button" onClick={() => setShowCancelled((v) => !v)} aria-expanded={showCancelled} className={secondary}>
-            {showCancelled ? "Ocultar" : "Ver"} canceladas ({cancelled.length})
+          <button type="button" onClick={() => setShowDone((v) => !v)} aria-expanded={showDone} className={secondary}>
+            {showDone ? "Ocultar" : "Ver"} no vinieron y canceladas ({finished.length})
           </button>
-          {showCancelled && (
-            <ul className="mt-3 divide-y divide-[var(--p-line)] rounded-2xl bg-[var(--p-surface)]">
-              {cancelled.map((r) => (
-                <li key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-                  <span className="font-semibold tabular-nums">{time(r.startsAt)}</span>
-                  <span className="min-w-0 flex-1 truncate">{r.name} · {r.guests} pax</span>
-                  <button type="button" disabled={busy === r.id} onClick={() => setStatus(r, "CONFIRMED")} className={secondary}>Recuperar</button>
-                </li>
-              ))}
+          {showDone && (
+            <ul className="mt-3 divide-y divide-[var(--p-line)] overflow-hidden rounded-2xl bg-[var(--p-surface)] opacity-80">
+              {finished.map((r) => <Row key={r.id} r={r} />)}
             </ul>
           )}
         </div>
       )}
 
+      {open && (
+        <DetailSheet
+          r={open}
+          time={time(open.startsAt)}
+          tableText={tableText(open)}
+          busy={busy === open.id}
+          onClose={() => setOpen(null)}
+          onTable={() => { setTableFor(open); setOpen(null); }}
+          onStatus={async (status, text) => { if (await setStatus(open, status, text)) setOpen(null); }}
+        />
+      )}
       {tableFor && (
         <TableSheet
           api={`${api}/${tableFor.id}`}
@@ -311,6 +301,60 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
   );
 }
 
+// Ficha de una reserva: todo lo que hay que saber y todas las acciones, grandes.
+function DetailSheet({ r, time, tableText, busy, onClose, onTable, onStatus }: { r: Reservation; time: string; tableText: string; busy: boolean; onClose: () => void; onTable: () => void; onStatus: (s: Status, confirmText?: string) => void }) {
+  const big = (label: string, onClick: () => void, cls: string) => (
+    <button type="button" disabled={busy} onClick={onClick} className={`p-press min-h-12 w-full rounded-2xl px-4 text-base font-semibold disabled:opacity-50 ${cls}`}>{label}</button>
+  );
+  const P = "bg-[var(--p-brand)] text-white";
+  const S = "bg-black/[0.05] text-[var(--p-ink)]";
+  const D = "bg-red-50 text-red-700";
+  const mail = r.email ? ` Le avisaremos por email.` : "";
+  return (
+    <Sheet title={`${r.name} · ${time}`} onClose={onClose}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
+        {r.customerConfirmedAt && r.status === "CONFIRMED" && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">✓ Confirmó que viene</span>}
+        {r.reminderSentAt && !r.customerConfirmedAt && r.status === "CONFIRMED" && <span className="rounded-full bg-black/[0.05] px-2.5 py-1 text-xs text-[var(--p-muted)]">Recordatorio enviado</span>}
+        <span className="text-xs text-[var(--p-muted)]">{SOURCE[r.source]}</span>
+      </div>
+      <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+        <dt className="text-[var(--p-muted)]">Hora</dt><dd className="font-semibold tabular-nums">{time}</dd>
+        <dt className="text-[var(--p-muted)]">Personas</dt><dd className="font-semibold">{r.guests}</dd>
+        <dt className="text-[var(--p-muted)]">Mesa</dt><dd className="font-semibold">{tableText}</dd>
+        <dt className="text-[var(--p-muted)]">Teléfono</dt><dd><a href={`tel:${r.phone}`} className="font-semibold text-[var(--p-brand)]">{r.phone}</a></dd>
+        {r.email && (<><dt className="text-[var(--p-muted)]">Email</dt><dd className="truncate">{r.email}</dd></>)}
+      </dl>
+      {r.notes && <p className="mt-3 rounded-xl bg-[var(--p-warm,#f5f5f7)] px-3 py-2 text-sm">📝 {r.notes}</p>}
+      <div className="mt-5 space-y-2">
+        {r.status === "PENDING" && (
+          <>
+            {big("Confirmar la reserva", () => onStatus("CONFIRMED"), P)}
+            {big("Cambiar la mesa", onTable, S)}
+            {big("Rechazar", () => onStatus("CANCELLED", `¿Rechazar la reserva de ${r.name}?${mail}`), D)}
+          </>
+        )}
+        {r.status === "CONFIRMED" && (
+          <>
+            {big("Llegó: abrir su mesa", () => onStatus("SEATED"), P)}
+            {big("Cambiar la mesa", onTable, S)}
+            {big("No vino", () => onStatus("NO_SHOW", `¿Marcar que ${r.name} no vino?`), S)}
+            {big("Cancelar la reserva", () => onStatus("CANCELLED", `¿Cancelar la reserva de ${r.name}?${mail}`), D)}
+          </>
+        )}
+        {r.status === "WAITLIST" && (
+          <>
+            {big("Dar mesa", () => onStatus("CONFIRMED"), P)}
+            {big("Quitar de la lista de espera", () => onStatus("CANCELLED", `¿Quitar a ${r.name} de la lista de espera?`), D)}
+          </>
+        )}
+        {(r.status === "SEATED" || r.status === "NO_SHOW") && big("Deshacer", () => onStatus("CONFIRMED"), S)}
+        {r.status === "CANCELLED" && big("Recuperar la reserva", () => onStatus("CONFIRMED"), S)}
+      </div>
+    </Sheet>
+  );
+}
+
 // Apuntar una reserva (teléfono o cliente que llega sin reservar). Si a esa hora
 // ya no hay sitio, se puede apuntar igualmente.
 function NewSheet({ api, storeId, date, onClose, onSaved }: { api: string; storeId: string; date: string; onClose: () => void; onSaved: (date: string) => Promise<void> }) {
@@ -333,6 +377,17 @@ function NewSheet({ api, storeId, date, onClose, onSaved }: { api: string; store
       alive = false;
     };
   }, [api, day, guests, storeId]);
+  // Minuto del día de cada hora libre, para el reloj; se coloca en la primera
+  // a partir de ahora (o en la primera del día).
+  const minuteOf = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+  const open = (slots ?? []).map((x) => minuteOf(x.time));
+  useEffect(() => {
+    if (!slots?.length || slots.some((x) => x.at === at)) return;
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    const first = slots.find((x) => minuteOf(x.time) >= nowMin) ?? slots[0];
+    setAt(first.at);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slots]);
   const chosen = slots?.find((s) => s.at === at);
 
   async function save(force = false) {
@@ -388,15 +443,15 @@ function NewSheet({ api, storeId, date, onClose, onSaved }: { api: string; store
       ) : slots.length === 0 ? (
         <p className="mt-1 text-sm text-[var(--p-muted)]">Ese día el local está cerrado.</p>
       ) : (
-        <div className="mt-1 grid grid-cols-4 gap-1.5">
-          {slots.map((s) => (
-            <button key={s.at} type="button" onClick={() => setAt(s.at)} aria-pressed={at === s.at} title={`${s.free} plazas libres`} className={`p-press rounded-xl py-2 text-sm font-semibold tabular-nums ${at === s.at ? "bg-[var(--p-brand)] text-white" : s.available ? "bg-black/[0.05]" : "bg-red-50 text-red-700"}`}>
-              {s.time}
-            </button>
-          ))}
+        <div className="mt-1">
+          <TimeWheel open={open} value={chosen ? minuteOf(chosen.time) : open[0]} onChange={(m) => { const s = slots.find((x) => minuteOf(x.time) === m); if (s) setAt(s.at); }} />
+          {chosen && (
+            <p className={`mt-2 text-center text-sm ${chosen.available ? "text-[var(--p-muted)]" : "font-semibold text-red-700"}`}>
+              {chosen.available ? `A las ${chosen.time} quedan ${chosen.free} plazas` : `A las ${chosen.time} solo quedan ${chosen.free} plazas: se puede apuntar igualmente`}
+            </p>
+          )}
         </div>
       )}
-      {chosen && !chosen.available && <p className="mt-2 text-xs text-red-700">A esa hora solo quedan {chosen.free} plazas.</p>}
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="block text-[13px] font-medium text-[var(--p-muted)]">
           Nombre
