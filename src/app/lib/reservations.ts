@@ -102,7 +102,9 @@ export function reservationSlots(i: SlotInput): ReservationSlot[] {
   for (let m = 0; m < 24 * 60; m += i.settings.stepMinutes) {
     const at = new Date(midnight + m * 60_000);
     if (at.getTime() < earliest) continue;
-    if (!openInstant(i, at) || !openInstant(i, new Date(at.getTime() + 29 * 60_000))) continue; // abierto al menos 30 min más
+    // En la tienda: abierto al menos 30 min más. El restaurante (ignoreNotice)
+    // puede apuntar hasta la hora de cierre.
+    if (!openInstant(i, at) || (!i.ignoreNotice && !openInstant(i, new Date(at.getTime() + 29 * 60_000)))) continue;
     const free = Math.max(0, i.capacity - guestsAt(i.bookings, at, i.settings.durationMinutes));
     out.push({ at: at.toISOString(), time: `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`, free, available: free >= i.guests });
   }

@@ -118,3 +118,20 @@ Las horas salen del **horario del local** (Horario y zonas): abierto al llegar y
 - Tarjeta en garantía o pago por adelantado para grupos.
 - Recordatorio por SMS o WhatsApp (hoy solo email).
 - **Reservar con Google:** Google tiene que aprobar a NorApp como socio.
+
+## Rediseño de la pantalla (2026-11-10)
+
+- **Tira de días** arriba, de ayer a dentro de 13 días. Cada día muestra cuántas reservas tiene y un punto ámbar si hay alguna por confirmar. «📅 Otro día» abre el calendario. La API devuelve `days { YYYY-MM-DD: { count, guests, pending } }`.
+- **El día en una línea**: «Hoy, martes 10 de noviembre · 4 reservas · 15 comensales · 1 por confirmar».
+- **Grupos**: Por confirmar · Por llegar · En el local · Lista de espera. «No vinieron y canceladas» va plegado.
+- **Cada fila**:
+  - hora grande, nombre, personas y mesa;
+  - avisos: «✓ Confirmó que viene», «Llega tarde» (pasados 15 min de su hora) y «📝 Nota»;
+  - **un solo botón con la acción principal**: Confirmar, Llegó o Dar mesa.
+- **Al tocar una fila** se abre la ficha con todo (hora, personas, mesa, teléfono para llamar, email, nota) y todas las acciones en botones grandes: Llegó, Cambiar la mesa, No vino, Cancelar, Rechazar, Deshacer y Recuperar.
+- Si llega alguien sin mesa asignada, avisa para abrírsela en Mesas.
+- **Nueva reserva: reloj como el despertador del iPhone** (`reservas/TimeWheel.tsx`):
+  - dos ruedas, horas y minutos, con **cualquier minuto** desde la apertura hasta el cierre;
+  - el panel pide las horas con `stepMinutes: 1`, y en la tienda siguen siendo de 15 en 15;
+  - el restaurante puede apuntar hasta la hora de cierre (la tienda, hasta media hora antes);
+  - debajo dice cuántas plazas quedan a esa hora.

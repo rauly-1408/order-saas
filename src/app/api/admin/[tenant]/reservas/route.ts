@@ -25,7 +25,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     const ymd = /^\d{4}-\d{2}-\d{2}$/.test(q.get("fecha") ?? "") ? q.get("fecha")! : localParts(new Date(), ctx.tz).ymd;
     if (q.get("horas")) {
       const guests = Math.max(1, Math.min(200, Math.floor(Number(q.get("personas")) || 2)));
-      return NextResponse.json({ slots: await slotsFor(ctx, ymd, guests, { ignoreNotice: true }) });
+      // El restaurante elige cualquier minuto, de la apertura al cierre (reloj tipo despertador).
+      return NextResponse.json({ slots: await slotsFor({ ...ctx, settings: { ...ctx.settings, stepMinutes: 1 } }, ymd, guests, { ignoreNotice: true }) });
     }
     const [list, stores] = await Promise.all([
       prisma.reservation.findMany({
@@ -36,9 +37,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       a.session.storeId ? Promise.resolve([]) : listStores(a.tenant.id, { activeOnly: true }),
     ]);
     const tables = await prisma.diningTable.findMany({ where: { storeId }, select: { id: true, name: true } });
+    // Tira de días (de ayer a dentro de 13 días): reservas, comensales y por confirmar de cada día.
+    const today = localParts(new Date(), ctx.tz).ymd;
+    const stripFrom = addDays(today, -1);
+    const strip = await prisma.reservation.findMany({
+      where: { storeId, status: { in: ["PENDING", "CONFIRMED", "SEATED"] }, startsAt: { gte: startOfDayIn(ctx.tz, stripFrom), lt: startOfDayIn(ctx.tz, addDays(today, 14)) } },
+      select: { startsAt: true, guests: true, status: true },
+    });
+    const days: Record<string, { count: number; guests: number; pending: number }> = {};
+    for (let i = 0; i < 15; i++) days[addDays(stripFrom, i)] = { count: 0, guests: 0, pending: 0 };
+    for (const r of strip) {
+      const d = days[localParts(r.startsAt, ctx.tz).ymd];
+      if (!d) continue;
+      d.count++;
+      d.guests += r.guests;
+      if (r.status === "PENDING") d.pending++;
+    }
     return NextResponse.json({
       date: ymd,
-      today: localParts(new Date(), ctx.tz).ymd,
+      today,
+      days,
       tz: ctx.tz,
       storeId,
       stores: stores.map((s) => ({ id: s.id, name: s.name })),
@@ -75,7 +93,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     let r;
     for (let i = 0; ; i++) {
       try {
-        r = await createReservation(ctx, input, { source: b.source === "WALKIN" ? "WALKIN" : "PHONE", userId: a.session.userId, staff: true, overCapacity: b.force === true });
+        r = await createReservation({ ...ctx, settings: { ...ctx.settings, stepMinutes: 1 } }, input, { source: b.source === "WALKIN" ? "WALKIN" : "PHONE", userId: a.session.userId, staff: true, overCapacity: b.force === true });
         break;
       } catch (err) {
         if (i < 2 && isDuplicateCode(err)) continue;
