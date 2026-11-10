@@ -113,7 +113,7 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/40" />
-      <div className="relative flex max-h-[92vh] w-full flex-col overflow-y-auto rounded-t-[24px] bg-[var(--p-surface)] p-4 pb-[max(16px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-xl lg:rounded-[24px] lg:p-6">
+      <div className="relative flex max-h-[92vh] w-full flex-col overflow-y-auto [&>*]:shrink-0 rounded-t-[24px] bg-[var(--p-surface)] p-4 pb-[max(16px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-xl lg:rounded-[24px] lg:p-6">
         <div aria-hidden className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-full bg-black/15 lg:hidden" />
         {t ? (
           <>
