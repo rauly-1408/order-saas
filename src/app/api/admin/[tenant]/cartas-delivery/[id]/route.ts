@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { isPartner, priceListTenant, readPrices } from "@/app/lib/priceLists";
+import { isPartner, priceListTenant, readDescriptions, readPrices } from "@/app/lib/priceLists";
 import { cleanText } from "@/app/lib/text";
 
 export const runtime = "nodejs";
@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 //   { channels: ["glovo", …] }       → a qué plataformas va (se quitan de otras cartas)
 //   { productId, cents | null }      → precio de un plato (null = el del local)
 //   { productId, offered: boolean }  → ofrecer o quitar un plato de esta carta
+//   { productId, description }       → descripción en esta carta ("" = la del local)
 // DELETE → borrarla. Solo el gerente. Ver docs/REPARTO-PLATAFORMAS.md
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ tenant: string; id: string }> }) {
   try {
@@ -40,6 +41,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ te
     if (typeof b.productId === "string") {
       const product = await prisma.product.findFirst({ where: { id: b.productId, tenantId: a.tenant.id }, select: { id: true } });
       if (!product) return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
+      if ("description" in b) {
+        if (typeof b.description !== "string") return NextResponse.json({ error: "Descripción no válida" }, { status: 400 });
+        const text = b.description.replace(/\s+/g, " ").trim().slice(0, 500);
+        const descriptions = readDescriptions(list.descriptions);
+        if (text) descriptions[product.id] = text;
+        else delete descriptions[product.id];
+        await prisma.priceList.update({ where: { id }, data: { descriptions } });
+        return NextResponse.json({ ok: true });
+      }
       if ("offered" in b) {
         const hidden = b.offered === false ? [...new Set([...list.hidden, product.id])] : list.hidden.filter((h) => h !== product.id);
         await prisma.priceList.update({ where: { id }, data: { hidden } });

@@ -13,6 +13,12 @@ export function readPrices(raw: unknown): Record<string, number> {
   return out;
 }
 
+export function readDescriptions(raw: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries((raw ?? {}) as Record<string, unknown>)) if (typeof v === "string" && v.trim()) out[k] = v.trim().slice(0, 500);
+  return out;
+}
+
 export async function priceListTenant(req: NextRequest): Promise<{ tenant: { id: string; settings: unknown } } | { error: NextResponse }> {
   const parts = new URL(req.url).pathname.split("/");
   const slug = parts[parts.indexOf("admin") + 1];

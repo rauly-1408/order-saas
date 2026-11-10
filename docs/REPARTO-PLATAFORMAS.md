@@ -32,6 +32,7 @@ Carta → **Cartas delivery**. Las plataformas suelen llevar otros precios que e
   - **«+ Nueva carta»** empieza con los precios del local copiados; después se cambian a mano.
   - **«Duplicar»** copia otra carta (precios y platos quitados) para editar sobre ella. La copia no se lleva las plataformas.
 - **Editar una carta:**
+  - la descripción de cada plato en esa carta («✎ Cambiar la descripción»; vacía = la del local; `descriptions { productId: texto }`, migración `*_cartas_descripciones`; al duplicar se copia);
   - el nombre;
   - el precio de cada plato (vacío = el del local);
   - un interruptor para quitar los platos que no se venden en esas plataformas.
