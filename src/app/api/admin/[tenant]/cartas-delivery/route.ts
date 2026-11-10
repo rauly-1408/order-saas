@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { PARTNERS, parsePartners } from "@/app/lib/deliveryPartners";
-import { MAX_PRICE_LISTS, priceListTenant, readDescriptions, readPrices } from "@/app/lib/priceLists";
+import { MAX_PRICE_LISTS, priceListTenant, readDescriptions, readImages, readPrices } from "@/app/lib/priceLists";
 import { cleanText } from "@/app/lib/text";
 
 export const runtime = "nodejs";
@@ -19,12 +19,12 @@ export async function GET(req: NextRequest) {
     prisma.category.findMany({
       where: { tenantId: a.tenant.id },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, products: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, description: true, basePriceCents: true, isActive: true } } },
+      select: { id: true, name: true, products: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, description: true, imageUrl: true, basePriceCents: true, isActive: true } } },
     }),
   ]);
   return NextResponse.json({
     platforms: PARTNERS.map((p) => ({ key: p.key, label: p.label, added: !!links[p.key] })),
-    lists: lists.map((l) => ({ id: l.id, name: l.name, channels: l.channels, prices: readPrices(l.prices), descriptions: readDescriptions(l.descriptions), hidden: l.hidden, updatedAt: l.updatedAt })),
+    lists: lists.map((l) => ({ id: l.id, name: l.name, channels: l.channels, prices: readPrices(l.prices), descriptions: readDescriptions(l.descriptions), images: readImages(l.images), hidden: l.hidden, updatedAt: l.updatedAt })),
     categories: categories.filter((c) => c.products.length),
   });
 }
@@ -40,19 +40,21 @@ export async function POST(req: NextRequest) {
     let prices: Record<string, number>;
     let hidden: string[] = [];
     let descriptions: Record<string, string> = {};
+    let images: Record<string, string> = {};
     if (typeof b.copyFrom === "string" && b.copyFrom) {
       const src = await prisma.priceList.findFirst({ where: { id: b.copyFrom, tenantId: a.tenant.id } });
       if (!src) return NextResponse.json({ error: "No encontramos la carta a duplicar" }, { status: 404 });
       prices = readPrices(src.prices);
       hidden = src.hidden;
       descriptions = readDescriptions(src.descriptions);
+      images = readImages(src.images);
     } else {
       // Empieza con los precios del local, para cambiar a mano los que quieras.
       const products = await prisma.product.findMany({ where: { tenantId: a.tenant.id }, select: { id: true, basePriceCents: true } });
       prices = Object.fromEntries(products.map((p) => [p.id, p.basePriceCents]));
     }
     // La copia no se lleva las plataformas: cada plataforma usa una sola carta.
-    const list = await prisma.priceList.create({ data: { tenantId: a.tenant.id, name, prices, hidden, descriptions, channels: [] } });
+    const list = await prisma.priceList.create({ data: { tenantId: a.tenant.id, name, prices, hidden, descriptions, images, channels: [] } });
     return NextResponse.json({ id: list.id }, { status: 201 });
   } catch (err) {
     console.error("[POST /api/admin/cartas-delivery]", err);

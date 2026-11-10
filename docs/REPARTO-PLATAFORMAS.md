@@ -43,3 +43,14 @@ Carta → **Cartas delivery**. Las plataformas suelen llevar otros precios que e
   - modelo `PriceList` con `name`, `channels`, `prices { productId: céntimos }` y `hidden`; migración `*_cartas_delivery`;
   - API `GET/POST /api/admin/[tenant]/cartas-delivery` y `PATCH/DELETE …/[id]`, solo el gerente; utilidades en `lib/priceLists.ts`;
   - pantalla `carta/CartasDelivery.tsx`.
+
+### Rediseño (2026-11-10)
+
+- **Al añadir o editar un producto**, «¿Dónde se vende?» enseña cada carta delivery con una casilla:
+  - marcada, se pone su precio en esa carta (vacío = el del local) y, con «+ Otra foto o descripción para esta carta», una foto y una descripción solo para ella;
+  - un **producto nuevo** no va a ninguna carta delivery hasta que se marque.
+  - API: `GET/PUT /api/admin/[tenant]/products/[productId]/cartas`.
+- **La pestaña «Cartas delivery»** sigue sirviendo para crear, duplicar, renombrar, borrar y asignar plataformas. Dentro de una carta:
+  - los platos van por **categorías plegables** (cerradas al entrar, con «N de M se venden»), con buscador y miniatura;
+  - al tocar un plato se abre su ficha en esa carta: si se vende, precio, foto y descripción.
+- Foto propia por carta: `PriceList.images { productId: url }`, migración `*_cartas_fotos`. Al duplicar se copia.

@@ -19,6 +19,12 @@ export function readDescriptions(raw: unknown): Record<string, string> {
   return out;
 }
 
+export function readImages(raw: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries((raw ?? {}) as Record<string, unknown>)) if (typeof v === "string" && v.trim() && v.length <= 1000) out[k] = v.trim();
+  return out;
+}
+
 export async function priceListTenant(req: NextRequest): Promise<{ tenant: { id: string; settings: unknown } } | { error: NextResponse }> {
   const parts = new URL(req.url).pathname.split("/");
   const slug = parts[parts.indexOf("admin") + 1];

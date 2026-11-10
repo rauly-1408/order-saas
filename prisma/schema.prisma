@@ -1539,6 +1539,7 @@ model PriceList {
   prices   Json     @default("{}") // { productId: céntimos }; sin precio = el del local
   hidden   String[] @default([]) // platos que no se ofrecen en esta carta
   descriptions Json  @default("{}") // { productId: texto }; sin texto = la descripción del local
+  images       Json  @default("{}") // { productId: url }; sin foto = la del local
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

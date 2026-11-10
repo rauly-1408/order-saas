@@ -4,6 +4,7 @@ import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import ImagePicker from "../archivos/ImagePicker";
+import DeliveryItemFields, { parseEurosOrNull, type DeliveryItem } from "./DeliveryItemFields";
 import { readPanelCache, writePanelCache } from "../panelCache";
 import DietBadges from "@/app/pedir/[tenant]/DietBadges";
 import { AllergenIcon } from "@/app/pedir/[tenant]/FoodIcons";
@@ -68,6 +69,23 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<{ product: Product | null; form: FormData } | null>(null); // product null = nuevo
+  // «¿Dónde se vende?»: el plato en cada carta delivery (null = cargando o sin cartas).
+  const [delivery, setDelivery] = useState<(DeliveryItem & { priceText?: string })[] | null>(null);
+  const loadDelivery = useCallback(async (productId: string | null) => {
+    setDelivery(null);
+    try {
+      if (productId) {
+        const r = await fetch(`/api/admin/${tenant}/products/${productId}/cartas`, { cache: "no-store" });
+        if (r.ok) setDelivery(((await r.json()) as { lists: DeliveryItem[] }).lists);
+      } else {
+        const r = await fetch(`/api/admin/${tenant}/cartas-delivery`, { cache: "no-store" });
+        // Producto nuevo: no va a ninguna carta delivery hasta que la marques.
+        if (r.ok) setDelivery(((await r.json()) as { lists: { id: string; name: string; channels: string[] }[] }).lists.map((l) => ({ id: l.id, name: l.name, channels: l.channels, offered: false, priceCents: null, description: "", imageUrl: "" })));
+      }
+    } catch {
+      setDelivery([]);
+    }
+  }, [tenant]);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
@@ -132,11 +150,13 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
   function openEdit(p: Product, categoryId: string) {
     setFormError("");
     expand(categoryId);
+    loadDelivery(p.id);
     setEditing({ product: p, form: { name: p.name, description: p.description ?? "", price: priceText(p.basePriceCents), webPrice: p.onlinePriceCents != null ? priceText(p.onlinePriceCents) : "", imageUrl: p.imageUrl ?? "", isActive: p.isActive, isAvailable: p.isAvailable, isFeatured: p.isFeatured, dietTags: p.dietTags ?? [], allergens: p.allergens ?? [], categoryId } });
   }
   function openNew(categoryId: string) {
     setFormError("");
     expand(categoryId);
+    loadDelivery(null);
     setEditing({ product: null, form: { name: "", description: "", price: "", webPrice: "", imageUrl: "", isActive: true, isAvailable: true, isFeatured: false, dietTags: [], allergens: [], categoryId } });
   }
 
@@ -149,15 +169,21 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
     // Precio en la web: vacío = el mismo que en el local.
     const webCents = f.webPrice.trim() ? parsePrice(f.webPrice) : null;
     if (f.webPrice.trim() && webCents == null) return setFormError("Escribe el precio de la web en euros, por ejemplo 13,50, o déjalo vacío.");
+    const badCarta = delivery?.find((d) => d.offered && d.priceText && parseEurosOrNull(d.priceText) === "bad");
+    if (badCarta) return setFormError(`Escribe el precio de «${badCarta.name}» en euros, por ejemplo 13,50, o déjalo vacío.`);
     setSaving(true);
     setFormError("");
     try {
       const payload = { name: f.name.trim(), description: f.description, basePriceCents: cents, onlinePriceCents: webCents === cents ? null : webCents, imageUrl: f.imageUrl, isActive: f.isActive, isAvailable: f.isAvailable, isFeatured: f.isFeatured, dietTags: f.dietTags, allergens: f.allergens, categoryId: f.categoryId };
       const url = editing.product ? `/api/admin/${tenant}/products/${editing.product.id}` : `/api/admin/${tenant}/products`;
       const res = await fetch(url, { method: editing.product ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j.error ?? "No se pudo guardar");
+      const j = (await res.json().catch(() => ({}))) as { error?: string; product?: { id: string } };
+      if (!res.ok) throw new Error(j.error ?? "No se pudo guardar");
+      // En qué cartas delivery se vende, con su precio, foto y descripción.
+      const productId = editing.product?.id ?? j.product?.id;
+      if (productId && delivery?.length) {
+        const r2 = await fetch(`/api/admin/${tenant}/products/${productId}/cartas`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lists: delivery.map((d) => ({ id: d.id, offered: d.offered, priceCents: d.priceCents, description: d.description, imageUrl: d.imageUrl })) }) });
+        if (!r2.ok) throw new Error(((await r2.json().catch(() => ({}))) as { error?: string }).error ?? "El plato se guardó, pero no sus cartas delivery");
       }
       flash(true, editing.product ? `«${payload.name}» guardado` : `«${payload.name}» añadido a la carta`);
       setEditing(null);
@@ -459,6 +485,28 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                     <ImagePicker tenant={tenant} value={f.imageUrl} onChange={(url) => setF({ imageUrl: url })} />
                   </div>
                 </div>
+                {/* ¿Dónde se vende? Local y web (con «En la carta») y cada carta delivery */}
+                <section aria-labelledby="donde">
+                  <p id="donde" className="text-sm font-semibold">¿Dónde se vende?</p>
+                  <p className="mt-0.5 text-xs text-[var(--p-muted)]">En el local y en tu tienda web, si está «En la carta» (abajo). Marca las cartas delivery en las que también va; en cada una puedes poner otro precio, otra foto y otra descripción.</p>
+                  <div className="mt-2 space-y-2">
+                    {delivery === null ? (
+                      <p className="text-xs text-[var(--p-muted)]">Cargando las cartas delivery…</p>
+                    ) : delivery.length === 0 ? (
+                      <p className="rounded-xl bg-black/[0.04] px-3 py-2.5 text-xs text-[var(--p-muted)]">Aún no tienes cartas delivery. Créalas en la pestaña «Cartas delivery» para vender este plato en Glovo, Uber Eats o Just Eat con otros precios.</p>
+                    ) : (
+                      delivery.map((d, i) => (
+                        <DeliveryItemFields
+                          key={d.id}
+                          tenant={tenant}
+                          item={d}
+                          local={{ priceCents: parsePrice(f.price), description: f.description, imageUrl: f.imageUrl }}
+                          onChange={(patch) => setDelivery((ds) => ds && ds.map((x, j) => (j === i ? { ...x, ...patch } : x)))}
+                        />
+                      ))
+                    )}
+                  </div>
+                </section>
                 <div className="divide-y divide-[var(--p-line)] rounded-2xl border border-[var(--p-line)]">
                   {(
                     [
