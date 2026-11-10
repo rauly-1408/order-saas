@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { denyUnlessArea, getSessionFromRequest } from "@/app/lib/auth";
-import { startOfTodayIn, tenantTimeZone } from "@/app/lib/time";
+import { addDays, localParts, startOfDayIn, tenantTimeZone } from "@/app/lib/time";
+import { accessOf } from "@/app/lib/roles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// GET /api/admin/[tenant]/caja/hoy → las ventas de hoy (hora del restaurante)
+// GET /api/admin/[tenant]/caja/hoy[?fecha=YYYY-MM-DD] → las ventas de hoy (u otro día; hora del restaurante)
 // para el resumen «Hoy en caja»: totales por forma de pago y lista de pedidos.
 // Cuenta todo lo que llegó a cocina (online y Caja); fuera quedan los pagos
 // online sin confirmar. Ver docs/CAJA.md
@@ -28,6 +29,10 @@ export type HoyOrder = {
 };
 export type HoyResponse = {
   day: string;
+  date: string; // YYYY-MM-DD del día que se ve
+  today: string; // YYYY-MM-DD de hoy en el restaurante
+  canFix: boolean; // puede anular o corregir un cobro (gerente o encargado)
+  canMethod: boolean; // puede cambiar la forma de pago
   sales: number;
   totalCents: number;
   byPayment: Record<HoyPayment, number>;
@@ -50,9 +55,14 @@ export async function GET(req: NextRequest) {
     if (!session.seesTakings) return NextResponse.json({ error: "No tienes permiso para ver lo recaudado" }, { status: 403 });
 
     const tz = tenantTimeZone(tenant.settings);
-    const dayStart = startOfTodayIn(tz, new Date());
+    const today = localParts(new Date(), tz).ymd;
+    const asked = new URL(req.url).searchParams.get("fecha") ?? "";
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(asked) && asked <= today ? asked : today;
+    const dayStart = startOfDayIn(tz, date);
+    const dayEnd = startOfDayIn(tz, addDays(date, 1));
+    const access = accessOf(session);
     const rows = await prisma.order.findMany({
-      where: { tenantId: tenant.id, createdAt: { gte: dayStart }, status: { not: "AWAITING_PAYMENT" }, ...(session.storeId ? { storeId: session.storeId } : {}) },
+      where: { tenantId: tenant.id, createdAt: { gte: dayStart, lt: dayEnd }, status: { not: "AWAITING_PAYMENT" }, ...(session.storeId ? { storeId: session.storeId } : {}) },
       orderBy: { createdAt: "desc" },
       select: { id: true, orderNumber: true, customerName: true, source: true, channel: true, dineIn: true, paymentMethod: true, cashPartCents: true, paymentStatus: true, status: true, totalCents: true, createdAt: true },
     });
@@ -82,6 +92,10 @@ export async function GET(req: NextRequest) {
     const day = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: tz }).format(dayStart);
     const body: HoyResponse = {
       day,
+      date,
+      today,
+      canFix: access.anular,
+      canMethod: access.cobrar,
       sales,
       totalCents,
       byPayment,
