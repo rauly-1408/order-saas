@@ -4,6 +4,7 @@ import { ask } from "@/app/lib/dialog";
 import { useMemo, useState } from "react";
 import { daysSince, SEGMENT_LABEL, type Segment } from "@/app/lib/retention";
 import { card, euros, SEGMENT_STYLE, type CustomerRow, type Overview } from "./types";
+import ClienteFicha from "./ClienteFicha";
 
 const SEGMENT_HINT: Record<Segment, string> = {
   NEW: "Han pedido una vez",
@@ -35,6 +36,7 @@ export default function Clientes({
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [ficha, setFicha] = useState<string | null>(null);
 
   const reachable = data.customers.filter((c) => c.marketingConsent).length;
   const atRisk = data.segments.find((s) => s.segment === "AT_RISK");
@@ -135,17 +137,17 @@ export default function Clientes({
         <ul className={`${card} divide-y divide-[var(--p-line)] overflow-hidden`}>
           {rows.map((c) => (
             <li key={c.id} className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
-              <div className="flex min-w-0 flex-1 items-center gap-3">
+              <button type="button" onClick={() => setFicha(c.id)} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left" aria-label={`Ver la ficha de ${c.name ?? c.phone}`}>
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-sm font-semibold">
                   {(c.name ?? "?").charAt(0).toUpperCase()}
                 </span>
                 <div className="min-w-0">
                   <p className="truncate font-medium">{c.name ?? "Sin nombre"}</p>
                   <p className="text-xs text-[var(--p-muted)]">
-                    {c.phone} · {lastOrderText(c)}
+                    {c.phone} · {lastOrderText(c)} · <span className="font-medium text-[var(--p-brand)]">Ver historial ›</span>
                   </p>
                 </div>
-              </div>
+              </button>
               <div className="flex flex-wrap items-center gap-2 pl-[52px] sm:pl-0">
                 <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${SEGMENT_STYLE[c.segment]}`}>{SEGMENT_LABEL[c.segment]}</span>
                 <span className="text-xs text-[var(--p-muted)] tabular-nums">
@@ -169,6 +171,7 @@ export default function Clientes({
           ))}
         </ul>
       )}
+      {ficha && <ClienteFicha api={api} customerId={ficha} onClose={() => setFicha(null)} />}
     </div>
   );
 }
