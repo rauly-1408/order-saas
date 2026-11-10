@@ -10,6 +10,7 @@ import { BTN } from "../buttons";
 // (dijo tarjeta y pagó en efectivo o Bizum). Ver docs/CAJA.md
 const euros = (c: number) => (c / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+const dayOf = (iso: string) => new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 const PAY: Record<HoyPayment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
 const STATUS: Record<string, string> = { OPEN: "Mesa abierta", CREATED: "Nuevo", PAID: "Nuevo", SENT_TO_POS: "Nuevo", ACCEPTED: "Preparando", PREPARING: "Preparando", READY: "Listo", DELIVERING: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
 const CHANGEABLE: HoyPayment[] = ["CASH", "CARD_TERMINAL", "BIZUM"];
@@ -18,32 +19,47 @@ const shiftDay = (ymd: string, n: number) => {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
-type Detail = { lines: { id: string; name: string; quantity: number; totalCents: number; modifiers: string[]; note: string | null }[]; invoiceNumber: string | null };
+type Detail = {
+  lines: { id: string; name: string; quantity: number; totalCents: number; modifiers: string[]; note: string | null }[];
+  invoiceNumber: string | null;
+  notes: string | null;
+  customer: { name: string; phone: string; address: string | null; email: string | null };
+  channel: "TAKEAWAY" | "DELIVERY";
+  dineIn: boolean;
+  source: string;
+};
 
 export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string; onClose: () => void; onChanged: () => void }) {
   const [date, setDate] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [search, setSearch] = useState(""); // lo buscado (con un poco de espera al escribir)
   const [data, setData] = useState<HoyResponse | null>(null);
   const [ticket, setTicket] = useState<HoyOrder | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const url = `/api/admin/${tenant}/caja/hoy?${new URLSearchParams({ ...(date && { fecha: date }), ...(search && { buscar: search }) })}`;
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(query.trim().length >= 2 ? query.trim() : ""), 300);
+    return () => clearTimeout(t);
+  }, [query]);
   const load = useCallback(async () => {
-    const r = await fetch(`/api/admin/${tenant}/caja/hoy${date ? `?fecha=${date}` : ""}`, { cache: "no-store" });
+    const r = await fetch(url, { cache: "no-store" });
     const d = r.ok ? ((await r.json()) as HoyResponse) : null;
     setData(d);
     return d;
-  }, [tenant, date]);
+  }, [url]);
   useEffect(() => {
     let alive = true;
-    fetch(`/api/admin/${tenant}/caja/hoy${date ? `?fecha=${date}` : ""}`, { cache: "no-store" })
+    fetch(url, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => alive && setData(d))
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [tenant, date]);
+  }, [url]);
 
   async function open(o: HoyOrder) {
     setTicket(o);
@@ -89,6 +105,7 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
   }
 
   const isToday = !data || data.date === data.today;
+  const searching = !!data?.search;
   const title = isToday ? "Hoy en caja" : "Caja del día";
   const t = ticket;
   const methodEditable = !!t && !!data?.canMethod && t.paid && t.status !== "CANCELLED" && CHANGEABLE.includes(t.paymentMethod);
@@ -106,7 +123,7 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
             </div>
             <h2 className="mt-1 text-xl font-semibold">#{t.orderNumber} {t.customerName}</h2>
             <p className="text-sm text-[var(--p-muted)]">
-              {hourOf(t.createdAt)} · {t.status === "CANCELLED" ? "Cancelado" : t.paid ? `Cobrado con ${t.cashPartCents ? "pago mixto" : PAY[t.paymentMethod].toLowerCase()}` : "Sin cobrar"}
+              {dayOf(t.createdAt)}, {hourOf(t.createdAt)} · {t.status === "CANCELLED" ? "Cancelado" : t.paid ? `Cobrado con ${t.cashPartCents ? "pago mixto" : PAY[t.paymentMethod].toLowerCase()}` : "Sin cobrar"}
               {detail?.invoiceNumber && ` · Factura ${detail.invoiceNumber}`}
             </p>
             <ul className="mt-4 divide-y divide-[var(--p-line)] rounded-2xl bg-[var(--p-bg)] px-4">
@@ -130,6 +147,21 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
                 <span className="tabular-nums">{euros(t.totalCents)}</span>
               </li>
             </ul>
+            {detail && (
+              <section className="mt-4 rounded-2xl border border-[var(--p-line)] px-4 py-3 text-sm">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--p-muted)]">Cliente</h3>
+                <p className="mt-1 font-semibold">{detail.customer.name || "Sin nombre"}</p>
+                {detail.customer.phone && (
+                  <a href={`tel:${detail.customer.phone}`} className="block font-medium text-[var(--p-brand)] underline-offset-2 hover:underline">{detail.customer.phone}</a>
+                )}
+                {detail.customer.email && <p className="text-[var(--p-muted)]">{detail.customer.email}</p>}
+                {detail.customer.address && <p className="text-[var(--p-muted)]">{detail.customer.address}</p>}
+                <p className="mt-1 text-xs text-[var(--p-muted)]">
+                  {detail.source === "ONLINE" ? "Pedido online" : detail.source === "PHONE" ? "Por teléfono" : detail.source === "TABLE" ? "En mesa" : "En el mostrador"} · {detail.channel === "DELIVERY" ? "a domicilio" : detail.dineIn ? "comer aquí" : "para llevar"}
+                </p>
+                {detail.notes && <p className="mt-2 rounded-xl bg-[var(--p-bg)] px-3 py-2">Nota del pedido: {detail.notes}</p>}
+              </section>
+            )}
             {methodEditable && (
               <section className="mt-5">
                 <h3 className="text-sm font-semibold">¿Cómo pagó?</h3>
@@ -160,13 +192,44 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
               </div>
               <button type="button" onClick={onClose} className="rounded-full px-3 py-1 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">Cerrar</button>
             </div>
-            <div className="mt-3 flex items-center gap-1 self-start rounded-full bg-black/[0.05] p-1">
+            <div className={`mt-3 flex items-center gap-1 self-start rounded-full bg-black/[0.05] p-1 ${query.trim() ? "hidden" : ""}`}>
               <button type="button" aria-label="Día anterior" disabled={!data} onClick={() => data && setDate(shiftDay(data.date, -1))} className="p-press h-10 w-10 rounded-full text-lg font-semibold">‹</button>
               <button type="button" disabled={isToday} onClick={() => setDate(null)} className={`p-press h-10 rounded-full px-4 text-sm font-semibold ${isToday ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : ""}`}>Hoy</button>
               <button type="button" aria-label="Día siguiente" disabled={isToday} onClick={() => data && setDate(shiftDay(data.date, 1) >= data.today ? null : shiftDay(data.date, 1))} className="p-press h-10 w-10 rounded-full text-lg font-semibold disabled:opacity-30">›</button>
             </div>
+            <label className="relative mt-3 block">
+              <span className="sr-only">Buscar un pedido</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar por nombre, teléfono o nº de pedido"
+                className="w-full rounded-xl bg-black/[0.05] px-4 py-3 text-[16px] outline-none focus:ring-2 focus:ring-[var(--p-brand)]"
+              />
+            </label>
             {!data ? (
               <p className="py-8 text-center text-sm text-[var(--p-muted)]">Cargando…</p>
+            ) : searching ? (
+              <>
+                <p className="mt-4 text-xs text-[var(--p-muted)]">
+                  {data.orders.length === 0 ? `Ningún pedido de los últimos 6 meses con «${data.search}».` : `${data.orders.length >= 60 ? "Los 60 más recientes" : data.orders.length === 1 ? "1 pedido" : `${data.orders.length} pedidos`} con «${data.search}» (últimos 6 meses). Toca uno para ver qué pidió.`}
+                </p>
+                <ul className="mt-1 divide-y divide-[var(--p-line)]">
+                  {data.orders.map((o) => (
+                    <li key={o.id}>
+                      <button type="button" onClick={() => open(o)} className={`flex w-full items-center gap-3 rounded-xl py-2.5 text-left hover:bg-black/[0.03] ${o.status === "CANCELLED" ? "opacity-50" : ""}`}>
+                        <span className="w-14 shrink-0 text-xs leading-tight tabular-nums text-[var(--p-muted)]">{dayOf(o.createdAt)}<br />{hourOf(o.createdAt)}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">#{o.orderNumber} {o.customerName}</span>
+                          <span className="block truncate text-xs text-[var(--p-muted)]">{[o.customerPhone, o.source === "ONLINE" ? "online" : o.source === "TABLE" ? "mesa" : "mostrador", o.status === "CANCELLED" ? "cancelado" : null].filter(Boolean).join(" · ")}</span>
+                        </span>
+                        <span className={`text-sm font-semibold tabular-nums ${o.status === "CANCELLED" ? "line-through" : ""}`}>{euros(o.totalCents)}</span>
+                        <span aria-hidden className="text-[var(--p-faint)]">›</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : (
               <>
                 <div className="mt-4 rounded-2xl bg-[var(--p-bg)] p-4">
@@ -200,7 +263,7 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
                   )}
                 </ul>
                 {isToday && <p className="mt-2 text-xs text-[var(--p-muted)]">El efectivo que debe haber en el cajón es la venta en efectivo más el fondo con el que abriste.</p>}
-                <p className="mt-4 text-xs text-[var(--p-muted)]">Toca un ticket para ver qué se cobró, reimprimirlo o cambiar cómo pagó.</p>
+                <p className="mt-4 text-xs text-[var(--p-muted)]">Toca un ticket para ver qué pidió, los datos del cliente, reimprimirlo o cambiar cómo pagó.</p>
                 <ul className="mt-1 divide-y divide-[var(--p-line)]">
                   {data.orders.length === 0 && <li className="py-8 text-center text-sm text-[var(--p-muted)]">{isToday ? "Todavía no hay pedidos hoy." : "Ese día no hubo pedidos."}</li>}
                   {data.orders.map((o) => (

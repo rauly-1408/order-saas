@@ -8,6 +8,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // GET /api/admin/[tenant]/caja/hoy[?fecha=YYYY-MM-DD] → las ventas de hoy (u otro día; hora del restaurante)
+// GET …/caja/hoy?buscar=texto → los pedidos de los últimos 6 meses por nombre,
+// teléfono o número de pedido (un cliente reclama: «¿qué le vendí?»)
 // para el resumen «Hoy en caja»: totales por forma de pago y lista de pedidos.
 // Cuenta todo lo que llegó a cocina (online y Caja); fuera quedan los pagos
 // online sin confirmar. Ver docs/CAJA.md
@@ -26,6 +28,7 @@ export type HoyOrder = {
   status: string;
   totalCents: number;
   createdAt: string;
+  customerPhone: string;
 };
 export type HoyResponse = {
   day: string;
@@ -33,6 +36,7 @@ export type HoyResponse = {
   today: string; // YYYY-MM-DD de hoy en el restaurante
   canFix: boolean; // puede anular o corregir un cobro (gerente o encargado)
   canMethod: boolean; // puede cambiar la forma de pago
+  search: string | null; // texto buscado (entonces la lista son resultados, no un día)
   sales: number;
   totalCents: number;
   byPayment: Record<HoyPayment, number>;
@@ -61,10 +65,29 @@ export async function GET(req: NextRequest) {
     const dayStart = startOfDayIn(tz, date);
     const dayEnd = startOfDayIn(tz, addDays(date, 1));
     const access = accessOf(session);
+    const search = (new URL(req.url).searchParams.get("buscar") ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
+    const digits = search.replace(/\D/g, "");
+    // Sin distinguir mayúsculas ni tildes («garcia» encuentra «García»).
+    const fold = (v: string) => v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    let byText: { id: { in: string[] } } | null = null;
+    if (search.length >= 2) {
+      const since = new Date(Date.now() - 183 * 86_400_000);
+      const like = `%${fold(search).replace(/[%_\\]/g, "")}%`;
+      const num = /^#?\d{1,7}$/.test(search) ? Number(digits) : -1;
+      const phone = digits.length >= 3 ? `%${digits}%` : null;
+      const hits = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Order"
+        WHERE "tenantId" = ${tenant.id} AND "createdAt" >= ${since}
+          AND (translate(lower("customerName"), 'áàäâéèëêíìïîóòöôúùüûñç', 'aaaaeeeeiiiioooouuuunc') LIKE ${like}
+               OR (${phone}::text IS NOT NULL AND "customerPhone" LIKE ${phone})
+               OR "orderNumber" = ${num})
+        ORDER BY "createdAt" DESC LIMIT 60`;
+      byText = { id: { in: hits.map((h) => h.id) } };
+    }
     const rows = await prisma.order.findMany({
-      where: { tenantId: tenant.id, createdAt: { gte: dayStart, lt: dayEnd }, status: { not: "AWAITING_PAYMENT" }, ...(session.storeId ? { storeId: session.storeId } : {}) },
+      where: { tenantId: tenant.id, ...(byText ?? { createdAt: { gte: dayStart, lt: dayEnd } }), status: { not: "AWAITING_PAYMENT" }, ...(session.storeId ? { storeId: session.storeId } : {}) },
       orderBy: { createdAt: "desc" },
-      select: { id: true, orderNumber: true, customerName: true, source: true, channel: true, dineIn: true, paymentMethod: true, cashPartCents: true, paymentStatus: true, status: true, totalCents: true, createdAt: true },
+      select: { id: true, orderNumber: true, customerName: true, customerPhone: true, source: true, channel: true, dineIn: true, paymentMethod: true, cashPartCents: true, paymentStatus: true, status: true, totalCents: true, createdAt: true },
     });
 
     const byPayment: Record<HoyPayment, number> = { CASH: 0, CARD_TERMINAL: 0, BIZUM: 0, CARD: 0, IN_STORE: 0 };
@@ -96,6 +119,7 @@ export async function GET(req: NextRequest) {
       today,
       canFix: access.anular,
       canMethod: access.cobrar,
+      search: byText ? search : null,
       sales,
       totalCents,
       byPayment,
@@ -115,6 +139,7 @@ export async function GET(req: NextRequest) {
         status: o.status,
         totalCents: o.totalCents,
         createdAt: o.createdAt.toISOString(),
+        customerPhone: o.customerPhone,
       })),
     };
     return NextResponse.json(body);

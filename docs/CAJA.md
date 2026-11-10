@@ -61,6 +61,13 @@ Las promociones automáticas y los cupones se aplican igual que en la tienda. No
   - El importe y la factura no cambian, porque la forma de pago no va en la factura simplificada.
   - El cuadre de la caja abierta se recalcula solo. Si la caja de ese día ya se cerró, su cierre guardado no cambia.
 
+## Buscar el pedido de un cliente (2026-11-10)
+
+- En «Hoy en caja», el buscador encuentra pedidos de los **últimos 6 meses** por **nombre** (sin distinguir mayúsculas ni tildes), **teléfono** o **número de pedido** (`#27`).
+- La API es `GET /caja/hoy?buscar=…`: hasta 60 resultados, del más reciente al más antiguo.
+- Para cuando un cliente reclama («el San Antón llevaba lechuga»): el ticket enseña qué pidió, con los cambios y la nota de cada línea, y los **datos del cliente**: nombre, teléfono (se puede tocar para llamar), email, dirección, de dónde vino y la nota del pedido.
+- Lo ve quien tiene la Caja y el permiso «Ve lo recaudado».
+
 ## Pantallas táctiles
 
 El software se recomienda con pantalla táctil (tablet de 10–13″ en horizontal o TPV táctil de 15,6″). Por eso:
