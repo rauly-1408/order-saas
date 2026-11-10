@@ -325,7 +325,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
                         <span className="flex-1 text-[14px]">
                           {option.name}
                           {recommended && (
-                            <span className="ml-2 rounded-md bg-[var(--brand-secondary)]/10 px-1.5 py-0.5 text-[11px] font-semibold text-[var(--brand-secondary)]">
+                            <span className="ml-2 whitespace-nowrap rounded-md border border-[var(--brand-secondary)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--brand-secondary)]">
                               {T.recommended}
                             </span>
                           )}

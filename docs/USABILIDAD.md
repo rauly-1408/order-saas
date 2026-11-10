@@ -108,3 +108,12 @@ El panel se usará en pantallas táctiles (tablet o TPV), así que todo lo que s
 - **Reservas:** número de reservas por confirmar y en lista de espera, de ahora en adelante.
 - **Botón de menú del móvil:** un punto si hay algo en cualquiera de los dos.
 - **Cómo se calcula:** `GET /api/admin/[tenant]/avisos`. Se refresca cada 20 s, al cambiar de pantalla y al volver a la pestaña. Cada número solo sale si el puesto ve esa parte.
+
+## Safari de iPad antiguos (2026-11-10)
+
+- **Qué pasa:** Tailwind 4 escribe las transparencias con `color-mix()`. Para colores del tema (`bg-white/15`, `bg-black/[0.05]`) deja un color de reserva correcto. Para **colores de variable con opacidad** (`bg-[var(--x)]/10`) el color de reserva es **el color al 100 %**.
+- **Consecuencia:** en Safari anteriores a 16.2, la etiqueta «Recomendado» de la ficha salía con fondo rojo sólido y texto rojo, invisible. Ahora es un borde rojo con texto rojo.
+- **Regla:**
+  - En la tienda, no usar `bg-[var(--…)]/NN` detrás de un texto del mismo color.
+  - En estilos en línea con `color-mix`, poner antes un color de reserva (`backgroundColor` y después `backgroundImage`).
+- **Revisado:** la tienda a 768×1024, 1024×768 y 820×1180 (carta, ficha, carrito, pago y reservar), sin desbordes. En el panel, los usos que quedan son barras y bordes, que sin la transparencia se siguen viendo.
