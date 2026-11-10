@@ -93,3 +93,40 @@ export function Stepper({ value, onChange, min = 0, max = 99, label }: { value: 
     </div>
   );
 }
+
+// Nombre de la mesa durante el servicio: sale en el plano, en la comanda y en el
+// ticket, y se quita solo al cerrar la cuenta.
+export const NAME_IDEAS = ["Cumpleaños", "Reserva", "Empresa", "Despedida", "Familia"];
+export function NameSheet({ table, current, busy, onClose, onSave }: { table: string; current: string; busy: boolean; onClose: () => void; onSave: (label: string) => Promise<unknown> }) {
+  const [label, setLabel] = useState(current);
+  const clean = label.replace(/\s+/g, " ").trim().slice(0, 30);
+  return (
+    <Sheet
+      title={`Nombre de la mesa ${table}`}
+      onClose={onClose}
+      footer={
+        <div className="flex gap-2">
+          {current && (
+            <button type="button" disabled={busy} onClick={() => onSave("")} className="p-press min-h-12 rounded-2xl px-4 font-semibold text-[var(--p-accent)]">
+              Quitar
+            </button>
+          )}
+          <button type="button" disabled={busy || !clean || clean === current} onClick={() => onSave(clean)} className="p-press min-h-12 flex-1 rounded-2xl bg-[var(--p-ink)] font-semibold text-white disabled:opacity-40">
+            Guardar
+          </button>
+        </div>
+      }
+    >
+      <p className="mb-3 text-sm text-[var(--p-muted)]">Sale en el plano, en la comanda y en el ticket. Al cerrar la cuenta, la mesa vuelve a llamarse {table}.</p>
+      <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={30} autoFocus placeholder="Cumpleaños de Lucía" aria-label="Nombre de la mesa" className="w-full rounded-xl border border-[var(--p-line)] px-4 py-3 text-base" />
+      <div className="mt-3 flex flex-wrap gap-2">
+        {NAME_IDEAS.map((n) => (
+          <button key={n} type="button" onClick={() => setLabel(n)} className="p-press rounded-full border border-[var(--p-line)] px-4 text-sm font-medium">
+            {n}
+          </button>
+        ))}
+      </div>
+    </Sheet>
+  );
+}
+
