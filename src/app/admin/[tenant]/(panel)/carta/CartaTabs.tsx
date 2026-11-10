@@ -4,11 +4,12 @@ import { useState } from "react";
 import CartaClient from "./CartaClient";
 import Combos from "./Combos";
 import Opciones from "./Opciones";
+import CartasDelivery from "./CartasDelivery";
 import Link from "next/link";
 
 // Carta: productos sueltos, opciones (pan, extras…) y combos / menús a precio cerrado.
 export default function CartaTabs({ tenant }: { tenant: string }) {
-  const [tab, setTab] = useState<"productos" | "opciones" | "combos">("productos");
+  const [tab, setTab] = useState<"productos" | "opciones" | "combos" | "delivery">("productos");
   return (
     <div className="text-[var(--p-ink)]">
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Carta</h1>
@@ -19,6 +20,7 @@ export default function CartaTabs({ tenant }: { tenant: string }) {
             ["productos", "Productos"],
             ["opciones", "Opciones"],
             ["combos", "Combos y menús"],
+            ["delivery", "Cartas delivery"],
           ] as const
         ).map(([k, l]) => (
           <button
@@ -34,7 +36,7 @@ export default function CartaTabs({ tenant }: { tenant: string }) {
       <Link href={`/admin/${tenant}/configuracion/idiomas`} className="-mt-3 mb-3 inline-flex min-h-11 items-center text-xs font-medium text-[var(--p-brand)]">
         🌐 Carta en inglés → Configuración · Idiomas
       </Link>
-      {tab === "productos" ? <CartaClient tenant={tenant} embedded /> : tab === "opciones" ? <Opciones tenant={tenant} /> : <Combos tenant={tenant} />}
+      {tab === "productos" ? <CartaClient tenant={tenant} embedded /> : tab === "opciones" ? <Opciones tenant={tenant} /> : tab === "combos" ? <Combos tenant={tenant} /> : <CartasDelivery tenant={tenant} />}
     </div>
   );
 }
