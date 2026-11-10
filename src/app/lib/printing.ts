@@ -344,11 +344,16 @@ export async function enqueueOrderPrints(orderId: string, kinds: ("KITCHEN" | "R
 // Al entrar un pedido (ya pagado si era online): comanda; y ticket si se cobró en la Caja.
 export async function printOnNewOrder(orderId: string): Promise<void> {
   try {
-    const o = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true, source: true, paymentStatus: true, tenant: { select: { settings: true } } } });
+    const o = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true, source: true, paymentStatus: true, kitchenAt: true, tenant: { select: { settings: true } } } });
     if (!o || o.status === "AWAITING_PAYMENT" || o.status === "CANCELLED") return;
     const cfg = readPrinting(o.tenant.settings);
     const kinds: ("KITCHEN" | "RECEIPT")[] = [];
-    if (cfg.autoKitchen) kinds.push("KITCHEN");
+    // Programado: la comanda sale más tarde, cuando toca empezar (releaseScheduledKitchen).
+    const later = o.kitchenAt && o.kitchenAt.getTime() > Date.now();
+    if (cfg.autoKitchen && !later) {
+      kinds.push("KITCHEN");
+      if (o.kitchenAt) await prisma.order.update({ where: { id: orderId }, data: { kitchenPrintedAt: new Date() } });
+    }
     if (cfg.autoReceipt && o.source !== "ONLINE" && o.paymentStatus === "PAID") kinds.push("RECEIPT");
     if (kinds.length) await enqueueOrderPrints(orderId, kinds);
   } catch (err) {
@@ -512,4 +517,28 @@ export async function enqueuePartialClosing(
   };
   await prisma.printJob.createMany({ data: printers.map((p) => ({ tenantId: s.tenantId, kind: "CLOSING" as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderClosing(data, p)) })) });
   return printers.length;
+}
+
+// Pedidos programados que ya tienen que empezar a prepararse: su comanda sale
+// ahora. Se llama cada vez que el agente de impresión, la pantalla de cocina o
+// el panel preguntan (cada pocos segundos), así que no hace falta un cron.
+// Cada pedido se marca antes de imprimir: dos llamadas a la vez no lo duplican.
+export async function releaseScheduledKitchen(tenantId: string): Promise<number> {
+  try {
+    const due = await prisma.order.findMany({
+      where: { tenantId, kitchenAt: { lte: new Date() }, kitchenPrintedAt: null, status: { in: ["CREATED", "ACCEPTED", "PREPARING"] } },
+      select: { id: true, tenant: { select: { settings: true } } },
+      take: 20,
+    });
+    let n = 0;
+    for (const o of due) {
+      const r = await prisma.order.updateMany({ where: { id: o.id, kitchenPrintedAt: null }, data: { kitchenPrintedAt: new Date() } });
+      if (!r.count) continue;
+      if (readPrinting(o.tenant.settings).autoKitchen) n += await enqueueOrderPrints(o.id, ["KITCHEN"]);
+    }
+    return n;
+  } catch (err) {
+    console.error("[releaseScheduledKitchen]", err instanceof Error ? err.message : err);
+    return 0;
+  }
 }

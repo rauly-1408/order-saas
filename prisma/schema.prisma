@@ -547,6 +547,10 @@ model Order {
   estimatedReadyAt DateTime?
   // Pedido programado por el cliente ("hoy a las 20:30"); null = lo antes posible
   scheduledFor     DateTime?
+  // Programado: cuándo empieza la cocina (hora − preparación). Hasta entonces ni se
+  // imprime la comanda ni sale en la pantalla de cocina. Ver docs/PEDIDOS-PROGRAMADOS.md
+  kitchenAt        DateTime?
+  kitchenPrintedAt DateTime?
   review           Review?
 
   invoices  Invoice[] // VeriFactu: factura simplificada y, si se cancela, su rectificativa

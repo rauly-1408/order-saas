@@ -286,6 +286,8 @@ export async function POST(req: NextRequest) {
           collaboratorDiscountCents: collabDiscountCents,
           loyaltyDiscountCents,
           estimatedReadyAt: scheduledAt ?? new Date(Date.now() + 60_000 * leadMinutes(ops, channel)),
+          // Programado con margen: la comanda sale cuando toca empezar a prepararlo.
+          kitchenAt: scheduledAt && scheduledAt.getTime() - 60_000 * leadMinutes(ops, channel) > Date.now() + 10 * 60_000 ? new Date(scheduledAt.getTime() - 60_000 * leadMinutes(ops, channel)) : null,
           scheduledFor: scheduledAt,
           // Pagado entero con tarjeta regalo: no hace falta pasarela.
           payment: totalCents === 0 && giftCard ? { method: "IN_STORE", provider: null, paid: true } : payment,

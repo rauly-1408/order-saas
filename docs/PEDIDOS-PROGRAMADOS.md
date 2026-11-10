@@ -32,3 +32,15 @@ En la carta y el checkout se ve con la paleta de la marca: fondo del color princ
 - `publicStoreInfo` incluye `slots.DELIVERY` y `slots.TAKEAWAY`.
 - Migración `20261017090000_scheduled_orders`: columna `Order.scheduledFor`.
 - `GET /api/address/[tenant]?q=` llama a CartoCiudad (público, no guarda nada). Componentes `checkout/AddressInput.tsx` y `StampCard.tsx`.
+
+## La comanda sale cuando toca empezar (2026-11-10)
+
+- **Al llegar un programado** con margen (más de 10 minutos antes de la hora de empezar), se guarda `Order.kitchenAt` = hora pedida − tiempo de preparación o entrega.
+  - Hasta entonces **no se imprime la comanda** y **no sale en la Pantalla de cocina**.
+  - En Pedidos se ve como siempre, con «⏰ Programado», y hay que aceptarlo.
+- **A la hora de empezar**, `releaseScheduledKitchen` en `lib/printing.ts`:
+  - imprime la comanda (si «Comanda a cocina» está activo) y marca `kitchenPrintedAt`, sin duplicar aunque se llame a la vez desde dos sitios;
+  - el pedido aparece en la Pantalla de cocina.
+  - Se ejecuta cada vez que el agente de impresión pregunta (cada 2 s) y cada vez que la Pantalla de cocina se refresca, así que no hace falta cron.
+- Los pedidos sin programar o con poco margen salen al momento, como antes.
+- Migración `*_comanda_programada`.
