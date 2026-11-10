@@ -31,3 +31,14 @@ Una pantalla a pantalla completa para la tablet o la tele de cocina o de barra. 
 
 - Avisar al camarero (sonido o aviso en el móvil) cuando su ronda está lista.
 - Tiempos medios de preparación en Informes.
+
+## Deshacer «Listo» (2026-11-10)
+
+- Al pulsar **«✓ Listo»** sale abajo, durante 10 segundos, «✓ Mesa 4 · Ronda 2 lista — **Deshacer**».
+- **«↩ Hechos»** (arriba) enseña lo marcado listo en las **últimas 3 horas**, lo último primero, con lo que llevaba. Cada comanda tiene **«↩ Volver a cocina»**.
+- Qué hace deshacer:
+  - En una **ronda de mesa**, quita la marca de listo de las líneas de esa pantalla (`OrderLine.readyAt`). Solo si la mesa sigue abierta.
+  - En un **pedido** (online o Caja), pasa de «Listo» a «Preparando». Solo si aún no se ha entregado.
+- API:
+  - `GET /api/admin/[tenant]/cocina?hechos=1` (`kitchenTickets(…, done = true)`);
+  - `POST … { undo: true, orderId, round | null }` (`undoReady` en `lib/kitchen.ts`).
