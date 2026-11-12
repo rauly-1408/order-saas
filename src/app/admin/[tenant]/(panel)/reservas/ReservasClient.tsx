@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ask } from "@/app/lib/dialog";
 import { Sheet, Stepper } from "../mesas/shared";
 import TimeWheel from "./TimeWheel";
+import MiniCalendar from "./MiniCalendar";
 
 // Reservas: tira de días arriba (con cuántas tiene cada uno), el día en una
 // línea y las reservas en grupos (por confirmar, por llegar, en el local,
@@ -47,6 +48,7 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
   const [tableFor, setTableFor] = useState<Reservation | null>(null);
   const [notice, setNotice] = useState<{ text: string; link?: boolean } | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [picking, setPicking] = useState(false); // calendario de «Otro día» abierto
 
   const load = useCallback(async () => {
     try {
@@ -198,11 +200,25 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
             </button>
           );
         })}
-        <label className="p-press relative flex w-[72px] shrink-0 cursor-pointer flex-col items-center justify-center rounded-2xl bg-[var(--p-surface)] px-2 py-2.5 text-xs font-semibold text-[var(--p-muted)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          📅<span className="mt-1">Otro día</span>
-          <input type="date" value={day ?? ""} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Elegir otro día" className="absolute inset-0 cursor-pointer opacity-0" />
-        </label>
+        <button type="button" onClick={() => setPicking((v) => !v)} aria-expanded={picking} className={`p-press flex w-[72px] shrink-0 flex-col items-center justify-center rounded-2xl px-2 py-2.5 text-xs font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${picking || (day && data && !data.days[day]) ? "bg-[var(--p-brand)] text-white" : "bg-[var(--p-surface)] text-[var(--p-muted)]"}`}>
+          <span aria-hidden className="text-base">📅</span>
+          <span className="mt-1">{day && data && !data.days[day] ? new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "short" }) : "Otro día"}</span>
+        </button>
       </div>
+
+      {picking && data && (
+        <div className="mt-3 rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.25)] ring-1 ring-black/5">
+          <MiniCalendar
+            value={day}
+            min={data.today}
+            counts={Object.fromEntries(Object.entries(data.days).map(([k, v]) => [k, v.count]))}
+            onPick={(ymd) => {
+              setDate(ymd);
+              setPicking(false);
+            }}
+          />
+        </div>
+      )}
 
       {/* El día elegido, en una línea */}
       {data && (
@@ -361,6 +377,7 @@ function DetailSheet({ r, time, tableText, busy, onClose, onTable, onStatus }: {
 // ya no hay sitio, se puede apuntar igualmente.
 function NewSheet({ api, storeId, date, onClose, onSaved }: { api: string; storeId: string; date: string; onClose: () => void; onSaved: (date: string) => Promise<void> }) {
   const [day, setDay] = useState(date);
+  const [pickDay, setPickDay] = useState(false);
   const [guests, setGuests] = useState(2);
   const [slots, setSlots] = useState<{ at: string; time: string; free: number; available: boolean }[] | null>(null);
   const [at, setAt] = useState("");
@@ -435,10 +452,18 @@ function NewSheet({ api, storeId, date, onClose, onSaved }: { api: string; store
         <span className="text-sm font-medium">Personas</span>
         <Stepper value={guests} min={1} max={200} onChange={setGuests} label="personas" />
       </div>
-      <label className="mt-4 block text-[13px] font-medium text-[var(--p-muted)]">
+      <div className="mt-4 text-[13px] font-medium text-[var(--p-muted)]">
         Día
-        <input type="date" value={day} onChange={(e) => e.target.value && (setDay(e.target.value), setAt(""))} className={input} />
-      </label>
+        <button type="button" onClick={() => setPickDay((v) => !v)} aria-expanded={pickDay} className={`${input} flex min-h-11 items-center justify-between text-left text-[var(--p-ink)]`}>
+          <span className="first-letter:uppercase">{new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
+          <span aria-hidden>📅</span>
+        </button>
+        {pickDay && (
+          <div className="mt-2 flex justify-center rounded-2xl bg-black/[0.03] p-3">
+            <MiniCalendar value={day} min={new Date().toLocaleDateString("sv")} onPick={(ymd) => { setDay(ymd); setAt(""); setPickDay(false); }} />
+          </div>
+        )}
+      </div>
       <p className="mt-4 text-[13px] font-medium text-[var(--p-muted)]">Hora</p>
       {slots === null ? (
         <p className="mt-1 text-sm text-[var(--p-muted)]">Buscando horas…</p>

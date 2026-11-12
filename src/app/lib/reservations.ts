@@ -95,7 +95,8 @@ const openInstant = (i: SlotInput, at: Date) => {
 // reserva justo antes de cerrar), dentro de la antelación y con sitio.
 export function reservationSlots(i: SlotInput): ReservationSlot[] {
   const today = localParts(i.now, i.tz).ymd;
-  if (i.ymd < today || i.ymd > addDays(today, i.settings.maxDaysAhead)) return [];
+  // El límite de días es para la tienda; el restaurante (ignoreNotice) apunta para cuando quiera.
+  if (i.ymd < today || (!i.ignoreNotice && i.ymd > addDays(today, i.settings.maxDaysAhead))) return [];
   const midnight = startOfDayIn(i.tz, i.ymd).getTime();
   const earliest = i.ignoreNotice ? i.now.getTime() - 3 * 3_600_000 : i.now.getTime() + i.settings.minNoticeMinutes * 60_000;
   const out: ReservationSlot[] = [];
