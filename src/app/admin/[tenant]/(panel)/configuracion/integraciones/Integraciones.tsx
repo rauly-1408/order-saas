@@ -1,5 +1,6 @@
 "use client";
 
+import PlatformLogo from "@/app/lib/PlatformLogo";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { card } from "../ui";
@@ -27,13 +28,17 @@ const TONE: Record<Tone, string> = {
 };
 const day = (iso: string) => new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 
-function Tile({ initial, name, desc, state, tone, action }: { initial: string; name: string; desc: string; state: string; tone: Tone; action: React.ReactNode }) {
+function Tile({ initial, logo, name, desc, state, tone, action }: { initial: string; logo?: string; name: string; desc: string; state: string; tone: Tone; action: React.ReactNode }) {
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-[var(--p-line)] p-4">
       <div className="flex items-start gap-3">
-        <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--p-bg)] text-sm font-bold text-[var(--p-ink)]">
-          {initial}
-        </span>
+        {logo ? (
+          <PlatformLogo platform={logo} size={40} />
+        ) : (
+          <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--p-bg)] text-sm font-bold text-[var(--p-ink)]">
+            {initial}
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{name}</p>
           <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${TONE[tone]}`}>{state}</span>
@@ -94,6 +99,7 @@ export default function Integraciones({ tenant }: { tenant: string }) {
       <Tile
         key={key}
         initial={initial}
+        logo={key}
         name={name}
         desc={`Los pedidos que te lleguen por ${name} entran solos en Pedidos y salen por la impresora de cocina, sin una tablet de ${name} en la barra. Necesitas tu cuenta de restaurante en ${name}.`}
         state={asked ? `Solicitado el ${day(asked)}` : "Próximamente"}

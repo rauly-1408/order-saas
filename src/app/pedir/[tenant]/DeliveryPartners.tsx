@@ -4,6 +4,8 @@
 // Uber Eats o Just Eat (para restaurantes sin repartidores propios).
 // Usa las CSS vars del theme del tenant.
 
+import PlatformLogo, { hasPlatformLogo } from "@/app/lib/PlatformLogo";
+
 export type PartnerLink = { key: string; label: string; url: string };
 
 const COLORS: Record<string, string> = { glovo: "#ffc244", ubereats: "#06c167", justeat: "#ff8000" };
@@ -19,7 +21,11 @@ export default function DeliveryPartners({ partners, compact = false }: { partne
           rel="noopener noreferrer"
           className={`p-press flex items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-0)] font-bold text-[var(--text-primary)] no-underline ${compact ? "px-3 py-2.5 text-[14px]" : "px-4 py-3.5 text-[15px]"}`}
         >
-          <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLORS[p.key] ?? "currentColor" }} />
+          {hasPlatformLogo(p.key) ? (
+            <PlatformLogo platform={p.key} size={compact ? 22 : 26} />
+          ) : (
+            <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLORS[p.key] ?? "currentColor" }} />
+          )}
           {p.label}
           <span aria-hidden className="text-[var(--text-secondary)]">↗</span>
         </a>
