@@ -29,3 +29,13 @@ En una pantalla táctil arrastrar y hacer scroll son el mismo gesto; las apps qu
 - `pedidos/orderBoard.ts`: `dropTarget(order)` devuelve la columna destino (`NEW`/`PREPARING`/`READY`/`DELIVERING`) o `DONE` (zona «Entregado»), a partir de `nextAction`.
 - `pedidos/AdminPanel.tsx`: arrastre nativo del navegador (`draggable`, `dragover`, `drop`), sin librerías. Se activa solo si `matchMedia("(min-width: 1024px) and (pointer: fine)")`. Estado `drag` (tarjeta y destino) y `over` (columna bajo el cursor). Al soltar llama a `handleStatus` como el botón; si hace falta cobrar, sube `payRequests[id]` y la tarjeta abre el selector de pago.
 - `pedidos/OrderCard.tsx`: props `draggable`, `dragging`, `onDragStart`, `onDragEnd`, `payRequest`. Mientras se arrastra, la tarjeta original queda al 40 %.
+
+## Detalle en «Últimas 24 h» (2026-11-12)
+
+Cada pedido entregado o cancelado de «Últimas 24 h» se despliega al tocarlo (›). Muestra:
+- productos, con sus cambios y la nota de cada línea;
+- de dónde vino (online, mostrador o teléfono) y cómo (recoger, a domicilio o comer aquí);
+- hora, teléfono para llamar, dirección, forma de pago, propina, cupón y nota del pedido;
+- total, con botones para reimprimir la comanda o el ticket.
+
+Está en `HistoryDetail` de `pedidos/AdminPanel.tsx`.
