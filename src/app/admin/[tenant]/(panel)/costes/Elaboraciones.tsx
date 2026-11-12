@@ -83,7 +83,7 @@ export default function Elaboraciones({ data, api, onSaved, onGoToIngredients }:
 
   if (data.ingredients.filter((i) => !i.isPrep).length === 0 && !preps.length) {
     return (
-      <div className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center">
+      <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-6 text-center">
         <p className="font-semibold">Primero crea tus ingredientes</p>
         <p className="mt-1 text-sm text-[var(--p-muted)]">Una elaboración (una salsa, un caldo…) se hace con tus ingredientes.</p>
         <button onClick={onGoToIngredients} className="mt-4 p-press rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">

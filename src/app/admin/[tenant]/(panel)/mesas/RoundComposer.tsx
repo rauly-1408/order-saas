@@ -299,7 +299,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, lab
             <p className="py-10 text-center text-sm text-[var(--p-muted)]">{error || "Cargando la carta…"}</p>
           ) : (
             <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 2xl:grid-cols-[repeat(auto-fill,minmax(210px,1fr))] 2xl:gap-4">
-              <button type="button" onClick={() => setCustomOpen(true)} className="p-press flex min-h-[112px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--p-brand)]/40 p-3 text-center text-[var(--p-brand)]">
+              <button type="button" onClick={() => setCustomOpen(true)} className="p-press flex min-h-[112px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--p-brand-soft)] p-3 text-center text-[var(--p-brand)]">
                 <span className="text-2xl font-bold leading-none">+</span>
                 <span className="mt-1 text-[15px] font-semibold">Producto libre</span>
                 <span className="text-xs opacity-80">Fuera de carta o invitación</span>

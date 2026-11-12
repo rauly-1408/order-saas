@@ -199,7 +199,7 @@ export default function FacturasClient({ tenant, initialOrder, initialTicket }: 
           <ul className="mt-2 divide-y divide-[var(--p-line)] border-t border-[var(--p-line)]">
             {info.recent.map((r) => (
               <li key={r.id}>
-                <Link href={`/admin/${tenant}/factura/${r.id}`} className="flex min-h-14 items-center gap-3 px-4 py-2.5 hover:bg-[var(--p-bg)]/60 sm:px-5">
+                <Link href={`/admin/${tenant}/factura/${r.id}`} className="flex min-h-14 items-center gap-3 px-4 py-2.5 hover:bg-black/[0.02] sm:px-5">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{r.recipientName}</span>
                     <span className="block truncate text-xs text-[var(--p-muted)]">

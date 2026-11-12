@@ -883,7 +883,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           </div>
         )}
         {/* Arriba, siempre a mano: buscador, estado de la caja, hoy y categorías */}
-        <div className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)]/95 px-4 pt-2 pb-3 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8 lg:pt-6 lg:pb-4">
+        <div className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)] px-4 pt-2 pb-3 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8 lg:pt-6 lg:pb-4">
           <h1 className="sr-only">Caja</h1>
           {/* Según el hueco de la carta (no la pantalla): estrecho, en dos filas;
               ancho, en una con el buscador de un ancho cómodo a la izquierda. */}

@@ -1,5 +1,6 @@
 "use client";
 
+import { mixBg } from "@/app/lib/cssCompat";
 import { Children, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ui, type Lang } from "@/app/lib/i18n";
 
@@ -88,7 +89,7 @@ export default function MenuCarousel({ perView, lang = "es", children }: { perVi
           {/* Puntos: en qué página estamos */}
           <div className="mt-4 flex justify-center gap-1.5" aria-hidden>
             {Array.from({ length: state.pages }, (_, i) => (
-              <span key={i} className="h-2 rounded-full transition-all duration-300" style={{ width: i === state.page ? 22 : 8, backgroundColor: i === state.page ? "var(--brand-accent)" : "color-mix(in srgb, var(--text-secondary) 35%, transparent)" }} />
+              <span key={i} className="h-2 rounded-full transition-all duration-300" style={{ width: i === state.page ? 22 : 8, ...(i === state.page ? { backgroundColor: "var(--brand-accent)" } : mixBg("color-mix(in srgb, var(--text-secondary) 35%, transparent)", "rgba(0,0,0,0.25)")) }} />
             ))}
           </div>
         </>

@@ -18,7 +18,7 @@ export default function HourlyBars({ buckets, nowHour, money }: { buckets: HourB
 
   return (
     <div className="flex w-full flex-col">
-      <p className="mb-2 min-h-5 text-xs text-[var(--p-brand)]/70" aria-live="polite">
+      <p className="mb-2 min-h-5 text-xs text-[var(--p-brand)] opacity-80" aria-live="polite">
         {shown ? (
           <>
             {hover === null && "Hora punta · "}
@@ -38,16 +38,16 @@ export default function HourlyBars({ buckets, nowHour, money }: { buckets: HourB
           return (
             <div key={b.hour} className="relative flex h-full flex-1 items-end" onMouseEnter={() => setHover(i)} onTouchStart={() => setHover(i)}>
               <span
-                className={`block w-full rounded-t-[4px] transition-[height,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${hover === i ? "bg-[var(--p-brand)]" : "bg-[var(--p-brand)]/75"}`}
+                className={`block w-full rounded-t-[4px] transition-[height,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${hover === i ? "bg-[var(--p-brand)]" : "bg-[var(--p-brand)] opacity-75"}`}
                 style={{ height: `${h}%` }}
               />
               {/* Línea base: las horas que aún no han llegado, más suaves */}
-              <span className={`absolute inset-x-0 bottom-0 h-[3px] rounded-full ${future ? "bg-[var(--p-brand)]/10" : "bg-[var(--p-brand)]/25"}`} />
+              <span className={`absolute inset-x-0 bottom-0 h-[3px] rounded-full ${future ? "bg-[var(--p-brand)] opacity-10" : "bg-[var(--p-brand)] opacity-25"}`} />
             </div>
           );
         })}
       </div>
-      <div className="mt-1.5 flex justify-between text-[10px] tabular-nums text-[var(--p-brand)]/60">
+      <div className="mt-1.5 flex justify-between text-[10px] tabular-nums text-[var(--p-brand)] opacity-80">
         <span>{String(buckets[0].hour).padStart(2, "0")}h</span>
         <span>{String(buckets[Math.floor(buckets.length / 2)].hour).padStart(2, "0")}h</span>
         <span>{String(buckets[buckets.length - 1].hour).padStart(2, "0")}h</span>

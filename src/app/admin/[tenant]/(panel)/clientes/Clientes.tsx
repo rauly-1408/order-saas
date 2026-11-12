@@ -89,7 +89,7 @@ export default function Clientes({
             <p className="font-semibold text-[var(--p-brand)]">
               {atRisk.reachable} {atRisk.reachable === 1 ? "cliente habitual lleva" : "clientes habituales llevan"} más de un mes sin pedir
             </p>
-            <p className="text-sm text-[var(--p-brand)]/70">Mándales un mensaje con un cupón para que vuelvan.</p>
+            <p className="text-sm text-[var(--p-brand)] opacity-80">Mándales un mensaje con un cupón para que vuelvan.</p>
           </div>
           <button onClick={onNewCampaign} className="p-press shrink-0 self-start rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white sm:self-auto">
             Crear campaña

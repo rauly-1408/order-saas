@@ -179,7 +179,7 @@ export default function Ingredientes({ data, api, onSaved }: { data: Overview; a
       )}
 
       {form ? null : data.ingredients.filter((i) => !i.isPrep && i.kind !== "CONSUMABLE").length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 p-6 text-center text-sm text-[var(--p-muted)]">
+        <p className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-6 text-center text-sm text-[var(--p-muted)]">
           Añade los ingredientes que compras con su precio para calcular el coste de tus platos.
         </p>
       ) : (

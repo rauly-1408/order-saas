@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import { mixBg } from "@/app/lib/cssCompat";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/store/cart";
 import type { TenantTheme, StoreSettings } from "@/app/lib/tenantConfig";
@@ -375,7 +376,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
         {t.heroImageUrl && (
           <div aria-hidden className="s-kenburns absolute inset-0" style={{ backgroundImage: `url("${t.heroImageUrl}")`, backgroundSize: "cover", backgroundPosition: "center" }} />
         )}
-        <div aria-hidden className="absolute inset-0" style={{ background: t.heroImageUrl ? "linear-gradient(90deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.1) 100%)" : "radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--bg-base) 18%, transparent) 0, transparent 45%)" }} />
+        <div aria-hidden className="absolute inset-0" style={{ background: t.heroImageUrl ? "linear-gradient(90deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.1) 100%)" : "radial-gradient(circle at 85% 20%, rgba(255,255,255,0.18) 0, transparent 45%)" }} />
         <div className={`${wrap} relative flex min-h-[240px] flex-col justify-end py-7 sm:min-h-[440px] sm:py-16`}>
           <p className="s-up text-[13px] font-semibold uppercase tracking-[0.14em] opacity-85" style={{ ["--i" as any]: 0 }}>{deliveryLabel}</p>
           <h1 className="s-up mt-3 max-w-3xl text-[44px] [text-wrap:balance] sm:text-[88px]" style={{ ...heading, ["--i" as any]: 1, color: t.heroImageUrl ? "#ffffff" : cssVars["--bg-base"] }}>
@@ -447,7 +448,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                 className={`p-press shrink-0 rounded-full border px-4 py-2.5 text-[14px] transition-colors duration-300 ${
                   isActive
                     ? "border-transparent bg-[var(--brand-accent)] font-bold text-[var(--on-accent)]"
-                    : "border-[var(--border)] bg-transparent font-medium text-[var(--text-secondary)] [@media(hover:hover)]:hover:border-[var(--brand-accent)] [@media(hover:hover)]:hover:bg-[color-mix(in_srgb,var(--brand-accent)_10%,transparent)] [@media(hover:hover)]:hover:text-[var(--brand-accent)]"
+                    : "border-[var(--border)] bg-transparent font-medium text-[var(--text-secondary)] [@media(hover:hover)]:hover:border-[var(--brand-accent)] [@media(hover:hover)]:hover:bg-black/[0.04] [@media(hover:hover)]:hover:text-[var(--brand-accent)]"
                 }`}
               >
                 {cat.name}
@@ -607,7 +608,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
             className="s-up p-press pointer-events-auto mx-auto flex min-h-[60px] max-w-xl items-center gap-3 rounded-full p-2 pl-2 no-underline shadow-[0_18px_40px_-14px_rgba(0,0,0,0.55)]"
             style={{ backgroundColor: cssVars["--brand-accent"], color: "var(--on-accent)" }}
           >
-            <span key={bump} className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-full px-2 text-[16px] font-bold tabular-nums ${bump ? "s-bump" : ""}`} style={{ backgroundColor: "color-mix(in srgb, var(--on-accent) 16%, transparent)" }}>
+            <span key={bump} className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-full px-2 text-[16px] font-bold tabular-nums ${bump ? "s-bump" : ""}`} style={mixBg("color-mix(in srgb, var(--on-accent) 16%, transparent)", "rgba(255,255,255,0.18)")}>
               {totalItems}
             </span>
             <span className="min-w-0 flex-1 truncate text-[16px] font-bold">{T.viewOrder.replace(/\s*→$/, "")}</span>

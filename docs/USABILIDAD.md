@@ -117,3 +117,18 @@ El panel se usará en pantallas táctiles (tablet o TPV), así que todo lo que s
   - En la tienda, no usar `bg-[var(--…)]/NN` detrás de un texto del mismo color.
   - En estilos en línea con `color-mix`, poner antes un color de reserva (`backgroundColor` y después `backgroundImage`).
 - **Revisado:** la tienda a 768×1024, 1024×768 y 820×1180 (carta, ficha, carrito, pago y reservar), sin desbordes. En el panel, los usos que quedan son barras y bordes, que sin la transparencia se siguen viendo.
+
+### Toda la app, a prueba de Safari antiguo (2026-11-10)
+
+- **Panel y tienda:** ya no queda ninguna clase de color de variable con transparencia. Se cambiaron por equivalentes:
+  - superficie → `bg-white/60`;
+  - texto de marca → `opacity-80`;
+  - barras de marca → `opacity-NN`;
+  - bordes → `--p-brand-soft`.
+- **Fondos con `color-mix()` en línea:** todos llevan color de reserva con `mixBg(mezcla, reserva)` de `lib/cssCompat.ts`.
+- **Mapa de calor de Informes y círculo de los avisos (`ask`):** usan `tintOverWhite(color, %)`, una capa blanca encima del color, sin `color-mix`.
+- **CSS global:** cada `color-mix` va precedido de la misma propiedad con un valor de reserva.
+- **Prueba automática** `__tests__/compat-navegadores.test.ts`. Falla si aparece:
+  1. una clase `-[var(--x)]/NN`;
+  2. un `color-mix(` en el código sin `mixBg(` ni `compat-ok`;
+  3. un `color-mix` en CSS sin la línea de reserva justo antes.

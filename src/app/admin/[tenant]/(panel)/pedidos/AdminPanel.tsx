@@ -372,7 +372,7 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
                   {...dropProps(col.key)}
                   className={`${tab === col.key ? "block" : "hidden lg:block"} rounded-2xl transition-[opacity,box-shadow,background-color] duration-150 ${
                     dimmed ? "opacity-40" : ""
-                  } ${isTarget ? "-m-2 bg-[var(--p-brand)]/[0.06] p-2 ring-2 ring-dashed ring-[var(--p-brand)]/50" : ""} ${over === col.key ? "!bg-[var(--p-brand)]/[0.12] !ring-[var(--p-brand)]" : ""}`}
+                  } ${isTarget ? "-m-2 bg-[var(--p-brand)]/[0.06] p-2 ring-2 ring-dashed ring-[var(--p-brand-soft)]" : ""} ${over === col.key ? "!bg-[var(--p-brand)]/[0.12] !ring-[var(--p-brand)]" : ""}`}
                 >
                   <h2
                     className={`mb-3 hidden items-center justify-between px-1 text-[15px] font-semibold lg:flex ${col.accent}`}
@@ -383,13 +383,13 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
                     <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-black/[0.05] px-2 text-sm tabular-nums text-[var(--p-ink)]">{list.length}</span>
                   </h2>
                   {isTarget && (
-                    <p className="mb-3 rounded-xl border border-dashed border-[var(--p-brand)]/50 bg-[var(--p-surface)] px-3 py-2 text-center text-sm font-semibold text-[var(--p-brand)]">
+                    <p className="mb-3 rounded-xl border border-dashed border-[var(--p-brand)] bg-[var(--p-surface)] px-3 py-2 text-center text-sm font-semibold text-[var(--p-brand)]">
                       Suelta aquí · {dropLabel}
                     </p>
                   )}
                   <div className="space-y-3">
                     {list.length === 0 ? (
-                      <p className="rounded-2xl border border-dashed border-black/10 bg-[var(--p-surface)]/60 py-8 text-center text-sm text-[var(--p-faint)]">
+                      <p className="rounded-2xl border border-dashed border-black/10 bg-white/60 py-8 text-center text-sm text-[var(--p-faint)]">
                         {col.key === "NEW" ? "Sin pedidos nuevos" : "Vacío"}
                       </p>
                     ) : (

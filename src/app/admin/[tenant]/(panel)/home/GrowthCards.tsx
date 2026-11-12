@@ -87,7 +87,7 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
                 <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
               </svg>
             </button>
-            <div className="m-2 mb-0 flex h-32 items-center justify-center overflow-hidden rounded-2xl bg-[linear-gradient(160deg,var(--p-warm),color-mix(in_srgb,var(--p-warm)_55%,white))]" aria-hidden>
+            <div className="m-2 mb-0 flex h-32 items-center justify-center overflow-hidden rounded-2xl bg-[var(--p-warm)] bg-[linear-gradient(160deg,transparent,rgba(255,255,255,0.45))]" aria-hidden>
               <div className="transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:transform-none">
                 <Art kind={c.art} />
               </div>
@@ -291,7 +291,7 @@ function Art({ kind }: { kind: CardArt }) {
             <span className="ml-1 flex-1 truncate rounded bg-white px-2 py-0.5 text-[10px] text-[var(--p-muted)]">🔒 pedidos.tulocal.com</span>
           </div>
           <div className="space-y-1.5 p-3">
-            {bar("w-24", "bg-[var(--p-brand)]/40")}
+            {bar("w-24", "bg-[var(--p-brand)] opacity-40")}
             {bar("w-32")}
           </div>
         </div>

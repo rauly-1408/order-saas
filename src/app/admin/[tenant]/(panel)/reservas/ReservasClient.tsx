@@ -237,7 +237,7 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
       {!data ? (
         !error && <p className="py-16 text-center text-sm text-[var(--p-muted)]">Cargando las reservas…</p>
       ) : active.length === 0 && waitlist.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-dashed border-[var(--p-line)] bg-[var(--p-surface)]/60 px-6 py-12 text-center">
+        <div className="mt-6 rounded-2xl border border-dashed border-[var(--p-line)] bg-white/60 px-6 py-12 text-center">
           <p className="text-lg font-semibold">No hay reservas este día</p>
           <p className="mt-1 text-sm text-[var(--p-muted)]">Las que hagan tus clientes en la tienda aparecen aquí solas.</p>
           <button type="button" onClick={() => setAdding(true)} className={`${primary} mt-4`}>+ Apuntar una reserva</button>

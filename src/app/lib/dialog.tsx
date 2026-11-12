@@ -1,5 +1,6 @@
 "use client";
 
+import { tintOverWhite } from "@/app/lib/cssCompat";
 import { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -139,7 +140,7 @@ function AskDialog({ title, message, confirm, cancel, danger, theme, onDone }: {
       >
         <div aria-hidden className="mx-auto mb-4 h-1.5 w-10 rounded-full opacity-20 sm:hidden" style={{ backgroundColor: theme.ink }} />
         <div className="flex items-start gap-3">
-          <span aria-hidden className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-bold" style={{ backgroundColor: danger ? "#fde8e7" : `color-mix(in srgb, ${theme.brand} 12%, transparent)`, color: danger ? theme.danger : theme.brand }}>
+          <span aria-hidden className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-bold" style={{ ...(danger ? { backgroundColor: "#fde8e7" } : tintOverWhite(theme.brand, 12)), color: danger ? theme.danger : theme.brand }}>
             {danger ? "!" : "?"}
           </span>
           <div className="min-w-0">

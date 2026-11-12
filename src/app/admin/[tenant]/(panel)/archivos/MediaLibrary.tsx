@@ -320,7 +320,7 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
                 const checked = selected.has(f.id);
                 const refs = f.usedBy?.length ?? 0;
                 return (
-                  <tr key={f.id} className={`border-b border-[var(--p-line)] last:border-0 ${checked ? "bg-[var(--p-brand-soft)]/60" : "hover:bg-black/[0.02]"}`}>
+                  <tr key={f.id} className={`border-b border-[var(--p-line)] last:border-0 ${checked ? "bg-[var(--p-brand-soft)]" : "hover:bg-black/[0.02]"}`}>
                     <td className="px-3 py-2 align-middle">
                       <input
                         type="checkbox"
