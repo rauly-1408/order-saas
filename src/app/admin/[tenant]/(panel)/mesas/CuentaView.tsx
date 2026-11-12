@@ -1,5 +1,6 @@
 "use client";
 
+import { BTN } from "../buttons";
 import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -280,7 +281,7 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
 
   return (
     <div ref={setWrap} className={panel || closed ? "pb-10" : "pb-56"}>
-      <button type="button" onClick={() => onBack()} className="p-press -ml-2 rounded-full px-2 py-1.5 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
+      <button type="button" onClick={() => onBack()} className={BTN.back}>
         ‹ Mesas
       </button>
       <div className="mt-1 flex flex-wrap items-end justify-between gap-2">

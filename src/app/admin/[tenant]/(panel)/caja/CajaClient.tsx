@@ -1,5 +1,6 @@
 "use client";
 
+import { BTN } from "@/app/admin/[tenant]/(panel)/buttons";
 import Link from "next/link";
 import { collaboratorDiscountCents } from "@/app/lib/collaboratorDiscount";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -703,7 +704,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   // ── Pantalla 2: el cobro ────────────────────────────────────────────────
   const payView = (
     <div className="flex h-full flex-col">
-      <button type="button" onClick={() => setStep("order")} className="-ml-2 flex min-h-11 items-center gap-1 self-start rounded-full px-3 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
+      <button type="button" onClick={() => setStep("order")} className={`${BTN.back} self-start`}>
         ‹ Volver al pedido
       </button>
       <div className="mt-2 text-center">
