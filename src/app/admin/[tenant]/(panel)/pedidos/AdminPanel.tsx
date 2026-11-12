@@ -440,14 +440,14 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
             </div>
           )}
 
-          <details className="mt-8 rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <details className="mt-8 rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] [&[open]]:pb-3 sm:[&[open]]:pb-4">
             <summary className="cursor-pointer px-5 py-4 text-[15px] font-semibold">
               Últimas 24 h · {delivered} entregados · {cancelled} cancelados
             </summary>
             {history.length === 0 ? (
               <p className="px-4 pb-4 text-sm text-[var(--p-muted)]">Todavía no hay pedidos cerrados.</p>
             ) : (
-              <ul className="mx-3 mb-3 space-y-2 rounded-2xl bg-[var(--p-bg)] p-2 sm:mx-4 sm:mb-4 sm:p-3">
+              <ul className="mx-3 space-y-2 rounded-2xl bg-[var(--p-bg)] p-2 sm:mx-4 sm:p-3">
                 {history.map((o) => (
                   <li key={o.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-2xl bg-[var(--p-surface)] px-3 py-1.5 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04]">
                     <button type="button" onClick={() => setOpenHist(openHist === o.id ? null : o.id)} aria-expanded={openHist === o.id} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left">
