@@ -1,5 +1,6 @@
 "use client";
 
+import { BTN } from "@/app/admin/[tenant]/(panel)/buttons";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -172,7 +173,7 @@ export default function KdsClient({ tenant, station }: { tenant: string; station
   return createPortal(
     <div className="fixed inset-0 z-40 flex flex-col bg-[#111214] text-[#f3f3f1]" role="region" aria-label={`Pantalla de ${title.toLowerCase()}`}>
       <header className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2 sm:px-5">
-        <Link href={`/admin/${tenant}/pedidos`} className="flex min-h-11 items-center rounded-full bg-white/10 px-4 text-sm font-semibold">
+        <Link href={`/admin/${tenant}/pedidos`} className={BTN.back}>
           ‹ Panel
         </Link>
         <h1 className="mr-auto text-xl font-bold">

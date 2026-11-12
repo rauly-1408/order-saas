@@ -1,5 +1,6 @@
 "use client";
 
+import { BTN } from "@/app/admin/[tenant]/(panel)/buttons";
 import { ask } from "@/app/lib/dialog";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -270,7 +271,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, lab
   return createPortal(
     <div className="fixed inset-0 z-40 flex flex-col bg-[var(--p-bg)] text-[var(--p-ink)]" style={STORE_VARS} role="dialog" aria-modal="true" aria-label={`Nueva ronda · Mesa ${tableName}`}>
       <header className="flex items-center gap-2 border-b border-[var(--p-line)] bg-[var(--p-surface)] px-3 py-2 sm:px-5">
-        <button type="button" onClick={close} className="p-press min-h-12 shrink-0 rounded-full bg-black/[0.06] px-5 text-base font-semibold hover:bg-black/[0.09]">
+        <button type="button" onClick={close} className={`${BTN.back} min-h-12 shrink-0 px-5 text-base`}>
           ‹ Volver a la mesa {tableName}
         </button>
         {onLabel && (

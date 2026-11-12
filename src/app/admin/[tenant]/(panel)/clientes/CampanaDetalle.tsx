@@ -1,5 +1,6 @@
 "use client";
 
+import { BTN } from "@/app/admin/[tenant]/(panel)/buttons";
 import { ask } from "@/app/lib/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { SEGMENT_LABEL, type Segment } from "@/app/lib/retention";
@@ -81,7 +82,7 @@ export default function CampanaDetalle({ api, id, onBack }: { api: string; id: s
 
   return (
     <div className="space-y-4">
-      <button onClick={onBack} className="p-press -ml-2 rounded-full px-2 py-1 text-sm font-medium text-[var(--p-brand)] hover:bg-black/[0.04]">
+      <button onClick={onBack} className={BTN.back}>
         ‹ Campañas
       </button>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { BTN } from "@/app/admin/[tenant]/(panel)/buttons";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -19,7 +20,7 @@ export default function InvoiceActions({ tenant, id, canEmail }: { tenant: strin
   return (
     <div className="mx-auto mb-4 max-w-[210mm] space-y-3 print:hidden">
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={`/admin/${tenant}/facturas`} className="flex min-h-11 items-center rounded-full bg-white px-4 text-sm font-semibold shadow-sm">
+        <Link href={`/admin/${tenant}/facturas`} className={BTN.back}>
           ‹ Facturas
         </Link>
         <button type="button" onClick={() => window.print()} className="ml-auto min-h-11 rounded-full bg-neutral-900 px-5 text-sm font-semibold text-white">
