@@ -27,7 +27,7 @@ type Props = {
   restaurantPhone?: string | null;
 };
 
-const POLL_MS = 10_000;
+const POLL_MS = 5_000;
 
 export default function OrderTracker({ lang = "es", orderId, channel, initialStatus, estimatedReadyAt, initialReview, googleReviewUrl: initialGoogle, initialCourier = null, scheduledFor = null, cancelledBy: initialCancelledBy = null, paidOnline = false, restaurantPhone = null }: Props) {
   const [status, setStatus] = useState(initialStatus);
@@ -60,8 +60,9 @@ export default function OrderTracker({ lang = "es", orderId, channel, initialSta
   const [enabled, setEnabled] = useState(false);
   const notify = permission === "unsupported" ? "unsupported" : permission === "denied" ? "denied" : permission === "granted" && (enabled || stored) ? "on" : "off";
 
-  // Consulta el estado cada 10 s hasta que el pedido termina (y una vez al
-  // abrir, para saber si se puede cancelar).
+  // Consulta el estado cada 5 s hasta que el pedido termina (y una vez al
+  // abrir, para saber si se puede cancelar). Al volver a la pestaña o a la
+  // app, consulta en el momento: el cliente ve el cambio sin recargar.
   useEffect(() => {
     if (FINAL_STATUSES.includes(status)) return;
     const tick = async (force = false) => {
@@ -90,9 +91,16 @@ export default function OrderTracker({ lang = "es", orderId, channel, initialSta
     };
     const first = setTimeout(() => tick(true), 0);
     const timer = setInterval(tick, POLL_MS);
+    const onShow = () => document.visibilityState === "visible" && tick(true);
+    document.addEventListener("visibilitychange", onShow);
+    window.addEventListener("focus", onShow);
+    window.addEventListener("pageshow", onShow);
     return () => {
       clearTimeout(first);
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", onShow);
+      window.removeEventListener("focus", onShow);
+      window.removeEventListener("pageshow", onShow);
     };
   }, [orderId, channel, status, notify, lang]);
 
