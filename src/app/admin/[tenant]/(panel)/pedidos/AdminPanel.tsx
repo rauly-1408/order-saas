@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { modifierLabels } from "@/app/lib/menuOptions";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import OrderCard, { ALL_PERMS, type Perms } from "./OrderCard";
@@ -256,6 +257,7 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
   };
 
   const [collectFor, setCollectFor] = useState<string | null>(null); // pedido del historial al que apuntar el cobro
+  const [openHist, setOpenHist] = useState<string | null>(null); // pedido del historial desplegado
   const delivered = history.filter((o) => o.status === "DELIVERED").length;
   const cancelled = history.length - delivered;
 
@@ -448,10 +450,14 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
               <ul className="divide-y divide-[var(--p-line)] px-4 pb-2">
                 {history.map((o) => (
                   <li key={o.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2 text-sm">
-                    <span className="min-w-0 truncate">
-                      <span className="font-bold">{orderLabel(o)}</span>{" "}
-                      <span className="text-[var(--p-muted)]">{o.customerName}</span>
-                    </span>
+                    <button type="button" onClick={() => setOpenHist(openHist === o.id ? null : o.id)} aria-expanded={openHist === o.id} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left">
+                      <span aria-hidden className={`text-[var(--p-muted)] transition-transform ${openHist === o.id ? "rotate-90" : ""}`}>›</span>
+                      <span className="min-w-0 truncate">
+                        <span className="font-bold">{orderLabel(o)}</span>{" "}
+                        <span className="text-[var(--p-muted)]">{o.customerName}</span>{" "}
+                        <span className="text-xs text-[var(--p-faint)] tabular-nums">{new Date(o.createdAt).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</span>
+                      </span>
+                    </button>
                     <span className="flex shrink-0 items-center gap-3">
                       <span className="text-[var(--p-muted)]">{toEuros(o.totalCents)}</span>
                       {o.status === "DELIVERED" && o.paymentStatus === "PAID" && perms.canInvoice && (
@@ -472,6 +478,7 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
                         {o.status === "DELIVERED" ? "Entregado" : cancelLabel(o)}
                       </span>
                     </span>
+                    {openHist === o.id && <HistoryDetail o={o} onPrint={(kind) => handlePrint(o.id, kind)} />}
                     {collectFor === o.id && (
                       <div className="basis-full">
                         <PaidWithChooser
@@ -493,6 +500,49 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
           </details>
         </div>
       )}
+    </div>
+  );
+}
+
+// Detalle de un pedido del historial («Últimas 24 h»): qué llevaba, el cliente,
+// cómo se pagó y reimprimir. Ver docs/PEDIDOS.md
+const PAY_TEXT: Record<string, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger o entregar" };
+function HistoryDetail({ o, onPrint }: { o: Order; onPrint: (kind: "KITCHEN" | "RECEIPT") => void }) {
+  const euros = (c: number) => (c / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+  const how = o.channel === "DELIVERY" ? "A domicilio" : o.dineIn ? "Comer aquí" : "Para recoger";
+  const from = o.source === "COUNTER" ? "Mostrador" : o.source === "PHONE" ? "Teléfono" : "Online";
+  return (
+    <div className="basis-full rounded-2xl bg-[var(--p-bg)] p-4 text-sm">
+      <ul className="space-y-1.5">
+        {o.items.map((l) => (
+          <li key={l.id} className="flex gap-2">
+            <span className="w-7 shrink-0 font-semibold tabular-nums">{l.quantity}×</span>
+            <span className="min-w-0 flex-1">
+              {l.productName}
+              {modifierLabels(l.modifiers).length > 0 && <span className="block text-xs text-[var(--p-muted)]">{modifierLabels(l.modifiers).join(" · ")}</span>}
+              {l.note && <span className="block text-xs text-[var(--p-muted)]">Nota: {l.note}</span>}
+            </span>
+            <span className="tabular-nums">{euros(l.totalCents)}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 grid gap-x-4 gap-y-1 border-t border-[var(--p-line)] pt-3 sm:grid-cols-2">
+        <p><span className="text-[var(--p-muted)]">Pedido:</span> {from} · {how}</p>
+        <p><span className="text-[var(--p-muted)]">Hora:</span> {new Date(o.createdAt).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+        {o.customerPhone && <p><span className="text-[var(--p-muted)]">Teléfono:</span> <a href={`tel:${o.customerPhone}`} className="font-medium text-[var(--p-brand)]">{o.customerPhone}</a></p>}
+        {o.customerAddress && <p><span className="text-[var(--p-muted)]">Dirección:</span> {o.customerAddress}</p>}
+        <p><span className="text-[var(--p-muted)]">Pago:</span> {o.paymentStatus === "PAID" ? PAY_TEXT[o.paymentMethod ?? ""] ?? "Cobrado" : o.paymentStatus === "REFUNDED" ? "Devuelto" : "Sin cobrar"}</p>
+        {(o.tipCents ?? 0) > 0 && <p><span className="text-[var(--p-muted)]">Propina:</span> {euros(o.tipCents ?? 0)}</p>}
+        {o.coupon && <p><span className="text-[var(--p-muted)]">Cupón:</span> {o.coupon.code}</p>}
+      </div>
+      {o.notes && <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-amber-900">Nota: {o.notes}</p>}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-base font-semibold">Total {euros(o.totalCents)}</p>
+        <span className="flex gap-2">
+          <button type="button" onClick={() => onPrint("KITCHEN")} className="inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-xs font-semibold">🖨 Comanda</button>
+          <button type="button" onClick={() => onPrint("RECEIPT")} className="inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-xs font-semibold">🖨 Ticket</button>
+        </span>
+      </div>
     </div>
   );
 }
