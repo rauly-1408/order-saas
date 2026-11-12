@@ -211,13 +211,14 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
               <p className="py-8 text-center text-sm text-[var(--p-muted)]">Cargando…</p>
             ) : searching ? (
               <>
-                <p className="mt-4 text-xs text-[var(--p-muted)]">
+                <section className="mt-4 rounded-2xl bg-[var(--p-bg)] p-3 sm:p-4">
+                <p className="mb-3 px-1 text-xs text-[var(--p-muted)]">
                   {data.orders.length === 0 ? `Ningún pedido de los últimos 6 meses con «${data.search}».` : `${data.orders.length >= 60 ? "Los 60 más recientes" : data.orders.length === 1 ? "1 pedido" : `${data.orders.length} pedidos`} con «${data.search}» (últimos 6 meses). Toca uno para ver qué pidió.`}
                 </p>
-                <ul className="mt-1 divide-y divide-[var(--p-line)]">
+                <ul className="space-y-2">
                   {data.orders.map((o) => (
                     <li key={o.id}>
-                      <button type="button" onClick={() => open(o)} className={`flex w-full items-center gap-3 rounded-xl py-2.5 text-left hover:bg-black/[0.03] ${o.status === "CANCELLED" ? "opacity-50" : ""}`}>
+                      <button type="button" onClick={() => open(o)} className={`p-press flex w-full items-center gap-3 rounded-2xl bg-[var(--p-surface)] px-3 py-3 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] hover:ring-[var(--p-brand-soft)] ${o.status === "CANCELLED" ? "opacity-50" : ""}`}>
                         <span className="w-14 shrink-0 text-xs leading-tight tabular-nums text-[var(--p-muted)]">{dayOf(o.createdAt)}<br />{hourOf(o.createdAt)}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">#{o.orderNumber} {o.customerName}</span>
@@ -229,6 +230,7 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
                     </li>
                   ))}
                 </ul>
+                </section>
               </>
             ) : (
               <>
@@ -262,13 +264,17 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
                     </li>
                   )}
                 </ul>
-                {isToday && <p className="mt-2 text-xs text-[var(--p-muted)]">El efectivo que debe haber en el cajón es la venta en efectivo más el fondo con el que abriste.</p>}
-                <p className="mt-4 text-xs text-[var(--p-muted)]">Toca un ticket para ver qué pidió, los datos del cliente, reimprimirlo o cambiar cómo pagó.</p>
-                <ul className="mt-1 divide-y divide-[var(--p-line)]">
+                {isToday && <p className="mt-2 text-xs text-[var(--p-muted)]">💡 El efectivo que debe haber en el cajón es la venta en efectivo más el fondo con el que abriste.</p>}
+                <section aria-labelledby="tickets-dia" className="mt-5 rounded-2xl bg-[var(--p-bg)] p-3 sm:p-4">
+                <div className="mb-3 flex items-baseline justify-between gap-2 px-1">
+                  <h3 id="tickets-dia" className="text-sm font-semibold">Tickets {isToday ? "de hoy" : "del día"} <span className="font-normal text-[var(--p-muted)]">({data.orders.length})</span></h3>
+                  <span className="text-xs text-[var(--p-muted)]">Toca uno para ver el detalle</span>
+                </div>
+                <ul className="space-y-2">
                   {data.orders.length === 0 && <li className="py-8 text-center text-sm text-[var(--p-muted)]">{isToday ? "Todavía no hay pedidos hoy." : "Ese día no hubo pedidos."}</li>}
                   {data.orders.map((o) => (
                     <li key={o.id}>
-                      <button type="button" onClick={() => open(o)} className={`flex w-full items-center gap-3 rounded-xl py-2.5 text-left hover:bg-black/[0.03] ${o.status === "CANCELLED" ? "opacity-50" : ""}`}>
+                      <button type="button" onClick={() => open(o)} className={`p-press flex w-full items-center gap-3 rounded-2xl bg-[var(--p-surface)] px-3 py-3 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] hover:ring-[var(--p-brand-soft)] ${o.status === "CANCELLED" ? "opacity-50" : ""}`}>
                         <span className="w-12 shrink-0 text-xs tabular-nums text-[var(--p-muted)]">{hourOf(o.createdAt)}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">#{o.orderNumber} {o.customerName}</span>
@@ -283,6 +289,7 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
                     </li>
                   ))}
                 </ul>
+                </section>
               </>
             )}
           </>
