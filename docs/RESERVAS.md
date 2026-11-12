@@ -144,3 +144,9 @@ Las horas salen del **horario del local** (Horario y zonas): abierto al llegar y
   - **Notificación push** al móvil u ordenador que tenga activados los avisos (Configuración → Notificaciones).
 - **Al abrir el día en Reservas** se marcan como vistas. Siguen con la etiqueta «Nueva · desde la web» 15 minutos más. En la tira de días, los días con reservas nuevas sin ver llevan el punto.
 - Las que apunta el propio restaurante nacen vistas.
+
+## Calendario propio y sin límite de días para el restaurante (2026-11-12)
+
+- **«📅 Otro día»** en la tira de días abre un **calendario de mes** (`reservas/MiniCalendar.tsx`) de hoy en adelante, con ‹ › para cambiar de mes y un punto en los días con reservas. Al elegir un día, el botón muestra la fecha.
+- **«Nueva reserva»** usa el mismo calendario para el día, en vez del selector del navegador, que no se abría en algunos equipos.
+- **Las reservas que apunta el restaurante no tienen límite de días.** «Reservar hasta» (por defecto 30 días) solo limita a los clientes de la tienda web (`reservationSlots` con `ignoreNotice`).
