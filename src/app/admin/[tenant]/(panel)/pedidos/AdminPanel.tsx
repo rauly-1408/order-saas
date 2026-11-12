@@ -447,9 +447,9 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
             {history.length === 0 ? (
               <p className="px-4 pb-4 text-sm text-[var(--p-muted)]">Todavía no hay pedidos cerrados.</p>
             ) : (
-              <ul className="divide-y divide-[var(--p-line)] px-4 pb-2">
+              <ul className="mx-3 mb-3 space-y-2 rounded-2xl bg-[var(--p-bg)] p-2 sm:mx-4 sm:mb-4 sm:p-3">
                 {history.map((o) => (
-                  <li key={o.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2 text-sm">
+                  <li key={o.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-2xl bg-[var(--p-surface)] px-3 py-1.5 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04]">
                     <button type="button" onClick={() => setOpenHist(openHist === o.id ? null : o.id)} aria-expanded={openHist === o.id} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left">
                       <span aria-hidden className={`text-[var(--p-muted)] transition-transform ${openHist === o.id ? "rotate-90" : ""}`}>›</span>
                       <span className="min-w-0 truncate">
@@ -512,7 +512,7 @@ function HistoryDetail({ o, onPrint }: { o: Order; onPrint: (kind: "KITCHEN" | "
   const how = o.channel === "DELIVERY" ? "A domicilio" : o.dineIn ? "Comer aquí" : "Para recoger";
   const from = o.source === "COUNTER" ? "Mostrador" : o.source === "PHONE" ? "Teléfono" : "Online";
   return (
-    <div className="basis-full rounded-2xl bg-[var(--p-bg)] p-4 text-sm">
+    <div className="mb-2 basis-full rounded-2xl bg-[var(--p-bg)] p-4 text-sm">
       <ul className="space-y-1.5">
         {o.items.map((l) => (
           <li key={l.id} className="flex gap-2">
