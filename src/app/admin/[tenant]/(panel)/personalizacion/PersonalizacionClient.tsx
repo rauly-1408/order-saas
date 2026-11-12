@@ -18,6 +18,7 @@ import {
 import { getTenantTheme, SYSTEM_DEFAULT_THEME } from "@/app/lib/tenantConfig";
 import { readPanelCache, writePanelCache } from "../panelCache";
 import BrandPreview from "./BrandPreview";
+import { MenusRowPreview, RadiusPreview } from "./LayoutPreview";
 import ImageField from "./ImageField";
 
 // Personalización: identidad visual de la carta (imágenes, paleta, fuentes) y
@@ -459,6 +460,7 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
                     {form.radius}px
                   </span>
                 </div>
+                <RadiusPreview theme={theme} />
               </section>
 
               <section className={card}>
@@ -483,6 +485,7 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
                     );
                   })}
                 </div>
+                <MenusRowPreview theme={theme} perRow={form.menusPerRow} />
               </section>
             </>
           ) : tab === "online" ? (
