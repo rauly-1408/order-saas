@@ -46,3 +46,8 @@ Técnica: `lib/cancelOrder.ts` (`cancelOrder(orderId, by, reason)` y `customerCa
 - `GET /api/track/[orderId]`: estado, canal, hora estimada, reseña y enlace de Google. Público y sin datos personales.
 - `POST /api/track/[orderId]/review`: solo con el pedido entregado y una vez (409 si ya existe).
 - `GET /api/admin/[tenant]/reviews`: para el panel, con el motor de retención.
+
+## Estado en vivo y logo (2026-11-12)
+
+- **Estado del pedido:** la página de confirmación consulta el estado cada **5 s** (antes 10). Además consulta **al momento** cada vez que el cliente vuelve a la pestaña o a la app (`visibilitychange`, `focus`, `pageshow`). Así ve «En cocina», «En camino»… sin recargar.
+- **Cabecera:** el **logo del restaurante centrado**, que lleva a la carta. Si no tiene logo, sale su nombre.

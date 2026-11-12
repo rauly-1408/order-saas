@@ -73,12 +73,22 @@ export default async function ConfirmacionPage({
   const deliveryFee = order.feesCents;
   const total = order.totalCents;
   const tenantDisplayName = tenantData?.name ?? order.store?.name ?? tenant;
+  const logo = (tenantData?.branding as Record<string, unknown> | null)?.logoUrl;
+  const logoUrl = typeof logo === "string" && logo ? logo : null;
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], fontFamily: cssVars["--font-body"], ...(cssVars as React.CSSProperties) }}>
 
-      <header style={{ backgroundColor: cssVars["--surface-0"], borderBottom: "1px solid " + cssVars["--border"], height: "56px", display: "flex", alignItems: "center", padding: "0 20px" }}>
-        <span style={{ fontWeight: 600, fontSize: "16px" }}>{tenantDisplayName}</span>
+      {/* Logo del restaurante en el centro (o su nombre si no tiene); lleva a la carta. */}
+      <header style={{ backgroundColor: cssVars["--surface-0"], borderBottom: "1px solid " + cssVars["--border"], height: "64px", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px" }}>
+        <a href={`/pedir/${tenant}`} aria-label={`${tenantDisplayName}: volver a la carta`} style={{ display: "flex", alignItems: "center", color: "inherit", textDecoration: "none" }}>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- logo del restaurante, cualquier tamaño
+            <img src={logoUrl} alt={tenantDisplayName} style={{ height: "40px", width: "auto", maxWidth: "180px", objectFit: "contain" }} />
+          ) : (
+            <span style={{ fontWeight: 600, fontSize: "16px" }}>{tenantDisplayName}</span>
+          )}
+        </a>
       </header>
 
       <main style={{ maxWidth: "560px", margin: "0 auto", padding: "32px 16px 60px" }}>
