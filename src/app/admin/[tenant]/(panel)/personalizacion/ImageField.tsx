@@ -36,6 +36,7 @@ export default function ImageField({ tenant, kind, url, onChange }: { tenant: st
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const meta = ASSETS[kind];
+  const wide = kind === "HERO" || kind === "LOGO" || kind === "LOGO_MONO";
   // Llegando desde el lápiz del logo (#logo-…): se baja hasta aquí y se resalta un momento.
   const [flash, setFlash] = useState(false);
   useEffect(() => {
@@ -85,13 +86,15 @@ export default function ImageField({ tenant, kind, url, onChange }: { tenant: st
     <section id={`logo-${meta.slug}`} className={`scroll-mt-24 rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-2 transition-shadow duration-700 sm:p-5 ${flash ? "ring-[var(--p-brand)]" : "ring-transparent"}`}>
       <h3 className="text-[15px] font-semibold">{meta.title}</h3>
       <p className="mt-0.5 text-xs text-[var(--p-muted)]">{meta.help}</p>
-      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+      {/* Los logos anchos y la cabecera van con los botones debajo: al lado no caben
+          en columnas estrechas (p. ej. Configuración → Ticket) y se salían. */}
+      <div className={`mt-3 flex flex-col gap-3 ${wide ? "" : "sm:flex-row sm:items-end"}`}>
         <button
           type="button"
           onClick={() => input.current?.click()}
           disabled={busy}
           aria-label={url ? `Cambiar ${meta.title.toLowerCase()}` : `Subir ${meta.title.toLowerCase()}`}
-          className={`p-press relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-[var(--p-line)] p-checker ${box} ${kind === "HERO" || kind === "LOGO" || kind === "LOGO_MONO" ? "sm:max-w-md" : ""}`}
+          className={`p-press relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-[var(--p-line)] p-checker ${box} max-w-full ${wide ? "sm:max-w-md" : ""}`}
         >
           {url ? (
             // eslint-disable-next-line @next/next/no-img-element
