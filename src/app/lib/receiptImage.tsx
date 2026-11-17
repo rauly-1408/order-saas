@@ -1,5 +1,7 @@
-// Ticket del cliente dibujado como imagen (como el de Last.app): letra Inter,
-// barra negra «Productos», cuadro de IVA y total grande. Se dibuja con la misma
+// Ticket del cliente dibujado como imagen, con la tipografía de NorApp
+// (Figtree para los textos y Martian Mono para las cifras), barra negra
+// «Productos», cuadro de IVA, total grande y, al pie, el mensaje del local, el QR
+// a su tienda y una firma pequeña de NorApp. Se dibuja con la misma
 // herramienta que los iconos (next/og) y se pasa a puntos blanco/negro para la
 // impresora. Los datos los prepara lib/printing.ts (receiptModel).
 // Ver docs/IMPRESION.md
@@ -26,21 +28,30 @@ export type ReceiptModel = {
   pending: string | null;
   qr: string | null; // PNG (data URL) del QR de la factura
   verifactu: boolean;
-  thanks: string;
+  footer: string[]; // mensaje del local (Configuración → Ticket)
+  storeQr: string | null; // PNG (data URL) del QR a la tienda online
 };
 
-let fonts: { name: string; data: Buffer; weight: 400 | 600 | 700; style: "normal" }[] | null = null;
-async function loadFonts() {
+type Font = { name: string; data: Buffer; weight: 400 | 600 | 700; style: "normal" };
+let fonts: Font[] | null = null;
+async function loadFonts(): Promise<Font[]> {
   if (fonts) return fonts;
   const dir = path.join(process.cwd(), "src/app/lib/fonts");
-  const [r, s, b] = await Promise.all([400, 600, 700].map((w) => readFile(path.join(dir, `inter-${w}.woff`))));
+  const read = (f: string) => readFile(path.join(dir, f));
+  const [r, s, b, mono] = await Promise.all([read("figtree-400.woff"), read("figtree-600.woff"), read("figtree-700.woff"), read("martian-mono-600.woff")]);
   fonts = [
-    { name: "Inter", data: r, weight: 400, style: "normal" },
-    { name: "Inter", data: s, weight: 600, style: "normal" },
-    { name: "Inter", data: b, weight: 700, style: "normal" },
+    { name: "Figtree", data: r, weight: 400, style: "normal" },
+    { name: "Figtree", data: s, weight: 600, style: "normal" },
+    { name: "Figtree", data: b, weight: 700, style: "normal" },
+    { name: "Martian Mono", data: mono, weight: 600, style: "normal" },
   ];
   return fonts;
 }
+
+// El ticket de NorApp en blanco y negro, para la firma del pie.
+const NORAPP_MARK = `data:image/svg+xml;base64,${Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#000"/><path d="M30 14 H70 V66 L65 70 L60 66 L55 70 L50 66 L45 70 L40 66 L35 70 L30 66 Z" fill="#fff"/><path d="M41 52V30h5l9 13V30h5v22h-5l-9-13v13z" fill="#000"/><rect x="38" y="57" width="24" height="3" rx="1.5" fill="#000"/></svg>'
+).toString("base64")}`;
 
 // Puntos por línea de cada papel: 80 mm = 576, 72 mm = 512, 58 mm = 384.
 export const PAPER_DOTS: Record<number, number> = { 48: 576, 42: 512, 32: 384 };
@@ -52,12 +63,13 @@ export async function receiptImage(m: ReceiptModel, widthChars: number): Promise
   const base = px(24);
   const small = px(19);
   const row = { display: "flex", justifyContent: "space-between", width: "100%" } as const;
+  const mono = { fontFamily: "Martian Mono", fontWeight: 600, fontSize: "0.82em", letterSpacing: "-0.02em" } as const; // cifras
   // Alto de sobra: luego se recorta el blanco de abajo.
-  const H = px(1400) + m.items.reduce((a, i) => a + px(40) + i.detail.length * px(26), 0) + (m.qr ? px(320) : 0) + (m.logo ? px(170) : 0);
+  const H = px(1400) + m.footer.length * px(32) + (m.storeQr ? px(220) : 0) + m.items.reduce((a, i) => a + px(40) + i.detail.length * px(26), 0) + (m.qr ? px(320) : 0) + (m.logo ? px(170) : 0);
 
   const img = new ImageResponse(
     (
-      <div style={{ width: W, height: H, display: "flex", flexDirection: "column", background: "#fff", color: "#000", fontFamily: "Inter", fontSize: base, padding: `${px(8)}px ${px(10)}px` }}>
+      <div style={{ width: W, height: H, display: "flex", flexDirection: "column", background: "#fff", color: "#000", fontFamily: "Figtree", fontSize: base, padding: `${px(8)}px ${px(10)}px` }}>
         {/* Cabecera */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", width: "100%" }}>
           {m.logo ? (
@@ -72,14 +84,14 @@ export async function receiptImage(m: ReceiptModel, widthChars: number): Promise
               {l}
             </div>
           ))}
-          <div style={{ marginTop: px(14), fontSize: px(22) }}>{m.date}</div>
+          <div style={{ marginTop: px(14), ...mono, fontSize: px(19) }}>{m.date}</div>
         </div>
 
         {/* Documento y datos del pedido */}
         <div style={{ display: "flex", flexDirection: "column", marginTop: px(18), width: "100%" }}>
           <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
             <span>{m.docTitle}</span>
-            {m.docNumber && <span style={{ fontWeight: 600 }}>{m.docNumber}</span>}
+            {m.docNumber && <span style={mono}>{m.docNumber}</span>}
           </div>
           {Array.from({ length: Math.ceil(m.info.length / 2) }, (_, r) => m.info.slice(r * 2, r * 2 + 2)).map((pair, i) => (
             <div key={i} style={{ ...row, marginTop: px(8) }}>
@@ -108,7 +120,7 @@ export async function receiptImage(m: ReceiptModel, widthChars: number): Promise
                   <span style={{ fontWeight: 700, width: px(64), flexShrink: 0 }}>{it.qty}x</span>
                   <span>{it.name}</span>
                 </span>
-                <span>{it.price}</span>
+                <span style={mono}>{it.price}</span>
               </div>
               {it.detail.map((d, j) => (
                 <div key={j} style={{ fontSize: small, marginLeft: px(64), marginTop: px(3) }}>
@@ -125,7 +137,7 @@ export async function receiptImage(m: ReceiptModel, widthChars: number): Promise
           {m.extras.map(([k, v]) => (
             <div key={k} style={{ ...row, marginTop: px(6) }}>
               <span>{k}</span>
-              <span>{v}</span>
+              <span style={mono}>{v}</span>
             </div>
           ))}
           {m.tax && (
@@ -138,20 +150,20 @@ export async function receiptImage(m: ReceiptModel, widthChars: number): Promise
               </div>
               <div style={{ display: "flex", marginTop: px(4), width: "100%" }}>
                 <span style={{ width: "34%" }}>{m.tax.label}</span>
-                <span style={{ width: "24%", justifyContent: "flex-end", display: "flex" }}>{m.tax.base}</span>
-                <span style={{ width: "18%", justifyContent: "flex-end", display: "flex" }}>{m.tax.tax}</span>
-                <span style={{ width: "24%", justifyContent: "flex-end", display: "flex" }}>{m.tax.total}</span>
+                <span style={{ width: "24%", justifyContent: "flex-end", display: "flex", ...mono }}>{m.tax.base}</span>
+                <span style={{ width: "18%", justifyContent: "flex-end", display: "flex", ...mono }}>{m.tax.tax}</span>
+                <span style={{ width: "24%", justifyContent: "flex-end", display: "flex", ...mono }}>{m.tax.total}</span>
               </div>
             </div>
           )}
           <div style={{ ...row, marginTop: px(20), fontWeight: 700, fontSize: px(40), alignItems: "baseline" }}>
             <span>Total:</span>
-            <span>{m.total}</span>
+            <span style={{ fontFamily: "Martian Mono", fontWeight: 600, fontSize: px(36), letterSpacing: "-0.04em" }}>{m.total}</span>
           </div>
           {m.payment.map(([k, v]) => (
             <div key={k} style={{ ...row, marginTop: px(6), fontSize: px(22) }}>
               <span>{k}</span>
-              <span>{v}</span>
+              <span style={mono}>{v}</span>
             </div>
           ))}
           {m.pending && <div style={{ display: "flex", justifyContent: "center", marginTop: px(12), fontWeight: 700, width: "100%" }}>{m.pending}</div>}
@@ -165,7 +177,25 @@ export async function receiptImage(m: ReceiptModel, widthChars: number): Promise
           )}
           {m.verifactu && <div style={{ fontWeight: 700, marginTop: px(8) }}>VERI*FACTU</div>}
           {m.verifactu && <div style={{ fontSize: small, marginTop: px(2) }}>Factura verificable en la sede electrónica de la AEAT</div>}
-          <div style={{ marginTop: px(16), fontSize: px(22) }}>{m.thanks}</div>
+          {m.footer.map((l, i) => (
+            <div key={i} style={{ marginTop: i ? px(4) : px(16), fontSize: px(22) }}>
+              {l}
+            </div>
+          ))}
+          {m.storeQr && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: px(16) }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={m.storeQr} alt="" width={px(150)} height={px(150)} />
+              <div style={{ marginTop: px(6), fontSize: small }}>Pide online la próxima vez</div>
+            </div>
+          )}
+          {/* Firma de NorApp: pequeña y al final, sin quitar protagonismo al local. */}
+          <div style={{ display: "flex", alignItems: "center", marginTop: px(22), fontSize: px(15) }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={NORAPP_MARK} alt="" width={px(20)} height={px(20)} style={{ marginRight: px(7) }} />
+            <span>Hecho con</span>
+            <span style={{ fontFamily: "Martian Mono", fontWeight: 600, marginLeft: px(5) }}>norapp</span>
+          </div>
         </div>
       </div>
     ),

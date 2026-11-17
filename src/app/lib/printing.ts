@@ -9,6 +9,7 @@ import { Escpos, type Codepage } from "@/app/lib/escpos";
 import { previewEscpos, type Preview } from "@/app/lib/escposPreview";
 import { rasterPng, receiptLogo, receiptLogoUrl, type Raster } from "@/app/lib/printLogo";
 import { receiptImage, type ReceiptModel } from "@/app/lib/receiptImage";
+import { readTicket, type TicketSettings } from "@/app/lib/ticketSettings";
 import { readBusiness } from "@/app/lib/business";
 import { includedTax, readTax } from "@/app/lib/storePolicies";
 import { modifierLabels } from "@/app/lib/menuOptions";
@@ -294,18 +295,68 @@ export function renderReceipt(o: OrderForPrint, p: Printer, opts: { drawer?: boo
 }
 
 // Datos del ticket del cliente, ordenados como el de Last.app (ver lib/receiptImage.tsx).
+// Lo que pone el local (Configuración → Ticket): logo, datos de cabecera, mensaje y QR.
+type TenantForTicket = { id: string; name: string; slug: string; settings: unknown };
+async function ticketBrand(t: TenantForTicket, store: { address: string | null; phone: string | null } | null, forInvoice: boolean, ticket = readTicket(t.settings)) {
+  const biz = readBusiness(t.settings);
+  const addr = [store?.address || biz.street, [biz.postalCode, biz.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  // Con factura, razón social y NIF salen siempre (son obligatorios).
+  const legalOn = ticket.showLegal || forInvoice;
+  const phone = store?.phone || biz.phone;
+  const legal = [
+    legalOn && biz.legalName && biz.legalName !== t.name ? biz.legalName : null,
+    legalOn && biz.taxId ? `NIF ${biz.taxId}` : null,
+    (ticket.showAddress || forInvoice) && addr ? addr : null,
+    ticket.showPhone && phone ? `Tel. ${phone}` : null,
+  ].filter((x): x is string => !!x);
+  const origin = process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  return {
+    logo: ticket.showLogo ? await receiptLogoUrl(t.id) : null,
+    name: t.name,
+    legal,
+    footer: ticket.footer ? ticket.footer.split("\n").map((l) => l.trim()) : [],
+    storeQr: ticket.qr && origin ? await QRCode.toDataURL(`${origin}/pedir/${t.slug}`, { margin: 0, errorCorrectionLevel: "M", width: 300 }) : null,
+    showTax: ticket.showTax || forInvoice,
+  };
+}
+
+// Ticket de ejemplo para la vista previa de Configuración → Ticket.
+export async function sampleReceipt(t: TenantForTicket, ticket: TicketSettings, widthChars: 48 | 42 | 32 = 48): Promise<Raster> {
+  const tz = tenantTimeZone(t.settings);
+  const rate = readTax(t.settings).rate;
+  const { showTax, ...brand } = await ticketBrand(t, null, false, ticket);
+  const now = new Date();
+  const tax = includedTax(1790, rate);
+  return receiptImage(
+    {
+      ...brand,
+      date: `${dmy(now, tz)} ${hhmm(now, tz)}`,
+      docTitle: "Factura proforma",
+      docNumber: null,
+      info: [["Mesa", "6"], ["Comensales", "2"]],
+      extraInfo: [],
+      items: [
+        { qty: 1, name: "Producto de ejemplo", price: euros(895), detail: ["+ Una opción"] },
+        { qty: 1, name: "Otro producto", price: euros(895), detail: [] },
+      ],
+      extras: [],
+      tax: showTax ? { label: `IVA (${rate}%):`, base: euros(1790 - tax), tax: euros(tax), total: euros(1790) } : null,
+      total: euros(1790),
+      payment: [],
+      pending: "Pendiente de pago",
+      qr: null,
+      verifactu: false,
+    },
+    widthChars
+  );
+}
+
 async function receiptModel(o: OrderForPrint): Promise<ReceiptModel> {
   const tz = tenantTimeZone(o.tenant.settings);
-  const biz = readBusiness(o.tenant.settings);
   const tax = readTax(o.tenant.settings);
   const invoice = o.invoices.find((i) => i.invoiceType === "F2") ?? null;
   const table = isTable(o);
-  const addr = [o.store.address || biz.street, [biz.postalCode, biz.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-  const legal = [
-    biz.legalName && biz.legalName !== o.tenant.name ? biz.legalName : null,
-    biz.taxId ? `NIF ${biz.taxId}` : null,
-    addr || null,
-  ].filter((x): x is string => !!x);
+  const { showTax, ...brand } = await ticketBrand({ id: o.tenantId, ...o.tenant }, o.store, !!invoice);
   const info: [string, string][] = table
     ? [["Mesa", o.table?.name ?? "—"], ...(o.guests ? ([["Comensales", String(o.guests)]] as [string, string][]) : [])]
     : [["Pedido", `nº ${o.orderNumber ?? "?"}`], ["", `${modeOf(o).charAt(0)}${modeOf(o).slice(1).toLowerCase()}`]];
@@ -329,9 +380,7 @@ async function receiptModel(o: OrderForPrint): Promise<ReceiptModel> {
     if (cashDue && o.cashTenderedCents != null && o.cashTenderedCents >= cashDue) payment.push(["Entregado", euros(o.cashTenderedCents)], ["Cambio", euros(o.cashTenderedCents - cashDue)]);
   }
   return {
-    logo: await receiptLogoUrl(o.tenantId),
-    name: o.tenant.name,
-    legal,
+    ...brand,
     date: `${dmy(invoice ? new Date(o.createdAt) : o.createdAt, tz)} ${hhmm(o.createdAt, tz)}`,
     // La cuenta de una mesa antes de cobrar no es una factura.
     docTitle: invoice ? "Factura simplificada" : table && o.paymentStatus !== "PAID" ? "Factura proforma" : "Ticket",
@@ -345,13 +394,14 @@ async function receiptModel(o: OrderForPrint): Promise<ReceiptModel> {
       detail: [...(modifierLabels(l.modifiers).length ? [modifierLabels(l.modifiers).join(", ")] : []), ...(l.note ? [l.note] : []), ...((l.discountCents ?? 0) > 0 ? [`Descuento -${euros(l.discountCents ?? 0)}`] : [])],
     })),
     extras,
-    tax: invoice || tax.showOnReceipt ? { label: `IVA (${rate}%):`, base: euros(baseCents), tax: euros(taxCents), total: euros(o.totalCents) } : null,
+    tax: showTax ? { label: `IVA (${rate}%):`, base: euros(baseCents), tax: euros(taxCents), total: euros(o.totalCents) } : null,
     total: euros(o.totalCents),
     payment,
     pending: o.paymentStatus === "PAID" ? null : table ? "Pendiente de pago" : `Pendiente de pago · ${PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}`,
     qr: invoice ? await QRCode.toDataURL(invoice.qrUrl, { margin: 0, errorCorrectionLevel: "M", width: 440 }) : null,
     verifactu: invoice?.mode === "VERIFACTU",
-    thanks: table ? "¡Gracias por tu visita!" : "¡Gracias por tu pedido!",
+    // Sin mensaje propio, una despedida corta.
+    footer: brand.footer.length ? brand.footer : [table ? "¡Gracias por tu visita!" : "¡Gracias por tu pedido!"],
   };
 }
 

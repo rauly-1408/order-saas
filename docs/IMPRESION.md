@@ -14,7 +14,7 @@ pedido → PrintJob (PENDING) → agente (GET /api/print/jobs) → impresora:910
 - **Qué se imprime solo**: comanda a cocina al entrar un pedido activo (online ya pagado o «al recoger», y de la Caja); ticket al cliente al cobrar en la Caja (efectivo, datáfono o Bizum). Los pedidos online no imprimen ticket solos. Ambos se pueden apagar.
 - **Pedidos**: con alguna impresora configurada, cada tarjeta tiene «🖨 Comanda» y «🖨 Ticket» para reimprimir.
 - **Vista previa** (Pedidos y Caja → Día): al tocar «Comanda» o «Ticket» se abre una ventana con el papel tal como va a salir y en qué impresora (y cuántas copias). «Imprimir» queda listo para tocar o pulsar Intro, y la ventana dice si ha salido («✓ Impreso», se cierra sola), si falla («La impresora no responde» + «Reintentar») o si el agente no lo recoge en 15 s («¿Está encendido el ordenador del local?»). Sin «Descargar» ni número de copias, a propósito: el PDF legal es «Factura».
-- **Ticket del cliente como imagen** (como el de Last.app): letra Inter, logo, nombre, razón social, NIF y dirección, fecha, tipo de documento («Factura simplificada nº…», «Factura proforma» para la cuenta de una mesa sin cobrar o «Ticket»), Mesa/Comensales o Pedido/tipo, barra negra «Productos», cuadro de IVA (base, IVA, total), «Total:» grande, cómo se pagó (entregado y cambio), QR de VeriFactu y despedida. Se dibuja con `next/og` (`lib/receiptImage.tsx`, datos en `receiptModel` de `lib/printing.ts`), se pasa a blanco y negro y se manda por tiras de 240 puntos (`GS v 0`). Si algo falla al dibujarlo, sale el ticket de texto de siempre. La letra está en `lib/fonts` (licencia OFL) y se incluye en el despliegue con `outputFileTracingIncludes` (next.config.ts). Las comandas de cocina siguen en texto grande.
+- **Ticket del cliente como imagen**: tipografía de NorApp (Figtree para los textos, Martian Mono para las cifras), y al pie, pequeña, la firma «Hecho con norapp» (en todos los restaurantes, también Estafetén, decisión del 17-11). Lleva logo, nombre, razón social, NIF y dirección, fecha, tipo de documento («Factura simplificada nº…», «Factura proforma» para la cuenta de una mesa sin cobrar o «Ticket»), Mesa/Comensales o Pedido/tipo, barra negra «Productos», cuadro de IVA (base, IVA, total), «Total:» grande, cómo se pagó (entregado y cambio), QR de VeriFactu y despedida. Se dibuja con `next/og` (`lib/receiptImage.tsx`, datos en `receiptModel` de `lib/printing.ts`), se pasa a blanco y negro y se manda por tiras de 240 puntos (`GS v 0`). Si algo falla al dibujarlo, sale el ticket de texto de siempre. Las letras están en `lib/fonts` (licencia OFL) y se incluye en el despliegue con `outputFileTracingIncludes` (next.config.ts). Las comandas de cocina siguen en texto grande.
 - **Logo en el ticket**: arriba del ticket del cliente sale el «Logotipo en blanco y negro» de Personalización (si no hay, el principal), en puntos blanco/negro (`GS v 0`), centrado, como mucho al 70 % del ancho y unos 1,8 cm de alto (`lib/printLogo.ts`). Sin logo, el nombre en grande como antes. La vista previa lo enseña igual.
 - Las líneas más largas que el papel (p. ej. la dirección de «Pide online en:») se parten en varias, nunca se cortan.
 - **Imprimir sin vista previa** (Configuración → Impresoras): imprime al primer toque y enseña un aviso «Enviada a la impresora».
@@ -68,3 +68,14 @@ Con una impresora simulada y con la impresora real 10POS de Estafetén (192.168.
 
 - Reimprimir desde «Hoy en caja».
 - Empaquetar el agente como `.exe` para no tener que instalar Node.
+
+## Configuración → Ticket
+
+Cada local decide cómo sale su ticket, con **vista previa en directo** (el mismo dibujo que va a la impresora, `POST /api/admin/[tenant]/ticket/preview`):
+
+- **Logo**: encender/apagar y subir el «Logotipo en blanco y negro» (el mismo de Marca).
+- **Qué datos salen**: razón social y NIF, dirección, teléfono y cuadro de IVA. Con factura simplificada, razón social, NIF, dirección e IVA salen siempre (obligatorios).
+- **Mensaje al final**: hasta 6 líneas (gracias, Instagram, wifi…). Sin mensaje, una despedida corta.
+- **QR a la tienda online** para el próximo pedido.
+
+Se guarda en `settings.ticket` (`lib/ticketSettings.ts`, se limpia al guardar en `PATCH /api/admin/[tenant]`).
