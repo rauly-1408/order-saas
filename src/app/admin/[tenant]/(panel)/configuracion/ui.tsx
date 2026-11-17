@@ -152,6 +152,13 @@ export function SaveBarHost() {
     };
   }, [dirty, router]);
 
+  // Con la barra a la vista, los avisos flotantes del panel (stock bajo, pedidos…)
+  // suben para no tapar «Guardar» (ver OrderAlerts: clase has-savebar).
+  useEffect(() => {
+    document.documentElement.classList.toggle("has-savebar", dirty);
+    return () => document.documentElement.classList.remove("has-savebar");
+  }, [dirty]);
+
   // Se pinta en el contenedor del panel: dentro de la página, un padre con
   // animación la desplazaba fuera de la pantalla.
   const [portal] = useState<HTMLElement | null>(() => (typeof document === "undefined" ? null : ((document.querySelector(".panel") as HTMLElement | null) ?? document.body)));
@@ -178,9 +185,11 @@ export function SaveBarHost() {
       {dirty && (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-[max(16px,env(safe-area-inset-bottom))]">
           <div role="region" aria-label="Cambios sin guardar" className="p-rise pointer-events-auto flex w-full max-w-xl flex-wrap items-center gap-x-2 gap-y-2 rounded-2xl bg-[var(--p-surface)] p-3 pl-4 text-[var(--p-ink)] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.35)] ring-1 ring-[var(--p-line)]">
-            <p className="flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap text-sm font-semibold">
+            <p className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
-              Cambios sin guardar
+              {/* En el móvil, más corto: si no, se monta encima de «Descartar» */}
+              <span className="truncate min-[420px]:hidden">Sin guardar</span>
+              <span className="hidden truncate min-[420px]:inline">Cambios sin guardar</span>
             </p>
             <div className="flex gap-2">
               <button type="button" disabled={busy} onClick={() => dirtyRegs().forEach((r) => r.discard())} className="p-press min-h-11 rounded-full bg-black/[0.05] px-3.5 text-sm font-semibold disabled:opacity-50 sm:px-4">
