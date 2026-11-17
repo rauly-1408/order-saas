@@ -55,8 +55,9 @@ try {
   if (flag !== "--borrar") {
     console.log("\nNo se ha borrado nada. Para borrar, añade --borrar al final.\n");
   } else {
-    const typed = await ask(`\nEsto NO se puede deshacer. Escribe «BORRAR ${slug}» para confirmar: `);
-    if (typed !== `BORRAR ${slug}`) throw new Error("No coincide. No se ha cambiado nada.");
+    // Una sola palabra: algunas terminales cortan lo escrito en el primer espacio.
+    const typed = await ask(`\nEsto NO se puede deshacer. Para confirmar, escribe el nombre del restaurante (${slug}): `);
+    if (typed.toLowerCase() !== slug.toLowerCase()) throw new Error(`No coincide (has escrito «${typed}»). No se ha cambiado nada.`);
     await prisma.$transaction(async (tx) => {
       // 1) El stock que gastaron los pedidos vuelve al inventario.
       const moves = await tx.stockMovement.findMany({ where: { ...t, orderId: { not: null } }, select: { ingredientId: true, quantity: true } });
