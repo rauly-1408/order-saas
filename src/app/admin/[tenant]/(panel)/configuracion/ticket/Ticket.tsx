@@ -68,7 +68,8 @@ function TicketForm({ tenant, f, dirty, setForm, save }: { tenant: string; f: Ti
 
         <Card title="Qué datos salen" description="Con factura simplificada, la razón social, el NIF, la dirección y el IVA salen siempre: son obligatorios.">
           <div className="divide-y divide-[var(--p-line)]">
-            <Toggle checked={f.showLegal} onChange={(v) => set({ showLegal: v })} label="Razón social y NIF" hint="Se cambian en Información del negocio." />
+            <Toggle checked={f.showLegal} onChange={(v) => set({ showLegal: v })} label="Razón social" hint="El nombre legal de la empresa. Se cambia en Información del negocio." />
+            <Toggle checked={f.showTaxId} onChange={(v) => set({ showTaxId: v })} label="NIF" />
             <Toggle checked={f.showAddress} onChange={(v) => set({ showAddress: v })} label="Dirección del local" />
             <Toggle checked={f.showPhone} onChange={(v) => set({ showPhone: v })} label="Teléfono" />
             <Toggle checked={f.showTax} onChange={(v) => set({ showTax: v })} label="Cuadro de IVA" hint="Base, IVA y total, encima del total." />

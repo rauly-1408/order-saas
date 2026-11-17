@@ -74,7 +74,7 @@ Con una impresora simulada y con la impresora real 10POS de Estafetén (192.168.
 Cada local decide cómo sale su ticket, con **vista previa en directo** (el mismo dibujo que va a la impresora, `POST /api/admin/[tenant]/ticket/preview`):
 
 - **Logo**: encender/apagar y subir el «Logotipo en blanco y negro» (el mismo de Marca).
-- **Qué datos salen**: razón social y NIF, dirección, teléfono y cuadro de IVA. Con factura simplificada, razón social, NIF, dirección e IVA salen siempre (obligatorios).
+- **Qué datos salen**: razón social, NIF (por separado), dirección, teléfono y cuadro de IVA. Con factura simplificada, razón social, NIF, dirección e IVA salen siempre (obligatorios).
 - **Mensaje al final**: hasta 6 líneas (gracias, Instagram, wifi…). Sin mensaje, una despedida corta.
 - **QR a la tienda online** para el próximo pedido.
 

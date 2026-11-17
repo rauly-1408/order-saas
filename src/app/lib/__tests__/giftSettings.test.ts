@@ -12,3 +12,13 @@ describe("compra mínima de las tarjetas regalo", () => {
   });
   it("mensaje en euros", () => expect(giftMinMessage(1000)).toContain("10,00 €"));
 });
+
+import { readTicket } from "../ticketSettings";
+describe("ticket: razón social y NIF por separado", () => {
+  it("el NIF sigue a la razón social en ajustes antiguos y se puede separar", () => {
+    expect(readTicket({ ticket: { showLegal: false } }).showTaxId).toBe(false);
+    expect(readTicket({}).showTaxId).toBe(true);
+    const t = readTicket({ ticket: { showLegal: false, showTaxId: true } });
+    expect([t.showLegal, t.showTaxId]).toEqual([false, true]);
+  });
+});

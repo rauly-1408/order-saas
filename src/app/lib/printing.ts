@@ -302,10 +302,11 @@ async function ticketBrand(t: TenantForTicket, store: { address: string | null; 
   const addr = [store?.address || biz.street, [biz.postalCode, biz.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   // Con factura, razón social y NIF salen siempre (son obligatorios).
   const legalOn = ticket.showLegal || forInvoice;
+  const taxIdOn = ticket.showTaxId || forInvoice;
   const phone = store?.phone || biz.phone;
   const legal = [
     legalOn && biz.legalName && biz.legalName !== t.name ? biz.legalName : null,
-    legalOn && biz.taxId ? `NIF ${biz.taxId}` : null,
+    taxIdOn && biz.taxId ? `NIF ${biz.taxId}` : null,
     (ticket.showAddress || forInvoice) && addr ? addr : null,
     ticket.showPhone && phone ? `Tel. ${phone}` : null,
   ].filter((x): x is string => !!x);
