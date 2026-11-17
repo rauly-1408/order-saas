@@ -10,7 +10,7 @@ import FacturasProveedor from "./FacturasProveedor";
 import { UNIT_LABEL, euros, formatQty, type Ingredient, type Overview, type PurchaseOrder, type PurchaseStatus, type Supplier } from "./types";
 import { BTN } from "../buttons";
 
-type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToReports: () => void };
+type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToReports: () => void; draft?: { supplierId: string; lines: DraftLine[] } | null };
 type DraftLine = { ingredientId: string; quantity: string };
 
 const STATUS: Record<PurchaseStatus, { label: string; cls: string }> = {
@@ -23,10 +23,10 @@ const STATUS: Record<PurchaseStatus, { label: string; cls: string }> = {
 const lineCost = (i: Ingredient | undefined, qty: number, packPriceCents?: number) =>
   i && i.packSize > 0 ? (qty / i.packSize) * (packPriceCents ?? i.packPriceCents) : 0;
 
-export default function Compras({ data, api, onSaved, onGoToReports }: Props) {
+export default function Compras({ data, api, onSaved, onGoToReports, draft }: Props) {
   const ingredients = useMemo(() => new Map(data.ingredients.map((i) => [i.id, i])), [data.ingredients]);
   const suppliers = useMemo(() => new Map(data.suppliers.map((s) => [s.id, s])), [data.suppliers]);
-  const [editor, setEditor] = useState<{ supplierId: string; lines: DraftLine[]; key: number; from?: number } | null>(null);
+  const [editor, setEditor] = useState<{ supplierId: string; lines: DraftLine[]; key: number; from?: number; forecast?: boolean } | null>(() => (draft ? { ...draft, key: 1, forecast: true } : null));
   // La clave cambia en cada apertura para que el editor empiece de cero.
   const openEditor = (supplierId: string, lines: DraftLine[], from?: number) => setEditor((prev) => ({ supplierId, lines, key: (prev?.key ?? 0) + 1, from }));
   const [invoicesVersion, setInvoicesVersion] = useState(0);
@@ -184,7 +184,7 @@ function PurchaseEditor({
   onCreated,
 }: {
   data: Overview;
-  initial: { supplierId: string; lines: DraftLine[]; from?: number };
+  initial: { supplierId: string; lines: DraftLine[]; from?: number; forecast?: boolean };
   api: string;
   onClose: () => void;
   onCreated: () => Promise<void>;
@@ -192,8 +192,8 @@ function PurchaseEditor({
   const box = useRef<HTMLDivElement>(null);
   // Al abrirlo desde «Repetir» (más abajo en la página), que se vea.
   useEffect(() => {
-    if (initial.from != null) box.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [initial.from]);
+    if (initial.from != null || initial.forecast) box.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [initial.from, initial.forecast]);
   const [supplierId, setSupplierId] = useState(initial.supplierId);
   const [lines, setLines] = useState<DraftLine[]>(initial.lines);
   const [notes, setNotes] = useState("");
@@ -224,9 +224,9 @@ function PurchaseEditor({
 
   return (
     <div ref={box} className="scroll-mt-4 rounded-2xl bg-[var(--p-surface)] shadow-[0_12px_32px_-14px_rgba(0,0,0,0.22)] p-4 sm:p-6">
-      <h3 className="font-bold">{initial.from != null ? `Repetir pedido nº ${initial.from}` : "Nuevo pedido"}</h3>
+      <h3 className="font-bold">{initial.from != null ? `Repetir pedido nº ${initial.from}` : initial.forecast ? "Pedido según la previsión" : "Nuevo pedido"}</h3>
       <p className="mb-3 text-xs text-[var(--p-muted)]">
-        {initial.from != null ? "Con las mismas cantidades que la otra vez. Cambia lo que quieras y créalo." : "Elige proveedor e ingredientes."}
+        {initial.from != null ? "Con las mismas cantidades que la otra vez. Cambia lo que quieras y créalo." : initial.forecast ? "Lo que te falta para lo que vas a vender, en formatos completos. Cambia lo que quieras y créalo." : "Elige proveedor e ingredientes."}
       </p>
       <label className="mb-3 block text-[13px] font-medium text-[var(--p-muted)]">
         Proveedor

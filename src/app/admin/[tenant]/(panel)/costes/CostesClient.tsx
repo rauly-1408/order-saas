@@ -12,10 +12,12 @@ import Proveedores from "./Proveedores";
 import Inventario from "./Inventario";
 import Compras from "./Compras";
 import Informes from "./Informes";
+import Prevision, { type DraftOrder } from "./Prevision";
 import { SaveBarHost } from "../configuracion/ui";
 
 const TABS = [
   { key: "rentabilidad", label: "Rentabilidad" },
+  { key: "prevision", label: "Previsión" },
   { key: "inventario", label: "Inventario" },
   { key: "compras", label: "Compras" },
   { key: "informes", label: "Informes" },
@@ -75,6 +77,7 @@ function FirstSteps({ data, onGo }: { data: Overview; onGo: (t: TabKey) => void 
 
 export default function CostesClient({ tenant }: { tenant: string }) {
   const [tab, setTab] = useState<TabKey>("rentabilidad");
+  const [draft, setDraft] = useState<DraftOrder | null>(null);
   const [data, setData] = useState<Overview | null>(() => readPanelCache<Overview>(`costes:${tenant}`) ?? null);
   const [error, setError] = useState("");
   const api = `/api/admin/${tenant}/costs`;
@@ -112,7 +115,10 @@ export default function CostesClient({ tenant }: { tenant: string }) {
         {TABS.map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => {
+              setTab(t.key);
+              setDraft(null);
+            }}
             className={`p-press shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-300 ${
               tab === t.key ? "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"
             }`}
@@ -129,7 +135,16 @@ export default function CostesClient({ tenant }: { tenant: string }) {
       ) : tab === "rentabilidad" ? (
         <Rentabilidad data={data} api={api} onSaved={reload} onGoToRecipes={() => setTab("escandallos")} />
       ) : tab === "compras" ? (
-        <Compras data={data} api={api} onSaved={reload} onGoToReports={() => setTab("informes")} />
+        <Compras data={data} api={api} onSaved={reload} onGoToReports={() => setTab("informes")} draft={draft} />
+      ) : tab === "prevision" ? (
+        <Prevision
+          data={data}
+          api={api}
+          onOrder={(d) => {
+            setDraft(d);
+            setTab("compras");
+          }}
+        />
       ) : tab === "informes" ? (
         <Informes data={data} onGoToRecipes={() => setTab("escandallos")} />
       ) : tab === "inventario" ? (
