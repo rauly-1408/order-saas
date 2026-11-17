@@ -86,3 +86,10 @@ Panel → **Configuración**, abajo en la barra lateral. Solo gerentes.
 - `Store.sortOrder`;
 - `Order.tipCents/giftCardId/giftCardCents`;
 - tabla `GiftCard`.
+
+## Tarjetas regalo: vista previa y enlace para el cliente
+
+- Al crear una tarjeta se ve en directo cómo la verá el cliente: **acabado platino** (plateado con chip), el logo cuadrado del local, el importe, **a quién va** (campo «Para», nuevo `GiftCard.recipient`) y la caducidad. Componente `components/GiftCardVisual.tsx`.
+- Al crearla: **Enviar por WhatsApp** (mensaje con el código y el enlace), **Copiar enlace** y **Ver la tarjeta**. En la lista, «Copiar enlace» en cada tarjeta.
+- **Página pública** `/pedir/[tenant]/regalo/[código]`: la tarjeta, el saldo que queda, el código con QR para la caja y «Pedir y usar mi tarjeta». Sin indexar. Quien tiene el enlace tiene la tarjeta (como una de papel); el código tiene 12 caracteres aleatorios.
+- **Pendiente: Apple Wallet y Google Wallet.** Necesitan cuentas que crea el dueño de la plataforma: Apple Developer (99 $/año, certificado «Pass Type ID») y la consola de Google Pay & Wallet (emisor + cuenta de servicio). Con ellas, la página pública llevará «Añadir a Apple Wallet» y «Añadir a Google Wallet».
