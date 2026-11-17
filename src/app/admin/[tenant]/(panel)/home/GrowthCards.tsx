@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import type { CardArt, GrowthCard, Insight } from "./cards";
+import { BizumLogo, GoogleG } from "./BrandLogos";
 
 // Tarjetas del Inicio: ideas para personalizar la tienda (estilo Shopify).
 // Cada una se puede cerrar con ✕ (se recuerda en este navegador).
@@ -197,7 +198,9 @@ function Art({ kind }: { kind: CardArt }) {
             <span className="block h-2.5 w-4 rounded-sm bg-amber-300" />
             <span className="mt-4 block h-1 w-14 rounded-full bg-white/60" />
           </div>
-          <div className={`${box} px-3 py-2 text-xs font-bold text-sky-600`}>bizum</div>
+          <div className={`${box} px-3 py-2.5`}>
+            <BizumLogo className="h-4 w-auto" />
+          </div>
         </div>
       );
     case "brand":
@@ -331,9 +334,12 @@ function Art({ kind }: { kind: CardArt }) {
       );
     case "reviews":
       return (
-        <div className={`${box} px-4 py-3 text-center`}>
-          <p className="text-lg tracking-widest text-amber-400">★★★★★</p>
-          <span className="mx-auto mt-1 block">{bar("w-20")}</span>
+        <div className={`${box} flex items-center gap-3 px-4 py-3`}>
+          <GoogleG className="h-8 w-8 shrink-0" />
+          <div>
+            <p className="text-lg leading-none tracking-widest text-amber-400">★★★★★</p>
+            <span className="mt-1.5 block">{bar("w-20")}</span>
+          </div>
         </div>
       );
     case "business":
