@@ -23,7 +23,7 @@ const list = (tenantId: string) =>
     where: { tenantId },
     orderBy: { createdAt: "desc" },
     take: 200,
-    select: { id: true, code: true, initialCents: true, balanceCents: true, active: true, expiresAt: true, note: true, createdAt: true, _count: { select: { orders: true } } },
+    select: { id: true, code: true, initialCents: true, balanceCents: true, active: true, expiresAt: true, note: true, recipient: true, createdAt: true, _count: { select: { orders: true } } },
   });
 
 export async function GET(req: NextRequest) {
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ cards: await list(c.tenantId) });
 }
 
-// POST { amountCents, note?, expiresAt? (YYYY-MM-DD) } → nueva tarjeta con código único.
+// POST { amountCents, recipient?, note?, expiresAt? (YYYY-MM-DD) } → nueva tarjeta con código único.
 export async function POST(req: NextRequest) {
   const c = await ctx(req);
   if ("error" in c) return c.error;
@@ -42,9 +42,10 @@ export async function POST(req: NextRequest) {
   const expiresAt = typeof b.expiresAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.expiresAt) ? new Date(`${b.expiresAt}T23:59:59`) : null;
   if (expiresAt && expiresAt < new Date()) return NextResponse.json({ error: "La caducidad tiene que ser futura" }, { status: 400 });
   const note = typeof b.note === "string" ? b.note.trim().slice(0, 120) || null : null;
+  const recipient = typeof b.recipient === "string" ? b.recipient.replace(/\s+/g, " ").trim().slice(0, 40) || null : null;
   for (let i = 0; i < 5; i++) {
     try {
-      const card = await prisma.giftCard.create({ data: { tenantId: c.tenantId, code: newGiftCode(), initialCents: amount, balanceCents: amount, expiresAt, note } });
+      const card = await prisma.giftCard.create({ data: { tenantId: c.tenantId, code: newGiftCode(), initialCents: amount, balanceCents: amount, expiresAt, note, recipient } });
       return NextResponse.json({ cards: await list(c.tenantId), created: card.code });
     } catch (err) {
       if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) throw err;

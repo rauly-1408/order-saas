@@ -1269,7 +1269,8 @@ model GiftCard {
   balanceCents Int
   active       Boolean   @default(true)
   expiresAt    DateTime?
-  note         String? // para quién es, cómo se pagó…
+  note         String? // nota interna: cómo se pagó…
+  recipient    String? // a quién se regala: sale en la tarjeta
 
   orders Order[]
 
