@@ -144,11 +144,11 @@ export class Escpos {
     return this.raw(GS, 0x28, 0x6b, 3, 0, 49, 81, 48); // imprimir
   }
   // Imagen en blanco y negro (GS v 0): el logo del ticket. Ver lib/printLogo.ts
-  image(r: { width: number; height: number; data: Uint8Array }) {
+  image(r: { width: number; height: number; data: Uint8Array }, opts: { newline?: boolean } = {}) {
     const row = Math.ceil(r.width / 8);
     this.raw(GS, 0x76, 0x30, 0, row & 0xff, (row >> 8) & 0xff, r.height & 0xff, (r.height >> 8) & 0xff);
-    this.buf.push(...r.data);
-    return this.raw(0x0a);
+    for (const b of r.data) this.buf.push(b); // sin «...»: una imagen grande desborda la pila
+    return opts.newline === false ? this : this.raw(0x0a);
   }
   // Abre el cajón conectado a la impresora (ESC p m t1 t2).
   drawer() {

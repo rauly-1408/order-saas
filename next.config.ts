@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
+  // La letra del ticket (lib/receiptImage.tsx) se lee del disco al imprimir.
+  outputFileTracingIncludes: { "/**": ["./src/app/lib/fonts/**"] },
   typescript: {
     // Los tipos generados por Next.js 16 para route handlers con params dinámicos
     // tienen un conflicto conocido con el strict mode. El código es correcto.

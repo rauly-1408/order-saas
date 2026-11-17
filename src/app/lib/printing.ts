@@ -7,7 +7,8 @@ import type { PrintKind, Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { Escpos, type Codepage } from "@/app/lib/escpos";
 import { previewEscpos, type Preview } from "@/app/lib/escposPreview";
-import { rasterPng, receiptLogo, type Raster } from "@/app/lib/printLogo";
+import { rasterPng, receiptLogo, receiptLogoUrl, type Raster } from "@/app/lib/printLogo";
+import { receiptImage, type ReceiptModel } from "@/app/lib/receiptImage";
 import { readBusiness } from "@/app/lib/business";
 import { includedTax, readTax } from "@/app/lib/storePolicies";
 import { modifierLabels } from "@/app/lib/menuOptions";
@@ -292,6 +293,89 @@ export function renderReceipt(o: OrderForPrint, p: Printer, opts: { drawer?: boo
   return t.bytes();
 }
 
+// Datos del ticket del cliente, ordenados como el de Last.app (ver lib/receiptImage.tsx).
+async function receiptModel(o: OrderForPrint): Promise<ReceiptModel> {
+  const tz = tenantTimeZone(o.tenant.settings);
+  const biz = readBusiness(o.tenant.settings);
+  const tax = readTax(o.tenant.settings);
+  const invoice = o.invoices.find((i) => i.invoiceType === "F2") ?? null;
+  const table = isTable(o);
+  const addr = [o.store.address || biz.street, [biz.postalCode, biz.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  const legal = [
+    biz.legalName && biz.legalName !== o.tenant.name ? biz.legalName : null,
+    biz.taxId ? `NIF ${biz.taxId}` : null,
+    addr || null,
+  ].filter((x): x is string => !!x);
+  const info: [string, string][] = table
+    ? [["Mesa", o.table?.name ?? "—"], ...(o.guests ? ([["Comensales", String(o.guests)]] as [string, string][]) : [])]
+    : [["Pedido", `nº ${o.orderNumber ?? "?"}`], ["", `${modeOf(o).charAt(0)}${modeOf(o).slice(1).toLowerCase()}`]];
+  const extraInfo: string[] = [];
+  if (!table && o.customerName && !["Mostrador", "Teléfono"].includes(o.customerName)) extraInfo.push(`Cliente: ${o.customerName}`);
+  if (o.channel === "DELIVERY" && o.customerAddress) extraInfo.push(o.customerAddress);
+  const extras: [string, string][] = [];
+  if (o.feesCents > 0) extras.push(["Envío", euros(o.feesCents)]);
+  if (o.discountCents > 0) extras.push(["Descuento", `-${euros(o.discountCents)}`]);
+  if (o.tipCents > 0) extras.push(["Propina", euros(o.tipCents)]);
+  if (o.giftCardCents > 0) extras.push(["Tarjeta regalo", `-${euros(o.giftCardCents)}`]);
+  const rate = invoice ? invoice.taxRate : tax.rate;
+  const taxCents = invoice ? invoice.taxCents : includedTax(o.totalCents, tax.rate);
+  const baseCents = invoice ? invoice.baseCents : o.totalCents - taxCents;
+  const payment: [string, string][] = [];
+  if (o.paymentStatus === "PAID") {
+    const cashPart = o.paymentMethod !== "CASH" && o.cashPartCents > 0 ? o.cashPartCents : 0;
+    if (cashPart) payment.push(["Pagado en efectivo", euros(cashPart)], [`Pagado con ${PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}`, euros(o.totalCents - cashPart)]);
+    else payment.push([`Pagado con ${PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}`, euros(o.totalCents)]);
+    const cashDue = o.paymentMethod === "CASH" ? o.totalCents : cashPart;
+    if (cashDue && o.cashTenderedCents != null && o.cashTenderedCents >= cashDue) payment.push(["Entregado", euros(o.cashTenderedCents)], ["Cambio", euros(o.cashTenderedCents - cashDue)]);
+  }
+  return {
+    logo: await receiptLogoUrl(o.tenantId),
+    name: o.tenant.name,
+    legal,
+    date: `${dmy(invoice ? new Date(o.createdAt) : o.createdAt, tz)} ${hhmm(o.createdAt, tz)}`,
+    // La cuenta de una mesa antes de cobrar no es una factura.
+    docTitle: invoice ? "Factura simplificada" : table && o.paymentStatus !== "PAID" ? "Factura proforma" : "Ticket",
+    docNumber: invoice ? invoice.numSerie : null,
+    info,
+    extraInfo,
+    items: o.items.map((l) => ({
+      qty: l.quantity,
+      name: l.productName,
+      price: euros(l.totalCents + (l.discountCents ?? 0)),
+      detail: [...(modifierLabels(l.modifiers).length ? [modifierLabels(l.modifiers).join(", ")] : []), ...(l.note ? [l.note] : []), ...((l.discountCents ?? 0) > 0 ? [`Descuento -${euros(l.discountCents ?? 0)}`] : [])],
+    })),
+    extras,
+    tax: invoice || tax.showOnReceipt ? { label: `IVA (${rate}%):`, base: euros(baseCents), tax: euros(taxCents), total: euros(o.totalCents) } : null,
+    total: euros(o.totalCents),
+    payment,
+    pending: o.paymentStatus === "PAID" ? null : table ? "Pendiente de pago" : `Pendiente de pago · ${PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}`,
+    qr: invoice ? await QRCode.toDataURL(invoice.qrUrl, { margin: 0, errorCorrectionLevel: "M", width: 440 }) : null,
+    verifactu: invoice?.mode === "VERIFACTU",
+    thanks: table ? "¡Gracias por tu visita!" : "¡Gracias por tu pedido!",
+  };
+}
+
+// Ticket del cliente: dibujado como imagen (letra Inter, como Last.app). Si algo
+// falla al dibujarlo, sale el de texto de siempre: el ticket no se queda sin imprimir.
+export async function receiptBytes(o: OrderForPrint, p: Printer, opts: { drawer?: boolean } = {}): Promise<Uint8Array> {
+  try {
+    const r = await receiptImage(await receiptModel(o), p.width);
+    const t = new Escpos({ width: p.width, codepage: p.codepage }).align("center");
+    // Por tiras: algunas impresoras no aceptan imágenes muy altas de una vez.
+    const rowBytes = Math.ceil(r.width / 8);
+    for (let y = 0; y < r.height; y += 240) {
+      const h = Math.min(240, r.height - y);
+      t.image({ width: r.width, height: h, data: r.data.slice(y * rowBytes, (y + h) * rowBytes) }, { newline: false });
+    }
+    if (opts.drawer !== false && p.drawer && (o.paymentMethod === "CASH" || o.cashPartCents > 0) && o.paymentStatus === "PAID") t.drawer();
+    t.cut();
+    return t.bytes();
+  } catch (e) {
+    console.error("[receiptBytes] ticket como imagen", e);
+    return renderReceipt(o, p, { ...opts, logo: await receiptLogo(o.tenantId, p.width) });
+  }
+}
+
 export function renderTest(p: Printer, tenantName: string): Uint8Array {
   const t = new Escpos({ width: p.width, codepage: p.codepage });
   t.align("center").bold(true).size(2, 2).line("PRUEBA").size(1, 1).bold(false);
@@ -342,7 +426,7 @@ async function orderPrints(orderId: string, kinds: ("KITCHEN" | "RECEIPT")[], op
       // Comanda: solo lo de las categorías de esta impresora (si no le toca nada, no se imprime).
       const lines = kind === "KITCHEN" && cats ? linesForPrinter(o.items, p, cats) : null;
       if (lines && !lines.length) continue;
-      const data = kind === "KITCHEN" ? renderKitchen(o, p, lines ? { lines } : {}) : renderReceipt(o, p, { drawer: !opts.reprint, logo: await receiptLogo(o.tenantId, p.width) });
+      const data = kind === "KITCHEN" ? renderKitchen(o, p, lines ? { lines } : {}) : await receiptBytes(o, p, { drawer: !opts.reprint });
       prints.push({ kind, printer: p, data, copies: kind === "KITCHEN" ? p.copies : 1 });
     }
   }
@@ -421,7 +505,7 @@ export async function enqueueTablePrint(orderId: string, what: { kind: "ROUND"; 
     for (const p of cfg.printers.filter((x) => x.roles.includes(role) && (!x.storeId || x.storeId === o.storeId))) {
       const lines = what.kind !== "BILL" && cats ? linesForPrinter(base, p, cats) : base;
       if (what.kind !== "BILL" && !lines.length) continue; // a esta impresora no le toca nada de la ronda
-      const data = what.kind === "BILL" ? renderReceipt(o, p, { drawer: false, logo: await receiptLogo(o.tenantId, p.width) }) : renderKitchen(o, p, what.kind === "ROUND" ? { round: what.round, lines } : { voided: lines });
+      const data = what.kind === "BILL" ? await receiptBytes(o, p, { drawer: false }) : renderKitchen(o, p, what.kind === "ROUND" ? { round: what.round, lines } : { voided: lines });
       const copies = what.kind === "BILL" ? 1 : p.copies;
       for (let i = 0; i < copies; i++) jobs.push({ tenantId: o.tenantId, orderId: o.id, kind: (what.kind === "BILL" ? "RECEIPT" : "KITCHEN") as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(data) });
     }
