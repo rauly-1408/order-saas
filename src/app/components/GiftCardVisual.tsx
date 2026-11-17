@@ -25,17 +25,18 @@ const BRUSHED = "repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rg
 export default function GiftCardVisual({ storeName, logoUrl, color, amount, recipient, code, expires, balance }: GiftCardVisualProps) {
   return (
     <div
-      className="relative aspect-[1.586] w-full overflow-hidden rounded-[22px] p-5 text-[#1d2025] shadow-[0_22px_44px_-16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-1px_0_rgba(0,0,0,0.12)] ring-1 ring-black/10 sm:p-6"
+      className="relative flex aspect-[1.586] w-full flex-col rounded-[20px] p-4 text-[#1d2025] [-webkit-text-size-adjust:100%] min-[400px]:p-5 sm:rounded-[22px] sm:p-6 shadow-[0_22px_44px_-16px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-1px_0_rgba(0,0,0,0.12)] ring-1 ring-black/10 sm:p-6"
       style={{ backgroundImage: `${SHEEN}, ${BRUSHED}, ${PLATINUM}` }}
       role="img"
       aria-label={`Tarjeta regalo de ${storeName} de ${amount}${recipient ? ` para ${recipient}` : ""}`}
     >
-      <div className="relative flex h-full flex-col justify-between">
+      {/* Si las letras salen más grandes (ajustes del móvil), la tarjeta crece en vez de cortar */}
+      <div className="relative flex flex-1 flex-col justify-between gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-xl bg-white object-contain p-0.5 shadow-[0_1px_3px_rgba(0,0,0,0.2)] sm:h-12 sm:w-12" />
+              <img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-xl bg-white object-contain p-0.5 shadow-[0_1px_3px_rgba(0,0,0,0.2)] min-[400px]:h-10 min-[400px]:w-10 sm:h-12 sm:w-12" />
             ) : (
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-lg font-bold shadow-[0_1px_3px_rgba(0,0,0,0.2)] sm:h-12 sm:w-12" style={{ color }}>
                 {storeName.charAt(0).toUpperCase()}
@@ -49,21 +50,22 @@ export default function GiftCardVisual({ storeName, logoUrl, color, amount, reci
           <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#4a4f57] sm:text-[11px]">Platinum</span>
         </div>
 
-        {/* Chip, como en las tarjetas de verdad */}
-        <div aria-hidden className="absolute top-[38%] left-0 h-7 w-10 rounded-md bg-[linear-gradient(135deg,#e8e2cf,#b9ae8c_45%,#efe9d8_60%,#a99d7a)] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.18)] sm:h-8 sm:w-11">
-          <span className="absolute inset-x-1.5 top-1/2 h-px bg-black/20" />
-          <span className="absolute inset-y-1.5 left-1/2 w-px bg-black/20" />
-        </div>
-
-        <div className="pl-14 sm:pl-16">
-          <p className="text-[32px] font-bold leading-none tracking-tight tabular-nums [text-shadow:0_1px_0_rgba(255,255,255,0.7)] sm:text-[40px]">{balance ?? amount}</p>
-          {balance && balance !== amount && <p className="mt-1 text-xs text-[#4a4f57]">Saldo disponible de {amount}</p>}
-        </div>
-
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex items-center gap-3 sm:gap-4">
+          {/* Chip, como en las tarjetas de verdad */}
+          <div aria-hidden className="relative h-7 w-10 shrink-0 rounded-md bg-[linear-gradient(135deg,#e8e2cf,#b9ae8c_45%,#efe9d8_60%,#a99d7a)] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.18)] sm:h-8 sm:w-11">
+            <span className="absolute inset-x-1.5 top-1/2 h-px bg-black/20" />
+            <span className="absolute inset-y-1.5 left-1/2 w-px bg-black/20" />
+          </div>
           <div className="min-w-0">
-            <p className="min-h-5 truncate text-sm font-semibold uppercase tracking-[0.08em] sm:text-[15px]">{recipient || " "}</p>
-            <p className="mt-0.5 font-mono text-xs font-semibold tracking-[0.14em] text-[#3b4048] sm:text-[13px]">{code ?? "XXXX-XXXX-XXXX"}</p>
+            <p className="text-[28px] font-bold leading-none tracking-tight tabular-nums [text-shadow:0_1px_0_rgba(255,255,255,0.7)] min-[400px]:text-[32px] sm:text-[40px]">{balance ?? amount}</p>
+            {balance && balance !== amount && <p className="mt-1 text-xs text-[#4a4f57]">Saldo disponible de {amount}</p>}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+          <div className="min-w-0">
+            {recipient && <p className="truncate text-sm font-semibold uppercase tracking-[0.08em] sm:text-[15px]">{recipient}</p>}
+            <p className="mt-0.5 whitespace-nowrap font-mono text-xs font-semibold tracking-[0.1em] text-[#3b4048] min-[400px]:tracking-[0.14em] sm:text-[13px]">{code ?? "XXXX-XXXX-XXXX"}</p>
           </div>
           {expires && <span className="shrink-0 text-[11px] text-[#4a4f57] sm:text-xs">Válida hasta {expires}</span>}
         </div>
