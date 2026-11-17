@@ -244,7 +244,7 @@ function Paper({ item }: { item: PrintPreviewItem }) {
       <div className="font-mono leading-[1.35] [container-type:inline-size]">
         <div style={{ fontSize: `calc(100cqw / ${item.width * 0.6})` }}>
           {item.preview.lines.map((l, i) => {
-            if (l.type === "feed") return <div key={i} style={{ height: `${Math.min(l.lines, 2) * 1.35}em` }} aria-hidden />;
+            if (l.type === "feed") return <div key={i} style={{ height: `${Math.min(l.lines, 4) * 1.35}em` }} aria-hidden />;
             if (l.type === "cut")
               return (
                 <div key={i} className="my-2 flex items-center gap-1 text-[10px] text-black/40" aria-label="Corte del papel">

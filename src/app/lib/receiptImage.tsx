@@ -190,7 +190,7 @@ export async function receiptImage(m: ReceiptModel, widthChars: number): Promise
             </div>
           )}
           {/* Firma de NorApp: pequeña y al final, sin quitar protagonismo al local. */}
-          <div style={{ display: "flex", alignItems: "center", marginTop: px(22), fontSize: px(15) }}>
+          <div style={{ display: "flex", alignItems: "center", marginTop: px(12), fontSize: px(15) }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={NORAPP_MARK} alt="" width={px(20)} height={px(20)} style={{ marginRight: px(7) }} />
             <span>Hecho con</span>
@@ -214,7 +214,7 @@ export async function receiptImage(m: ReceiptModel, widthChars: number): Promise
         last = y;
         break;
       }
-  const height = Math.min(info.height, last + px(8));
+  const height = Math.min(info.height, last + px(2));
   const rowBytes = Math.ceil(width / 8);
   const bits = new Uint8Array(rowBytes * height);
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (dark(x, y)) bits[y * rowBytes + (x >> 3)] |= 0x80 >> (x & 7);
