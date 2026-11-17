@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 // Configuración → Impresoras. Ver docs/IMPRESION.md
 //   GET  → configuración, estado del agente y últimos trabajos
-//   PUT  { printers, autoKitchen, autoReceipt } → guarda
+//   PUT  { printers, autoKitchen, autoReceipt, skipPreview } → guarda
 //   POST { action: "test", printerId } | { action: "newToken" }
 
 async function ctx(req: NextRequest) {
@@ -60,6 +60,7 @@ export async function PUT(req: NextRequest) {
     agentToken: typeof prev.agentToken === "string" ? prev.agentToken : newAgentToken(),
     autoKitchen: b.autoKitchen !== false,
     autoReceipt: b.autoReceipt !== false,
+    skipPreview: b.skipPreview === true,
     printers,
   };
   const next = { ...settings, printing };

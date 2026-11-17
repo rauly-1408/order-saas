@@ -19,6 +19,7 @@ import {
   type Order,
 } from "./orderBoard";
 import StoreControls, { type StoreLive } from "./StoreControls";
+import { usePrintPreview } from "../PrintPreview";
 import { playOrderChime, repeatUntilAccepted, setRepeatUntilAccepted, setSoundEnabled, SOUND_EVENT, soundEnabled, unlockAudio } from "../sound";
 
 const POLL_MS = 10_000;
@@ -188,16 +189,12 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
   }
 
 
-  // Reimprimir comanda o ticket (la cola la vacía el agente del local).
-  async function handlePrint(orderId: string, kind: "KITCHEN" | "RECEIPT") {
-    setError("");
-    try {
-      const res = await fetch(`/api/admin/${tenant}/print/${orderId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind }) });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) setError(data.error ?? "No se pudo imprimir");
-    } catch {
-      setError("Sin conexión. No se pudo imprimir.");
-    }
+  // Reimprimir comanda o ticket: con vista previa (o al momento si así se ha configurado).
+  // La cola la vacía el agente del local.
+  const printer = usePrintPreview(tenant);
+  function handlePrint(orderId: string, kind: "KITCHEN" | "RECEIPT") {
+    const o = [...orders, ...history].find((x) => x.id === orderId);
+    printer.print(orderId, kind, o?.orderNumber ? `#${o.orderNumber}` : undefined);
   }
 
   // Repartidor externo: pedir/reintentar (POST) o cancelar (DELETE).
@@ -263,6 +260,7 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
 
   return (
     <div className="text-[var(--p-ink)]">
+      {printer.node}
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex flex-wrap items-center gap-2 text-3xl font-semibold tracking-tight sm:text-4xl">
