@@ -14,6 +14,8 @@ pedido → PrintJob (PENDING) → agente (GET /api/print/jobs) → impresora:910
 - **Qué se imprime solo**: comanda a cocina al entrar un pedido activo (online ya pagado o «al recoger», y de la Caja); ticket al cliente al cobrar en la Caja (efectivo, datáfono o Bizum). Los pedidos online no imprimen ticket solos. Ambos se pueden apagar.
 - **Pedidos**: con alguna impresora configurada, cada tarjeta tiene «🖨 Comanda» y «🖨 Ticket» para reimprimir.
 - **Vista previa** (Pedidos y Caja → Día): al tocar «Comanda» o «Ticket» se abre una ventana con el papel tal como va a salir y en qué impresora (y cuántas copias). «Imprimir» queda listo para tocar o pulsar Intro, y la ventana dice si ha salido («✓ Impreso», se cierra sola), si falla («La impresora no responde» + «Reintentar») o si el agente no lo recoge en 15 s («¿Está encendido el ordenador del local?»). Sin «Descargar» ni número de copias, a propósito: el PDF legal es «Factura».
+- **Logo en el ticket**: arriba del ticket del cliente sale el «Logotipo en blanco y negro» de Personalización (si no hay, el principal), en puntos blanco/negro (`GS v 0`), centrado, como mucho al 70 % del ancho y unos 1,8 cm de alto (`lib/printLogo.ts`). Sin logo, el nombre en grande como antes. La vista previa lo enseña igual.
+- Las líneas más largas que el papel (p. ej. la dirección de «Pide online en:») se parten en varias, nunca se cortan.
 - **Imprimir sin vista previa** (Configuración → Impresoras): imprime al primer toque y enseña un aviso «Enviada a la impresora».
 
 ## Lo que sale

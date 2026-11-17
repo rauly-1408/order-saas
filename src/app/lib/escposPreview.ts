@@ -5,6 +5,7 @@
 export type PreviewLine =
   | { type: "text"; text: string; align: "left" | "center" | "right"; bold: boolean; wide: boolean; tall: boolean }
   | { type: "qr"; data: string; svg?: string } // svg: el QR ya dibujado (lo pone el servidor)
+  | { type: "image"; align: "left" | "center" | "right"; width: number; height: number; bits?: Uint8Array; src?: string } // src: PNG que pone el servidor
   | { type: "feed"; lines: number }
   | { type: "cut" };
 export type Preview = { lines: PreviewLine[]; drawer: boolean };
@@ -47,7 +48,14 @@ export function previewEscpos(bytes: Uint8Array): Preview {
     } else if (b === 0x1d) {
       const c = bytes[i + 1];
       if (c === 0x21) { const n = bytes[i + 2]; wide = (n >> 4) > 0; tall = (n & 0x0f) > 0; i += 2; }
-      else if (c === 0x56) { if (text) flush(); lines.push({ type: "cut" }); i += 3; }
+      else if (c === 0x76 && bytes[i + 2] === 0x30) {
+        // GS v 0 m xL xH yL yH datos: imagen en blanco y negro (el logo).
+        if (text) flush();
+        const row = bytes[i + 4] | (bytes[i + 5] << 8);
+        const height = bytes[i + 6] | (bytes[i + 7] << 8);
+        lines.push({ type: "image", align, width: row * 8, height, bits: bytes.slice(i + 8, i + 8 + row * height) });
+        i += 7 + row * height;
+      } else if (c === 0x56) { if (text) flush(); lines.push({ type: "cut" }); i += 3; }
       else if (c === 0x28 && bytes[i + 2] === 0x6b) {
         // GS ( k pL pH cn fn …: el QR se guarda con fn=80 y se imprime con fn=81.
         const len = bytes[i + 3] | (bytes[i + 4] << 8);

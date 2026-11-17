@@ -228,6 +228,9 @@ function PrintPreviewDialog({ tenant, orderId, kind, label, onClose, onSkip, onL
   );
 }
 
+// Puntos por línea de cada papel (igual que en lib/printLogo.ts).
+const DOTS: Record<number, number> = { 48: 576, 42: 512, 32: 384 };
+
 // Papel térmico: tantas columnas como caracteres por línea tiene la impresora.
 function Paper({ item }: { item: PrintPreviewItem }) {
   return (
@@ -245,6 +248,13 @@ function Paper({ item }: { item: PrintPreviewItem }) {
                 </div>
               );
             if (l.type === "qr") return l.svg ? <div key={i} className="mx-auto my-1 w-[38%]" dangerouslySetInnerHTML={{ __html: l.svg }} /> : null;
+            if (l.type === "image")
+              return l.src ? (
+                <div key={i} className={`flex ${l.align === "center" ? "justify-center" : l.align === "right" ? "justify-end" : "justify-start"}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- PNG generado al momento */}
+                  <img src={l.src} alt="Logo" className="block [image-rendering:pixelated]" style={{ width: `${(l.width / (DOTS[item.width] ?? 576)) * 100}%` }} />
+                </div>
+              ) : null;
             const align = l.align === "center" ? "text-center" : l.align === "right" ? "text-right" : "text-left";
             if (l.tall && l.wide)
               return (
@@ -259,7 +269,7 @@ function Paper({ item }: { item: PrintPreviewItem }) {
                 </div>
               );
             return (
-              <div key={i} className={`whitespace-pre ${align} ${l.bold ? "font-bold" : ""}`}>
+              <div key={i} className={`whitespace-pre-wrap break-all ${align} ${l.bold ? "font-bold" : ""}`}>
                 {l.text || " "}
               </div>
             );
