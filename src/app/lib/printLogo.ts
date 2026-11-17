@@ -56,3 +56,23 @@ export async function rasterPng(width: number, height: number, bits: Uint8Array)
   const png = await sharp(px, { raw: { width, height, channels: 1 } }).png().toBuffer();
   return `data:image/png;base64,${png.toString("base64")}`;
 }
+
+// El logo tal cual (PNG/JPG en data URL) para el ticket dibujado como imagen (lib/receiptImage.tsx).
+const urlCache = new Map<string, string | null>();
+export async function receiptLogoUrl(tenantId: string): Promise<string | null> {
+  const assets = await prisma.brandAsset.findMany({ where: { tenantId, kind: { in: ["LOGO_MONO", "LOGO"] } }, select: { kind: true, updatedAt: true } });
+  const pick = assets.find((a) => a.kind === "LOGO_MONO") ?? assets.find((a) => a.kind === "LOGO");
+  if (!pick) return null;
+  const key = `${tenantId}:${pick.kind}:${pick.updatedAt.getTime()}`;
+  if (urlCache.has(key)) return urlCache.get(key)!;
+  const asset = await prisma.brandAsset.findUnique({ where: { tenantId_kind: { tenantId, kind: pick.kind } }, select: { data: true } });
+  let url: string | null = null;
+  try {
+    // En gris y en PNG: así la letra del ticket y el logo salen con el mismo negro.
+    if (asset) url = `data:image/png;base64,${(await sharp(Buffer.from(asset.data)).grayscale().png().toBuffer()).toString("base64")}`;
+  } catch (e) {
+    console.error("[receiptLogoUrl]", e);
+  }
+  urlCache.set(key, url);
+  return url;
+}
