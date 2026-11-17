@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ASSETS, MAX_ASSET_BYTES, type AssetKind } from "@/app/lib/brand";
 
 // Subida de una imagen de marca. Se reduce y comprime en el navegador antes de
@@ -36,6 +36,18 @@ export default function ImageField({ tenant, kind, url, onChange }: { tenant: st
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const meta = ASSETS[kind];
+  // Llegando desde el lápiz del logo (#logo-…): se baja hasta aquí y se resalta un momento.
+  const [flash, setFlash] = useState(false);
+  useEffect(() => {
+    if (window.location.hash !== `#logo-${meta.slug}`) return;
+    document.getElementById(`logo-${meta.slug}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const on = setTimeout(() => setFlash(true), 0);
+    const off = setTimeout(() => setFlash(false), 2200);
+    return () => {
+      clearTimeout(on);
+      clearTimeout(off);
+    };
+  }, [meta.slug]);
   const api = `/api/admin/${tenant}/brand/assets/${meta.slug}`;
 
   async function upload(file: File) {
@@ -69,7 +81,8 @@ export default function ImageField({ tenant, kind, url, onChange }: { tenant: st
     kind === "FAVICON" ? "h-16 w-16" : kind === "LOGO_SQUARE" ? "h-28 w-28" : kind === "HERO" ? "aspect-[16/7] w-full" : "h-32 w-full";
 
   return (
-    <section className="rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-5">
+    // id: el lápiz del logo en el menú enlaza aquí (#logo-logo-square) y lo resalta.
+    <section id={`logo-${meta.slug}`} className={`scroll-mt-24 rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-2 transition-shadow duration-700 sm:p-5 ${flash ? "ring-[var(--p-brand)]" : "ring-transparent"}`}>
       <h3 className="text-[15px] font-semibold">{meta.title}</h3>
       <p className="mt-0.5 text-xs text-[var(--p-muted)]">{meta.help}</p>
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
