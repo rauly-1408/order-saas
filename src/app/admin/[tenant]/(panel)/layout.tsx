@@ -11,6 +11,7 @@ import { tenantIcons } from "@/app/lib/tenantIcons";
 import AdminSidebar from "./AdminSidebar";
 import DailySplash from "./DailySplash";
 import OrderAlerts from "./OrderAlerts";
+import DragScroll from "./DragScroll";
 import OutboxBar from "./OutboxBar";
 import PanelOffline from "./PanelOffline";
 
@@ -76,6 +77,7 @@ export default async function AdminLayout({
         <div className="p-page mx-auto max-w-6xl">{children}</div>
       </main>
       <OrderAlerts tenant={tenant} canManage={canManageTenant(session.role)} />
+      <DragScroll />
       <OutboxBar />
       <PanelOffline tenant={tenant} />
     </div>
