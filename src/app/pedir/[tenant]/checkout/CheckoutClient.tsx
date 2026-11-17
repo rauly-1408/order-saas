@@ -93,7 +93,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   const [error, setError] = useState("");
   const [tipPct, setTipPct] = useState(0);
   const [giftInput, setGiftInput] = useState("");
-  const [gift, setGift] = useState<{ code: string; balanceCents: number } | null>(null);
+  const [gift, setGift] = useState<{ code: string; balanceCents: number; minOrderCents?: number } | null>(null);
   const [giftError, setGiftError] = useState("");
   const [couponInput, setCouponInput] = useState("");
   const [extrasOpen, setExtrasOpen] = useState(false);
@@ -196,7 +196,10 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   // Propina sobre la comida (sin envío) y tarjeta regalo al final.
   const tip = tipPct ? Math.round((Math.max(subtotal - loyaltyDiscount - promoDiscount - discount - collabDiscount, 0) * tipPct) / 100) : 0;
   const beforeGift = Math.max(subtotal + fee - loyaltyDiscount - promoDiscount - discount - collabDiscount, 0) + tip;
-  const giftUsed = gift ? Math.min(gift.balanceCents, beforeGift) : 0;
+  // Compra mínima para usar la tarjeta: productos con descuentos, sin envío ni propina.
+  const purchase = Math.max(subtotal - loyaltyDiscount - promoDiscount - discount - collabDiscount, 0);
+  const giftBelowMin = !!gift && purchase < (gift.minOrderCents ?? 0);
+  const giftUsed = gift && !giftBelowMin ? Math.min(gift.balanceCents, beforeGift) : 0;
   const total = beforeGift - giftUsed;
 
   async function applyGift() {
@@ -305,7 +308,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
           lang,
           storeId: storeId ?? undefined,
           tipPercent: tipPct || undefined,
-          giftCardCode: gift?.code,
+          giftCardCode: gift && !giftBelowMin ? gift.code : undefined,
           collaboratorCode: collab?.code,
           // Solo qué se pide: el servidor pone nombres y precios desde la carta.
           items: items.map((item) => ({
@@ -742,6 +745,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: "15px" }}>{gift.code}</div>
                     <div style={{ fontSize: "12px", color: cssVars["--text-secondary"] }}>{T.giftBalance(euros(gift.balanceCents))}</div>
+                    {giftBelowMin && <div style={{ marginTop: "4px", fontSize: "12px", fontWeight: 600, color: "#b45309" }}>{T.giftMinOrder(euros(gift.minOrderCents ?? 0))}</div>}
                   </div>
                   <button type="button" onClick={() => setGift(null)} style={{ background: "none", border: "none", color: cssVars["--text-secondary"], fontSize: "13px", cursor: "pointer", flexShrink: 0 }}>
                     {T.remove}

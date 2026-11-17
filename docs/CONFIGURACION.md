@@ -93,3 +93,9 @@ Panel → **Configuración**, abajo en la barra lateral. Solo gerentes.
 - Al crearla: **Enviar por WhatsApp** (mensaje con el código y el enlace), **Copiar enlace** y **Ver la tarjeta**. En la lista, «Copiar enlace» en cada tarjeta.
 - **Página pública** `/pedir/[tenant]/regalo/[código]`: la tarjeta, el saldo que queda, el código con QR para la caja y «Pedir y usar mi tarjeta». Sin indexar. Quien tiene el enlace tiene la tarjeta (como una de papel); el código tiene 12 caracteres aleatorios.
 - **Pendiente: Apple Wallet y Google Wallet.** Necesitan cuentas que crea el dueño de la plataforma: Apple Developer (99 $/año, certificado «Pass Type ID») y la consola de Google Pay & Wallet (emisor + cuenta de servicio). Con ellas, la página pública llevará «Añadir a Apple Wallet» y «Añadir a Google Wallet».
+
+### Compra mínima para usar una tarjeta regalo
+
+- Configuración → Tarjetas regalo → «Compra mínima para usarla»: **10 € por defecto**, 0 = sin mínimo. Cuenta la compra (productos con sus descuentos), sin envío ni propina. Se guarda en `settings.giftCards.minOrderCents` (`lib/giftSettings.ts`).
+- En el checkout, si la compra no llega, la tarjeta se queda aplicada pero no descuenta y sale el aviso «Para usar la tarjeta, tu compra tiene que ser de al menos…». El servidor lo comprueba también al crear el pedido.
+- La página pública de la tarjeta enseña el mínimo.

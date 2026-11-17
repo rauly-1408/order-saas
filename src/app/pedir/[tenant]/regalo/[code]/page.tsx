@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import QRCode from "qrcode";
 import { prisma } from "@/app/lib/prisma";
-import { normalizeGiftCode } from "@/app/lib/giftCards";
+import { giftMinOrderCents, normalizeGiftCode } from "@/app/lib/giftCards";
 import { getTenantTheme, readableOn } from "@/app/lib/tenantConfig";
 import GiftCardVisual from "@/app/components/GiftCardVisual";
 
@@ -17,7 +17,7 @@ const euros = (c: number) => new Intl.NumberFormat("es-ES", { style: "currency",
 
 export default async function Page({ params }: { params: Promise<{ tenant: string; code: string }> }) {
   const { tenant: slug, code: raw } = await params;
-  const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true, name: true, branding: true } });
+  const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true, name: true, branding: true, settings: true } });
   const card = tenant ? await prisma.giftCard.findUnique({ where: { tenantId_code: { tenantId: tenant.id, code: normalizeGiftCode(decodeURIComponent(raw)) } } }) : null;
   const theme = getTenantTheme((tenant?.branding as Record<string, unknown>) ?? {});
   const color = theme.primaryColor;
@@ -48,6 +48,7 @@ export default async function Page({ params }: { params: Promise<{ tenant: strin
             <>
               <p className="text-lg font-semibold">Tienes {euros(card.balanceCents)} para gastar en {tenant.name}</p>
               <p className="mt-1 text-sm text-neutral-500">Enseña este código en la caja o escríbelo al pagar tu pedido online. Lo que no gastes se queda en la tarjeta.</p>
+              {giftMinOrderCents(tenant.settings) > 0 && <p className="mt-1 text-sm text-neutral-500">Compra mínima para usarla: {euros(giftMinOrderCents(tenant.settings))}.</p>}
             </>
           ) : (
             <p className="text-lg font-semibold">{!card.active ? "Esta tarjeta está desactivada" : expired ? "Esta tarjeta ha caducado" : "Esta tarjeta ya no tiene saldo"}</p>

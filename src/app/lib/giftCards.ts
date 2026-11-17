@@ -6,6 +6,8 @@ import { randomInt } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 
+export { GIFT_MIN_DEFAULT, giftMinMessage, giftMinOrderCents } from "./giftSettings";
+
 // Sin letras que se confunden (0/O, 1/I/L).
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
