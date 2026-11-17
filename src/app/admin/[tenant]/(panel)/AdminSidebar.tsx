@@ -243,6 +243,16 @@ export default function AdminSidebar({
     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--p-brand)] text-sm font-semibold text-white">{tenantName.charAt(0).toUpperCase()}</div>
   );
 
+  // Cambiar el logo en un toque (dueño y gerentes): lleva a Personalización → Logotipo cuadrado.
+  const logoHref = `/admin/${tenant}/configuracion/marca#logo-logo-square`;
+  const pencil = (
+    <span aria-hidden className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.25)] ring-1 ring-[var(--p-line)] transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-visible:opacity-100">
+      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" />
+      </svg>
+    </span>
+  );
+
   if (inSettings) return null;
   const nuevaWhen = nueva ? new Date(nueva.startsAt) : null;
   return (
@@ -281,7 +291,14 @@ export default function AdminSidebar({
       >
         {ownBrand ? (
           <div className="flex items-center gap-3 px-5 pt-5 pb-3">
-            {brandMark}
+            {canManage ? (
+              <Link href={logoHref} onClick={() => setOpen(false)} title="Cambiar el logo" aria-label="Cambiar el logo" className="group relative shrink-0 rounded-xl">
+                {brandMark}
+                {pencil}
+              </Link>
+            ) : (
+              brandMark
+            )}
             <div className="min-w-0">
               <div className="truncate text-[15px] font-semibold">{tenantName}</div>
               <div className="text-xs text-[var(--p-muted)]">Panel del restaurante</div>
@@ -394,6 +411,22 @@ export default function AdminSidebar({
                     </span>
                     Ver carta pública
                   </Link>
+                  {canManage && (
+                    <Link
+                      role="menuitem"
+                      href={logoHref}
+                      onClick={() => {
+                        setMenu(false);
+                        setOpen(false);
+                      }}
+                      className="p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-[var(--p-ink)] hover:bg-black/[0.04]"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4 text-[var(--p-muted)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" />
+                      </svg>
+                      Cambiar el logo
+                    </Link>
+                  )}
                   <div className="my-1.5 border-t border-[var(--p-line)]" />
                   <Link
                     role="menuitem"
