@@ -20,6 +20,7 @@ import { readPanelCache, writePanelCache } from "../panelCache";
 import BrandPreview from "./BrandPreview";
 import { MenusRowPreview, RadiusPreview } from "./LayoutPreview";
 import ImageField from "./ImageField";
+import ImagePicker from "../archivos/ImagePicker";
 
 // Personalización: identidad visual de la carta (imágenes, paleta, fuentes) y
 // presencia online (Google y redes). Las imágenes se guardan al subirlas; el
@@ -154,6 +155,9 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
     () => loaded?.assets ?? null,
   );
   const [tab, setTab] = useState<"identidad" | "online">("identidad");
+  // Dirección de la tienda para las vistas previas de Google y WhatsApp (tras montar: sin desajuste al hidratar).
+  const [host, setHost] = useState("");
+  useEffect(() => setHost(window.location.host), []);
   const [colorTab, setColorTab] = useState<ColorKey | "more">("primaryColor");
   const [error, setError] = useState("");
 
@@ -545,6 +549,7 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
                   <p className="text-[11px] text-[var(--p-muted)]">
                     Vista previa en Google
                   </p>
+                  <p className="truncate text-[11px] text-[#4d5156]">{host}/pedir/{tenant}</p>
                   <p className="truncate text-[15px] text-[#1a0dab]">
                     {form.online.seoTitle || `${form.name} · Pedidos online`}
                   </p>
@@ -552,6 +557,36 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
                     {form.online.seoDescription ||
                       `Pide online en ${form.name}: a domicilio o para recoger.`}
                   </p>
+                </div>
+              </section>
+              <section className={card}>
+                <h3 className="text-[15px] font-semibold">Imagen al compartir</h3>
+                <p className="mt-0.5 text-xs text-[var(--p-muted)]">
+                  La foto que sale al mandar el enlace de tu tienda por WhatsApp o
+                  redes. Mejor horizontal (1200 × 630). Si no eliges ninguna, se
+                  usa la imagen de cabecera.
+                </p>
+                <div className="mt-3">
+                  <ImagePicker
+                    tenant={tenant}
+                    value={form.online.shareImageUrl ?? ""}
+                    onChange={(url) => setForm({ ...form, online: { ...form.online, shareImageUrl: url || null } })}
+                  />
+                </div>
+                {/* Vista previa como en WhatsApp */}
+                <div className="mt-4 max-w-sm overflow-hidden rounded-xl bg-[#e7f8dc] p-1.5 shadow-[0_1px_1px_rgba(0,0,0,0.08)]">
+                  <p className="px-1.5 pb-1 text-[11px] text-[var(--p-muted)]">Vista previa en WhatsApp</p>
+                  <div className="overflow-hidden rounded-lg bg-[#d5efc4]">
+                    {(form.online.shareImageUrl || assets?.heroImageUrl) && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={(form.online.shareImageUrl || assets?.heroImageUrl) as string} alt="" className="aspect-[1.91] w-full object-cover" />
+                    )}
+                    <div className="px-2.5 py-2">
+                      <p className="truncate text-[13px] font-semibold text-[#111b21]">{form.online.seoTitle || `${form.name} · Pedidos online`}</p>
+                      <p className="line-clamp-2 text-xs text-[#3b4a54]">{form.online.seoDescription || `Pide online en ${form.name}: a domicilio o para recoger.`}</p>
+                      <p className="mt-0.5 truncate text-[11px] text-[#667781]">{host}</p>
+                    </div>
+                  </div>
                 </div>
               </section>
               <section className={card}>
@@ -581,6 +616,30 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
                       />
                     </div>
                   ))}
+                </div>
+                <p className="mt-3 text-xs text-[var(--p-muted)]">El WhatsApp, el teléfono y la dirección se ponen en Configuración → Información del negocio.</p>
+              </section>
+              <section className={card}>
+                <h3 className="text-[15px] font-semibold">Google</h3>
+                <p className="mt-0.5 text-xs text-[var(--p-muted)]">
+                  Tu tienda ya le dice a Google que es un restaurante (nombre,
+                  dirección, teléfono, redes y carta) y aparece en el mapa del
+                  sitio para que la encuentre antes.
+                </p>
+                <div className="mt-3">
+                  <label className={labelCls} htmlFor="gsc">
+                    Código de verificación de Google Search Console (opcional)
+                  </label>
+                  <input
+                    id="gsc"
+                    value={form.online.googleVerification ?? ""}
+                    onChange={(e) => setForm({ ...form, online: { ...form.online, googleVerification: e.target.value } })}
+                    placeholder='Pega el código o la etiqueta <meta name="google-site-verification" …>'
+                    className={input}
+                  />
+                  <p className="mt-1 text-xs text-[var(--p-muted)]">
+                    Para ver cuántas visitas te llegan desde Google. En Search Console elige «Etiqueta HTML» y pega aquí lo que te da.
+                  </p>
                 </div>
               </section>
             </>

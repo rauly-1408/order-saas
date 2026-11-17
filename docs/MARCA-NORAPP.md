@@ -69,3 +69,10 @@ Solo en restaurantes con NorApp, nunca en los de marca propia.
 ```bash
 cd ~/order-saas && node --env-file=.env scripts/crear-demo.mjs
 ```
+
+## Presencia online (Marca → Presencia online)
+
+- **Google y enlaces compartidos**: título y descripción (vista previa como en Google, con la dirección).
+- **Imagen al compartir** (elegida de Archivos o subida; si no, la de cabecera) con **vista previa como en WhatsApp**. Va en `og:image` y en la tarjeta grande de X/Twitter; las rutas propias (`/api/…`) se completan con el dominio (`metadataBase` en `pedir/[tenant]/layout.tsx`).
+- **Redes y reseñas**: Instagram, Facebook, TikTok, web, reseñas de Google, YouTube, X y Tripadvisor (botones al final de la carta). El WhatsApp, el teléfono y la dirección están en Información del negocio.
+- **Google**: la tienda lleva la ficha de restaurante en datos estructurados (`lib/seo.ts`: nombre, dirección, teléfono, imagen, redes, carta y reservas) y sale en `sitemap.xml` (sin el restaurante «demo»). `robots.txt` deja leer las tiendas y no el panel, la API ni las páginas privadas. Campo opcional con el código de **Google Search Console** (se acepta la etiqueta entera) → `meta google-site-verification`.
