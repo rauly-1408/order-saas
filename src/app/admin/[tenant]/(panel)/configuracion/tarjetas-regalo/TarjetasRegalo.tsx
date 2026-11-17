@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import GiftCardVisual from "@/app/components/GiftCardVisual";
 import { readableOn } from "@/app/lib/tenantConfig";
-import { Card, Msg, euros, ghostBtn, input, primaryBtn, toast } from "../ui";
+import { GIFT_MIN_DEFAULT, giftMinOrderCents } from "@/app/lib/giftSettings";
+import { Card, Msg, euros, ghostBtn, input, primaryBtn, toast, useSaveBar, useTenantSettings } from "../ui";
 
 type GiftCard = { id: string; code: string; initialCents: number; balanceCents: number; active: boolean; expiresAt: string | null; note: string | null; recipient: string | null; createdAt: string; _count: { orders: number } };
 type Brand = { name: string; logoUrl: string | null; color: string };
@@ -138,6 +139,8 @@ export default function TarjetasRegalo({ tenant }: { tenant: string }) {
         <Msg msg={msg} />
       </Card>
 
+      <MinOrder tenant={tenant} />
+
       <Card title="Tarjetas" description={cards ? `${live.length} con saldo · ${euros(live.reduce((t, c) => t + c.balanceCents, 0))} pendientes de canjear` : undefined}>
         {!cards ? (
           <p className="text-sm text-[var(--p-muted)]">Cargando…</p>
@@ -184,5 +187,39 @@ export default function TarjetasRegalo({ tenant }: { tenant: string }) {
         )}
       </Card>
     </div>
+  );
+}
+
+// Compra mínima para usar una tarjeta (para todas): se guarda con «Cambios sin guardar».
+function MinOrder({ tenant }: { tenant: string }) {
+  const { settings, save } = useTenantSettings(tenant);
+  const saved = settings ? giftMinOrderCents(settings) : GIFT_MIN_DEFAULT;
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? String(saved / 100).replace(".", ",");
+  const cents = Math.round(Number(value.replace(",", ".")) * 100);
+  const valid = Number.isFinite(cents) && cents >= 0 && cents <= 100_000;
+  useSaveBar("tarjetas-minimo", {
+    dirty: draft !== null && valid && cents !== saved,
+    discard: () => setDraft(null),
+    save: async () => {
+      try {
+        await save({ giftCards: { minOrderCents: cents } });
+        setDraft(null);
+        return true;
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "No se pudo guardar", false);
+        return false;
+      }
+    },
+  });
+  return (
+    <Card title="Compra mínima para usarla" description="El cliente solo puede usar una tarjeta regalo si su compra (los productos, sin envío ni propina) llega a este importe. Pon 0 para no tener mínimo.">
+      <label className="block max-w-[200px] text-xs text-[var(--p-muted)]">
+        Importe mínimo (€)
+        <input inputMode="decimal" value={value} onChange={(e) => setDraft(e.target.value)} className={input} aria-invalid={!valid} />
+      </label>
+      {!valid && <p className="mt-1 text-xs text-red-600">Pon un importe entre 0 y 1.000 €.</p>}
+      {valid && <p className="mt-2 text-xs text-[var(--p-muted)]">{cents > 0 ? `Ahora: compras de ${euros(cents)} o más.` : "Ahora: sin mínimo."} Sale también en la página de la tarjeta del cliente.</p>}
+    </Card>
   );
 }

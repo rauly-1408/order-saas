@@ -12,7 +12,7 @@ import { syncCourier, toPublicCourier } from "@/app/lib/couriers";
 import { ACTIVE_STATUSES } from "@/app/lib/couriers/types";
 import { listStores, resolveStoreId } from "@/app/lib/stores";
 import { readCheckout, tipCents } from "@/app/lib/storePolicies";
-import { usableGiftCard } from "@/app/lib/giftCards";
+import { giftMinMessage, giftMinOrderCents, usableGiftCard } from "@/app/lib/giftCards";
 import { expireStalePayments, paymentAccount, paymentOptions, startPayment } from "@/app/lib/gateways";
 import { GatewayError, type OnlineMethod } from "@/app/lib/gateways/types";
 import { getSessionFromRequest } from "@/app/lib/auth";
@@ -254,6 +254,8 @@ export async function POST(req: NextRequest) {
     if (typeof body.giftCardCode === "string" && body.giftCardCode.trim()) {
       const found = await usableGiftCard(tenant.id, body.giftCardCode);
       if ("error" in found) return NextResponse.json({ error: found.error }, { status: 400 });
+      const minGift = giftMinOrderCents(tenant.settings);
+      if (subtotalCents - discountCents < minGift) return NextResponse.json({ error: giftMinMessage(minGift) }, { status: 400 });
       giftCard = { id: found.card.id, cents: Math.min(found.card.balanceCents, subtotalCents + feesCents - discountCents + tip) };
     }
     const totalCents = subtotalCents + feesCents - discountCents + tip - (giftCard?.cents ?? 0);

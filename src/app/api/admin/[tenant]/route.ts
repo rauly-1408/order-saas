@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readCheckout, readPolicies, readTax } from "@/app/lib/storePolicies";
 import { readTicket } from "@/app/lib/ticketSettings";
+import { giftMinOrderCents } from "@/app/lib/giftCards";
 import { LEGAL_DOCS } from "@/app/lib/business";
 import { parsePartners, partnersProblem } from "@/app/lib/deliveryPartners";
 import { prisma } from "@/app/lib/prisma";
@@ -75,6 +76,7 @@ export async function PATCH(req: NextRequest) {
       if (s.checkout !== undefined) s.checkout = readCheckout({ checkout: s.checkout });
       if (s.tax !== undefined) s.tax = readTax({ tax: s.tax });
       if (s.ticket !== undefined) s.ticket = readTicket({ ticket: s.ticket });
+      if (s.giftCards !== undefined) s.giftCards = { minOrderCents: giftMinOrderCents({ giftCards: s.giftCards }) };
       if (s.policies !== undefined) {
         const slugs = LEGAL_DOCS.map((d) => d.slug as string);
         s.policies = Object.fromEntries(Object.entries(readPolicies({ policies: s.policies })).filter(([k]) => slugs.includes(k)));
