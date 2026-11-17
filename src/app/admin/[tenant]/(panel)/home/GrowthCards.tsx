@@ -47,11 +47,12 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
   const { hidden, hide, reset } = useHidden(tenant);
   const [all, setAll] = useState(false);
   const visible = cards.filter((c) => !hidden.has(c.id));
-  const shown = all ? visible : visible.slice(0, FIRST);
+  // En el móvil van todas en un carrusel (una fila); en pantallas grandes, rejilla con «Ver más».
+  const shown = visible;
   const done = total - cards.length;
 
   return (
-    <section className="mt-10">
+    <section className="mt-8 sm:mt-10">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2 px-1">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Haz tuya tu tienda</h2>
@@ -65,15 +66,15 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
           </button>
         )}
       </div>
-      <div className="mb-5 h-1.5 overflow-hidden rounded-full bg-black/[0.06]" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label="Tienda personalizada">
+      <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-black/[0.06]" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label="Tienda personalizada">
         <div className="h-full rounded-full bg-[var(--p-brand)] transition-[width] duration-700" style={{ width: `${Math.round((done / total) * 100)}%` }} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
         {insight && <InsightCard tenant={tenant} insight={insight} />}
         {shown.map((c, i) => (
           // p-rise va en el envoltorio: su animación fija el transform y anularía el hover.
-          <div key={c.id} className="p-rise" style={{ "--i": i } as React.CSSProperties}>
+          <div key={c.id} className={`p-rise w-[78%] shrink-0 snap-start sm:w-auto ${!all && i >= FIRST ? "sm:hidden" : ""}`} style={{ "--i": i } as React.CSSProperties}>
             <article className="group p-lift relative flex h-full flex-col overflow-hidden rounded-[22px] bg-[var(--p-surface)] ring-1 ring-[var(--p-line)]">
             {/* Ocultar: siempre a mano en el móvil; en el ordenador aparece al pasar el ratón */}
             <button
@@ -87,12 +88,12 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
                 <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
               </svg>
             </button>
-            <div className="m-2 mb-0 flex h-32 items-center justify-center overflow-hidden rounded-2xl bg-[var(--p-warm)] bg-[linear-gradient(160deg,transparent,rgba(255,255,255,0.45))]" aria-hidden>
+            <div className="m-2 mb-0 hidden h-32 items-center sm:flex justify-center overflow-hidden rounded-2xl bg-[var(--p-warm)] bg-[linear-gradient(160deg,transparent,rgba(255,255,255,0.45))]" aria-hidden>
               <div className="transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:transform-none">
                 <Art kind={c.art} />
               </div>
             </div>
-            <div className="flex flex-1 flex-col px-5 pt-4 pb-5">
+            <div className="flex flex-1 flex-col px-5 pt-4 pb-5 pr-12 sm:pr-5">
               <h3 className="text-[15px] font-semibold leading-snug tracking-[-0.01em]">{c.title}</h3>
               <p className="mt-1 flex-1 text-sm leading-relaxed text-[var(--p-muted)]">{c.text}</p>
               <Link href={c.href} className="p-press group/cta mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
@@ -106,7 +107,7 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
       </div>
 
       {visible.length > FIRST && (
-        <div className="mt-4 text-center">
+        <div className="mt-4 hidden text-center sm:block">
           <button type="button" onClick={() => setAll(!all)} className="p-press rounded-full border border-[var(--p-line)] bg-[var(--p-surface)] px-5 py-2 text-sm font-medium">
             {all ? "Ver menos" : `Ver ${visible.length - FIRST} ideas más`}
           </button>
@@ -131,7 +132,7 @@ function InsightCard({ tenant, insight }: { tenant: string; insight: Insight }) 
   const up = insight.growthPct !== null && insight.growthPct > 0;
 
   return (
-    <div className="p-rise sm:col-span-2 lg:col-span-1">
+    <div className="p-rise w-[86%] shrink-0 snap-start sm:col-span-2 sm:w-auto lg:col-span-1">
     <article className="p-lift flex h-full flex-col overflow-hidden rounded-[22px] bg-[var(--p-brand)] text-white">
       <div className="p-5 pb-0">
         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-white/60">★ Tu producto estrella · 7 días</p>

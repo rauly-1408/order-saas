@@ -26,6 +26,8 @@ export default function MenuMatrix({ dishes, missing, sales, onPick }: Props) {
   const [cat, setCat] = useState<string>("");
   const [hover, setHover] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<Quadrant>>(new Set());
+  // Plegado: se ve el recuento de cada grupo en una línea; se abre para ver el gráfico.
+  const [open, setOpen] = useState(false);
   const units = days === 7 ? sales.last7 : sales.last30;
   const { items, popularityLine, profitLine } = useMemo(
     () => classifyMenu(dishes.filter((d) => !cat || d.category === cat).map((d) => ({ ...d, units: units[d.id] ?? 0 }))),
@@ -42,7 +44,7 @@ export default function MenuMatrix({ dishes, missing, sales, onPick }: Props) {
     const ro = new ResizeObserver(([e]) => setW(Math.max(280, Math.round(e.contentRect.width))));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [empty]);
+  }, [empty, open]);
   const H = Math.round(Math.min(380, Math.max(280, W * 0.6)));
   const categories = useMemo(() => [...new Set(dishes.map((d) => d.category))], [dishes]);
 
@@ -58,8 +60,28 @@ export default function MenuMatrix({ dishes, missing, sales, onPick }: Props) {
 
   return (
     <section className="rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-5">
-      <h2 className="text-[17px] font-semibold">¿Qué platos te convienen?</h2>
-      <p className="mt-0.5 text-xs text-[var(--p-muted)]">Cruzamos lo que vendes de cada plato con lo que te deja. A la derecha, los que más se venden; arriba, los que más dejan. Toca un plato para ver su detalle.</p>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-3 text-left">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[17px] font-semibold">¿Qué platos te convienen?</span>
+          {open ? (
+            <span className="mt-0.5 block text-xs text-[var(--p-muted)]">Cruzamos lo que vendes de cada plato con lo que te deja. A la derecha, los que más se venden; arriba, los que más dejan. Toca un plato para ver su detalle.</span>
+          ) : empty ? (
+            <span className="block text-sm text-[var(--p-muted)]">Aún no hay ventas para compararlos</span>
+          ) : (
+            <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[var(--p-muted)]">
+              {ORDER.map((q) => (
+                <span key={q} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                  <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: COLOR[q] }} />
+                  <span className="font-semibold text-[var(--p-ink)]">{items.filter((i) => i.quadrant === q).length}</span> {QUADRANTS[q].name}
+                </span>
+              ))}
+            </span>
+          )}
+        </span>
+        <span className="shrink-0 rounded-full bg-[var(--p-bg)] px-3 py-1.5 text-xs font-semibold">{open ? "Cerrar" : "Ver"}</span>
+      </button>
+      {open && (
+      <>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <div className="grid grid-cols-2 rounded-full bg-[var(--p-bg)] p-0.5 text-xs font-semibold">
@@ -155,7 +177,9 @@ export default function MenuMatrix({ dishes, missing, sales, onPick }: Props) {
           </div>
         </>
       )}
-      {missing > 0 && <p className="mt-3 text-xs text-[var(--p-muted)]">{missing} {missing === 1 ? "plato no sale" : "platos no salen"} porque no tienen escandallo: no sabemos lo que dejan.</p>}
+      </>
+      )}
+      {open && missing > 0 && <p className="mt-3 text-xs text-[var(--p-muted)]">{missing} {missing === 1 ? "plato no sale" : "platos no salen"} porque no tienen escandallo: no sabemos lo que dejan.</p>}
     </section>
   );
 }

@@ -5,9 +5,9 @@ Panel → **Inicio** (`/admin/[tenant]/home`). Solo gerentes, porque muestra ing
 ## Qué se ve
 
 1. **Cabecera**: «Hoy en {restaurante}». Debajo, los ingresos del día comparados con el mismo día de la semana pasada a esta hora, y las ventas por horas (`HourlyBars.tsx`; al pasar el dedo se ve cada hora, si no, la hora punta).
-2. **Cifras clave**: pedidos de hoy, activos ahora (punto rojo si hay que atender), ticket medio y productos en carta, en una sola tarjeta.
-3. **Haz tuya tu tienda**: ideas para personalizar la tienda, al estilo de las tarjetas del Inicio de Shopify.
-4. **Últimos pedidos**.
+2. **Cifras clave**: pedidos de hoy, activos ahora (los mismos que hay en el tablero de Pedidos: nuevos, preparando, listos y en reparto; las cuentas de mesa abiertas van en Mesas), ticket medio y productos en carta, en una sola tarjeta.
+3. **Últimos pedidos** (4 en el móvil, 6 en pantallas grandes).
+4. **Haz tuya tu tienda**: ideas para personalizar la tienda, al estilo de las tarjetas del Inicio de Shopify. Va al final porque lo del día es lo primero. En el móvil, en un carrusel de una fila y sin dibujo, para que el Inicio quepa en unas 2 pantallas.
 
 ## Tarjetas «Haz tuya tu tienda»
 

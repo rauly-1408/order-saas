@@ -109,7 +109,7 @@ export default function CostesClient({ tenant }: { tenant: string }) {
     <div className="text-[var(--p-ink)]">
       <SaveBarHost />
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Costes y margen</h1>
-      <p className="mt-1 text-sm text-[var(--p-muted)]">Escandallos, ingredientes y lo que ganas en cada plato</p>
+      <p className="mt-1 hidden text-sm sm:block text-[var(--p-muted)]">Escandallos, ingredientes y lo que ganas en cada plato</p>
 
       <nav className="mt-6 mb-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1">
         {TABS.map((t) => (
