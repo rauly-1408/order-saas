@@ -6,12 +6,19 @@
 //
 //   node --env-file=.env scripts/empezar-de-cero.mjs <restaurante>            → solo enseña el resumen
 //   node --env-file=.env scripts/empezar-de-cero.mjs <restaurante> --borrar   → pide confirmación y borra
+//   … --conservar-clientes   → deja los clientes (con sus totales a cero) y borra el resto
+//   … --todo                 → además borra reservas, compras a proveedor, albaranes,
+//                              campañas y tarjetas regalo de prueba (la carta y los
+//                              ingredientes siguen sin tocarse)
 //
 // Ver docs/OPERACIONES.md
 import { createInterface } from "node:readline";
 import { PrismaClient } from "@prisma/client";
 
-const [slug, flag] = process.argv.slice(2);
+const [slug, ...flags] = process.argv.slice(2);
+const flag = flags.includes("--borrar") ? "--borrar" : undefined;
+const keepCustomers = flags.includes("--conservar-clientes");
+const everything = flags.includes("--todo");
 const ask = (q) => new Promise((ok) => { const rl = createInterface({ input: process.stdin, output: process.stdout }); rl.question(q, (a) => { rl.close(); ok(a.trim()); }); });
 const prisma = new PrismaClient();
 
@@ -28,21 +35,29 @@ try {
     pedidos: orderIds.length,
     "facturas de prueba (nunca enviadas a Hacienda)": invoices.reduce((s, i) => s + i._count, 0),
     "movimientos de stock de pedidos": await prisma.stockMovement.count({ where: { ...t, orderId: { not: null } } }),
-    clientes: await prisma.customer.count({ where: t }),
+    [keepCustomers ? "clientes (se conservan; sus totales de pedidos vuelven a cero)" : "clientes"]: await prisma.customer.count({ where: t }),
     "sesiones de caja": await prisma.cashSession.count({ where: t }),
     "trabajos de impresión": await prisma.printJob.count({ where: t }),
     "pagos a colaboradores": await prisma.collaboratorPayout.count({ where: t }),
     "cupones usados": await prisma.coupon.count({ where: { ...t, redeemedCount: { gt: 0 } } }),
+    ...(everything && {
+      reservas: await prisma.reservation.count({ where: t }),
+      "compras a proveedor": await prisma.purchaseOrder.count({ where: t }),
+      "albaranes leídos": await prisma.supplierInvoice.count({ where: t }),
+      campañas: await prisma.campaign.count({ where: t }),
+      "tarjetas regalo": await prisma.giftCard.count({ where: t }),
+    }),
   };
   console.log(`\n${tenant.name}: esto es lo que se borraría\n`);
   for (const [k, v] of Object.entries(counts)) console.log(`  · ${k}: ${v}`);
-  console.log("\n  La carta, los ajustes, los usuarios y los colaboradores NO se tocan.");
+  console.log(`\n  La carta, ${everything ? "los ingredientes (con su stock actual), " : ""}los ajustes, los usuarios y los colaboradores NO se tocan.`);
   if (sent) throw new Error(`Hay ${sent} facturas ya enviadas a Hacienda (VeriFactu): no se pueden borrar. No se ha cambiado nada.`);
   if (flag !== "--borrar") {
     console.log("\nNo se ha borrado nada. Para borrar, añade --borrar al final.\n");
   } else {
-    const typed = await ask(`\nEsto NO se puede deshacer. Escribe «BORRAR ${slug}» para confirmar: `);
-    if (typed !== `BORRAR ${slug}`) throw new Error("No coincide. No se ha cambiado nada.");
+    // Una sola palabra: algunas terminales cortan lo escrito en el primer espacio.
+    const typed = await ask(`\nEsto NO se puede deshacer. Para confirmar, escribe el nombre del restaurante (${slug}): `);
+    if (typed.toLowerCase() !== slug.toLowerCase()) throw new Error(`No coincide (has escrito «${typed}»). No se ha cambiado nada.`);
     await prisma.$transaction(async (tx) => {
       // 1) El stock que gastaron los pedidos vuelve al inventario.
       const moves = await tx.stockMovement.findMany({ where: { ...t, orderId: { not: null } }, select: { ingredientId: true, quantity: true } });
@@ -65,11 +80,24 @@ try {
       await tx.orderLine.deleteMany({ where: byOrder });
       await tx.order.deleteMany({ where: t });
       // 4) Clientes de prueba (y sus envíos de campañas), caja y pagos a colaboradores.
-      await tx.campaignSend.deleteMany({ where: { customer: t } });
-      await tx.customer.deleteMany({ where: t });
+      if (keepCustomers) {
+        await tx.customer.updateMany({ where: t, data: { ordersCount: 0, totalSpentCents: 0, firstOrderAt: null, lastOrderAt: null, segment: "NEW" } });
+      } else {
+        await tx.campaignSend.deleteMany({ where: { customer: t } });
+        await tx.customer.deleteMany({ where: t });
+      }
       await tx.cashSession.deleteMany({ where: t });
       await tx.collaboratorPayout.deleteMany({ where: t });
       await tx.coupon.updateMany({ where: t, data: { redeemedCount: 0 } });
+      // 5) Con --todo: el resto de datos de prueba que no cuelgan de los pedidos.
+      if (everything) {
+        await tx.reservation.deleteMany({ where: t });
+        await tx.purchaseOrder.deleteMany({ where: t }); // sus líneas se borran en cascada
+        await tx.supplierInvoice.deleteMany({ where: t });
+        await tx.campaignSend.deleteMany({ where: { campaign: t } });
+        await tx.campaign.deleteMany({ where: t });
+        await tx.giftCard.deleteMany({ where: t });
+      }
     }, { timeout: 120_000 });
     console.log("\n✓ Hecho. El restaurante empieza de cero.\n");
   }

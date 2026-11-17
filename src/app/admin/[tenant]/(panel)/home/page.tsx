@@ -45,7 +45,8 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
 
   const [ordersToday, activeOrders, products, categories, todaysOrders, lastWeek, recentOrders, growth] = await Promise.all([
     prisma.order.count({ where: { tenantId, createdAt: { gte: today }, status: sold } }),
-    prisma.order.count({ where: { tenantId, status: { notIn: ["DELIVERED", "CANCELLED", "AWAITING_PAYMENT"] } } }),
+    // Lo mismo que enseña el tablero de Pedidos (sin cuentas de mesa abiertas ni estados internos).
+    prisma.order.count({ where: { tenantId, status: { in: ["CREATED", "ACCEPTED", "PREPARING", "READY", "DELIVERING"] } } }),
     prisma.product.count({ where: { tenantId, isActive: true } }),
     prisma.category.count({ where: { tenantId, isActive: true } }),
     prisma.order.findMany({ where: { tenantId, createdAt: { gte: today }, status: sold }, select: { createdAt: true, totalCents: true } }),
@@ -107,7 +108,7 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
       </header>
 
       {/* Lo más importante: cuánto llevamos hoy y a qué horas */}
-      <section className="mt-5 grid gap-6 overflow-hidden rounded-[28px] bg-[var(--p-warm)] p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] lg:items-end lg:gap-10">
+      <section className="mt-5 grid gap-4 overflow-hidden rounded-[28px] bg-[var(--p-warm)] p-5 sm:gap-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] lg:items-end lg:gap-10">
         <div className="min-w-0">
           <p className="text-sm font-medium text-[var(--p-brand)] opacity-80">{canSeeTakings ? "Ingresos de hoy" : "Pedidos de hoy"}</p>
           <p className="mt-1 text-5xl font-semibold tracking-[-0.03em] text-[var(--p-brand)] tabular-nums sm:text-6xl">
@@ -139,15 +140,12 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
         <Stat href={`/admin/${tenant}/carta`} label="Productos en carta" value={<CountUp value={products} />} sub={`en ${categories} categorías`} />
       </section>
 
-      {/* Ideas para personalizar la tienda (estilo Shopify) */}
-      <GrowthCards tenant={tenant} cards={growth.cards} total={growth.total} insight={growth.insight} />
-
       {/* Últimos pedidos: lista agrupada al estilo iOS */}
-      <section className="mt-10">
+      <section className="mt-8 sm:mt-10">
         <div className="mb-3 flex items-center justify-between gap-3 px-1">
           <h2 className="text-xl font-semibold tracking-tight">Últimos pedidos</h2>
           <Link href={`/admin/${tenant}/pedidos`} className="p-press inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-sm font-semibold text-[var(--p-ink)] no-underline hover:bg-black/[0.08]">
-            Ver todos los pedidos
+            Ver todos
           </Link>
         </div>
         {recentOrders.length === 0 ? (
@@ -158,7 +156,7 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
               const st = STATUS[o.status];
               const cancelled = o.status === "CANCELLED";
               return (
-                <li key={o.id} className="p-rise" style={{ "--i": i } as React.CSSProperties}>
+                <li key={o.id} className={`p-rise ${i >= 4 ? "max-sm:hidden" : ""}`} style={{ "--i": i } as React.CSSProperties}>
                   <Link href={`/admin/${tenant}/pedidos`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-black/[0.025] sm:gap-4 sm:px-5">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black/[0.04] text-[13px] font-semibold tabular-nums text-[var(--p-muted)]">
                       {o.orderNumber}
@@ -181,6 +179,9 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
           </ul>
         )}
       </section>
+
+      {/* Ideas para personalizar la tienda (estilo Shopify): al final, lo del día va primero */}
+      <GrowthCards tenant={tenant} cards={growth.cards} total={growth.total} insight={growth.insight} />
     </>
   );
 }
@@ -195,7 +196,7 @@ function modeOf(o: { channel: string; source: string; dineIn: boolean }): string
 
 function Stat({ label, value, sub, urgent = false, href }: { label: string; value: React.ReactNode; sub?: string; urgent?: boolean; href?: string }) {
   const body = (
-    <div className={`group flex h-full flex-col bg-[var(--p-surface)] p-5 transition-colors ${href ? "hover:bg-black/[0.03]" : ""}`}>
+    <div className={`group flex h-full flex-col bg-[var(--p-surface)] p-4 transition-colors sm:p-5 ${href ? "hover:bg-black/[0.03]" : ""}`}>
       <p className="flex items-center gap-2 text-sm text-[var(--p-muted)]">
         {urgent && (
           <span className="relative flex h-2 w-2" aria-hidden>
@@ -205,7 +206,7 @@ function Stat({ label, value, sub, urgent = false, href }: { label: string; valu
         )}
         {label}
       </p>
-      <p className={`mt-2 text-3xl font-semibold tracking-tight tabular-nums ${urgent ? "text-[var(--p-accent)]" : ""}`}>{value}</p>
+      <p className={`mt-1 text-2xl font-semibold tracking-tight tabular-nums sm:mt-2 sm:text-3xl ${urgent ? "text-[var(--p-accent)]" : ""}`}>{value}</p>
       {sub && (
         <p className={`mt-auto flex items-center justify-between gap-2 pt-2 text-xs ${urgent ? "font-semibold text-[var(--p-accent)]" : "text-[var(--p-faint)]"}`}>
           <span className="truncate">{sub}</span>

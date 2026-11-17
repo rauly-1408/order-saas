@@ -17,6 +17,8 @@ type Props = { form: CostSettings; set: (p: Partial<CostSettings>) => void; peri
 export default function GastosFijos({ form, set, period }: Props) {
   // Texto de cada importe mientras se escribe (para no pelear con las comas).
   const [drafts, setDrafts] = useState<Record<number, string>>({});
+  // Se rellena una vez: plegado se ve el resultado en una línea.
+  const [open, setOpen] = useState(false);
   const total = fixedMonthlyCents(form);
   const { last30, month } = period;
   const marginPerItem = last30.items > 0 ? last30.marginCents / last30.items : null;
@@ -33,9 +35,33 @@ export default function GastosFijos({ form, set, period }: Props) {
 
   return (
     <section className="rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-5">
-      <h2 className="text-[17px] font-semibold">Gastos fijos y punto de equilibrio</h2>
-      <p className="mt-0.5 text-xs text-[var(--p-muted)]">Lo que pagas cada mes vendas o no. Con el margen de tus ventas te decimos cuánto tienes que vender al día para cubrirlo.</p>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-3 text-left">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[17px] font-semibold">Gastos fijos y punto de equilibrio</span>
+          {open ? (
+            <span className="mt-0.5 block text-xs text-[var(--p-muted)]">Lo que pagas cada mes vendas o no. Con el margen de tus ventas te decimos cuánto tienes que vender al día para cubrirlo.</span>
+          ) : (
+            <span className="block text-sm text-[var(--p-muted)]">
+              {total === 0 ? (
+                "Añade lo que pagas al mes y te decimos cuánto vender al día"
+              ) : (
+                <>
+                  <span className="font-semibold text-[var(--p-ink)]">{euros(total)}</span> al mes
+                  {be.itemsPerDay != null && marginPerItem != null && marginPerItem > 0 && (
+                    <>
+                      {" "}· vende unos <span className="font-semibold text-[var(--p-ink)]">{be.itemsPerDay} productos al día</span>
+                    </>
+                  )}
+                  {" "}· cubres el {Math.round(covered * 100)} % este mes
+                </>
+              )}
+            </span>
+          )}
+        </span>
+        <span className="shrink-0 rounded-full bg-[var(--p-bg)] px-3 py-1.5 text-xs font-semibold">{open ? "Cerrar" : total === 0 ? "Añadir" : "Ver"}</span>
+      </button>
 
+      {open && (
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="min-w-0">
           <ul className="space-y-2">
@@ -122,6 +148,7 @@ export default function GastosFijos({ form, set, period }: Props) {
           )}
         </div>
       </div>
+      )}
     </section>
   );
 }

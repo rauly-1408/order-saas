@@ -103,7 +103,9 @@ Cada función de Vercel abre su propia conexión. Con la URL directa, en un pico
 
 ```bash
 node --env-file=.env scripts/empezar-de-cero.mjs estafeten            # solo enseña el resumen
-node --env-file=.env scripts/empezar-de-cero.mjs estafeten --borrar   # pide escribir «BORRAR estafeten»
+node --env-file=.env scripts/empezar-de-cero.mjs estafeten --borrar   # pide escribir «estafeten» para confirmar
+node --env-file=.env scripts/empezar-de-cero.mjs estafeten --borrar --conservar-clientes   # igual, pero deja los clientes (totales a cero)
+node --env-file=.env scripts/empezar-de-cero.mjs estafeten --borrar --todo   # además reservas, compras, albaranes, campañas y tarjetas regalo (la carta e ingredientes se quedan)
 ```
 
 **Facturas (VeriFactu):**
