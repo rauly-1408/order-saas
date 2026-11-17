@@ -11,12 +11,14 @@ import Ingredientes from "./Ingredientes";
 import Proveedores from "./Proveedores";
 import Inventario from "./Inventario";
 import Compras from "./Compras";
+import Informes from "./Informes";
 import { SaveBarHost } from "../configuracion/ui";
 
 const TABS = [
   { key: "rentabilidad", label: "Rentabilidad" },
   { key: "inventario", label: "Inventario" },
   { key: "compras", label: "Compras" },
+  { key: "informes", label: "Informes" },
   { key: "escandallos", label: "Escandallos" },
   { key: "elaboraciones", label: "Elaboraciones" },
   { key: "ingredientes", label: "Ingredientes" },
@@ -127,7 +129,9 @@ export default function CostesClient({ tenant }: { tenant: string }) {
       ) : tab === "rentabilidad" ? (
         <Rentabilidad data={data} api={api} onSaved={reload} onGoToRecipes={() => setTab("escandallos")} />
       ) : tab === "compras" ? (
-        <Compras data={data} api={api} onSaved={reload} />
+        <Compras data={data} api={api} onSaved={reload} onGoToReports={() => setTab("informes")} />
+      ) : tab === "informes" ? (
+        <Informes data={data} onGoToRecipes={() => setTab("escandallos")} />
       ) : tab === "inventario" ? (
         <Inventario data={data} api={api} onSaved={reload} onGoToIngredients={() => setTab("ingredientes")} />
       ) : tab === "escandallos" ? (

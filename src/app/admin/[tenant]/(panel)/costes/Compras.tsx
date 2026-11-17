@@ -1,7 +1,8 @@
 "use client";
 
 import { ask } from "@/app/lib/dialog";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { packsText } from "@/app/lib/costReports";
 import { deliveryDateText, deliverySummary, mailtoLink, priceChangePct, suggestedOrderQty, supplierMessage, supplierWhatsapp, whatsappLink } from "@/app/lib/purchasing";
 import { nextDeliveryText } from "./Proveedores";
 import Albaran from "./Albaran";
@@ -9,7 +10,7 @@ import FacturasProveedor from "./FacturasProveedor";
 import { UNIT_LABEL, euros, formatQty, type Ingredient, type Overview, type PurchaseOrder, type PurchaseStatus, type Supplier } from "./types";
 import { BTN } from "../buttons";
 
-type Props = { data: Overview; api: string; onSaved: () => Promise<void> };
+type Props = { data: Overview; api: string; onSaved: () => Promise<void>; onGoToReports: () => void };
 type DraftLine = { ingredientId: string; quantity: string };
 
 const STATUS: Record<PurchaseStatus, { label: string; cls: string }> = {
@@ -22,10 +23,12 @@ const STATUS: Record<PurchaseStatus, { label: string; cls: string }> = {
 const lineCost = (i: Ingredient | undefined, qty: number, packPriceCents?: number) =>
   i && i.packSize > 0 ? (qty / i.packSize) * (packPriceCents ?? i.packPriceCents) : 0;
 
-export default function Compras({ data, api, onSaved }: Props) {
+export default function Compras({ data, api, onSaved, onGoToReports }: Props) {
   const ingredients = useMemo(() => new Map(data.ingredients.map((i) => [i.id, i])), [data.ingredients]);
   const suppliers = useMemo(() => new Map(data.suppliers.map((s) => [s.id, s])), [data.suppliers]);
-  const [editor, setEditor] = useState<{ supplierId: string; lines: DraftLine[] } | null>(null);
+  const [editor, setEditor] = useState<{ supplierId: string; lines: DraftLine[]; key: number; from?: number } | null>(null);
+  // La clave cambia en cada apertura para que el editor empiece de cero.
+  const openEditor = (supplierId: string, lines: DraftLine[], from?: number) => setEditor((prev) => ({ supplierId, lines, key: (prev?.key ?? 0) + 1, from }));
   const [invoicesVersion, setInvoicesVersion] = useState(0);
 
   // Sugerencias: ingredientes controlados por debajo del mínimo, agrupados por proveedor.
@@ -65,10 +68,16 @@ export default function Compras({ data, api, onSaved }: Props) {
                 <div className="min-w-0">
                   <div className="font-semibold">{suppliers.get(supplierId)?.name}</div>
                   <div className="text-xs text-[var(--p-muted)]">
-                    {lines.map((l) => `${ingredients.get(l.ingredientId)?.name} ${formatQty(Number(l.quantity), ingredients.get(l.ingredientId)!.baseUnit)}`).join(" · ")}
+                    {lines
+                      .map((l) => {
+                        const i = ingredients.get(l.ingredientId)!;
+                        const packs = packsText(Number(l.quantity), i.packSize, i.baseUnit);
+                        return `${i.name} ${formatQty(Number(l.quantity), i.baseUnit)}${packs ? ` (${packs.replace("≈ ", "")})` : ""}`;
+                      })
+                      .join(" · ")}
                   </div>
                 </div>
-                <button onClick={() => setEditor({ supplierId, lines })} className="p-press rounded-full bg-[var(--p-brand)] px-3 py-1.5 text-sm font-semibold text-white">
+                <button onClick={() => openEditor(supplierId, lines)} className="p-press rounded-full bg-[var(--p-brand)] px-3 py-1.5 text-sm font-semibold text-white">
                   Preparar pedido
                 </button>
               </li>
@@ -84,6 +93,7 @@ export default function Compras({ data, api, onSaved }: Props) {
 
       {editor ? (
         <PurchaseEditor
+          key={editor.key}
           data={data}
           initial={editor}
           api={api}
@@ -95,7 +105,7 @@ export default function Compras({ data, api, onSaved }: Props) {
         />
       ) : (
         <button
-          onClick={() => setEditor({ supplierId: data.suppliers[0]?.id ?? "", lines: [{ ingredientId: "", quantity: "" }] })}
+          onClick={() => openEditor(data.suppliers[0]?.id ?? "", [{ ingredientId: "", quantity: "" }])}
           disabled={data.suppliers.length === 0}
           className="p-press rounded-full border border-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-[var(--p-brand)] disabled:opacity-40"
         >
@@ -111,7 +121,7 @@ export default function Compras({ data, api, onSaved }: Props) {
         ) : (
           <ul className="divide-y divide-[var(--p-line)]">
             {data.purchaseOrders.map((po) => (
-              <PurchaseRow key={po.id} po={po} supplier={suppliers.get(po.supplierId)} ingredients={ingredients} restaurant={data.restaurantName} api={api} onSaved={onSaved} />
+              <PurchaseRow key={po.id} onRepeat={() => openEditor(po.supplierId, po.lines.filter((l) => ingredients.has(l.ingredientId)).map((l) => ({ ingredientId: l.ingredientId, quantity: String(l.receivedQuantity ?? l.quantity) })), po.number)} po={po} supplier={suppliers.get(po.supplierId)} ingredients={ingredients} restaurant={data.restaurantName} api={api} onSaved={onSaved} />
             ))}
           </ul>
         )}
@@ -119,12 +129,19 @@ export default function Compras({ data, api, onSaved }: Props) {
 
       {/* Historial de precios */}
       <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-        <h2 className="px-5 pt-4 pb-1 text-[17px] font-semibold">Cambios de precio de compra</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-4 pb-1">
+          <h2 className="text-[17px] font-semibold">Cambios de precio de compra</h2>
+          {data.priceChanges.length > 0 && (
+            <button type="button" onClick={onGoToReports} className="p-press min-h-9 text-sm font-semibold text-[var(--p-brand)]">
+              Ver cuánto te cuesta ›
+            </button>
+          )}
+        </div>
         {data.priceChanges.length === 0 ? (
           <p className="px-4 py-5 text-sm text-[var(--p-muted)]">Sin cambios registrados. Se apuntan al editar un precio o al recibir un pedido con otro precio.</p>
         ) : (
           <ul className="divide-y divide-[var(--p-line)]">
-            {data.priceChanges.map((c) => {
+            {data.priceChanges.slice(0, 30).map((c) => {
               const ing = ingredients.get(c.ingredientId);
               const pct = priceChangePct(c);
               const dishes = data.categories.flatMap((cat) =>
@@ -167,11 +184,16 @@ function PurchaseEditor({
   onCreated,
 }: {
   data: Overview;
-  initial: { supplierId: string; lines: DraftLine[] };
+  initial: { supplierId: string; lines: DraftLine[]; from?: number };
   api: string;
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
+  const box = useRef<HTMLDivElement>(null);
+  // Al abrirlo desde «Repetir» (más abajo en la página), que se vea.
+  useEffect(() => {
+    if (initial.from != null) box.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [initial.from]);
   const [supplierId, setSupplierId] = useState(initial.supplierId);
   const [lines, setLines] = useState<DraftLine[]>(initial.lines);
   const [notes, setNotes] = useState("");
@@ -201,8 +223,11 @@ function PurchaseEditor({
   }
 
   return (
-    <div className="rounded-2xl bg-[var(--p-surface)] shadow-[0_12px_32px_-14px_rgba(0,0,0,0.22)] p-4 sm:p-6">
-      <h3 className="mb-3 font-bold">Nuevo pedido</h3>
+    <div ref={box} className="scroll-mt-4 rounded-2xl bg-[var(--p-surface)] shadow-[0_12px_32px_-14px_rgba(0,0,0,0.22)] p-4 sm:p-6">
+      <h3 className="font-bold">{initial.from != null ? `Repetir pedido nº ${initial.from}` : "Nuevo pedido"}</h3>
+      <p className="mb-3 text-xs text-[var(--p-muted)]">
+        {initial.from != null ? "Con las mismas cantidades que la otra vez. Cambia lo que quieras y créalo." : "Elige proveedor e ingredientes."}
+      </p>
       <label className="mb-3 block text-[13px] font-medium text-[var(--p-muted)]">
         Proveedor
         <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className="mt-1 block w-full rounded-lg border border-[var(--p-line)] px-3 py-2 text-sm font-normal normal-case tracking-normal text-[var(--p-ink)]">
@@ -274,7 +299,9 @@ function PurchaseRow({
   restaurant,
   api,
   onSaved,
+  onRepeat,
 }: {
+  onRepeat: () => void;
   po: PurchaseOrder;
   supplier: Supplier | undefined;
   ingredients: Map<string, Ingredient>;
@@ -374,6 +401,11 @@ function PurchaseRow({
             <button onClick={() => setReceiving(!receiving)} className="p-press rounded-full bg-[var(--p-brand)] px-2.5 py-1 text-xs font-semibold text-white">Recibir</button>
             <button onClick={async () => (await ask(`¿Cancelar el pedido nº ${po.number}?`)) && act({ action: "cancel" })} className="rounded-lg px-2.5 py-1 text-xs text-[var(--p-faint)] hover:text-red-500">Cancelar</button>
           </div>
+        )}
+        {!open && po.lines.length > 0 && (
+          <button type="button" onClick={onRepeat} className="p-press inline-flex min-h-9 items-center gap-1 rounded-full border border-[var(--p-brand)] px-3 text-xs font-semibold text-[var(--p-brand)]">
+            <span aria-hidden>↻</span> Repetir pedido
+          </button>
         )}
       </div>
       {open && !wa && !mail && <p className="mt-1 text-[11px] text-amber-700">Añade teléfono o email al proveedor para enviarle el pedido desde aquí.</p>}

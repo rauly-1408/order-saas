@@ -54,6 +54,7 @@ export type Product = {
   name: string;
   basePriceCents: number;
   isAvailable: boolean;
+  allergens: string[]; // declarados a mano en Carta
   stockOut: boolean;
   recipeLines: RecipeLine[];
   modifierGroups: Group[];
