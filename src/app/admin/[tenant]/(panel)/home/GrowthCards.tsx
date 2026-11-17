@@ -220,8 +220,10 @@ function Art({ kind }: { kind: CardArt }) {
         <div className="flex gap-2">
           {[0, 1, 2].map((i) => (
             <div key={i} className={`${box} h-16 w-14 p-1.5 ${i === 1 ? "-translate-y-2" : ""}`}>
-              <div className={`h-9 rounded-md ${i === 2 ? "border-2 border-dashed border-black/15 bg-transparent" : "bg-[var(--p-brand-soft)]"}`}>
-                {i === 2 && <span className="flex h-full items-center justify-center text-sm text-black/30">+</span>}
+              <div className={`flex h-9 items-center justify-center rounded-md ${i === 2 ? "border-2 border-dashed border-black/15 bg-transparent" : "bg-[var(--p-brand-soft)] text-[var(--p-brand)]"}`}>
+                {i === 0 && <Burger />}
+                {i === 1 && <Drink />}
+                {i === 2 && <span className="text-sm text-black/30">+</span>}
               </div>
               <span className="mt-1.5 block">{bar("w-8")}</span>
             </div>
@@ -276,10 +278,17 @@ function Art({ kind }: { kind: CardArt }) {
       );
     case "giftcard":
       return (
-        <div className="relative h-16 w-28 rotate-[4deg] rounded-xl bg-[var(--p-accent)] p-2.5 text-white shadow-lg">
-          <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Tarjeta regalo</span>
-          <p className="mt-1 text-lg font-bold">25 €</p>
-          <span className="absolute right-2 top-2 text-sm">🎁</span>
+        <div className="flex h-20 w-36 rotate-[4deg] items-start justify-between gap-2 rounded-xl bg-[var(--p-accent)] p-2.5 text-white shadow-lg">
+          <span className="text-[10px] font-semibold uppercase leading-[1.15] tracking-wide opacity-80">
+            Tarjeta
+            <br />
+            regalo
+          </span>
+          {/* El importe, debajo del regalo */}
+          <span className="flex flex-col items-end gap-1.5">
+            <span className="text-lg leading-none">🎁</span>
+            <span className="text-lg font-bold leading-none">25 €</span>
+          </span>
         </div>
       );
     case "domain":
@@ -339,4 +348,24 @@ function Art({ kind }: { kind: CardArt }) {
         </div>
       );
   }
+}
+
+// Siluetas de producto para la tarjeta «productos sin foto» (dibujadas aquí).
+function Burger() {
+  return (
+    <svg viewBox="0 0 32 24" className="h-6 w-8 opacity-70" aria-hidden>
+      <path d="M4 11c0-5 5.5-8 12-8s12 3 12 8z" fill="currentColor" />
+      <rect x="3" y="12.5" width="26" height="3" rx="1.5" fill="currentColor" opacity="0.55" />
+      <path d="M4 17h24v1.5c0 1.9-1.6 3.5-3.5 3.5h-17C5.6 22 4 20.4 4 18.5z" fill="currentColor" />
+    </svg>
+  );
+}
+function Drink() {
+  return (
+    <svg viewBox="0 0 24 28" className="h-7 w-6 opacity-70" aria-hidden>
+      <path d="M13 1l3 0-2 7" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M4 8h16l-1.8 17.2c-.1 1-.9 1.8-2 1.8H7.8c-1 0-1.9-.8-2-1.8z" fill="currentColor" />
+      <rect x="3" y="7" width="18" height="2.5" rx="1.2" fill="currentColor" />
+    </svg>
+  );
 }
