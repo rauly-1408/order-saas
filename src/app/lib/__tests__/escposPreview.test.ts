@@ -28,3 +28,22 @@ describe("previewEscpos", () => {
     expect(p.lines[0]).toMatchObject({ text: "Cafe 3 EUR" });
   });
 });
+
+describe("imágenes y líneas largas", () => {
+  it("lee el logo (GS v 0) con su tamaño", () => {
+    const t = new Escpos();
+    const data = new Uint8Array(2 * 3).fill(0xff);
+    t.align("center").image({ width: 16, height: 3, data }).line("Hola");
+    const p = previewEscpos(t.bytes());
+    expect(p.lines[0]).toMatchObject({ type: "image", align: "center", width: 16, height: 3 });
+    expect(p.lines.find((l) => l.type === "text" && l.text === "Hola")).toBeTruthy();
+  });
+  it("una dirección más larga que el papel se parte en líneas, sin perder letras", () => {
+    const t = new Escpos({ width: 32 });
+    const url = "order-saas-delta.vercel.app/pedir/estafeten";
+    t.wrap(url);
+    const text = previewEscpos(t.bytes()).lines.filter((l) => l.type === "text").map((l) => (l.type === "text" ? l.text : ""));
+    expect(text.every((x) => x.length <= 32)).toBe(true);
+    expect(text.join("")).toBe(url);
+  });
+});

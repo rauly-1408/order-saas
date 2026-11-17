@@ -7,6 +7,7 @@ import type { PrintKind, Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { Escpos, type Codepage } from "@/app/lib/escpos";
 import { previewEscpos, type Preview } from "@/app/lib/escposPreview";
+import { rasterPng, receiptLogo, type Raster } from "@/app/lib/printLogo";
 import { readBusiness } from "@/app/lib/business";
 import { includedTax, readTax } from "@/app/lib/storePolicies";
 import { modifierLabels } from "@/app/lib/menuOptions";
@@ -206,12 +207,15 @@ export function renderKitchen(o: OrderForPrint, p: Printer, opts: KitchenOpts = 
 }
 
 // Ticket para el cliente: con precios, IVA incluido y datos del negocio.
-export function renderReceipt(o: OrderForPrint, p: Printer, opts: { drawer?: boolean } = {}): Uint8Array {
+export function renderReceipt(o: OrderForPrint, p: Printer, opts: { drawer?: boolean; logo?: Raster | null } = {}): Uint8Array {
   const tz = tenantTimeZone(o.tenant.settings);
   const biz = readBusiness(o.tenant.settings);
   const tax = readTax(o.tenant.settings);
   const t = new Escpos({ width: p.width, codepage: p.codepage });
-  t.align("center").bold(true).size(2, 2).line(o.tenant.name).size(1, 1).bold(false);
+  t.align("center");
+  // Con logo (Personalización), el logo en lugar del nombre en grande.
+  if (opts.logo) t.image(opts.logo);
+  else t.bold(true).size(2, 2).line(o.tenant.name).size(1, 1).bold(false);
   const addr = [o.store.address || biz.street, [biz.postalCode, biz.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   if (addr) t.wrap(addr);
   if (biz.legalName && biz.legalName !== o.tenant.name) t.wrap(biz.legalName);
@@ -281,7 +285,7 @@ export function renderReceipt(o: OrderForPrint, p: Printer, opts: { drawer?: boo
   }
   t.align("center").line(isTable(o) ? "¡Gracias por tu visita!" : "¡Gracias por tu pedido!");
   const origin = process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
-  if (origin) t.line(`Pide online: ${origin.replace(/^https?:\/\//, "")}/pedir/${o.tenant.slug}`);
+  if (origin) t.line("Pide online en:").wrap(`${origin.replace(/^https?:\/\//, "")}/pedir/${o.tenant.slug}`);
   // El cajón solo se abre al cobrar, nunca al reimprimir un ticket.
   if (opts.drawer !== false && p.drawer && (o.paymentMethod === "CASH" || o.cashPartCents > 0) && o.paymentStatus === "PAID") t.drawer();
   t.cut();
@@ -338,7 +342,7 @@ async function orderPrints(orderId: string, kinds: ("KITCHEN" | "RECEIPT")[], op
       // Comanda: solo lo de las categorías de esta impresora (si no le toca nada, no se imprime).
       const lines = kind === "KITCHEN" && cats ? linesForPrinter(o.items, p, cats) : null;
       if (lines && !lines.length) continue;
-      const data = kind === "KITCHEN" ? renderKitchen(o, p, lines ? { lines } : {}) : renderReceipt(o, p, { drawer: !opts.reprint });
+      const data = kind === "KITCHEN" ? renderKitchen(o, p, lines ? { lines } : {}) : renderReceipt(o, p, { drawer: !opts.reprint, logo: await receiptLogo(o.tenantId, p.width) });
       prints.push({ kind, printer: p, data, copies: kind === "KITCHEN" ? p.copies : 1 });
     }
   }
@@ -368,7 +372,13 @@ export async function previewOrderPrint(orderId: string, kind: "KITCHEN" | "RECE
   const items = await Promise.all(
     r.prints.map(async (x) => {
       const pv = previewEscpos(x.data);
-      const lines = await Promise.all(pv.lines.map(async (l) => (l.type === "qr" ? { ...l, svg: await QRCode.toString(l.data, { type: "svg", margin: 0, errorCorrectionLevel: "M" }) } : l)));
+      const lines = await Promise.all(
+        pv.lines.map(async (l) => {
+          if (l.type === "qr") return { ...l, svg: await QRCode.toString(l.data, { type: "svg", margin: 0, errorCorrectionLevel: "M" }) };
+          if (l.type === "image" && l.bits) return { type: l.type, align: l.align, width: l.width, height: l.height, src: await rasterPng(l.width, l.height, l.bits) };
+          return l;
+        })
+      );
       return { printer: x.printer.name, width: x.printer.width, copies: x.copies, preview: { ...pv, lines } };
     })
   );
@@ -411,7 +421,7 @@ export async function enqueueTablePrint(orderId: string, what: { kind: "ROUND"; 
     for (const p of cfg.printers.filter((x) => x.roles.includes(role) && (!x.storeId || x.storeId === o.storeId))) {
       const lines = what.kind !== "BILL" && cats ? linesForPrinter(base, p, cats) : base;
       if (what.kind !== "BILL" && !lines.length) continue; // a esta impresora no le toca nada de la ronda
-      const data = what.kind === "BILL" ? renderReceipt(o, p, { drawer: false }) : renderKitchen(o, p, what.kind === "ROUND" ? { round: what.round, lines } : { voided: lines });
+      const data = what.kind === "BILL" ? renderReceipt(o, p, { drawer: false, logo: await receiptLogo(o.tenantId, p.width) }) : renderKitchen(o, p, what.kind === "ROUND" ? { round: what.round, lines } : { voided: lines });
       const copies = what.kind === "BILL" ? 1 : p.copies;
       for (let i = 0; i < copies; i++) jobs.push({ tenantId: o.tenantId, orderId: o.id, kind: (what.kind === "BILL" ? "RECEIPT" : "KITCHEN") as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(data) });
     }

@@ -114,10 +114,15 @@ export class Escpos {
     const indent = " ".repeat(opts.indent ?? 0);
     const words = s.split(/\s+/).filter(Boolean);
     let cur = "";
-    for (const w of words) {
+    for (let w of words) {
       if ((cur + " " + w).trim().length > width) {
         if (cur) this.line(indent + cur);
-        cur = w.length > width ? w.slice(0, width) : w;
+        // Palabras más largas que la línea (p. ej. una dirección web): se parten, no se cortan.
+        while (w.length > width) {
+          this.line(indent + w.slice(0, width));
+          w = w.slice(width);
+        }
+        cur = w;
       } else cur = (cur + " " + w).trim();
     }
     if (cur) this.line(indent + cur);
@@ -137,6 +142,13 @@ export class Escpos {
     this.raw(GS, 0x28, 0x6b, 3, 0, 49, 69, 49); // corrección de errores M
     this.raw(GS, 0x28, 0x6b, len & 0xff, (len >> 8) & 0xff, 49, 80, 48, ...bytes); // guardar
     return this.raw(GS, 0x28, 0x6b, 3, 0, 49, 81, 48); // imprimir
+  }
+  // Imagen en blanco y negro (GS v 0): el logo del ticket. Ver lib/printLogo.ts
+  image(r: { width: number; height: number; data: Uint8Array }) {
+    const row = Math.ceil(r.width / 8);
+    this.raw(GS, 0x76, 0x30, 0, row & 0xff, (row >> 8) & 0xff, r.height & 0xff, (r.height >> 8) & 0xff);
+    this.buf.push(...r.data);
+    return this.raw(0x0a);
   }
   // Abre el cajón conectado a la impresora (ESC p m t1 t2).
   drawer() {
