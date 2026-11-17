@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { PrintPreviewItem } from "@/app/lib/printing";
 
 // Reimprimir comanda o ticket con vista previa: se ve el papel tal como saldrá
@@ -47,7 +48,9 @@ export function usePrintPreview(tenant: string) {
     return () => clearTimeout(t);
   }, [flash]);
 
-  const node = (
+  // Se pinta en la raíz del panel: dentro de la página, la animación de entrada (p-page)
+  // hace que «fixed» se mida contra el contenido y no contra la pantalla.
+  const node = !(target || flash) || typeof document === "undefined" ? null : createPortal(
     <>
       {target && (
         <PrintPreviewDialog
@@ -69,7 +72,9 @@ export function usePrintPreview(tenant: string) {
           {flash.text}
         </div>
       )}
-    </>
+    </>,
+    // En la raíz del panel (lleva los colores del restaurante), fuera de la página animada.
+    document.querySelector(".panel") ?? document.body
   );
   return { print, node };
 }
@@ -152,9 +157,9 @@ function PrintPreviewDialog({ tenant, orderId, kind, label, onClose, onSkip, onL
   const busy = phase.step === "sending" || phase.step === "waiting";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label={`${TITLE[kind]}: vista previa`}>
-      <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/40" />
-      <div className="relative flex max-h-[92vh] w-full flex-col rounded-t-[24px] bg-[var(--p-surface)] text-[var(--p-ink)] lg:max-w-md lg:rounded-[24px]">
+    <div className="fixed inset-0 z-[70] flex items-end justify-center p-0 lg:items-center lg:p-6" role="dialog" aria-modal="true" aria-label={`${TITLE[kind]}: vista previa`}>
+      <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/45 backdrop-blur-[2px]" />
+      <div className="relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.45)] lg:max-h-[88dvh] lg:max-w-[420px] lg:rounded-[24px]">
         <div aria-hidden className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-black/15 lg:hidden" />
         <div className="flex items-start justify-between gap-3 px-5 pt-4">
           <div className="min-w-0">
@@ -252,7 +257,7 @@ function Paper({ item }: { item: PrintPreviewItem }) {
               return l.src ? (
                 <div key={i} className={`flex ${l.align === "center" ? "justify-center" : l.align === "right" ? "justify-end" : "justify-start"}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element -- PNG generado al momento */}
-                  <img src={l.src} alt="Logo" className="block [image-rendering:pixelated]" style={{ width: `${(l.width / (DOTS[item.width] ?? 576)) * 100}%` }} />
+                  <img src={l.src} alt="Logo" className="block" style={{ width: `${(l.width / (DOTS[item.width] ?? 576)) * 100}%` }} />
                 </div>
               ) : null;
             const align = l.align === "center" ? "text-center" : l.align === "right" ? "text-right" : "text-left";

@@ -109,7 +109,7 @@ function TicketForm({ tenant, f, dirty, setForm, save }: { tenant: string; f: Ti
           {preview.error && <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{preview.error}</p>}
           {preview.src ? (
             // eslint-disable-next-line @next/next/no-img-element -- PNG generado al momento
-            <img src={preview.src} alt="Vista previa del ticket" className={`mx-auto block w-full max-w-[320px] rounded-sm bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] transition-opacity [image-rendering:pixelated] ${loading ? "opacity-60" : ""}`} />
+            <img src={preview.src} alt="Vista previa del ticket" className={`mx-auto block w-full max-w-[320px] rounded-sm bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] transition-opacity ${loading ? "opacity-60" : ""}`} />
           ) : (
             <div className="mx-auto h-96 w-full max-w-[320px] animate-pulse rounded-sm bg-white shadow-sm" />
           )}
