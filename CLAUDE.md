@@ -38,7 +38,8 @@ SaaS application built with Next.js 16 App Router, React 19, TypeScript, Prisma 
   - Customer: `/pedir/[tenant]`, `/pedir/[tenant]/checkout`, confirmation page
 - On each page check there is no horizontal page overflow: `document.documentElement.scrollWidth === window.innerWidth`
 - Check wide tables scroll horizontally inside their container and all columns are reachable
-- Report the result of this check explicitly
+- Scroll limit: at 375×812 each panel page/tab should fit in ~2 screens (`document.documentElement.scrollHeight` ≤ ~1,400 px). First screen = key figures and urgent items; second = what finishes the task; the rest collapsed behind "Ver más". Flag any page over the limit (based on Nielsen Norman Group: ~74 % of viewing time is spent on the first two screens)
+- Report the result of these checks explicitly
 
 ## Architecture Principles
 - Follow 12-Factor App methodology
