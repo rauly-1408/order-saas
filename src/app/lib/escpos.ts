@@ -128,9 +128,10 @@ export class Escpos {
     if (cur) this.line(indent + cur);
     return this;
   }
-  // Corte parcial (GS V 66 n) tras avanzar papel.
+  // Corte parcial: GS V 66 ya avanza el papel hasta la cuchilla antes de
+  // cortar, así que basta una línea de margen (antes eran 4: papel en blanco).
   cut() {
-    return this.feed(4).raw(GS, 0x56, 66, 0);
+    return this.feed(1).raw(GS, 0x56, 66, 0);
   }
   // Código QR que dibuja la propia impresora (GS ( k, modelo 2, corrección M).
   // size = tamaño del módulo en puntos (1–16): 6 ≈ 3 cm en una de 80 mm.
