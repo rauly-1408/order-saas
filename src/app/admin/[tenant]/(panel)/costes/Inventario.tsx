@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { unitCostCents } from "@/app/lib/costs";
+import { packsText } from "@/app/lib/costReports";
 import InformeStock from "./InformeStock";
 import AvisosMovil from "../AvisosMovil";
 import { UNIT_LABEL, euros, formatQty, type Ingredient, type MovementType, type Overview } from "./types";
@@ -104,7 +105,7 @@ export default function Inventario({ data, api, onSaved, onGoToIngredients }: Pr
                       <div className="text-xs text-[var(--p-muted)]">
                         {i.trackStock ? (
                           <>
-                            Hay <span className="font-semibold text-[var(--p-ink)]">{formatQty(i.stockQty, i.baseUnit)}</span> ({euros(Math.max(i.stockQty, 0) * unitCostCents(i))})
+                            Hay <span className="font-semibold text-[var(--p-ink)]">{formatQty(i.stockQty, i.baseUnit)}</span>{packsText(i.stockQty, i.packSize, i.baseUnit) && <> <span className="text-[var(--p-ink)]">({packsText(i.stockQty, i.packSize, i.baseUnit)})</span></>} · {euros(Math.max(i.stockQty, 0) * unitCostCents(i))}
                             {i.minStock != null && ` · mínimo ${formatQty(i.minStock, i.baseUnit)}`}
                             {i.parStock != null && ` · normal ${formatQty(i.parStock, i.baseUnit)}`}
                           </>

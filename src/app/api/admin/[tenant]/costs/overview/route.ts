@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
             name: true,
             basePriceCents: true,
             isAvailable: true,
+            allergens: true,
             stockOut: true,
             recipeLines: { select: { ingredientId: true, quantity: true } },
             modifierGroups: {
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
       take: 30,
       include: { lines: { select: { id: true, ingredientId: true, quantity: true, packPriceCents: true, receivedQuantity: true } } },
     }),
-    prisma.ingredientPriceChange.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: 30 }),
+    prisma.ingredientPriceChange.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: 300 }),
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, settings: true } }),
   ]);
 
