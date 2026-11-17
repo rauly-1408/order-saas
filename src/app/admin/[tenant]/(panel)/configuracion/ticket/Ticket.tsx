@@ -43,7 +43,9 @@ function TicketForm({ tenant, f, dirty, setForm, save }: { tenant: string; f: Ti
 
   // Vista previa: se vuelve a dibujar medio segundo después del último cambio.
   const [preview, setPreview] = useState<{ src: string | null; error: string; key: string }>({ src: null, error: "", key: "" });
-  const key = JSON.stringify(f) + (logoUrl ?? "");
+  // «sin logo» (null) tiene que distinguirse de «aún no se sabe» (undefined): si no,
+  // al recargar sin logo la vista previa no se dibujaba nunca.
+  const key = JSON.stringify(f) + (logoUrl === undefined ? "|cargando" : `|${logoUrl ?? "sin-logo"}`);
   useEffect(() => {
     if (logoUrl === undefined) return;
     const t = setTimeout(async () => {
@@ -62,7 +64,7 @@ function TicketForm({ tenant, f, dirty, setForm, save }: { tenant: string; f: Ti
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
       <div className="min-w-0 space-y-5">
         <Card title="Logo" description="Sale arriba del ticket, en blanco y negro. Mejor un PNG con fondo transparente.">
-          <Toggle checked={f.showLogo} onChange={(v) => set({ showLogo: v })} label="Poner mi logo en el ticket" hint="Sin logo, sale el nombre del local en grande." />
+          <Toggle checked={f.showLogo} onChange={(v) => set({ showLogo: v })} label="Poner mi logo en el ticket" hint="Sin logo (o si quitas el de abajo), sale el nombre del local escrito en grande." />
         </Card>
         {f.showLogo && logoUrl !== undefined && <ImageField tenant={tenant} kind="LOGO_MONO" url={logoUrl} onChange={(u) => setLogoUrl(u)} />}
 

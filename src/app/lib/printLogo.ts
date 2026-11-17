@@ -1,5 +1,5 @@
 // Logo del restaurante para los tickets: el «Logotipo en blanco y negro» de
-// Personalización (si no hay, el principal), pasado a puntos blanco/negro del
+// Personalización (si no hay, el ticket lleva el nombre del local escrito), pasado a puntos blanco/negro del
 // ancho del papel. Se guarda en memoria mientras no cambie el logo.
 // Ver docs/IMPRESION.md
 import sharp from "sharp";
@@ -14,8 +14,8 @@ const MAX_HEIGHT = 140; // ≈ 1,8 cm: que el logo no se coma medio ticket
 const cache = new Map<string, Raster | null>();
 
 export async function receiptLogo(tenantId: string, widthChars: number): Promise<Raster | null> {
-  const assets = await prisma.brandAsset.findMany({ where: { tenantId, kind: { in: ["LOGO_MONO", "LOGO"] } }, select: { kind: true, updatedAt: true } });
-  const pick = assets.find((a) => a.kind === "LOGO_MONO") ?? assets.find((a) => a.kind === "LOGO");
+  const assets = await prisma.brandAsset.findMany({ where: { tenantId, kind: "LOGO_MONO" }, select: { kind: true, updatedAt: true } });
+  const pick = assets[0]; // solo el de blanco y negro: sin él, el ticket lleva el nombre escrito
   if (!pick) return null;
   const key = `${tenantId}:${pick.kind}:${pick.updatedAt.getTime()}:${widthChars}`;
   if (cache.has(key)) return cache.get(key)!;
@@ -60,8 +60,8 @@ export async function rasterPng(width: number, height: number, bits: Uint8Array)
 // El logo tal cual (PNG/JPG en data URL) para el ticket dibujado como imagen (lib/receiptImage.tsx).
 const urlCache = new Map<string, string | null>();
 export async function receiptLogoUrl(tenantId: string): Promise<string | null> {
-  const assets = await prisma.brandAsset.findMany({ where: { tenantId, kind: { in: ["LOGO_MONO", "LOGO"] } }, select: { kind: true, updatedAt: true } });
-  const pick = assets.find((a) => a.kind === "LOGO_MONO") ?? assets.find((a) => a.kind === "LOGO");
+  const assets = await prisma.brandAsset.findMany({ where: { tenantId, kind: "LOGO_MONO" }, select: { kind: true, updatedAt: true } });
+  const pick = assets[0]; // solo el de blanco y negro: sin él, el ticket lleva el nombre escrito
   if (!pick) return null;
   const key = `${tenantId}:${pick.kind}:${pick.updatedAt.getTime()}`;
   if (urlCache.has(key)) return urlCache.get(key)!;
