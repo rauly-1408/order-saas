@@ -32,6 +32,7 @@ export type Ingredient = CostIngredient & {
   minStock: number | null;
   parStock: number | null;
   // Elaboración (salsa, caldo…): packSize = lo que rinde el lote y packPriceCents = su coste.
+  isActive?: boolean;
   isPrep: boolean;
   // Consumible (packaging, limpieza…): apartado propio y gasto por pedido.
   kind: "FOOD" | "CONSUMABLE";
