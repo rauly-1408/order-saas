@@ -13,6 +13,8 @@ pedido → PrintJob (PENDING) → agente (GET /api/print/jobs) → impresora:910
 - **Configuración → Impresoras** (gerente): impresoras con nombre, IP, puerto, qué imprime cada una (comandas, tickets), ancho de papel (80 mm = 48 caracteres, 58 mm = 32), codificación (con acentos y €, o sin acentos si el modelo no entiende CP858), copias de comanda y si abre el cajón al cobrar en efectivo. Muestra si el agente está conectado (visto en los últimos 3 minutos), el token, «Imprimir prueba» por impresora y las últimas impresiones con su estado.
 - **Qué se imprime solo**: comanda a cocina al entrar un pedido activo (online ya pagado o «al recoger», y de la Caja); ticket al cliente al cobrar en la Caja (efectivo, datáfono o Bizum). Los pedidos online no imprimen ticket solos. Ambos se pueden apagar.
 - **Pedidos**: con alguna impresora configurada, cada tarjeta tiene «🖨 Comanda» y «🖨 Ticket» para reimprimir.
+- **Vista previa** (Pedidos y Caja → Día): al tocar «Comanda» o «Ticket» se abre una ventana con el papel tal como va a salir y en qué impresora (y cuántas copias). «Imprimir» queda listo para tocar o pulsar Intro, y la ventana dice si ha salido («✓ Impreso», se cierra sola), si falla («La impresora no responde» + «Reintentar») o si el agente no lo recoge en 15 s («¿Está encendido el ordenador del local?»). Sin «Descargar» ni número de copias, a propósito: el PDF legal es «Factura».
+- **Imprimir sin vista previa** (Configuración → Impresoras): imprime al primer toque y enseña un aviso «Enviada a la impresora».
 
 ## Lo que sale
 
@@ -43,6 +45,7 @@ Con dos o más impresoras de comandas, en Configuración → Impresoras aparece 
 - `GET /api/print/jobs` (Bearer token; busca el restaurante por `settings.printing.agentToken`): antes de servir, marca como FAILED los pendientes de pedidos cancelados («Pedido cancelado») y los de más de 2 horas («Caducado»), para que al encender el agente no salgan comandas viejas; luego hasta 20 pendientes, en base64; actualiza `agentSeenAt` como mucho una vez por minuto. `POST /api/print/jobs { id, ok, error }`: marca impreso o suma un intento (al quinto, FAILED).
 - `GET/PUT/POST /api/admin/[tenant]/printers` (gerente): configuración, estado y últimos 8 trabajos; `POST { action: "test" | "newToken" }`.
 - `POST /api/admin/[tenant]/print/[orderId] { kind }` (cualquier usuario del restaurante; un usuario con local asignado solo sus pedidos): reimprime.
+- `GET /api/admin/[tenant]/print/[orderId]?kind=` → vista previa, una por impresora: los mismos bytes ESC/POS que se encolan, leídos por `lib/escposPreview.ts` (el QR de VeriFactu llega ya en SVG). `?jobs=id1,id2` → estado de esos trabajos. El POST devuelve `jobs` (ids).
 - El agente se descarga desde el panel (`public/print-agent/agent.js`, copia de `tools/print-agent/agent.js`; hay que mantener las dos iguales).
 
 ## Seguridad

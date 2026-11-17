@@ -2,9 +2,11 @@
 // PrintJob y un agente en el local que la vacía contra la impresora (puerto
 // 9100). Ver docs/IMPRESION.md
 import { randomBytes } from "crypto";
+import QRCode from "qrcode";
 import type { PrintKind, Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { Escpos, type Codepage } from "@/app/lib/escpos";
+import { previewEscpos, type Preview } from "@/app/lib/escposPreview";
 import { readBusiness } from "@/app/lib/business";
 import { includedTax, readTax } from "@/app/lib/storePolicies";
 import { modifierLabels } from "@/app/lib/menuOptions";
@@ -33,6 +35,7 @@ export type PrintingSettings = {
   agentSeenAt: string | null;
   autoKitchen: boolean; // comanda al entrar cualquier pedido
   autoReceipt: boolean; // ticket al cobrar en la Caja
+  skipPreview: boolean; // «Imprimir sin vista previa»: Comanda/Ticket imprimen al primer toque
   printers: Printer[];
 };
 
@@ -54,6 +57,7 @@ export function readPrinting(settings: unknown): PrintingSettings {
     agentSeenAt: typeof p?.agentSeenAt === "string" ? p.agentSeenAt : null,
     autoKitchen: p?.autoKitchen !== false,
     autoReceipt: p?.autoReceipt !== false,
+    skipPreview: p?.skipPreview === true,
     printers: list.map(parsePrinter).filter((x): x is Printer => x !== null),
   };
 }
@@ -316,13 +320,15 @@ async function loadOrder(orderId: string): Promise<OrderForPrint | null> {
   return o;
 }
 
-// Encola la comanda y/o el ticket de un pedido en las impresoras con ese uso.
-export async function enqueueOrderPrints(orderId: string, kinds: ("KITCHEN" | "RECEIPT")[], opts: { reprint?: boolean } = {}): Promise<number> {
+// Lo que sale de cada impresora para la comanda y/o el ticket de un pedido.
+// Lo usan la cola (enqueueOrderPrints) y la vista previa, así que coinciden siempre.
+type OrderPrint = { kind: "KITCHEN" | "RECEIPT"; printer: Printer; data: Uint8Array; copies: number };
+async function orderPrints(orderId: string, kinds: ("KITCHEN" | "RECEIPT")[], opts: { reprint?: boolean } = {}): Promise<{ order: OrderForPrint; prints: OrderPrint[] } | null> {
   const o = await loadOrder(orderId);
-  if (!o) return 0;
+  if (!o) return null;
   const cfg = readPrinting(o.tenant.settings);
-  if (!cfg.agentToken || !cfg.printers.length) return 0;
-  const jobs: Prisma.PrintJobCreateManyInput[] = [];
+  if (!cfg.agentToken || !cfg.printers.length) return { order: o, prints: [] };
+  const prints: OrderPrint[] = [];
   const cats = kinds.includes("KITCHEN") && cfg.printers.some((x) => x.categories) ? await lineCategories(o.tenantId, o.items) : null;
   if (cats) cats.covered = coverage(cfg.printers.filter((x) => x.roles.includes("kitchen") && (!x.storeId || x.storeId === o.storeId)));
   for (const kind of kinds) {
@@ -333,12 +339,40 @@ export async function enqueueOrderPrints(orderId: string, kinds: ("KITCHEN" | "R
       const lines = kind === "KITCHEN" && cats ? linesForPrinter(o.items, p, cats) : null;
       if (lines && !lines.length) continue;
       const data = kind === "KITCHEN" ? renderKitchen(o, p, lines ? { lines } : {}) : renderReceipt(o, p, { drawer: !opts.reprint });
-      const copies = kind === "KITCHEN" ? p.copies : 1;
-      for (let i = 0; i < copies; i++) jobs.push({ tenantId: o.tenantId, orderId: o.id, kind: kind as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(data) });
+      prints.push({ kind, printer: p, data, copies: kind === "KITCHEN" ? p.copies : 1 });
     }
   }
-  if (jobs.length) await prisma.printJob.createMany({ data: jobs });
-  return jobs.length;
+  return { order: o, prints };
+}
+
+// Encola la comanda y/o el ticket de un pedido en las impresoras con ese uso.
+// Devuelve los ids de los trabajos (para seguir si ya se han impreso).
+export async function enqueueOrderPrintJobs(orderId: string, kinds: ("KITCHEN" | "RECEIPT")[], opts: { reprint?: boolean } = {}): Promise<string[]> {
+  const r = await orderPrints(orderId, kinds, opts);
+  if (!r?.prints.length) return [];
+  const data: Prisma.PrintJobCreateManyInput[] = r.prints.flatMap((x) =>
+    Array.from({ length: x.copies }, () => ({ tenantId: r.order.tenantId, orderId: r.order.id, kind: x.kind as PrintKind, printerId: x.printer.id, host: x.printer.host, port: x.printer.port, data: Buffer.from(x.data) }))
+  );
+  return (await prisma.printJob.createManyAndReturn({ data, select: { id: true } })).map((j) => j.id);
+}
+export async function enqueueOrderPrints(orderId: string, kinds: ("KITCHEN" | "RECEIPT")[], opts: { reprint?: boolean } = {}): Promise<number> {
+  return (await enqueueOrderPrintJobs(orderId, kinds, opts)).length;
+}
+
+// Vista previa de lo que saldría al reimprimir: una por impresora.
+// El QR (factura VeriFactu) va ya dibujado en SVG para no cargar la librería en el navegador.
+export type PrintPreviewItem = { printer: string; width: number; copies: number; preview: Preview };
+export async function previewOrderPrint(orderId: string, kind: "KITCHEN" | "RECEIPT"): Promise<{ skipPreview: boolean; items: PrintPreviewItem[] } | null> {
+  const r = await orderPrints(orderId, [kind], { reprint: true });
+  if (!r) return null;
+  const items = await Promise.all(
+    r.prints.map(async (x) => {
+      const pv = previewEscpos(x.data);
+      const lines = await Promise.all(pv.lines.map(async (l) => (l.type === "qr" ? { ...l, svg: await QRCode.toString(l.data, { type: "svg", margin: 0, errorCorrectionLevel: "M" }) } : l)));
+      return { printer: x.printer.name, width: x.printer.width, copies: x.copies, preview: { ...pv, lines } };
+    })
+  );
+  return { skipPreview: readPrinting(r.order.tenant.settings).skipPreview, items };
 }
 
 // Al entrar un pedido (ya pagado si era online): comanda; y ticket si se cobró en la Caja.

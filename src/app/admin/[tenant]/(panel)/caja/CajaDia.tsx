@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { HoyOrder, HoyPayment, HoyResponse } from "@/app/api/admin/[tenant]/caja/hoy/route";
 import { ask } from "@/app/lib/dialog";
 import { BTN } from "../buttons";
+import { usePrintPreview } from "../PrintPreview";
 
 // «Hoy en caja»: lo vendido en el día (y en días anteriores con ‹ ›). Cada
 // ticket se abre para ver qué se cobró, reimprimirlo o cambiar la forma de pago
@@ -89,20 +90,10 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
     }
   }
 
-  async function reprint(o: HoyOrder) {
-    setBusy(true);
-    setMsg(null);
-    try {
-      const r = await fetch(`/api/admin/${tenant}/print/${o.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "RECEIPT" }) });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error ?? "No se pudo imprimir");
-      setMsg({ ok: true, text: "Ticket enviado a la impresora" });
-    } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "No se pudo imprimir" });
-    } finally {
-      setBusy(false);
-    }
-  }
+  // Reimprimir el ticket: con vista previa (o al momento si así se ha configurado).
+  const printer = usePrintPreview(tenant);
+  const reprint = (o: HoyOrder) => printer.print(o.id, "RECEIPT", o.orderNumber ? `#${o.orderNumber}` : undefined);
+
 
   const isToday = !data || data.date === data.today;
   const searching = !!data?.search;
@@ -113,6 +104,7 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/40" />
+      {printer.node}
       <div className="relative flex max-h-[92vh] w-full flex-col overflow-y-auto [&>*]:shrink-0 rounded-t-[24px] bg-[var(--p-surface)] p-4 pb-[max(16px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-xl lg:rounded-[24px] lg:p-6">
         <div aria-hidden className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-full bg-black/15 lg:hidden" />
         {t ? (

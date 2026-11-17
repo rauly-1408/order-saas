@@ -11,8 +11,8 @@ import { Card, Toggle, ghostBtn, input, primaryBtn, toast, useSaveBar } from "..
 
 type Printer = { id: string; name: string; host: string; port: number; roles: ("kitchen" | "receipt")[]; width: 48 | 42 | 32; codepage: "cp858" | "ascii"; drawer: boolean; copies: number; storeId: string | null; categories: string[] | null };
 type Job = { id: string; kind: string; status: string; printerId: string; error: string | null; createdAt: string; printedAt: string | null; orderId: string | null };
-type Data = { stores?: { id: string; name: string }[]; categories?: { id: string; name: string }[]; agentToken: string | null; agentSeenAt: string | null; agentOnline: boolean; autoKitchen: boolean; autoReceipt: boolean; printers: Printer[]; pending: number; recent: Job[] };
-type Form = { printers: Printer[]; autoKitchen: boolean; autoReceipt: boolean };
+type Data = { stores?: { id: string; name: string }[]; categories?: { id: string; name: string }[]; agentToken: string | null; agentSeenAt: string | null; agentOnline: boolean; autoKitchen: boolean; autoReceipt: boolean; skipPreview?: boolean; printers: Printer[]; pending: number; recent: Job[] };
+type Form = { printers: Printer[]; autoKitchen: boolean; autoReceipt: boolean; skipPreview: boolean };
 
 const KIND: Record<string, string> = { KITCHEN: "Comanda", RECEIPT: "Ticket", TEST: "Prueba", CLOSING: "Cierre de caja" };
 const STATUS: Record<string, string> = { PENDING: "Pendiente", PRINTED: "Impreso", FAILED: "Fallido" };
@@ -36,7 +36,7 @@ export default function Impresoras({ tenant }: { tenant: string }) {
     return () => clearInterval(t);
   }, [load]);
 
-  const saved: Form | null = data && { printers: data.printers, autoKitchen: data.autoKitchen, autoReceipt: data.autoReceipt };
+  const saved: Form | null = data && { printers: data.printers, autoKitchen: data.autoKitchen, autoReceipt: data.autoReceipt, skipPreview: !!data.skipPreview };
   const form = edits ?? saved;
   const dirty = !!edits && JSON.stringify(edits) !== JSON.stringify(saved);
   useSaveBar("impresoras", {
@@ -240,6 +240,7 @@ export default function Impresoras({ tenant }: { tenant: string }) {
       <Card title="Qué se imprime solo" description="Además, en Pedidos puedes reimprimir la comanda o el ticket de cualquier pedido.">
         <Toggle checked={form.autoKitchen} onChange={(v) => setEdits({ ...form, autoKitchen: v })} label="Comanda a cocina al entrar un pedido" hint="Online (ya pagado o al recoger) y de la Caja." />
         <Toggle checked={form.autoReceipt} onChange={(v) => setEdits({ ...form, autoReceipt: v })} label="Ticket al cliente al cobrar en la Caja" hint="Efectivo, datáfono o Bizum. Los pedidos online no imprimen ticket solos." />
+        <Toggle checked={form.skipPreview} onChange={(v) => setEdits({ ...form, skipPreview: v })} label="Imprimir sin vista previa" hint="Al tocar «Comanda» o «Ticket» en Pedidos o en la Caja se imprime al momento, sin enseñar antes cómo queda." />
       </Card>
 
       {data.recent.length > 0 && (
