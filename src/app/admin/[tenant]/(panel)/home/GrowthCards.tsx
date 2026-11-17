@@ -151,32 +151,36 @@ function InsightCard({ tenant, insight }: { tenant: string; insight: Insight }) 
         </p>
       </div>
       <div className="relative px-3 pt-3">
-        <svg viewBox={`0 0 ${W} ${H}`} className="block h-24 w-full" role="img" aria-label={`Unidades por día: ${insight.daily.map((d) => `${d.label} ${d.units}`).join(", ")}`} onMouseLeave={() => setHover(null)}>
-          <line x1={pad} x2={W - pad} y1={H - pad} y2={H - pad} stroke="currentColor" strokeOpacity={0.2} />
+        {/* Se estira a todo el ancho (preserveAspectRatio="none") para que cada punto caiga
+            encima de su día; el punto va aparte para que no se deforme. */}
+        <div className="relative">
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block h-24 w-full" role="img" aria-label={`Unidades por día: ${insight.daily.map((d) => `${d.label} ${d.units}`).join(", ")}`} onMouseLeave={() => setHover(null)}>
+          <line x1={pad} x2={W - pad} y1={H - pad} y2={H - pad} stroke="currentColor" strokeOpacity={0.2} vectorEffect="non-scaling-stroke" />
           <path d={`${path} L${x(last).toFixed(1)},${H - pad} L${x(0).toFixed(1)},${H - pad} Z`} fill="currentColor" fillOpacity={0.1} />
           <path d={path} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-          <line x1={x(at)} x2={x(at)} y1={pad} y2={H - pad} stroke="currentColor" strokeOpacity={hover === null ? 0 : 0.35} />
-          <circle cx={x(at)} cy={y(insight.daily[at].units)} r={4.5} fill="currentColor" stroke="var(--p-brand)" strokeWidth={2} />
+          <line x1={x(at)} x2={x(at)} y1={pad} y2={H - pad} stroke="currentColor" strokeOpacity={hover === null ? 0 : 0.35} vectorEffect="non-scaling-stroke" />
           {insight.daily.map((d, i) => (
             <rect key={i} x={x(i) - (W - pad * 2) / 12} y={0} width={(W - pad * 2) / 6} height={H} fill="transparent" onMouseEnter={() => setHover(i)} onTouchStart={() => setHover(i)} />
           ))}
         </svg>
-        <div className="flex justify-between px-1 pb-1 text-[11px] text-white/50">
+          <span aria-hidden className="pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--p-brand)] bg-white" style={{ left: `${(x(at) / W) * 100}%`, top: `${(y(insight.daily[at].units) / H) * 100}%` }} />
+        </div>
+        <div className="relative h-4 text-[11px] text-white/50">
           {insight.daily.map((d, i) => (
-            <span key={i} className={i === at ? "font-semibold text-white" : ""}>
+            <span key={i} className={`absolute -translate-x-1/2 ${i === at ? "font-semibold text-white" : ""}`} style={{ left: `${(x(i) / W) * 100}%` }}>
               {d.label}
             </span>
           ))}
         </div>
-        <p className="px-1 text-xs text-white/70" aria-live="polite">
+        <p className="mt-1 px-1 text-xs text-white/70" aria-live="polite">
           {insight.daily[at].label}: <b className="tabular-nums">{insight.daily[at].units}</b> {insight.daily[at].units === 1 ? "unidad" : "unidades"}
         </p>
       </div>
       <div className="flex flex-wrap gap-2 p-5 pt-3">
-        <Link href={`/admin/${tenant}/carta`} className="p-press rounded-full bg-white px-4 py-2 text-sm font-semibold text-[var(--p-brand)]">
+        <Link href={`/admin/${tenant}/carta`} className="p-press inline-flex min-h-10 items-center rounded-full border border-white bg-white px-4 text-sm font-semibold leading-none text-[var(--p-brand)]">
           Destacar en la carta
         </Link>
-        <Link href={`/admin/${tenant}/informes`} className="p-press rounded-full border border-white/25 px-4 py-2 text-sm font-medium text-white">
+        <Link href={`/admin/${tenant}/informes`} className="p-press inline-flex min-h-10 items-center rounded-full border border-white/25 px-4 text-sm font-semibold leading-none text-white">
           Ver informes
         </Link>
       </div>
