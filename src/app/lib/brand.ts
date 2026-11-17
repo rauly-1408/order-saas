@@ -91,6 +91,11 @@ export type OnlinePresence = {
   tiktok: string | null;
   website: string | null;
   reviewsUrl: string | null; // reseñas de Google
+  youtube: string | null;
+  x: string | null;
+  tripadvisor: string | null;
+  shareImageUrl: string | null; // imagen al compartir el enlace (si no, la de cabecera)
+  googleVerification: string | null; // código de Google Search Console (meta google-site-verification)
 };
 
 export const SOCIAL_FIELDS: { key: keyof OnlinePresence; label: string; placeholder: string }[] = [
@@ -99,6 +104,9 @@ export const SOCIAL_FIELDS: { key: keyof OnlinePresence; label: string; placehol
   { key: "tiktok", label: "TikTok", placeholder: "https://tiktok.com/@turestaurante" },
   { key: "website", label: "Página web", placeholder: "https://turestaurante.com" },
   { key: "reviewsUrl", label: "Reseñas de Google", placeholder: "https://g.page/r/…/review" },
+  { key: "youtube", label: "YouTube", placeholder: "https://youtube.com/@turestaurante" },
+  { key: "x", label: "X (Twitter)", placeholder: "https://x.com/turestaurante" },
+  { key: "tripadvisor", label: "Tripadvisor", placeholder: "https://tripadvisor.es/Restaurant_Review-…" },
 ];
 
 export function parseOnline(raw: unknown): OnlinePresence {
@@ -122,6 +130,17 @@ export function parseOnline(raw: unknown): OnlinePresence {
     tiktok: url(r.tiktok),
     website: url(r.website),
     reviewsUrl: url(r.reviewsUrl),
+    youtube: url(r.youtube),
+    x: url(r.x),
+    tripadvisor: url(r.tripadvisor),
+    // Imagen de Archivos (ruta propia /api/…) o una dirección completa.
+    shareImageUrl: typeof r.shareImageUrl === "string" && r.shareImageUrl.startsWith("/") ? (/^\/api\/[\w/.-]+(\?[\w=&.-]*)?$/.test(r.shareImageUrl) ? r.shareImageUrl : null) : url(r.shareImageUrl),
+    // Solo el código (si pegan la etiqueta entera, se saca el content="…").
+    googleVerification: (() => {
+      const t = text(r.googleVerification, 400);
+      const code = t ? (/content=["']([^"']+)["']/.exec(t)?.[1] ?? t) : null;
+      return code && /^[\w-]{10,100}$/.test(code) ? code : null;
+    })(),
   };
 }
 
