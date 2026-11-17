@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import MediaLibrary from "../archivos/MediaLibrary";
 import { ASSETS, MAX_ASSET_BYTES, type AssetKind } from "@/app/lib/brand";
 
 // Subida de una imagen de marca. Se reduce y comprime en el navegador antes de
@@ -69,6 +71,30 @@ export default function ImageField({ tenant, kind, url, onChange }: { tenant: st
     }
   }
 
+  // Elegir una imagen que ya está en Archivos: se descarga del propio panel y
+  // pasa por la misma preparación que una subida (tamaño, formato).
+  const [library, setLibrary] = useState(false);
+  async function fromLibrary(item: { url: string; name: string }) {
+    setLibrary(false);
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(item.url);
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      await upload(new File([blob], item.name || "imagen", { type: blob.type }));
+    } catch {
+      setError("No se pudo usar esa imagen. Prueba con otra o súbela.");
+      setBusy(false);
+    }
+  }
+  useEffect(() => {
+    if (!library) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setLibrary(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [library]);
+
   async function remove() {
     setBusy(true);
     setError("");
@@ -106,7 +132,10 @@ export default function ImageField({ tenant, kind, url, onChange }: { tenant: st
         </button>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => input.current?.click()} disabled={busy} className="p-press rounded-full border border-[var(--p-line)] px-3.5 py-1.5 text-sm font-medium hover:bg-black/[0.04] disabled:opacity-50">
-            {url ? "Cambiar" : "Subir"}
+            {url ? "Subir otra" : "Subir"}
+          </button>
+          <button type="button" onClick={() => setLibrary(true)} disabled={busy} className="p-press rounded-full border border-[var(--p-line)] px-3.5 py-1.5 text-sm font-medium hover:bg-black/[0.04] disabled:opacity-50">
+            Elegir de Archivos
           </button>
           {url && (
             <button type="button" onClick={remove} disabled={busy} className="p-press rounded-full px-3.5 py-1.5 text-sm font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)] disabled:opacity-50">
@@ -117,6 +146,26 @@ export default function ImageField({ tenant, kind, url, onChange }: { tenant: st
       </div>
       {error && <p className="mt-2 text-xs text-[var(--p-accent)]">{error}</p>}
       <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+
+      {/* Biblioteca de Archivos. Se pinta en .panel, fuera de la página animada. */}
+      {library &&
+        createPortal(
+          <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={`Elegir ${meta.title.toLowerCase()}`}>
+            <button aria-label="Cerrar" onClick={() => setLibrary(false)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+            <div className="relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[24px] bg-[var(--p-bg)] shadow-2xl sm:rounded-[24px]">
+              <header className="flex items-center gap-3 border-b border-[var(--p-line)] px-5 py-4">
+                <p className="flex-1 text-[15px] font-semibold">Elige el {meta.title.toLowerCase()} de tus archivos</p>
+                <button onClick={() => setLibrary(false)} aria-label="Cerrar" className="h-8 w-8 rounded-full text-xl leading-none text-[var(--p-muted)]">
+                  ×
+                </button>
+              </header>
+              <div className="overflow-y-auto p-5">
+                <MediaLibrary tenant={tenant} kind="IMAGE" onPick={(f) => fromLibrary(f)} />
+              </div>
+            </div>
+          </div>,
+          document.querySelector(".panel") ?? document.body
+        )}
     </section>
   );
 }
