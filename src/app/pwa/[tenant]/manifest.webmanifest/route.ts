@@ -24,9 +24,10 @@ export async function GET(req: NextRequest) {
       theme_color: brand.brand,
       lang: "es",
       icons: [
-        { src: `/pwa/${slug}/icon/192`, sizes: "192x192", type: "image/png" },
-        { src: `/pwa/${slug}/icon/512`, sizes: "512x512", type: "image/png" },
-        { src: `/pwa/${slug}/icon/512`, sizes: "512x512", type: "image/png", purpose: "maskable" },
+        // Icono de NorApp en todos los restaurantes (también Estafetén): ver norapp-icon/[size].
+        { src: "/norapp-icon/192", sizes: "192x192", type: "image/png" },
+        { src: "/norapp-icon/512", sizes: "512x512", type: "image/png" },
+        { src: "/norapp-icon/512", sizes: "512x512", type: "image/png", purpose: "maskable" },
       ],
     },
     { headers: { "Content-Type": "application/manifest+json", "Cache-Control": "public, max-age=3600" } }
