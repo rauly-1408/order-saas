@@ -32,7 +32,8 @@ export async function generateMetadata({
     // Instalable como app: así puede sonar al entrar un pedido sin tocar antes la pantalla.
     manifest: `/pwa/${tenant}/manifest.webmanifest`,
     appleWebApp: { capable: true, title: name, statusBarStyle: "default" },
-    icons: tenantIcons(t?.branding, `/pwa/${tenant}/icon/180`), // favicon oficial en la pestaña
+    // Pestaña: favicon oficial del restaurante. Icono de la app (iPhone/iPad): el de NorApp.
+    icons: tenantIcons(t?.branding, "/norapp-icon/180"),
   };
 }
 

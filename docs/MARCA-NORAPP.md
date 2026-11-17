@@ -51,6 +51,13 @@ Solo en restaurantes con NorApp, nunca en los de marca propia.
 - Código: `lib/tenantIcons.ts`, usado en el layout raíz, `admin/[tenant]/layout.tsx`, `(panel)/layout.tsx` y `pedir/[tenant]/layout.tsx`.
 - Ya no hay `app/favicon.ico`: aquel archivo era el triángulo de Vercel y se mezclaba con el del restaurante.
 
+## Icono de la app del panel
+
+- El panel instalado como app (Chrome «Abrir en la app», pantalla de inicio del móvil o la tablet) lleva **el icono de NorApp en todos los restaurantes, también en Estafetén** (petición del usuario, 17-11).
+- Lo sirve `app/norapp-icon/[size]` (180, 192 y 512 px; fondo tinta a sangre, vale también como «maskable»), enlazado desde el manifiesto `pwa/[tenant]/manifest.webmanifest` y como icono de Apple en `(panel)/layout.tsx`.
+- La pestaña del navegador y la tienda siguen con el favicon del restaurante. La app de colaboradores sigue con el icono del restaurante (`pwa/[tenant]/icon`).
+- Chrome actualiza el icono de una app ya instalada por su cuenta (puede tardar un día); si corre prisa, desinstalar y volver a instalar.
+
 ## Restaurante de demostración
 
 - `scripts/crear-demo.mjs` crea «Demo NorApp» (`/admin/demo`, `/pedir/demo`) con marca NorApp:
