@@ -17,6 +17,7 @@ type Response = {
 
 const CARD = "rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
 const SAFETY_PCT = 10;
+const TOP = 5; // platos visibles antes de «Ver todos»
 const WEEKDAY = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábados", "domingos"];
 
 const dateLabel = (ymd: string, opts: Intl.DateTimeFormatOptions) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString("es-ES", { ...opts, timeZone: "UTC" });
@@ -70,7 +71,7 @@ export default function Prevision({ data, api, onOrder }: Props) {
         <div className="px-5 pt-4">
           <h2 id="prev-title" className="text-[17px] font-semibold">Previsión de ventas</h2>
           <p className="mt-0.5 text-xs text-[var(--p-muted)]">
-            Lo que vas a vender según cómo fueron los mismos días de la semana en las últimas 8 semanas (lo reciente cuenta más). Para pedir y preparar lo justo.
+            Según los mismos días de la semana de las últimas 8 semanas.
           </p>
         </div>
 
@@ -101,37 +102,39 @@ export default function Prevision({ data, api, onOrder }: Props) {
                     : `Solo hay ${day.basedOn.length} ${day.basedOn.length === 1 ? WEEKDAY[day.isoWeekday - 1].replace(/s$/, "") : WEEKDAY[day.isoWeekday - 1]} con ventas: tómalo como orientación. Mejora cada semana.`}
                 </p>
               )}
-              <div className="grid gap-3 px-4 pt-4 sm:grid-cols-3">
-                <Stat
-                  label="Pedidos"
-                  value={`≈ ${view.orders}`}
-                  sub={day ? (day.basedOn.length > 1 ? `Entre ${day.ordersMin} y ${day.ordersMax}${day.peakHour != null ? ` · más a las ${day.peakHour}:00` : ""}` : day.peakHour != null ? `Más pedidos a las ${day.peakHour}:00` : "—") : `${open.length} días abiertos`}
-                />
-                <Stat label="Platos" value={`≈ ${view.products.reduce((a, p) => a + p.units, 0)}`} sub={view.products[0] ? `El que más: ${productName.get(view.products[0].id) ?? "—"}` : "—"} />
-                <Stat label="Ventas" value={`≈ ${wholeEuros(view.revenueCents)}`} sub="Con IVA" />
+              {/* Las tres cifras en una sola franja: en el móvil no ocupan tres tarjetas. */}
+              <div className="mx-4 mt-3 grid grid-cols-3 divide-x divide-[var(--p-line)] rounded-2xl bg-[var(--p-bg)] py-3 text-center">
+                <Figure label="Pedidos" value={`≈ ${view.orders}`} />
+                <Figure label="Platos" value={`≈ ${view.products.reduce((a, p) => a + p.units, 0)}`} />
+                <Figure label="Ventas" value={`≈ ${wholeEuros(view.revenueCents)}`} />
               </div>
-              {day && day.basedOn.length > 0 && (
-                <p className="px-5 pt-2 text-[11px] text-[var(--p-faint)]">
-                  Según los {WEEKDAY[day.isoWeekday - 1]} {day.basedOn.slice(0, 4).map((d) => dateLabel(d, { day: "numeric", month: "short" })).join(", ")}
-                  {day.basedOn.length > 4 ? "…" : ""}
-                </p>
-              )}
+              <p className="px-5 pt-1.5 text-[11px] text-[var(--p-muted)]">
+                {day
+                  ? [
+                      day.basedOn.length > 1 ? `Entre ${day.ordersMin} y ${day.ordersMax} pedidos` : null,
+                      day.peakHour != null ? `más a las ${day.peakHour}:00` : null,
+                      day.basedOn.length > 0 ? `según ${day.basedOn.length} ${day.basedOn.length === 1 ? WEEKDAY[day.isoWeekday - 1].replace(/s$/, "") : WEEKDAY[day.isoWeekday - 1]}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : `${open.length} días abiertos · ventas con IVA`}
+              </p>
 
-              <h3 className="px-5 pt-5 pb-1 text-[15px] font-semibold">Qué vas a vender</h3>
+              <h3 className="px-5 pt-4 pb-1 text-[15px] font-semibold">Qué vas a vender</h3>
               {view.products.length === 0 ? (
                 <p className="px-5 pb-4 text-sm text-[var(--p-muted)]">Sin datos para este día.</p>
               ) : (
                 <ul className="divide-y divide-[var(--p-line)] border-t border-[var(--p-line)]">
-                  {(showAll ? view.products : view.products.slice(0, 10)).map((p) => (
-                    <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-                      <span className="min-w-0">{productName.get(p.id) ?? "Plato borrado"}</span>
-                      <span className="shrink-0 text-right">
-                        <span className="font-semibold tabular-nums">{p.units}</span>
-                        {day && p.max > p.min && <span className="block text-[11px] text-[var(--p-muted)]">entre {p.min} y {p.max}</span>}
+                  {(showAll ? view.products : view.products.slice(0, TOP)).map((p) => (
+                    <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+                      <span className="min-w-0 truncate">{productName.get(p.id) ?? "Plato borrado"}</span>
+                      <span className="shrink-0 tabular-nums">
+                        {day && p.max > p.min && <span className="mr-2 text-[11px] text-[var(--p-muted)]">{p.min}–{p.max}</span>}
+                        <span className="font-semibold">{p.units}</span>
                       </span>
                     </li>
                   ))}
-                  {view.products.length > 10 && (
+                  {view.products.length > TOP && (
                     <li>
                       <button type="button" onClick={() => setShowAll(!showAll)} className="p-press min-h-11 w-full px-4 text-left text-sm font-semibold text-[var(--p-brand)]">
                         {showAll ? "Ver menos" : `Ver los ${view.products.length} platos`}
@@ -173,8 +176,11 @@ function Needs({
       return [{ i, qty, lack, order: lack > 0 && i.packSize > 0 ? Math.ceil(lack / i.packSize - 1e-9) * i.packSize : 0 }];
     })
     .sort((a, b) => Number(b.lack > 0) - Number(a.lack > 0) || a.i.name.localeCompare(b.i.name, "es"));
+  const [showRest, setShowRest] = useState(false);
   const preps = rows.filter((r) => r.i.isPrep);
-  const food = rows.filter((r) => !r.i.isPrep);
+  // Lo urgente a la vista (lo que falta); lo que ya tienes o no controlas, plegado.
+  const missing = rows.filter((r) => !r.i.isPrep && r.lack > 0);
+  const rest = rows.filter((r) => !r.i.isPrep && r.lack <= 0);
   if (rows.length === 0) {
     return (
       <section className={`${CARD} p-5`}>
@@ -186,13 +192,13 @@ function Needs({
 
   // Lo que falta, agrupado por proveedor, listo para pedir.
   const bySupplier = new Map<string, { ingredientId: string; quantity: string }[]>();
-  for (const r of food) if (r.order > 0 && r.i.supplierId) bySupplier.set(r.i.supplierId, [...(bySupplier.get(r.i.supplierId) ?? []), { ingredientId: r.i.id, quantity: String(r.order) }]);
+  for (const r of missing) if (r.order > 0 && r.i.supplierId) bySupplier.set(r.i.supplierId, [...(bySupplier.get(r.i.supplierId) ?? []), { ingredientId: r.i.id, quantity: String(r.order) }]);
 
   return (
     <section className={CARD} aria-labelledby="prev-needs">
       <div className="px-5 pt-4">
         <h3 id="prev-needs" className="text-[15px] font-semibold">Qué necesitas {week ? "para los próximos 7 días" : "ese día"}</h3>
-        <p className="mt-0.5 text-xs text-[var(--p-muted)]">Sale de los escandallos de lo que vas a vender. Lo que falta se calcula con un {SAFETY_PCT} % de margen por si acaso.</p>
+        <p className="mt-0.5 text-xs text-[var(--p-muted)]">Según tus escandallos, con un {SAFETY_PCT} % de margen.</p>
       </div>
 
       {bySupplier.size > 0 && (
@@ -206,7 +212,20 @@ function Needs({
       )}
 
       {preps.length > 0 && <NeedList title="Elaboraciones a preparar" rows={preps} />}
-      {food.length > 0 && <NeedList title="Ingredientes" rows={food} />}
+      {missing.length > 0 ? (
+        <NeedList title="Te falta" rows={missing} />
+      ) : (
+        rest.length > 0 && <p className="mx-4 mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">✓ Tienes los ingredientes que controlas</p>
+      )}
+      {rest.length > 0 && (
+        <>
+          <button type="button" aria-expanded={showRest} onClick={() => setShowRest(!showRest)} className="p-press mt-2 flex min-h-11 w-full items-center justify-between px-4 text-left text-sm font-semibold text-[var(--p-brand)]">
+            {showRest ? "Ocultar el resto" : `Ver los otros ${rest.length} ingredientes`}
+            <span aria-hidden className={`transition-transform duration-200 ${showRest ? "rotate-90" : ""}`}>›</span>
+          </button>
+          {showRest && <NeedList title="Tienes o no controlas el stock" rows={rest} />}
+        </>
+      )}
       <div className="h-2" />
     </section>
   );
@@ -215,10 +234,10 @@ function Needs({
 function NeedList({ title, rows }: { title: string; rows: { i: Ingredient; qty: number; lack: number; order: number }[] }) {
   return (
     <>
-      <h4 className="mt-4 bg-[var(--p-bg)] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--p-muted)]">{title}</h4>
+      <h4 className="mt-3 bg-[var(--p-bg)] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--p-muted)]">{title}</h4>
       <ul className="divide-y divide-[var(--p-line)]">
         {rows.map(({ i, qty, lack, order }) => (
-          <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
+          <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm">
             <span className="min-w-0">
               <span className="font-medium">{i.name}</span>
               <span className="block text-xs text-[var(--p-muted)]">
@@ -258,12 +277,11 @@ function DayChip({ active, onClick, top, bottom, muted }: { active: boolean; onC
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
+function Figure({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-[var(--p-bg)] p-4">
-      <div className="text-sm text-[var(--p-muted)]">{label}</div>
-      <div className="mt-1 text-2xl font-bold">{value}</div>
-      <div className="mt-0.5 truncate text-xs text-[var(--p-muted)]">{sub}</div>
+    <div className="min-w-0 px-1">
+      <div className="text-[11px] text-[var(--p-muted)]">{label}</div>
+      <div className="truncate text-lg font-bold tabular-nums sm:text-2xl">{value}</div>
     </div>
   );
 }
