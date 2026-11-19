@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { upload } from "@vercel/blob/client";
 import { MAX_VIDEO_BYTES, VIDEO_TYPES, prettySize, type MediaItem, type MediaKind } from "@/app/lib/media";
 import { compressImage } from "./compressImage";
+import { buildZip, uniqueNames } from "@/app/lib/zip";
 
 // Biblioteca de archivos del restaurante: subir (botón o arrastrando), buscar,
 // copiar el enlace y borrar. Con onPick sirve de selector (fotos de productos).
@@ -125,6 +126,40 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
     if (onPick && last && chosen.length === 1) onPick(last);
   }
 
+  // Descargar en un ZIP (todas o las marcadas). Se monta en el navegador: así no
+  // choca con el límite de tamaño de las respuestas del servidor. Cada foto se
+  // llama como el producto que la usa; las que no usa nadie van a «Sin usar».
+  const [zipping, setZipping] = useState<string | null>(null);
+  async function downloadZip(items: Item[]) {
+    if (!items.length || zipping) return;
+    const ext = (m: string) => (m === "image/webp" ? ".webp" : m === "image/png" ? ".png" : m === "image/jpeg" ? ".jpg" : "");
+    const base = (f: Item) => {
+      const products = f.usedBy ?? [];
+      if (!products.length) return `Sin usar/${f.name.replace(/\.[a-z0-9]+$/i, "")}`;
+      return products.length > 2 ? `${products.slice(0, 2).join(" + ")} y ${products.length - 2} más` : products.join(" + ");
+    };
+    const names = uniqueNames(items.map((f) => base(f).replace(/[\\:*?"<>|]/g, "_") + ext(f.mimeType)));
+    const out: { name: string; data: Uint8Array }[] = [];
+    try {
+      for (let i = 0; i < items.length; i++) {
+        setZipping(`Preparando ${i + 1} de ${items.length}…`);
+        const res = await fetch(items[i].url);
+        if (!res.ok) throw new Error();
+        out.push({ name: names[i], data: new Uint8Array(await res.arrayBuffer()) });
+      }
+      const blob = new Blob([buildZip(out) as BlobPart], { type: "application/zip" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `imagenes-${tenant}-${new Date().toLocaleDateString("sv")}.zip`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+    } catch {
+      setError("No se pudieron descargar las imágenes. Inténtalo de nuevo.");
+    } finally {
+      setZipping(null);
+    }
+  }
+
   // Borrar: primero la ventana «¿Borrar…?»; la API borra de uno en uno.
   const remove = (f: Item) => setToDelete([f]);
   const removeSelected = () => {
@@ -206,6 +241,11 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={isImage ? "Buscar imágenes…" : "Buscar vídeos…"} aria-label="Buscar" className="w-full rounded-lg px-3 py-2 text-sm sm:max-w-xs" />
         <div className="flex-1 text-xs text-[var(--p-muted)]">{isImage ? "PNG, JPG o WebP. Se reducen solas a 1600 px." : "MP4, WebM o MOV, hasta 200 MB."} También puedes arrastrarlos aquí.</div>
+        {isImage && !onPick && (files?.length ?? 0) > 0 && (
+          <button type="button" onClick={() => downloadZip(files ?? [])} disabled={!!zipping} className="p-press rounded-full border border-[var(--p-line)] bg-[var(--p-surface)] px-4 py-2.5 text-sm font-semibold disabled:opacity-60">
+            {zipping ?? "⬇ Descargar todas"}
+          </button>
+        )}
         <button type="button" onClick={() => input.current?.click()} disabled={uploading.length > 0} className="p-press rounded-full bg-[var(--p-brand)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
           {uploading.length ? "Subiendo…" : isImage ? "⬆ Subir imágenes" : "⬆ Subir vídeos"}
         </button>
@@ -266,6 +306,11 @@ export default function MediaLibrary({ tenant, kind, onPick, pickedUrl }: { tena
           {selected.size > 0 && (
             <div className="flex flex-wrap items-center gap-3 border-b border-[var(--p-line)] bg-[var(--p-brand-soft)] px-4 py-2 text-sm">
               <span className="font-semibold">{selected.size} {selected.size === 1 ? "seleccionado" : "seleccionados"}</span>
+              {isImage && (
+                <button type="button" onClick={() => downloadZip((files ?? []).filter((f) => selected.has(f.id)))} disabled={!!zipping} className="p-press rounded-full bg-[var(--p-surface)] px-3 py-1 text-xs font-semibold ring-1 ring-[var(--p-line)] disabled:opacity-60">
+                  {zipping ?? "⬇ Descargar"}
+                </button>
+              )}
               <button type="button" onClick={removeSelected} className="p-press flex items-center gap-1.5 rounded-full bg-[var(--p-accent)] px-3 py-1 text-xs font-semibold text-white">
                 <TrashIcon /> Borrar
               </button>
