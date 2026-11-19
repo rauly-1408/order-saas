@@ -29,11 +29,11 @@ export default function Reservas({ tenant }: { tenant: string }) {
   });
   const link = typeof window !== "undefined" ? `${window.location.origin}/pedir/${tenant}/reservar` : `/pedir/${tenant}/reservar`;
   const num = (label: string, hint: string, value: number, unit: string, min: number, max: number, key: keyof ReservationSettings) => (
-    <label className="block text-sm font-medium">
+    <label className="block text-[13px] font-medium leading-tight sm:text-sm">
       {label}
-      <span className="mt-1 flex items-center gap-2">
-        <input type="number" inputMode="numeric" min={min} max={max} value={value} onChange={(e) => set({ [key]: Number(e.target.value) } as Partial<ReservationSettings>)} className={`${input} mt-0 w-28`} />
-        <span className="text-sm text-[var(--p-muted)]">{unit}</span>
+      <span className="mt-1 flex items-center gap-1.5 sm:gap-2">
+        <input type="number" inputMode="numeric" min={min} max={max} value={value} onChange={(e) => set({ [key]: Number(e.target.value) } as Partial<ReservationSettings>)} className={`${input} mt-0 w-20 sm:w-28`} />
+        <span className="text-xs text-[var(--p-muted)] sm:text-sm">{unit}</span>
       </span>
       <span className="mt-1 block text-xs font-normal text-[var(--p-muted)]">{hint}</span>
     </label>
@@ -59,15 +59,16 @@ export default function Reservas({ tenant }: { tenant: string }) {
       </Card>
 
       <Card title="Reglas" description="Las horas se ofrecen dentro de tu horario de apertura (Horario y zonas), sin reservas en la última media hora.">
-        <div className="grid gap-5 sm:grid-cols-2">
+        {/* Dos columnas también en el móvil: son números cortos */}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-5">
           {num("Duración de cada mesa", "Lo que se queda ocupada una reserva.", r.durationMinutes, "minutos", 30, 300, "durationMinutes")}
           {num("Aforo para reservas", "Comensales a la vez. 0 = la suma de las plazas de tus mesas.", r.capacity, "comensales", 0, 2000, "capacity")}
           {num("Máximo de personas por reserva", "Para grupos mayores, que llamen.", r.maxGuestsOnline, "personas", 1, 50, "maxGuestsOnline")}
           {num("Antelación mínima", "Cuánto antes hay que reservar.", r.minNoticeMinutes, "minutos", 0, 2880, "minNoticeMinutes")}
           {num("Reservar hasta", "Con cuántos días de antelación como mucho.", r.maxDaysAhead, "días", 1, 180, "maxDaysAhead")}
-          <label className="block text-sm font-medium">
+          <label className="block text-[13px] font-medium leading-tight sm:text-sm">
             Horas cada
-            <select value={r.stepMinutes} onChange={(e) => set({ stepMinutes: Number(e.target.value) })} className={`${input} w-40`}>
+            <select value={r.stepMinutes} onChange={(e) => set({ stepMinutes: Number(e.target.value) })} className={`${input} w-full sm:w-40`}>
               <option value={15}>15 minutos</option>
               <option value={30}>30 minutos</option>
             </select>

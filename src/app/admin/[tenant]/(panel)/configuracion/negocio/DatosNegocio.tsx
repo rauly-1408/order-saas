@@ -45,9 +45,9 @@ export default function DatosNegocio({ tenant, initial, onSaved }: { tenant: str
       <section className={card}>
         <h3 className="text-[15px] font-semibold">Datos del negocio</h3>
         <p className="mt-0.5 text-xs text-[var(--p-muted)]">Se muestran en el pie de tu tienda: dirección (con enlace a Google Maps), teléfono, email y WhatsApp.</p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
           {BUSINESS_FIELDS.map((f) => (
-            <div key={f.key} className={f.full ? "sm:col-span-2" : ""}>
+            <div key={f.key} className={`min-w-0 ${f.full ? "col-span-2" : f.half ? "" : "col-span-2 sm:col-span-1"}`}>
               <label className="mb-1 block text-[13px] font-medium text-[var(--p-muted)]" htmlFor={`biz-${f.key}`}>
                 {f.label}
                 {f.required && <span className="text-[var(--p-accent)]"> *</span>}

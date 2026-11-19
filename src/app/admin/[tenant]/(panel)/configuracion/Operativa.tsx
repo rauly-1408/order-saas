@@ -81,15 +81,22 @@ function Horario({ api, initial, onSaved }: { api: string; initial: WeeklyHours;
         {DAY_KEYS.map((d) => {
           const ranges = hours[d];
           return (
-            <li key={d} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
-              <label className="flex w-36 shrink-0 items-center gap-2 text-sm font-medium">
+            // En el móvil, dos líneas: el día con «+ franja» a la derecha y debajo las horas.
+            <li key={d} className="grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-2 py-2.5 sm:flex sm:py-3">
+              <label className="flex shrink-0 items-center gap-2 text-sm font-medium sm:w-36">
                 <input type="checkbox" checked={ranges.length > 0} onChange={(e) => setDay(d, e.target.checked ? [DEFAULT_RANGE] : [])} className="h-4 w-4 accent-[var(--p-brand)]" />
                 {DAY_LABEL[d]}
+                {ranges.length === 0 && <span className="font-normal text-[var(--p-faint)]">· Cerrado</span>}
               </label>
-              {ranges.length === 0 ? (
-                <span className="text-sm text-[var(--p-faint)]">Cerrado</span>
+              {ranges.length > 0 && ranges.length < 2 ? (
+                <button onClick={() => setDay(d, [...ranges, { from: "20:00", to: "23:30" }])} className={`${BTN.add} justify-self-end !min-h-9 !px-3 !text-xs sm:order-last sm:!min-h-11 sm:!px-4 sm:!text-sm`}>
+                  + Franja
+                </button>
               ) : (
-                <div className="flex flex-wrap items-center gap-2">
+                <span className="sm:hidden" />
+              )}
+              {ranges.length > 0 && (
+                <div className="col-span-2 flex flex-wrap items-center gap-2">
                   {ranges.map((r, i) => (
                     <span key={i} className="flex items-center gap-1">
                       <input type="time" value={r.from} onChange={(e) => setDay(d, ranges.map((x, j) => (j === i ? { ...x, from: e.target.value } : x)))} className={input} aria-label={`${DAY_LABEL[d]}: apertura`} />
@@ -100,11 +107,6 @@ function Horario({ api, initial, onSaved }: { api: string; initial: WeeklyHours;
                       )}
                     </span>
                   ))}
-                  {ranges.length < 2 && (
-                    <button onClick={() => setDay(d, [...ranges, { from: "20:00", to: "23:30" }])} className={BTN.add}>
-                      + Añadir franja
-                    </button>
-                  )}
                 </div>
               )}
             </li>

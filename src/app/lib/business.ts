@@ -17,16 +17,17 @@ export type BusinessInfo = {
   mapsLink: string | null; // enlace a la ficha del local en Google Maps
 };
 
-export const BUSINESS_FIELDS: { key: keyof BusinessInfo; label: string; placeholder: string; required: boolean; full?: boolean; hint?: string }[] = [
+// half: campo corto que va de dos en dos también en el móvil.
+export const BUSINESS_FIELDS: { key: keyof BusinessInfo; label: string; placeholder: string; required: boolean; full?: boolean; half?: boolean; hint?: string }[] = [
   { key: "legalName", label: "Razón social o titular", placeholder: "Estafetén Granada S.L.", required: true, hint: "Si eres autónomo, tu nombre y apellidos." },
-  { key: "taxId", label: "NIF / CIF", placeholder: "B12345678", required: true },
+  { key: "taxId", label: "NIF / CIF", placeholder: "B12345678", required: true, half: true },
   { key: "street", label: "Dirección", placeholder: "Calle Arabial, 92", required: true, full: true },
-  { key: "postalCode", label: "Código postal", placeholder: "18004", required: true },
-  { key: "city", label: "Ciudad", placeholder: "Granada", required: true },
-  { key: "province", label: "Provincia", placeholder: "Granada", required: false },
-  { key: "phone", label: "Teléfono", placeholder: "958 00 00 00", required: true },
+  { key: "postalCode", label: "Código postal", placeholder: "18004", required: true, half: true },
+  { key: "city", label: "Ciudad", placeholder: "Granada", required: true, half: true },
+  { key: "province", label: "Provincia", placeholder: "Granada", required: false, half: true },
+  { key: "phone", label: "Teléfono", placeholder: "958 00 00 00", required: true, half: true },
   { key: "email", label: "Email de contacto", placeholder: "hola@estafeten.com", required: true },
-  { key: "whatsapp", label: "WhatsApp (opcional)", placeholder: "600 000 000", required: false },
+  { key: "whatsapp", label: "WhatsApp (opcional)", placeholder: "600 000 000", required: false, half: true },
   { key: "registry", label: "Registro Mercantil (si eres sociedad)", placeholder: "Registro Mercantil de Granada, Tomo X, Folio Y, Hoja GR-Z", required: false, full: true },
   {
     key: "mapsLink",
