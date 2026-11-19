@@ -35,8 +35,17 @@ function status(i: Ingredient): { label: string; cls: string; rank: number } {
   return { label: "OK", cls: "bg-emerald-50 text-emerald-700", rank: 2 };
 }
 
+// Para que quepa en ~2 pantallas del móvil: cada ingrediente en una línea (sus
+// botones al tocarlo), los no controlados plegados, y el informe y los
+// movimientos plegados con su resumen.
+const MOVES_FIRST = 3;
+
 export default function Inventario({ data, api, onSaved, onGoToIngredients }: Props) {
   const [action, setAction] = useState<Action | null>(null);
+  const [openRow, setOpenRow] = useState<string | null>(null);
+  const [showUntracked, setShowUntracked] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [allMoves, setAllMoves] = useState(false);
   const ingredientsById = useMemo(() => new Map(data.ingredients.map((i) => [i.id, i])), [data.ingredients]);
 
   const sorted = [...data.ingredients].sort((a, b) => status(a).rank - status(b).rank || a.name.localeCompare(b.name, "es"));
@@ -61,10 +70,10 @@ export default function Inventario({ data, api, onSaved, onGoToIngredients }: Pr
   return (
     <div className="space-y-6">
       {tracked.some((i) => i.minStock != null) && <AvisosMovil tenant={api.split("/")[3]} />}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Valor del stock" value={euros(stockValue)} sub={`${tracked.length} ingredientes controlados`} />
-        <Stat label="Avisos" value={String(low.length)} sub={low.length ? low.map((i) => i.name).join(", ") : "Todo en orden"} tone={low.length ? "warn" : "ok"} />
-        <Stat label="Descuadres en recuentos" value={euros(countLoss)} sub="Últimos movimientos" tone={countLoss < 0 ? "warn" : "ok"} />
+      <div className="grid grid-cols-3 divide-x divide-[var(--p-line)] rounded-2xl bg-[var(--p-surface)] py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <Stat label="Valor del stock" value={euros(stockValue)} sub={`${tracked.length} controlados`} />
+        <Stat label="Bajo mínimo" value={String(low.length)} sub={low.length ? low.map((i) => i.name).join(", ") : "Todo en orden"} tone={low.length ? "warn" : "ok"} />
+        <Stat label="Descuadres" value={euros(countLoss)} sub="en recuentos" tone={countLoss < 0 ? "warn" : "ok"} />
       </div>
 
       {(outProducts.length > 0 || outOptions.length > 0) && (
@@ -86,69 +95,101 @@ export default function Inventario({ data, api, onSaved, onGoToIngredients }: Pr
         </div>
       ) : (
         <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          <h2 className="px-5 pt-4 pb-1 text-[17px] font-semibold">Stock por ingrediente</h2>
-          <p className="px-4 pt-2 text-xs text-[var(--p-muted)]">
-            Los ingredientes controlados se descuentan solos con cada pedido. Haz un recuento para empezar a controlar uno.
-          </p>
-          <ul className="divide-y divide-[var(--p-line)]">
-            {sorted.map((i) => {
+          <h2 className="px-4 pt-4 text-[17px] font-semibold sm:px-5">Stock por ingrediente</h2>
+          <p className="px-4 pb-2 text-xs text-[var(--p-muted)] sm:px-5">Se descuentan solos con cada pedido. Toca uno para registrar una entrada, un recuento o una merma.</p>
+          <ul className="mt-1 divide-y divide-[var(--p-line)] border-t border-[var(--p-line)]">
+            {sorted.filter((i) => i.trackStock || showUntracked).map((i) => {
               const st = status(i);
               const open = action?.ingredient.id === i.id;
+              const expanded = openRow === i.id || open;
               return (
-                <li key={i.id} className="px-4 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="min-w-0">
+                <li key={i.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenRow(expanded ? null : i.id);
+                      if (expanded) setAction(null);
+                    }}
+                    aria-expanded={expanded}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-black/[0.02]"
+                  >
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold">{i.name}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${st.cls}`}>{st.label}</span>
+                        <span className="truncate font-semibold">{i.name}</span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${st.cls}`}>{st.label}</span>
                       </div>
-                      <div className="text-xs text-[var(--p-muted)]">
+                      <div className="truncate text-xs text-[var(--p-muted)]">
                         {i.trackStock ? (
                           <>
-                            Hay <span className="font-semibold text-[var(--p-ink)]">{formatQty(i.stockQty, i.baseUnit)}</span>{packsText(i.stockQty, i.packSize, i.baseUnit) && <> <span className="text-[var(--p-ink)]">({packsText(i.stockQty, i.packSize, i.baseUnit)})</span></>} · {euros(Math.max(i.stockQty, 0) * unitCostCents(i))}
-                            {i.minStock != null && ` · mínimo ${formatQty(i.minStock, i.baseUnit)}`}
-                            {i.parStock != null && ` · normal ${formatQty(i.parStock, i.baseUnit)}`}
+                            Hay <span className="font-semibold text-[var(--p-ink)]">{formatQty(i.stockQty, i.baseUnit)}</span>
+                            {packsText(i.stockQty, i.packSize, i.baseUnit) && <> ({packsText(i.stockQty, i.packSize, i.baseUnit)})</>}
+                            {i.minStock != null && ` · mín. ${formatQty(i.minStock, i.baseUnit)}`}
                           </>
                         ) : (
                           "No se descuenta con los pedidos"
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(["RECEIPT", "COUNT", "WASTE"] as const).map((t) => (
-                        <button key={t} onClick={() => setAction(open && action?.type === t ? null : { ingredient: i, type: t })} className="rounded-lg border border-[var(--p-line)] px-2.5 py-1 text-xs font-semibold text-[var(--p-ink)] hover:bg-[var(--p-bg)]">
-                          {t === "RECEIPT" ? "+ Entrada" : t === "COUNT" ? "Recuento" : "Merma"}
-                        </button>
-                      ))}
-                      {i.trackStock && (
-                        <button onClick={() => setAction(open && action?.type === "MIN" ? null : { ingredient: i, type: "MIN" })} className="rounded-lg border border-[var(--p-line)] px-2.5 py-1 text-xs text-[var(--p-muted)] hover:bg-[var(--p-bg)]">
-                          Mínimo y normal
-                        </button>
-                      )}
-                      {i.trackStock && (
-                        <button onClick={() => toggleTracking(i)} className="rounded-lg px-2.5 py-1 text-xs text-[var(--p-faint)] hover:text-red-500">
-                          Dejar de controlar
-                        </button>
-                      )}
+                    {i.trackStock && <span className="shrink-0 text-sm font-semibold tabular-nums">{euros(Math.max(i.stockQty, 0) * unitCostCents(i))}</span>}
+                    <svg viewBox="0 0 20 20" className={`h-4 w-4 shrink-0 text-[var(--p-faint)] transition-transform ${expanded ? "rotate-90" : ""}`} aria-hidden>
+                      <path d="M7 4l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  {expanded && (
+                    <div className="bg-[var(--p-bg)] px-4 pt-1 pb-3">
+                      {i.trackStock && i.parStock != null && <p className="mb-2 text-xs text-[var(--p-muted)]">Stock normal: {formatQty(i.parStock, i.baseUnit)}</p>}
+                      <div className="flex flex-wrap gap-1.5">
+                        {(["RECEIPT", "COUNT", "WASTE"] as const).map((t) => (
+                          <button key={t} onClick={() => setAction(open && action?.type === t ? null : { ingredient: i, type: t })} className={`p-press min-h-10 rounded-full border px-3.5 text-sm font-semibold ${open && action?.type === t ? "border-[var(--p-ink)] bg-[var(--p-ink)] text-white" : "border-[var(--p-line)] bg-[var(--p-surface)] text-[var(--p-ink)]"}`}>
+                            {t === "RECEIPT" ? "+ Entrada" : t === "COUNT" ? "Recuento" : "Merma"}
+                          </button>
+                        ))}
+                        {i.trackStock && (
+                          <button onClick={() => setAction(open && action?.type === "MIN" ? null : { ingredient: i, type: "MIN" })} className={`p-press min-h-10 rounded-full border px-3.5 text-sm ${open && action?.type === "MIN" ? "border-[var(--p-ink)] bg-[var(--p-ink)] text-white" : "border-[var(--p-line)] bg-[var(--p-surface)] text-[var(--p-muted)]"}`}>
+                            Mínimo y normal
+                          </button>
+                        )}
+                        {i.trackStock && (
+                          <button onClick={() => toggleTracking(i)} className="min-h-10 rounded-full px-3 text-sm text-[var(--p-faint)] hover:text-red-500">
+                            Dejar de controlar
+                          </button>
+                        )}
+                      </div>
+                      {open && action && <ActionForm action={action} api={api} onDone={async () => { setAction(null); await onSaved(); }} onCancel={() => setAction(null)} />}
                     </div>
-                  </div>
-                  {open && action && <ActionForm action={action} api={api} onDone={async () => { setAction(null); await onSaved(); }} onCancel={() => setAction(null)} />}
+                  )}
                 </li>
               );
             })}
           </ul>
+          {data.ingredients.length > tracked.length && (
+            <button type="button" onClick={() => setShowUntracked((v) => !v)} className="p-press w-full border-t border-[var(--p-line)] px-4 py-3 text-sm font-semibold text-[var(--p-brand)] hover:bg-black/[0.02]">
+              {showUntracked ? "Ocultar los que no controlas" : `Ver los ${data.ingredients.length - tracked.length} que no controlas`}
+            </button>
+          )}
         </section>
       )}
 
-      {tracked.length > 0 && <InformeStock data={data} api={api} />}
+      {tracked.length > 0 && (
+        <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <button type="button" onClick={() => setShowReport((v) => !v)} aria-expanded={showReport} className="flex w-full items-center gap-3 p-4 text-left sm:px-5">
+            <span className="min-w-0 flex-1">
+              <span className="block text-[17px] font-semibold">Informe de stock y género parado</span>
+              <span className="block text-sm text-[var(--p-muted)]">Comprado, vendido, mermas, lo que falta y lo que no sale</span>
+            </span>
+            <span className="shrink-0 rounded-full bg-[var(--p-bg)] px-3 py-1.5 text-xs font-semibold">{showReport ? "Cerrar" : "Ver"}</span>
+          </button>
+        </section>
+      )}
+      {tracked.length > 0 && showReport && <InformeStock data={data} api={api} />}
 
       <section className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-        <h2 className="px-5 pt-4 pb-1 text-[17px] font-semibold">Últimos movimientos</h2>
+        <h2 className="px-5 pt-4 pb-2 text-[17px] font-semibold">Últimos movimientos</h2>
         {data.movements.length === 0 ? (
           <p className="px-4 py-6 text-sm text-[var(--p-muted)]">Aún no hay movimientos de stock.</p>
         ) : (
           <ul className="divide-y divide-[var(--p-line)]">
-            {data.movements.map((m) => {
+            {(allMoves ? data.movements : data.movements.slice(0, MOVES_FIRST)).map((m) => {
               const ing = ingredientsById.get(m.ingredientId);
               const unit = ing?.baseUnit ?? "UNIT";
               return (
@@ -173,6 +214,11 @@ export default function Inventario({ data, api, onSaved, onGoToIngredients }: Pr
               );
             })}
           </ul>
+        )}
+        {data.movements.length > MOVES_FIRST && (
+          <button type="button" onClick={() => setAllMoves((v) => !v)} className="p-press w-full border-t border-[var(--p-line)] px-4 py-3 text-sm font-semibold text-[var(--p-brand)] hover:bg-black/[0.02]">
+            {allMoves ? "Ver menos" : `Ver los ${data.movements.length} movimientos`}
+          </button>
         )}
       </section>
     </div>
@@ -253,10 +299,10 @@ export function ActionForm({ action, api, onDone, onCancel }: { action: Action; 
 
 function Stat({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: "ok" | "warn" }) {
   return (
-    <div className="rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-4">
-      <div className="text-sm text-[var(--p-muted)]">{label}</div>
-      <div className={`mt-1 text-2xl font-bold ${tone === "warn" ? "text-amber-700" : ""}`}>{value}</div>
-      <div className="mt-0.5 truncate text-xs text-[var(--p-muted)]">{sub}</div>
+    <div className="min-w-0 px-3 sm:px-4">
+      <div className="text-xs leading-tight text-[var(--p-muted)]">{label}</div>
+      <div className={`mt-1 text-lg font-bold tabular-nums sm:text-2xl ${tone === "warn" ? "text-amber-700" : ""}`}>{value}</div>
+      <div className="truncate text-[11px] leading-tight text-[var(--p-muted)]">{sub}</div>
     </div>
   );
 }

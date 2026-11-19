@@ -1070,7 +1070,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
                 <div className="relative w-full overflow-hidden rounded-t-[24px] bg-[var(--p-surface)] pb-[max(16px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-sm lg:rounded-[24px] lg:pb-0">
                   {peek.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={peek.imageUrl} alt="" className="aspect-[16/10] w-full object-cover" />
+                    <img src={peek.imageUrl} alt="" className="block max-h-[55vh] w-full bg-black/[0.04] object-contain" />
                   )}
                   <div className="p-4">
                     <p className="text-lg font-semibold">{peek.name}</p>
