@@ -11,11 +11,24 @@ type Props = { data: Overview; onGoToRecipes: () => void };
 
 const CARD = "rounded-2xl bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
 
+// Un informe cada vez (en el móvil, los dos seguidos pasaban de 3 pantallas).
 export default function Informes({ data, onGoToRecipes }: Props) {
+  const [which, setWhich] = useState<"precios" | "alergenos">("precios");
   return (
-    <div className="space-y-6">
-      <InformePrecios data={data} />
-      <InformeAlergenos data={data} onGoToRecipes={onGoToRecipes} />
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-1 rounded-full bg-black/[0.05] p-1 sm:w-fit" role="tablist" aria-label="Informe">
+        {(
+          [
+            ["precios", "Subidas de precio"],
+            ["alergenos", "Alérgenos"],
+          ] as const
+        ).map(([k, l]) => (
+          <button key={k} type="button" role="tab" aria-selected={which === k} onClick={() => setWhich(k)} className={`p-press min-h-10 rounded-full px-4 text-sm font-medium ${which === k ? "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+      {which === "precios" ? <InformePrecios data={data} /> : <InformeAlergenos data={data} onGoToRecipes={onGoToRecipes} />}
     </div>
   );
 }
@@ -76,7 +89,7 @@ function InformePrecios({ data }: { data: Overview }) {
         </div>
       </div>
 
-      <div className="grid gap-3 px-4 pt-4 sm:grid-cols-3">
+      <div className="mx-4 mt-4 grid grid-cols-3 divide-x divide-[var(--p-line)] rounded-2xl bg-[var(--p-bg)] py-3">
         <Stat label="Han subido" value={String(up.length)} sub={up.length ? up.slice(0, 3).map((r) => r.name).join(", ") : "Ningún ingrediente"} tone={up.length ? "warn" : "ok"} />
         <Stat
           label="Te cuesta más al mes"
@@ -209,6 +222,9 @@ function InformeAlergenos({ data, onGoToRecipes }: { data: Overview; onGoToRecip
   const missing = all.filter((d) => !d.a.hasData);
   const has = (d: (typeof all)[number], a: string) => d.a.allergens.includes(a) || d.a.byOption.some((o) => o.extra.includes(a));
   const free = filter ? all.filter((d) => d.a.hasData && !has(d, filter)).length : 0;
+  // Categorías plegadas: con una carta grande, la lista entera no cabe. Se abre la que interese.
+  const [openCats, setOpenCats] = useState<Set<string>>(new Set());
+  const toggleCat = (id: string) => setOpenCats((s) => (s.has(id) ? new Set([...s].filter((x) => x !== id)) : new Set([...s, id])));
 
   return (
     <section className={CARD} aria-labelledby="inf-alergenos">
@@ -231,14 +247,14 @@ function InformeAlergenos({ data, onGoToRecipes }: { data: Overview; onGoToRecip
 
       <div className="px-4 pt-3">
         <p className="mb-1.5 text-[11px] font-medium text-[var(--p-muted)]">¿Qué platos puede tomar alguien con alergia a…?</p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           {ALLERGENS.map((a) => (
             <button
               key={a}
               type="button"
               aria-pressed={filter === a}
               onClick={() => setFilter(filter === a ? null : a)}
-              className={`p-press inline-flex min-h-9 items-center gap-1.5 rounded-full border px-2.5 text-xs ${filter === a ? "border-[var(--p-brand)] bg-[var(--p-brand-soft)] font-semibold text-[var(--p-brand)]" : "border-[var(--p-line)] text-[var(--p-ink)]"}`}
+              className={`p-press inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs ${filter === a ? "border-[var(--p-brand)] bg-[var(--p-brand-soft)] font-semibold text-[var(--p-brand)]" : "border-[var(--p-line)] text-[var(--p-ink)]"}`}
             >
               <AllergenIcon name={a} size={18} />
               {a}
@@ -253,10 +269,27 @@ function InformeAlergenos({ data, onGoToRecipes }: { data: Overview; onGoToRecip
       </div>
 
       <div className="mt-3 border-t border-[var(--p-line)]">
-        {rows.map((c) => (
-          <div key={c.id}>
-            <h3 className="bg-[var(--p-bg)] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--p-muted)]">{c.name}</h3>
-            <ul className="divide-y divide-[var(--p-line)]">
+        {rows.map((c) => {
+          const isOpen = openCats.has(c.id);
+          const noData = c.dishes.filter((d) => !d.a.hasData).length;
+          const okCount = filter ? c.dishes.filter((d) => d.a.hasData && !has(d, filter)).length : 0;
+          return (
+          <div key={c.id} className="border-b border-[var(--p-line)] last:border-b-0">
+            <button type="button" onClick={() => toggleCat(c.id)} aria-expanded={isOpen} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-black/[0.02]">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-semibold">{c.name}</span>
+                <span className="block text-xs text-[var(--p-muted)]">
+                  {c.dishes.length} plato{c.dishes.length === 1 ? "" : "s"}
+                  {filter ? <> · <span className="font-semibold text-emerald-700">{okCount} apto{okCount === 1 ? "" : "s"}</span></> : null}
+                  {noData ? <> · <span className="text-amber-700">{noData} sin datos</span></> : null}
+                </span>
+              </span>
+              <svg viewBox="0 0 20 20" className={`h-4 w-4 shrink-0 text-[var(--p-faint)] transition-transform ${isOpen ? "rotate-90" : ""}`} aria-hidden>
+                <path d="M7 4l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {isOpen && (
+            <ul className="divide-y divide-[var(--p-line)] border-t border-[var(--p-line)] bg-[var(--p-bg)]">
               {c.dishes.map(({ p, a }) => {
                 const inBase = filter ? a.allergens.includes(filter) : false;
                 const inOption = filter ? !inBase && a.byOption.some((o) => o.extra.includes(filter)) : false;
@@ -292,8 +325,10 @@ function InformeAlergenos({ data, onGoToRecipes }: { data: Overview; onGoToRecip
                 );
               })}
             </ul>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
       <div className="h-2" />
     </section>
@@ -302,10 +337,10 @@ function InformeAlergenos({ data, onGoToRecipes }: { data: Overview; onGoToRecip
 
 function Stat({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: "ok" | "warn" }) {
   return (
-    <div className="rounded-2xl bg-[var(--p-bg)] p-4">
-      <div className="text-sm text-[var(--p-muted)]">{label}</div>
-      <div className={`mt-1 text-2xl font-bold ${tone === "warn" ? "text-amber-700" : ""}`}>{value}</div>
-      <div className="mt-0.5 truncate text-xs text-[var(--p-muted)]">{sub}</div>
+    <div className="min-w-0 px-3">
+      <div className="text-xs leading-tight text-[var(--p-muted)]">{label}</div>
+      <div className={`mt-1 text-lg font-bold tabular-nums sm:text-2xl ${tone === "warn" ? "text-amber-700" : ""}`}>{value}</div>
+      <div className="line-clamp-2 text-[11px] leading-tight text-[var(--p-muted)]">{sub}</div>
     </div>
   );
 }
