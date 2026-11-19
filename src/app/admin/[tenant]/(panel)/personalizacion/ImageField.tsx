@@ -33,7 +33,9 @@ async function compress(file: File, kind: AssetKind): Promise<{ blob: Blob; widt
   return { blob, width, height };
 }
 
-export default function ImageField({ tenant, kind, url, onChange }: { tenant: string; kind: AssetKind; url: string | null; onChange: (url: string | null) => void }) {
+// compact: una fila (miniatura, nombre y botones) para la lista de Marca; sin él,
+// el bloque grande con la imagen (Configuración → Ticket).
+export default function ImageField({ tenant, kind, url, onChange, compact = false }: { tenant: string; kind: AssetKind; url: string | null; onChange: (url: string | null) => void; compact?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -107,6 +109,66 @@ export default function ImageField({ tenant, kind, url, onChange }: { tenant: st
   const box =
     kind === "FAVICON" ? "h-16 w-16" : kind === "LOGO_SQUARE" ? "h-28 w-28" : kind === "HERO" ? "aspect-[16/7] w-full" : "h-32 w-full";
 
+  const small = "p-press rounded-full border border-[var(--p-line)] px-3 py-1 text-xs font-medium hover:bg-black/[0.04] disabled:opacity-50";
+  const libraryModal = library &&
+    createPortal(
+      <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={`Elegir ${meta.title.toLowerCase()}`}>
+        <button aria-label="Cerrar" onClick={() => setLibrary(false)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+        <div className="relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[24px] bg-[var(--p-bg)] shadow-2xl sm:rounded-[24px]">
+          <header className="flex items-center gap-3 border-b border-[var(--p-line)] px-5 py-4">
+            <p className="flex-1 text-[15px] font-semibold">Elige el {meta.title.toLowerCase()} de tus archivos</p>
+            <button onClick={() => setLibrary(false)} aria-label="Cerrar" className="h-8 w-8 rounded-full text-xl leading-none text-[var(--p-muted)]">
+              ×
+            </button>
+          </header>
+          <div className="overflow-y-auto p-5">
+            <MediaLibrary tenant={tenant} kind="IMAGE" onPick={(f) => fromLibrary(f)} />
+          </div>
+        </div>
+      </div>,
+      document.querySelector(".panel") ?? document.body
+    );
+
+  if (compact)
+    return (
+      <div id={`logo-${meta.slug}`} className={`scroll-mt-24 flex items-start gap-3 rounded-xl py-3 ring-2 transition-shadow duration-700 ${flash ? "ring-[var(--p-brand)]" : "ring-transparent"}`}>
+        <button
+          type="button"
+          onClick={() => input.current?.click()}
+          disabled={busy}
+          aria-label={url ? `Cambiar ${meta.title.toLowerCase()}` : `Subir ${meta.title.toLowerCase()}`}
+          className={`p-press relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-[var(--p-line)] p-checker ${wide ? "h-14 w-24" : "h-14 w-14"}`}
+        >
+          {url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt="" className={`h-full w-full ${kind === "HERO" ? "object-cover" : "object-contain p-1"}`} />
+          ) : (
+            <span className="text-lg text-[var(--p-faint)]">{busy ? "…" : "+"}</span>
+          )}
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">{meta.title}</p>
+          <p className="line-clamp-2 text-xs text-[var(--p-muted)]">{meta.help}</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <button type="button" onClick={() => input.current?.click()} disabled={busy} className={small}>
+              {busy ? "Subiendo…" : url ? "Subir otra" : "Subir"}
+            </button>
+            <button type="button" onClick={() => setLibrary(true)} disabled={busy} className={small}>
+              De Archivos
+            </button>
+            {url && (
+              <button type="button" onClick={remove} disabled={busy} className="p-press rounded-full px-2.5 py-1 text-xs font-medium text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)] disabled:opacity-50">
+                Quitar
+              </button>
+            )}
+          </div>
+          {error && <p className="mt-1 text-xs text-[var(--p-accent)]">{error}</p>}
+        </div>
+        <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+        {libraryModal}
+      </div>
+    );
+
   return (
     // id: el lápiz del logo en el menú enlaza aquí (#logo-logo-square) y lo resalta.
     <section id={`logo-${meta.slug}`} className={`scroll-mt-24 rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-2 transition-shadow duration-700 sm:p-5 ${flash ? "ring-[var(--p-brand)]" : "ring-transparent"}`}>
@@ -147,25 +209,7 @@ export default function ImageField({ tenant, kind, url, onChange }: { tenant: st
       {error && <p className="mt-2 text-xs text-[var(--p-accent)]">{error}</p>}
       <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
 
-      {/* Biblioteca de Archivos. Se pinta en .panel, fuera de la página animada. */}
-      {library &&
-        createPortal(
-          <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={`Elegir ${meta.title.toLowerCase()}`}>
-            <button aria-label="Cerrar" onClick={() => setLibrary(false)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-            <div className="relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[24px] bg-[var(--p-bg)] shadow-2xl sm:rounded-[24px]">
-              <header className="flex items-center gap-3 border-b border-[var(--p-line)] px-5 py-4">
-                <p className="flex-1 text-[15px] font-semibold">Elige el {meta.title.toLowerCase()} de tus archivos</p>
-                <button onClick={() => setLibrary(false)} aria-label="Cerrar" className="h-8 w-8 rounded-full text-xl leading-none text-[var(--p-muted)]">
-                  ×
-                </button>
-              </header>
-              <div className="overflow-y-auto p-5">
-                <MediaLibrary tenant={tenant} kind="IMAGE" onPick={(f) => fromLibrary(f)} />
-              </div>
-            </div>
-          </div>,
-          document.querySelector(".panel") ?? document.body
-        )}
+      {libraryModal}
     </section>
   );
 }

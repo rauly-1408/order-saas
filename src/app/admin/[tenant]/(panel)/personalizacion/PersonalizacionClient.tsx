@@ -155,6 +155,7 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
     () => loaded?.assets ?? null,
   );
   const [tab, setTab] = useState<"identidad" | "online">("identidad");
+  const [moreDesign, setMoreDesign] = useState(false);
   // Dirección de la tienda para las vistas previas de Google y WhatsApp (tras montar: sin desajuste al hidratar).
   const [host, setHost] = useState("");
   useEffect(() => setHost(window.location.host), []);
@@ -325,15 +326,23 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
                 </p>
               </section>
 
-              {IMAGE_FIELDS.map((f) => (
-                <ImageField
-                  key={f.kind}
-                  tenant={tenant}
-                  kind={f.kind}
-                  url={assets[f.key]}
-                  onChange={(url) => setAsset(f.key, url)}
-                />
-              ))}
+              {/* Logotipos e imágenes en una lista compacta (antes, un bloque grande por imagen) */}
+              <section className={card}>
+                <h3 className="text-[15px] font-semibold">Logotipos e imágenes</h3>
+                <p className="mt-0.5 text-xs text-[var(--p-muted)]">Toca la miniatura o «Subir» para cambiar cada una. También puedes elegirlas de tus Archivos.</p>
+                <div className="mt-1 divide-y divide-[var(--p-line)]">
+                  {IMAGE_FIELDS.map((f) => (
+                    <ImageField
+                      key={f.kind}
+                      tenant={tenant}
+                      kind={f.kind}
+                      url={assets[f.key]}
+                      onChange={(url) => setAsset(f.key, url)}
+                      compact
+                    />
+                  ))}
+                </div>
+              </section>
 
               <section className={card}>
                 <h3 className="text-[15px] font-semibold">Paleta de colores</h3>
@@ -388,6 +397,18 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
                 </div>
               </section>
 
+              {/* Lo que se toca una vez (letras, redondeo, menús por fila) va plegado */}
+              <section className={card}>
+                <button type="button" onClick={() => setMoreDesign((v) => !v)} aria-expanded={moreDesign} className="flex w-full items-center gap-3 text-left">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold">Más ajustes de diseño</span>
+                    <span className="block text-xs text-[var(--p-muted)]">Fuentes, redondeo de las tarjetas y menús por fila</span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-[var(--p-bg)] px-3 py-1.5 text-xs font-semibold">{moreDesign ? "Cerrar" : "Ver"}</span>
+                </button>
+              </section>
+              {moreDesign && (
+                <>
               <section className={card}>
                 <h3 className="text-[15px] font-semibold">Fuentes</h3>
                 <p className="mt-0.5 text-xs text-[var(--p-muted)]">
@@ -491,6 +512,8 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
                 </div>
                 <MenusRowPreview theme={theme} perRow={form.menusPerRow} />
               </section>
+                </>
+              )}
             </>
           ) : tab === "online" ? (
             <>

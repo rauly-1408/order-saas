@@ -28,10 +28,12 @@ const TONE: Record<Tone, string> = {
 };
 const day = (iso: string) => new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 
+// En el móvil, una fila de lista (logo, nombre, estado, explicación corta y el
+// botón a la derecha); desde sm, la tarjeta de siempre. Así cabe en ~2 pantallas.
 function Tile({ initial, logo, name, desc, state, tone, action }: { initial: string; logo?: string; name: string; desc: string; state: string; tone: Tone; action: React.ReactNode }) {
   return (
-    <li className="flex flex-col gap-3 rounded-2xl border border-[var(--p-line)] p-4">
-      <div className="flex items-start gap-3">
+    <li className="flex items-start gap-3 py-3 sm:flex-col sm:gap-3 sm:rounded-2xl sm:border sm:border-[var(--p-line)] sm:p-4">
+      <div className="flex min-w-0 flex-1 items-start gap-3 sm:w-full sm:flex-none">
         {logo ? (
           <PlatformLogo platform={logo} size={40} />
         ) : (
@@ -40,24 +42,28 @@ function Tile({ initial, logo, name, desc, state, tone, action }: { initial: str
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">{name}</p>
-          <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${TONE[tone]}`}>{state}</span>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 font-semibold">
+            {name}
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold sm:hidden ${TONE[tone]}`}>{state}</span>
+          </p>
+          <span className={`mt-1 hidden rounded-full px-2 py-0.5 text-xs font-semibold sm:inline-block ${TONE[tone]}`}>{state}</span>
+          <p className="mt-0.5 line-clamp-2 text-xs text-[var(--p-muted)] sm:hidden">{desc}</p>
         </div>
       </div>
-      <p className="flex-1 text-sm text-[var(--p-muted)]">{desc}</p>
-      <div>{action}</div>
+      <p className="hidden flex-1 text-sm text-[var(--p-muted)] sm:block">{desc}</p>
+      <div className="shrink-0 self-center sm:self-auto">{action}</div>
     </li>
   );
 }
 
-const linkBtn = "p-press inline-flex min-h-11 items-center rounded-full border border-[var(--p-line)] px-4 text-sm font-semibold";
+const linkBtn = "p-press inline-flex min-h-10 items-center whitespace-nowrap rounded-full border border-[var(--p-line)] px-3.5 text-[13px] font-semibold sm:min-h-11 sm:px-4 sm:text-sm";
 
 function Group({ title, hint, three = false, children }: { title: string; hint: string; three?: boolean; children: React.ReactNode }) {
   return (
     <section className={card}>
       <p className="text-[15px] font-semibold">{title}</p>
       <p className="mt-1 text-sm text-[var(--p-muted)]">{hint}</p>
-      <ul className={`mt-4 grid gap-3 sm:grid-cols-2 ${three ? "xl:grid-cols-3" : ""}`}>{children}</ul>
+      <ul className={`mt-2 divide-y divide-[var(--p-line)] sm:mt-4 sm:grid sm:gap-3 sm:divide-y-0 sm:grid-cols-2 ${three ? "xl:grid-cols-3" : ""}`}>{children}</ul>
     </section>
   );
 }
@@ -106,9 +112,9 @@ export default function Integraciones({ tenant }: { tenant: string }) {
         tone={asked ? "asked" : "soon"}
         action={
           asked ? (
-            <p className="text-sm text-[var(--p-muted)]">Te avisaremos en cuanto esté lista para conectarla.</p>
+            <p className="max-w-[8rem] text-xs text-[var(--p-muted)] sm:max-w-none sm:text-sm">Te avisaremos en cuanto esté lista para conectarla.</p>
           ) : (
-            <button type="button" disabled={busy === key} onClick={() => request(key)} className="p-press min-h-11 rounded-full bg-[var(--p-brand)] px-4 text-sm font-semibold text-white disabled:opacity-50">
+            <button type="button" disabled={busy === key} onClick={() => request(key)} className="p-press min-h-10 whitespace-nowrap rounded-full bg-[var(--p-brand)] px-3.5 text-[13px] font-semibold text-white disabled:opacity-50 sm:min-h-11 sm:px-4 sm:text-sm">
               {busy === key ? "Solicitando…" : "Solicitar"}
             </button>
           )
