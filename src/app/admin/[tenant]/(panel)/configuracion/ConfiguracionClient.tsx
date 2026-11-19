@@ -176,7 +176,8 @@ export default function ConfiguracionClient({ tenant }: { tenant: string }) {
       </Section>
 
       <Section title="Precios y tiempos">
-        <div className="grid gap-4 sm:grid-cols-2">
+        {/* Dos columnas también en el móvil: son cifras cortas */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <MoneyField label="Pedido mínimo a domicilio" cents={form.minimumOrderCents} onChange={v => setForm({ ...form, minimumOrderCents: v })} />
           <MoneyField label="Envío general" cents={form.deliveryFeeCents} onChange={v => setForm({ ...form, deliveryFeeCents: v })} />
           <div>

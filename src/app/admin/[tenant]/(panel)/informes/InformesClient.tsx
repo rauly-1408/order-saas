@@ -201,23 +201,24 @@ function Kpis({ totals, previous }: { totals: Totals; previous: Totals }) {
     { label: totals.cancelledByCustomer > 0 ? `Cancelados · ${totals.cancelledByCustomer} por el cliente` : "Cancelados", value: String(totals.cancelled), cur: totals.cancelled, prev: previous.cancelled, lowerIsBetter: true },
   ];
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+    // En el móvil, 3 por fila y más pequeñas: las 6 cifras ocupan dos filas en vez de tres.
+    <div className="grid grid-cols-3 gap-2 sm:gap-3 xl:grid-cols-6">
       {tiles.map((t) => {
         const pct = changePct(t.cur, t.prev);
         const good = pct == null || pct === 0 ? null : (pct > 0) !== Boolean(t.lowerIsBetter);
         return (
-          <div key={t.label} className="min-w-0 rounded-2xl bg-[var(--p-surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-            <p className="text-xs text-[var(--p-muted)]">{t.label}</p>
-            <p className="mt-1 truncate text-xl font-semibold tabular-nums sm:text-2xl">{t.value}</p>
-            <p className="mt-1 text-xs tabular-nums">
+          <div key={t.label} className="min-w-0 rounded-2xl bg-[var(--p-surface)] p-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-4">
+            <p className="truncate text-[11px] text-[var(--p-muted)] sm:text-xs">{t.label}</p>
+            <p className="mt-1 truncate text-base font-semibold tabular-nums sm:text-2xl">{t.value}</p>
+            <p className="mt-1 text-[11px] leading-tight tabular-nums sm:text-xs">
               {pct == null ? (
-                <span className="text-[var(--p-muted)]">{t.prev === 0 && t.cur > 0 ? "Nuevo en este periodo" : "Sin datos para comparar"}</span>
+                <span className="text-[var(--p-muted)]">{t.prev === 0 && t.cur > 0 ? "Nuevo" : "Sin comparar"}</span>
               ) : (
                 <>
                   <span className={good == null ? "text-[var(--p-muted)]" : good ? "font-semibold text-emerald-700" : "font-semibold text-[var(--p-accent)]"}>
                     {pct > 0 ? "▲" : pct < 0 ? "▼" : "="} {Math.abs(pct).toLocaleString("es-ES", { maximumFractionDigits: 0 })}%
                   </span>{" "}
-                  <span className="text-[var(--p-muted)]">vs anterior</span>
+                  <span className="hidden text-[var(--p-muted)] sm:inline">vs anterior</span>
                 </>
               )}
             </p>
