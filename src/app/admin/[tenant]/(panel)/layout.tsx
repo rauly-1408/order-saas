@@ -14,6 +14,7 @@ import OrderAlerts from "./OrderAlerts";
 import DragScroll from "./DragScroll";
 import OutboxBar from "./OutboxBar";
 import PanelOffline from "./PanelOffline";
+import Assistant from "./Assistant";
 
 // Texto: tipografía del sistema de Apple (SF) con Inter como respaldo fuera de
 // Apple. Titulares de marca: condensada en mayúsculas, como la carta impresa.
@@ -80,6 +81,7 @@ export default async function AdminLayout({
       <DragScroll />
       <OutboxBar />
       <PanelOffline tenant={tenant} />
+      {canManageTenant(session.role) && <Assistant tenant={tenant} />}
     </div>
   );
 }

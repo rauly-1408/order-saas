@@ -3,6 +3,7 @@
 import { playOrderChime, soundEnabled } from "./sound";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { openAssistant, SparkIcon } from "./Assistant";
 import { usePathname, useRouter } from "next/navigation";
 import { NorappLogo } from "../NorappSplash";
 import InstallApp from "./InstallApp";
@@ -278,7 +279,13 @@ export default function AdminSidebar({
             <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
         </button>
-        <span className="text-[15px] font-semibold">{tenantName}</span>
+        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{tenantName}</span>
+        {canManage && (
+          <button type="button" onClick={openAssistant} aria-label="Pregúntale al panel" className="p-press flex h-9 items-center gap-1.5 rounded-full bg-[var(--p-brand)] px-3 text-[13px] font-semibold text-white">
+            <SparkIcon className="h-4 w-4" />
+            Pregúntale
+          </button>
+        )}
       </div>
 
       {open && <button aria-label="Cerrar menú" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[2px] lg:hidden" />}
@@ -342,6 +349,12 @@ export default function AdminSidebar({
         </nav>
 
         <div className="border-t border-[var(--p-line)] px-3 py-2">
+          {canManage && (
+            <button type="button" onClick={() => { setOpen(false); openAssistant(); }} className="p-press hidden w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[14px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04] lg:flex">
+              <SparkIcon />
+              Pregúntale al panel
+            </button>
+          )}
           {/* Configuración abajo, separada del trabajo diario (como Shopify) */}
           {canManage && (
             <Link
