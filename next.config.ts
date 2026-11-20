@@ -1,7 +1,26 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
+// Cabeceras de seguridad en todas las respuestas. Ver docs/SEGURIDAD.md
+// La CSP es mínima a propósito (no bloquea scripts ni estilos): impide meter la
+// app dentro de otra web (clickjacking), plugins y <base> trampa, y limita a qué
+// sitios se pueden enviar formularios (nosotros y la pasarela Redsys).
+const SECURITY_HEADERS = [
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self), payment=(self), usb=(), browsing-topics=()" },
+  {
+    key: "Content-Security-Policy",
+    value: "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self' https://sis.redsys.es https://sis-t.redsys.es:25443; upgrade-insecure-requests",
+  },
+];
+
 const nextConfig: NextConfig = {
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
   // La letra del ticket (lib/receiptImage.tsx) se lee del disco al imprimir.
   outputFileTracingIncludes: { "/**": ["./src/app/lib/fonts/**"] },
   typescript: {
