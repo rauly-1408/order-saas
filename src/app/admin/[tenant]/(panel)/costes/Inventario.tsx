@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { unitCostCents } from "@/app/lib/costs";
 import { packsText } from "@/app/lib/costReports";
 import InformeStock from "./InformeStock";
+import RecuentoVoz from "./RecuentoVoz";
 import AvisosMovil from "../AvisosMovil";
 import { UNIT_LABEL, euros, formatQty, type Ingredient, type MovementType, type Overview } from "./types";
 
@@ -84,6 +85,8 @@ export default function Inventario({ data, api, onSaved, onGoToIngredients }: Pr
           <p className="mt-1 text-xs text-red-600/80">Vuelven a aparecer solos al registrar una entrada.</p>
         </div>
       )}
+
+      {data.ingredients.length > 0 && <RecuentoVoz ingredients={data.ingredients} api={api} onSaved={onSaved} />}
 
       {data.ingredients.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-6 text-center">
