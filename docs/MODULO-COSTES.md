@@ -210,3 +210,19 @@ Ventaja de venta: **Tavola cobra 75 €/mes por conectarse al TPV**; nosotros ya
 - **Primeros pasos**: arriba de Costes, una guía con el orden recomendado (proveedores → ingredientes con precio → escandallos → control de stock). Cada paso lleva a su pestaña, el siguiente pendiente va resaltado y la guía desaparece cuando están los cuatro.
 - **Inventario vacío**: botón «Ir a ingredientes», igual que en Escandallos.
 - **Proveedores e Ingredientes**: cada fila se toca para editarla (como la Carta). Mientras se edita se oculta la lista y la pantalla va al formulario. «Borrar» está dentro de la edición.
+
+## 🎙️ Inventario por voz (2026-11-22)
+
+En **Costes → Inventario**, la tarjeta «Apuntar con la voz» permite dictar (o escribir) frases como
+«hay 3 kilos de tomate, entran 2 cajas de pan y se ha tirado medio kilo de lechuga».
+
+- `POST /api/admin/[tenant]/costs/stock-voice` `{ text }` → `{ lines }`. **No guarda nada**: solo propone.
+  Mismo acceso que Costes (`costsTenant`), límite de 40 dictados cada 10 min por IP y máximo 2.000 caracteres.
+- `lib/voiceStock.ts`: Claude (salida JSON con esquema) relaciona cada producto con un ingrediente activo,
+  decide el tipo (`COUNT` = «hay», `RECEIPT` = «entra», `WASTE` = «merma») y pasa la cantidad a la unidad base
+  (kilos → g, cajas → formato de compra…). `sanitizeVoice` descarta ids de otro restaurante y cantidades imposibles.
+- El panel (`costes/RecuentoVoz.tsx`) enseña cada línea para corregir ingrediente, tipo y cantidad; las que no tienen
+  ingrediente bloquean el guardado hasta elegirlo o quitarlas. Al guardar usa el `POST costs/stock` de siempre,
+  con la nota «Por voz», así que el historial y los avisos de mínimo funcionan igual.
+- El micro usa el dictado del navegador (`lib/speech.ts`, compartido con «Pregúntale al panel»), en modo continuo
+  para listas largas. Si el navegador no lo tiene, se escribe.

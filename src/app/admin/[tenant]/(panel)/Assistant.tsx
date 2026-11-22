@@ -1,5 +1,6 @@
 "use client";
 
+import { speechCtor, type Recognition } from "@/app/lib/speech";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ChatMessage, PendingAction } from "@/app/lib/assistant";
@@ -16,14 +17,6 @@ type Turn = ChatMessage & { actions?: PendingAction[] };
 type ActionState = "idle" | "busy" | "done" | "error";
 
 const SUGGESTIONS = ["¿Cuánto llevo vendido hoy?", "¿Qué se ha vendido más esta semana?", "¿Qué ingredientes están bajo mínimos?", "¿Qué productos están agotados?"];
-
-// Web Speech API (Chrome, Edge, Safari): no está en los tipos de TypeScript.
-type Recognition = { lang: string; interimResults: boolean; continuous: boolean; start: () => void; stop: () => void; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onend: (() => void) | null; onerror: (() => void) | null };
-function speechCtor(): (new () => Recognition) | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
 
 export function SparkIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
