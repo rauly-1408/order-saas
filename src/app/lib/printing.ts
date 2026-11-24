@@ -744,17 +744,29 @@ async function receiptPrinters(tenantId: string, storeId: string) {
   if (!tenant) return null;
   const cfg = readPrinting(tenant.settings);
   const printers = cfg.agentToken ? cfg.printers.filter((x) => x.roles.includes("receipt") && (!x.storeId || x.storeId === storeId)) : [];
-  return { printers, tenantName: tenant.name, storeName: store?.name ?? "", tz: tenantTimeZone(tenant.settings) };
+  return { printers, skipPreview: cfg.skipPreview, tenantName: tenant.name, storeName: store?.name ?? "", tz: tenantTimeZone(tenant.settings) };
 }
 
 const shiftForPrint = (sh: { number: number; startedAt: Date; endedAt: Date; startedByName: string | null; closedByName: string | null; openingCashCents: number; expectedCashCents: number; countedCashCents: number; differenceCents: number; summary: unknown; notes: string | null }): ShiftForPrint => ({ ...sh, summary: sh.summary as ClosingSummary });
 
-// Cierre del día (Z), resumen o detallado. Devuelve en cuántas impresoras sale.
-export async function enqueueClosing(sessionId: string, detailed = false): Promise<number> {
-  const s = await prisma.cashSession.findUnique({ where: { id: sessionId }, include: { shifts: { orderBy: { number: "asc" } } } });
-  if (!s || !s.closedAt || s.countedCashCents == null || s.expectedCashCents == null || s.differenceCents == null) return 0;
+// Un informe de caja ya guardado: el del día (Z, resumen o detallado) o el de un turno (X).
+export type CashReport = { sessionId: string; detailed?: boolean } | { shiftId: string };
+
+// Los bytes de un informe para cada impresora de tickets del local (lo mismo
+// sirve para la vista previa y para imprimir).
+async function cashReportPrints(rep: CashReport) {
+  if ("shiftId" in rep) {
+    const sh = await prisma.cashShift.findUnique({ where: { id: rep.shiftId }, include: { session: { select: { tenantId: true, storeId: true } } } });
+    if (!sh) return null;
+    const r = await receiptPrinters(sh.session.tenantId, sh.session.storeId);
+    if (!r) return null;
+    const data = { ...shiftForPrint(sh), tenantName: r.tenantName, storeName: r.storeName, tz: r.tz };
+    return { tenantId: sh.session.tenantId, skipPreview: r.skipPreview, prints: r.printers.map((p) => ({ printer: p, data: renderShift(data, p) })) };
+  }
+  const s = await prisma.cashSession.findUnique({ where: { id: rep.sessionId }, include: { shifts: { orderBy: { number: "asc" } } } });
+  if (!s || !s.closedAt || s.countedCashCents == null || s.expectedCashCents == null || s.differenceCents == null) return null;
   const r = await receiptPrinters(s.tenantId, s.storeId);
-  if (!r || !r.printers.length) return 0;
+  if (!r) return null;
   const data = {
     openedAt: s.openedAt,
     closedAt: s.closedAt,
@@ -767,24 +779,38 @@ export async function enqueueClosing(sessionId: string, detailed = false): Promi
     summary: s.summary as unknown as ClosingSummary,
     notes: s.notes,
     shifts: s.shifts.map(shiftForPrint),
-    detailed,
+    detailed: !!rep.detailed,
     storeName: r.storeName,
     tenantName: r.tenantName,
     tz: r.tz,
   };
-  await prisma.printJob.createMany({ data: r.printers.map((p) => ({ tenantId: s.tenantId, kind: "CLOSING" as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderClosing(data, p)) })) });
-  return r.printers.length;
+  return { tenantId: s.tenantId, skipPreview: r.skipPreview, prints: r.printers.map((p) => ({ printer: p, data: renderClosing(data, p) })) };
 }
 
-// Cierre de turno (X). Devuelve en cuántas impresoras sale.
+// Vista previa de un informe de caja: el papel tal como saldrá, por impresora.
+export async function previewCashReport(rep: CashReport): Promise<{ skipPreview: boolean; items: PrintPreviewItem[] } | null> {
+  const r = await cashReportPrints(rep);
+  if (!r) return null;
+  return { skipPreview: r.skipPreview, items: r.prints.map((x) => ({ printer: x.printer.name, width: x.printer.width, copies: 1, preview: previewEscpos(x.data) })) };
+}
+
+// Mandar un informe de caja a la impresora de tickets. Devuelve los trabajos.
+export async function enqueueCashReport(rep: CashReport): Promise<string[]> {
+  const r = await cashReportPrints(rep);
+  if (!r || !r.prints.length) return [];
+  const jobs = await prisma.printJob.createManyAndReturn({
+    data: r.prints.map((x) => ({ tenantId: r.tenantId, kind: "CLOSING" as PrintKind, printerId: x.printer.id, host: x.printer.host, port: x.printer.port, data: Buffer.from(x.data) })),
+    select: { id: true },
+  });
+  return jobs.map((j) => j.id);
+}
+
+// Al cerrar: el día (Z) o el turno (X). Devuelven en cuántas impresoras sale.
+export async function enqueueClosing(sessionId: string, detailed = false): Promise<number> {
+  return (await enqueueCashReport({ sessionId, detailed })).length;
+}
 export async function enqueueShift(shiftId: string): Promise<number> {
-  const sh = await prisma.cashShift.findUnique({ where: { id: shiftId }, include: { session: { select: { tenantId: true, storeId: true } } } });
-  if (!sh) return 0;
-  const r = await receiptPrinters(sh.session.tenantId, sh.session.storeId);
-  if (!r || !r.printers.length) return 0;
-  const data = { ...shiftForPrint(sh), tenantName: r.tenantName, storeName: r.storeName, tz: r.tz };
-  await prisma.printJob.createMany({ data: r.printers.map((p) => ({ tenantId: sh.session.tenantId, kind: "CLOSING" as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderShift(data, p)) })) });
-  return r.printers.length;
+  return (await enqueueCashReport({ shiftId })).length;
 }
 
 // Informe X sin cerrar el turno: las ventas y el efectivo esperado hasta ahora.

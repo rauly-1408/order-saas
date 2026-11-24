@@ -48,6 +48,7 @@ Con dos o más impresoras de comandas, en Configuración → Impresoras aparece 
 - `GET /api/print/jobs` (Bearer token; busca el restaurante por `settings.printing.agentToken`): antes de servir, marca como FAILED los pendientes de pedidos cancelados («Pedido cancelado») y los de más de 2 horas («Caducado»), para que al encender el agente no salgan comandas viejas; luego hasta 20 pendientes, en base64; actualiza `agentSeenAt` como mucho una vez por minuto. `POST /api/print/jobs { id, ok, error }`: marca impreso o suma un intento (al quinto, FAILED).
 - `GET/PUT/POST /api/admin/[tenant]/printers` (gerente): configuración, estado y últimos 8 trabajos; `POST { action: "test" | "newToken" }`.
 - `POST /api/admin/[tenant]/print/[orderId] { kind }` (cualquier usuario del restaurante; un usuario con local asignado solo sus pedidos): reimprime.
+- `GET/POST /api/admin/[tenant]/caja/informe` → lo mismo para los cierres de caja (`?session=id[&detailed=1]` o `?shift=id`); ver `docs/CAJA.md`.
 - `GET /api/admin/[tenant]/print/[orderId]?kind=` → vista previa, una por impresora: los mismos bytes ESC/POS que se encolan, leídos por `lib/escposPreview.ts` (el QR de VeriFactu llega ya en SVG). `?jobs=id1,id2` → estado de esos trabajos. El POST devuelve `jobs` (ids).
 - El agente se descarga desde el panel (`public/print-agent/agent.js`, copia de `tools/print-agent/agent.js`; hay que mantener las dos iguales).
 
