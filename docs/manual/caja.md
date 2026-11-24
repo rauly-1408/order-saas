@@ -12,9 +12,14 @@ El dinero del local: abrir y cerrar la caja, lo que entra y sale del cajón y lo
 
 ## Cerrar la caja al final del día
 
-1. Entra en **Caja** y toca el botón rojo «Cerrar caja y contar».
+1. En **Caja**, toca el botón rojo «Cerrar caja y contar».
 2. Cuenta el efectivo del cajón (todo, incluido el fondo): escribe el total o cuéntalo por billetes y monedas.
 3. Toca «Cerrar caja» y confirma. Verás si cuadra, sobra o falta.
+4. Toca «🖨 Imprimir el cierre» para sacar el informe de cierre (si hay impresora de tickets también sale solo al cerrar).
+
+## Ver o imprimir el cierre de caja de otro día
+
+En **Caja**, abajo, «Cierres de caja»: cada cierre con su fecha, horas, quién cerró, lo vendido y si cuadró. Tócalo y verás todo el informe: ventas por forma de pago, número de pedidos, ticket medio, base imponible e IVA, propinas, descuentos, cancelados y devoluciones, el efectivo del cajón (fondo, ventas en efectivo, entradas, salidas, lo que debía haber, lo contado y la diferencia) y quién abrió y cerró. Puedes imprimirlo en la impresora de tickets («🖨 Imprimir ticket») o en el ordenador («🖨 En este ordenador»). Se guardan los cierres del último mes.
 
 ## Apuntar dinero que entra o sale del cajón
 

@@ -12,7 +12,8 @@ import PanelPortal from "../PanelPortal";
 type PayKey = "CASH" | "CARD_TERMINAL" | "BIZUM" | "CARD" | "IN_STORE";
 type Figures = { orders: number; byPayment: Record<PayKey, number>; totalCents: number; cashSalesCents: number; inCents: number; outCents: number; expectedCashCents: number };
 type Movement = { id: string; kind: "IN" | "OUT"; amountCents: number; reason: string; userName: string | null; createdAt: string };
-type Closing = { id: string; openedAt: string; closedAt: string; openedByName: string | null; closedByName: string | null; openingFloatCents: number; countedCashCents: number; expectedCashCents: number; differenceCents: number; notes: string | null };
+export type ClosingSummaryView = { orders: number; byPayment: Record<string, number>; totalCents: number; inCents: number; outCents: number; tipsCents?: number; discountCents?: number; cancelled?: number; refundedCents?: number; taxRate?: number; baseCents?: number; taxCents?: number };
+export type Closing = { id: string; openedAt: string; closedAt: string; openedByName: string | null; closedByName: string | null; openingFloatCents: number; countedCashCents: number; expectedCashCents: number; differenceCents: number; notes: string | null; summary?: ClosingSummaryView | null };
 export type CashState = {
   seesTakings: boolean;
   open: { id: string; openedAt: string; openedByName: string | null; openingFloatCents: number; movements: Movement[] } | null;
@@ -199,7 +200,26 @@ export default function CashSessionSheet({
                 <p className="mt-1 text-sm text-[var(--p-muted)]">Recuento guardado: {euros(closed.countedCashCents)}. El administrador verá si cuadra.</p>
               </>
             )}
-            <p className="mt-4 text-xs text-[var(--p-muted)]">Si hay impresora de tickets, sale el informe de cierre.</p>
+            {closed.differenceCents != null && (
+              <>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    const r = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reprint", sessionId: closed.id }) }).catch(() => null);
+                    const j = (await r?.json().catch(() => ({}))) as { printed?: number; error?: string } | undefined;
+                    setBusy(false);
+                    setPartialMsg(r?.ok ? (j?.printed ? "Enviado a la impresora." : "No hay impresora de tickets conectada. Imprímelo desde Caja → Cierres de caja → «En este ordenador».") : (j?.error ?? "No se ha podido imprimir."));
+                  }}
+                  className="p-press mt-5 min-h-12 w-full rounded-2xl bg-black/[0.05] text-sm font-semibold disabled:opacity-50"
+                >
+                  🖨 Imprimir el cierre
+                </button>
+                {partialMsg && <p className="mt-2 text-xs text-[var(--p-muted)]">{partialMsg}</p>}
+              </>
+            )}
+            <p className="mt-4 text-xs text-[var(--p-muted)]">Queda guardado en Caja → «Cierres de caja», con todas sus cifras, para verlo o imprimirlo cuando quieras.</p>
             <button type="button" onClick={onClose} className="p-press mt-6 w-full rounded-full bg-[var(--p-brand)] py-3.5 text-base font-semibold text-white">
               Listo
             </button>
@@ -329,7 +349,7 @@ export default function CashSessionSheet({
                 )}
               </div>
             )}
-            {state.history.length > 0 && <History items={state.history} />}
+            
           </div>
         ) : (
           /* ── Caja abierta ── */

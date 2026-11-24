@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 //   POST { action: "open", floatCents }
 //        { action: "move", kind: "IN" | "OUT", amountCents, reason }
 //        { action: "close", countedCents, notes? }
+//        { action: "reprint", sessionId }   volver a imprimir un cierre
 // Cualquier usuario del restaurante abre, mueve y cierra. Quien no tiene «Ve lo
 // recaudado» cuenta a ciegas: no ve lo esperado ni la diferencia.
 
@@ -42,7 +43,7 @@ async function payload(tenantId: string, storeId: string, seesTakings: boolean) 
     ? await prisma.cashSession.findMany({
         where: { tenantId, storeId, closedAt: { not: null } },
         orderBy: { closedAt: "desc" },
-        take: 14,
+        take: 31, // un mes de cierres
         select: { id: true, openedAt: true, closedAt: true, openedByName: true, closedByName: true, openingFloatCents: true, countedCashCents: true, expectedCashCents: true, differenceCents: true, summary: true, notes: true },
       })
     : [];
@@ -97,6 +98,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(await payload(tenant.id, storeId, sees));
     }
 
+    // Volver a imprimir un cierre ya hecho (hoy o días anteriores).
+    if (b.action === "reprint") {
+      if (!sees) return NextResponse.json({ error: "Para ver las cifras hace falta el permiso «Ve lo recaudado»" }, { status: 403 });
+      const id = typeof b.sessionId === "string" ? b.sessionId : "";
+      const s = await prisma.cashSession.findFirst({ where: { id, tenantId: tenant.id, storeId, closedAt: { not: null } }, select: { id: true } });
+      if (!s) return NextResponse.json({ error: "Ese cierre no existe" }, { status: 404 });
+      const printed = await enqueueClosing(s.id);
+      return NextResponse.json({ printed });
+    }
+
     if (!current) return NextResponse.json({ error: "La caja está cerrada. Ábrela primero." }, { status: 400 });
 
     if (b.action === "move") {
@@ -134,7 +145,20 @@ export async function POST(req: NextRequest) {
           expectedCashCents: fig.expectedCashCents,
           differenceCents: difference,
           notes,
-          summary: { orders: fig.orders, byPayment: fig.byPayment, totalCents: fig.totalCents, inCents: fig.inCents, outCents: fig.outCents } as unknown as Prisma.InputJsonValue,
+          summary: {
+            orders: fig.orders,
+            byPayment: fig.byPayment,
+            totalCents: fig.totalCents,
+            inCents: fig.inCents,
+            outCents: fig.outCents,
+            tipsCents: fig.tipsCents,
+            discountCents: fig.discountCents,
+            cancelled: fig.cancelled,
+            refundedCents: fig.refundedCents,
+            taxRate: fig.taxRate,
+            baseCents: fig.baseCents,
+            taxCents: fig.taxCents,
+          } as unknown as Prisma.InputJsonValue,
         },
       });
       if (done.count === 0) return NextResponse.json({ error: "Esta caja ya se ha cerrado" }, { status: 400 });
