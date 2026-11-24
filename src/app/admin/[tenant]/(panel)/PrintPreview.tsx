@@ -7,7 +7,8 @@ import type { PrintPreviewItem } from "@/app/lib/printing";
 // Reimprimir comanda o ticket con vista previa: se ve el papel tal como saldrá
 // (los mismos bytes que van a la impresora), en qué impresora y, al imprimir,
 // si de verdad ha salido. Con «Imprimir sin vista previa» (Configuración →
-// Impresoras) imprime al primer toque. Lo usan Pedidos y la Caja.
+// Impresoras) imprime al primer toque. Lo usan Pedidos y la Caja (tickets y
+// también los cierres de caja: el del día, resumen o detallado, y cada turno).
 // Ver docs/IMPRESION.md
 
 type Kind = "KITCHEN" | "RECEIPT";
@@ -15,31 +16,53 @@ type Job = { id: string; status: "PENDING" | "PRINTED" | "FAILED"; error: string
 type Phase = { step: "loading" } | { step: "ready" } | { step: "sending" } | { step: "waiting"; jobs: string[]; since: number; slow: boolean } | { step: "done" } | { step: "failed"; text: string };
 
 const TITLE: Record<Kind, string> = { KITCHEN: "Comanda", RECEIPT: "Ticket" };
+// Un informe de caja ya cerrado: el del día (Z) o el de un turno (X).
+export type CashReportRef = { sessionId: string; detailed?: boolean } | { shiftId: string };
+// Qué se imprime: de dónde sale la vista previa, cómo se manda y cómo se sigue.
+type Target = { key: string; title: string; label?: string; previewUrl: string; postUrl: string; body: Record<string, unknown>; jobsUrl: (ids: string[]) => string; sent: string };
 const POLL_MS = 1500;
 const SLOW_MS = 15_000; // sin noticias del agente: probablemente el PC del local está apagado
 const GIVE_UP_MS = 60_000;
 
 export function usePrintPreview(tenant: string) {
-  const [target, setTarget] = useState<{ orderId: string; kind: Kind; label?: string } | null>(null);
+  const [target, setTarget] = useState<Target | null>(null);
   // Se recuerda si el local imprime sin vista previa para no enseñar la ventana ni un instante.
   const skip = useRef<boolean | null>(null);
   const [flash, setFlash] = useState<{ text: string; ok: boolean } | null>(null);
 
-  const quickPrint = useCallback(
-    async (orderId: string, kind: Kind) => {
-      const res = await fetch(`/api/admin/${tenant}/print/${orderId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind }) }).catch(() => null);
-      const data = (await res?.json().catch(() => ({}))) as { error?: string } | undefined;
-      setFlash(res?.ok ? { text: `${TITLE[kind]} enviada a la impresora`, ok: true } : { text: data?.error ?? "Sin conexión. No se pudo imprimir.", ok: false });
-    },
-    [tenant]
-  );
+  const quickPrint = useCallback(async (t: Target) => {
+    const res = await fetch(t.postUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(t.body) }).catch(() => null);
+    const data = (await res?.json().catch(() => ({}))) as { error?: string } | undefined;
+    setFlash(res?.ok ? { text: t.sent, ok: true } : { text: data?.error ?? "Sin conexión. No se pudo imprimir.", ok: false });
+  }, []);
 
-  const print = useCallback(
-    (orderId: string, kind: Kind, label?: string) => {
-      if (skip.current) return void quickPrint(orderId, kind);
-      setTarget({ orderId, kind, label });
+  const open = useCallback(
+    (t: Target) => {
+      if (skip.current) return void quickPrint(t);
+      setTarget(t);
     },
     [quickPrint]
+  );
+
+  // Comanda o ticket de un pedido.
+  const print = useCallback(
+    (orderId: string, kind: Kind, label?: string) => {
+      const api = `/api/admin/${tenant}/print/${orderId}`;
+      open({ key: `${orderId}-${kind}`, title: TITLE[kind], label, previewUrl: `${api}?kind=${kind}`, postUrl: api, body: { kind }, jobsUrl: (ids) => `${api}?jobs=${ids.join(",")}`, sent: `${TITLE[kind]} enviada a la impresora` });
+    },
+    [tenant, open]
+  );
+
+  // Cierre de caja: el del día (resumen o detallado) o un turno.
+  const printReport = useCallback(
+    (rep: CashReportRef, label?: string) => {
+      const api = `/api/admin/${tenant}/caja/informe`;
+      const isShift = "shiftId" in rep;
+      const q = isShift ? `shift=${rep.shiftId}` : `session=${rep.sessionId}${rep.detailed ? "&detailed=1" : ""}`;
+      const title = isShift ? "Cierre de turno (X)" : rep.detailed ? "Cierre del día (Z) detallado" : "Cierre del día (Z)";
+      open({ key: q, title, label, previewUrl: `${api}?${q}`, postUrl: api, body: { ...rep }, jobsUrl: (ids) => `${api}?jobs=${ids.join(",")}`, sent: "Cierre enviado a la impresora" });
+    },
+    [tenant, open]
   );
 
   useEffect(() => {
@@ -54,14 +77,13 @@ export function usePrintPreview(tenant: string) {
     <>
       {target && (
         <PrintPreviewDialog
-          key={`${target.orderId}-${target.kind}`}
-          tenant={tenant}
-          {...target}
+          key={target.key}
+          target={target}
           onClose={() => setTarget(null)}
           onSkip={() => {
             skip.current = true;
             setTarget(null);
-            void quickPrint(target.orderId, target.kind);
+            void quickPrint(target);
           }}
           onLoaded={() => (skip.current = false)}
         />
@@ -76,21 +98,21 @@ export function usePrintPreview(tenant: string) {
     // En la raíz del panel (lleva los colores del restaurante), fuera de la página animada.
     document.querySelector(".panel") ?? document.body
   );
-  return { print, node };
+  return { print, printReport, node };
 }
 
-function PrintPreviewDialog({ tenant, orderId, kind, label, onClose, onSkip, onLoaded }: { tenant: string; orderId: string; kind: Kind; label?: string; onClose: () => void; onSkip: () => void; onLoaded: () => void }) {
+function PrintPreviewDialog({ target, onClose, onSkip, onLoaded }: { target: Target; onClose: () => void; onSkip: () => void; onLoaded: () => void }) {
+  const { title, label } = target;
   const [items, setItems] = useState<PrintPreviewItem[]>([]);
   const [phase, setPhase] = useState<Phase>({ step: "loading" });
   const [loadError, setLoadError] = useState("");
   const printBtn = useRef<HTMLButtonElement>(null);
-  const api = `/api/admin/${tenant}/print/${orderId}`;
 
   // Vista previa (y si el local imprime sin ella).
   useEffect(() => {
     let off = false;
     (async () => {
-      const res = await fetch(`${api}?kind=${kind}`, { cache: "no-store" }).catch(() => null);
+      const res = await fetch(target.previewUrl, { cache: "no-store" }).catch(() => null);
       const data = (await res?.json().catch(() => ({}))) as { error?: string; skipPreview?: boolean; items?: PrintPreviewItem[] } | undefined;
       if (off) return;
       if (!res?.ok || !data?.items) {
@@ -121,7 +143,7 @@ function PrintPreviewDialog({ tenant, orderId, kind, label, onClose, onSkip, onL
 
   async function send() {
     setPhase({ step: "sending" });
-    const res = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind }) }).catch(() => null);
+    const res = await fetch(target.postUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(target.body) }).catch(() => null);
     const data = (await res?.json().catch(() => ({}))) as { error?: string; jobs?: string[] } | undefined;
     if (!res?.ok || !data?.jobs?.length) return setPhase({ step: "failed", text: data?.error ?? "Sin conexión. No se pudo enviar a la impresora." });
     setPhase({ step: "waiting", jobs: data.jobs, since: Date.now(), slow: false });
@@ -133,7 +155,7 @@ function PrintPreviewDialog({ tenant, orderId, kind, label, onClose, onSkip, onL
   useEffect(() => {
     if (!waitingJobs) return;
     const t = setInterval(async () => {
-      const res = await fetch(`${api}?jobs=${waitingJobs.join(",")}`, { cache: "no-store" }).catch(() => null);
+      const res = await fetch(target.jobsUrl(waitingJobs), { cache: "no-store" }).catch(() => null);
       const data = (await res?.json().catch(() => ({}))) as { jobs?: Job[] } | undefined;
       const jobs = data?.jobs ?? [];
       const failed = jobs.find((j) => j.status === "FAILED");
@@ -144,7 +166,8 @@ function PrintPreviewDialog({ tenant, orderId, kind, label, onClose, onSkip, onL
       else if (elapsed > SLOW_MS) setPhase((p) => (p.step === "waiting" && !p.slow ? { ...p, slow: true } : p));
     }, POLL_MS);
     return () => clearInterval(t);
-  }, [api, waitingJobs, since]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- target no cambia mientras está abierta
+  }, [waitingJobs, since]);
 
   // Impreso: se cierra solo enseguida.
   useEffect(() => {
@@ -157,14 +180,14 @@ function PrintPreviewDialog({ tenant, orderId, kind, label, onClose, onSkip, onL
   const busy = phase.step === "sending" || phase.step === "waiting";
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center p-0 lg:items-center lg:p-6" role="dialog" aria-modal="true" aria-label={`${TITLE[kind]}: vista previa`}>
+    <div className="fixed inset-0 z-[70] flex items-end justify-center p-0 lg:items-center lg:p-6" role="dialog" aria-modal="true" aria-label={`${title}: vista previa`}>
       <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/45 backdrop-blur-[2px]" />
       <div className="relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.45)] lg:max-h-[88dvh] lg:max-w-[420px] lg:rounded-[24px]">
         <div aria-hidden className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-black/15 lg:hidden" />
         <div className="flex items-start justify-between gap-3 px-5 pt-4">
           <div className="min-w-0">
             <h2 className="text-lg font-semibold">
-              {TITLE[kind]}
+              {title}
               {label ? <span className="font-normal text-[var(--p-muted)]"> · {label}</span> : null}
             </h2>
             <p className="text-xs text-[var(--p-muted)]">{printers.length ? `Se imprimirá en: ${printers.join(", ")}` : phase.step === "loading" ? "Preparando la vista previa…" : ""}</p>

@@ -80,18 +80,7 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
   const printer = usePrintPreview(tenant);
   // Cierres de caja anteriores (informe Z): se abren ahí mismo y se reimprimen.
   const [openClosing, setOpenClosing] = useState<string | null>(null);
-  const [closingMsg, setClosingMsg] = useState<Record<string, string>>({});
   const [allClosings, setAllClosings] = useState(false); // los 3 últimos y «Ver todos»
-  const reprintClosing = async (id: string, detailed = false) => {
-    const r = await fetch(`/api/admin/${tenant}/caja/sesion`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reprint", sessionId: id, detailed }) }).catch(() => null);
-    const j = (await r?.json().catch(() => ({}))) as { printed?: number; error?: string } | undefined;
-    setClosingMsg((m) => ({ ...m, [id]: r?.ok ? (j?.printed ? "Enviado a la impresora de tickets." : "No hay impresora de tickets conectada: usa «En este ordenador».") : (j?.error ?? "No se ha podido imprimir.") }));
-  };
-  const reprintShift = async (id: string) => {
-    const r = await fetch(`/api/admin/${tenant}/caja/sesion`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reprintShift", shiftId: id }) }).catch(() => null);
-    const j = (await r?.json().catch(() => ({}))) as { printed?: number; error?: string } | undefined;
-    setClosingMsg((m) => ({ ...m, [id]: r?.ok ? (j?.printed ? "Turno enviado a la impresora de tickets." : "No hay impresora de tickets conectada.") : (j?.error ?? "No se ha podido imprimir.") }));
-  };
   const printHere = (id: string) => {
     setOpenClosing(id);
     setTimeout(() => {
@@ -179,20 +168,49 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
 
       <div className="grid gap-4 lg:grid-cols-5">
         {/* 1. Tu caja */}
-        <section aria-label="Estado de la caja" className={`${CARD} lg:col-span-2 ${cash && !open ? "bg-amber-50 ring-amber-200" : "bg-[var(--p-surface)] ring-[var(--p-line)]"}`}>
+        <section aria-label="Estado de la caja" className={`${CARD} lg:col-span-2 bg-[var(--p-surface)] ring-[var(--p-line)]`}>
           {!cash ? (
             <p className="py-8 text-center text-sm text-[var(--p-muted)]">{cashError ? "No se ha podido cargar la caja. Revisa la conexión." : "Cargando…"}</p>
           ) : !open ? (
+            /* Caja cerrada: estado claro, qué hacer y el último cierre como referencia. */
             <div className="flex h-full flex-col">
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Tu caja</p>
-              <p className="mt-1 text-2xl font-semibold text-amber-900">Está cerrada</p>
-              <p className="mt-1 text-sm text-amber-900">Ábrela con el efectivo que dejas en el cajón para poder vender en el local.</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--p-muted)]">Tu caja</p>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">
+                  <span aria-hidden className="h-2 w-2 rounded-full bg-amber-500" />
+                  Cerrada
+                </span>
+              </div>
+              <div className="mt-4 flex items-start gap-4">
+                <span aria-hidden className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--p-brand-soft)] text-[var(--p-brand-strong)]">
+                  <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="10" width="18" height="10" rx="2" />
+                    <path d="M7 10V7a5 5 0 0 1 10 0v3" />
+                    <circle cx="12" cy="15" r="1.5" />
+                  </svg>
+                </span>
+                <div className="min-w-0">
+                  <p className="text-2xl font-semibold tracking-tight">Abre la caja para vender</p>
+                  <p className="mt-1 text-sm text-[var(--p-muted)]">Cuenta el efectivo que dejas en el cajón para el cambio (puede ser 0).</p>
+                </div>
+              </div>
               {cash.history[0] && (
-                <p className="mt-3 text-xs text-amber-800">
-                  Último cierre: {dayLabel(cash.history[0].closedAt)}, {hhmm(cash.history[0].closedAt)} · contado {euros(cash.history[0].countedCashCents)}
-                </p>
+                <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-[var(--p-bg)] px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block text-xs text-[var(--p-muted)]">Último cierre</span>
+                    <span className="block truncate text-sm font-semibold first-letter:uppercase">
+                      {dayLabel(cash.history[0].closedAt)}, {hhmm(cash.history[0].closedAt)}
+                      {cash.history[0].closedByName && <span className="font-normal text-[var(--p-muted)]"> · {cash.history[0].closedByName}</span>}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="text-sm font-semibold tabular-nums">{euros(cash.history[0].countedCashCents)}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${diffTone(cash.history[0].differenceCents)}`}>{cash.history[0].differenceCents === 0 ? "Cuadró" : diffLabel(cash.history[0].differenceCents)}</span>
+                  </span>
+                </div>
               )}
-              <button type="button" onClick={() => setSheet("main")} className={`${BIG} mt-5 bg-[var(--p-brand)] text-[var(--p-on-brand)] lg:mt-auto`}>
+              <div aria-hidden className="min-h-5 flex-1" />
+              <button type="button" onClick={() => setSheet("main")} className={`${BIG} w-full bg-[var(--p-brand)] text-[var(--p-on-brand)]`}>
                 Abrir caja
               </button>
             </div>
@@ -495,10 +513,9 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
                 c={c}
                 open={openClosing === c.id}
                 onToggle={() => setOpenClosing(openClosing === c.id ? null : c.id)}
-                onPrint={(detailed) => reprintClosing(c.id, detailed)}
+                onPrint={(detailed) => printer.printReport({ sessionId: c.id, detailed }, dayLabel(c.closedAt))}
                 onPrintHere={() => printHere(c.id)}
-                onPrintShift={reprintShift}
-                msgs={closingMsg}
+                onPrintShift={(sh) => printer.printReport({ shiftId: sh.id }, `X${sh.number} · ${dayLabel(c.closedAt)}`)}
               />
             ))}
           </ul>
@@ -611,12 +628,11 @@ function Invitations({ sm }: { sm?: ClosingSummaryView | null }) {
   );
 }
 
-function ClosingCard({ c, open, onToggle, onPrint, onPrintHere, onPrintShift, msgs }: { c: Closing; open: boolean; onToggle: () => void; onPrint: (detailed: boolean) => void; onPrintHere: () => void; onPrintShift: (id: string) => void; msgs: Record<string, string> }) {
+function ClosingCard({ c, open, onToggle, onPrint, onPrintHere, onPrintShift }: { c: Closing; open: boolean; onToggle: () => void; onPrint: (detailed: boolean) => void; onPrintHere: () => void; onPrintShift: (sh: ShiftView) => void }) {
   const [detail, setDetail] = useState(false); // desglose de cada turno
   const sm = c.summary;
   const diff = c.differenceCents;
   const shifts = c.shifts ?? [];
-  const msg = msgs[c.id];
   return (
     <li id={`cierre-${c.id}`} className="rounded-2xl bg-[var(--p-surface)] px-3 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04]">
       <button type="button" onClick={onToggle} aria-expanded={open} className="no-print flex min-h-14 w-full items-center gap-3 py-2 text-left">
@@ -679,11 +695,10 @@ function ClosingCard({ c, open, onToggle, onPrint, onPrintHere, onPrintShift, ms
                     {detail && <Invitations sm={sh.summary} />}
                     {sh.notes && <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">Nota: {sh.notes}</p>}
                     {detail && (
-                      <button type="button" onClick={() => onPrintShift(sh.id)} className="no-print mt-2 min-h-11 text-xs font-semibold text-[var(--p-brand)]">
+                      <button type="button" onClick={() => onPrintShift(sh)} className="no-print mt-2 min-h-11 text-xs font-semibold text-[var(--p-brand)]">
                         🖨 Imprimir este turno
                       </button>
                     )}
-                    {msgs[sh.id] && <p className="no-print text-xs text-[var(--p-muted)]">{msgs[sh.id]}</p>}
                   </li>
                 ))}
               </ul>
@@ -735,7 +750,6 @@ function ClosingCard({ c, open, onToggle, onPrint, onPrintHere, onPrintShift, ms
               🖨 En este ordenador
             </button>
           </div>
-          {msg && <p className="no-print mt-2 text-xs text-[var(--p-muted)]">{msg}</p>}
         </div>
       )}
     </li>

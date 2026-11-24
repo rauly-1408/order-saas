@@ -43,7 +43,7 @@ En **Caja**, abajo, «Cierres de caja»: cada día cerrado con sus horas, cuánt
 - **Turnos:** cada X con su hora, quién, las ventas, el efectivo contado, si cuadró y su nota. «Ver detalle por turno» añade las formas de pago, entradas y salidas, cancelados y las invitaciones con quién las hizo; desde ahí puedes imprimir un turno.
 - **Ventas del día:** por forma de pago, pedidos, ticket medio, base imponible e IVA, propinas, descuentos, invitaciones y cancelados.
 - **Efectivo:** fondo de apertura, ventas en efectivo, entradas, salidas, lo contado al cerrar y el descuadre del día.
-Imprímelo en la impresora de tickets («🖨 Imprimir resumen» o «🖨 Imprimir detallado») o en el ordenador («🖨 En este ordenador»). Se guardan los cierres del último mes.
+Imprímelo en la impresora de tickets («🖨 Imprimir resumen» o «🖨 Imprimir detallado»): antes ves el papel tal como saldrá y tocas «Imprimir». O en el ordenador («🖨 En este ordenador»). Se guardan los cierres del último mes.
 
 ## Apuntar dinero que entra o sale del cajón
 

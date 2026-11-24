@@ -3,6 +3,7 @@
 import { ask } from "@/app/lib/dialog";
 import { useEffect, useState } from "react";
 import PanelPortal from "../PanelPortal";
+import { usePrintPreview } from "../PrintPreview";
 
 // Hoja «Caja»: abrir con un fondo (obligatorio para vender en la Caja; se
 // escribe el total o se cuenta por billetes), apuntar entradas y salidas de
@@ -87,6 +88,7 @@ export default function CashSessionSheet({
   start?: "main" | "shift" | "close" | "in" | "out" | "movimientos";
 }) {
   const api = `/api/admin/${tenant}/caja/sesion`;
+  const printer = usePrintPreview(tenant); // vista previa del cierre antes de imprimir
   const [step, setStep] = useState<"main" | "move" | "close" | "done" | "movimientos">(start === "close" || start === "shift" ? "close" : start === "in" || start === "out" ? "move" : start === "movimientos" ? "movimientos" : "main");
   const [amount, setAmount] = useState("");
   const [moveKind, setMoveKind] = useState<"IN" | "OUT">(start === "in" ? "IN" : "OUT");
@@ -180,13 +182,7 @@ export default function CashSessionSheet({
     setError("");
     setStep("close");
   };
-  async function reprint(body: Record<string, unknown>) {
-    setBusy(true);
-    const r = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
-    const j = (await r?.json().catch(() => ({}))) as { printed?: number; error?: string } | undefined;
-    setBusy(false);
-    setPartialMsg(r?.ok ? (j?.printed ? "Enviado a la impresora." : "No hay impresora de tickets conectada. Imprímelo desde Caja → Cierres de caja → «En este ordenador».") : (j?.error ?? "No se ha podido imprimir."));
-  }
+
 
   // Cierre parcial (informe X): sale en la impresora y la caja sigue abierta.
   async function printPartial() {
@@ -209,6 +205,7 @@ export default function CashSessionSheet({
 
   return (
     <PanelPortal>
+    {printer.node}
     <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label="Caja">
       <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/40" />
       <div className="relative flex max-h-[92vh] w-full flex-col overflow-y-auto rounded-t-[24px] bg-[var(--p-surface)] p-5 pb-[max(20px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-lg lg:rounded-[24px]">
@@ -255,15 +252,15 @@ export default function CashSessionSheet({
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
                 {closed.kind === "Z" ? (
                   <>
-                    <button type="button" disabled={busy} onClick={() => reprint({ action: "reprint", sessionId: closed.id })} className="p-press min-h-12 rounded-2xl bg-black/[0.05] text-sm font-semibold disabled:opacity-50">
+                    <button type="button" disabled={busy} onClick={() => printer.printReport({ sessionId: closed.id }, "hoy")} className="p-press min-h-12 rounded-2xl bg-black/[0.05] text-sm font-semibold disabled:opacity-50">
                       🖨 Imprimir resumen
                     </button>
-                    <button type="button" disabled={busy} onClick={() => reprint({ action: "reprint", sessionId: closed.id, detailed: true })} className="p-press min-h-12 rounded-2xl bg-black/[0.05] text-sm font-semibold disabled:opacity-50">
+                    <button type="button" disabled={busy} onClick={() => printer.printReport({ sessionId: closed.id, detailed: true }, "hoy")} className="p-press min-h-12 rounded-2xl bg-black/[0.05] text-sm font-semibold disabled:opacity-50">
                       🖨 Imprimir detallado
                     </button>
                   </>
                 ) : (
-                  <button type="button" disabled={busy} onClick={() => reprint({ action: "reprintShift", shiftId: closed.id })} className="p-press min-h-12 rounded-2xl bg-black/[0.05] text-sm font-semibold disabled:opacity-50 sm:col-span-2">
+                  <button type="button" disabled={busy} onClick={() => printer.printReport({ shiftId: closed.id }, `Turno ${closed.shiftNumber}`)} className="p-press min-h-12 rounded-2xl bg-black/[0.05] text-sm font-semibold disabled:opacity-50 sm:col-span-2">
                     🖨 Imprimir el turno
                   </button>
                 )}
