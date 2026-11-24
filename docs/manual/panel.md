@@ -18,14 +18,15 @@ En el menú lateral, toca «Ver carta pública» (o toca el nombre de tu restaur
 ## Instalar el panel como app en el móvil, la tablet o el ordenador
 
 - **Android y ordenador (Chrome o Edge):** en el menú lateral toca «Instalar como app» y acepta.
-- **iPhone y iPad (Safari):** toca Compartir → «Añadir a pantalla de inicio» y abre el panel siempre desde ese icono.
+- **iPhone y iPad (Safari o Chrome):** en el menú lateral toca «Instalar como app» y te salen los pasos: botón Compartir → «Añadir a pantalla de inicio» → «Añadir». Abre el panel siempre desde ese icono.
 Instalado, el panel se abre en su propia ventana y puede sonar al entrar un pedido sin que toques antes la pantalla.
 
 ## La app no se instala en el móvil
 
-1. En iPhone y iPad no hay botón: se hace desde Safari con Compartir → «Añadir a pantalla de inicio».
-2. En Android u ordenador, «Instalar como app» solo sale en navegadores que lo permiten (Chrome o Edge) y si aún no está instalada. Si no lo ves, puede que ya la tengas: búscala entre tus apps.
-3. Consejo general: abre el panel en Chrome (no dentro de otra app como WhatsApp o Instagram) y vuelve a mirar el menú.
+1. En iPhone y iPad el navegador no instala solo: toca «Instalar como app» en el menú lateral y sigue los pasos (Compartir → «Añadir a pantalla de inicio»). En Chrome el botón Compartir está arriba, junto a la dirección; en Safari, en la barra de abajo.
+2. Si abriste el enlace desde WhatsApp o Instagram, estás dentro de esa app y no deja instalar: ábrelo antes en Safari.
+3. En Android u ordenador, «Instalar como app» solo sale en navegadores que lo permiten (Chrome o Edge) y si aún no está instalada. Si no lo ves, puede que ya la tengas: búscala entre tus apps.
+4. Consejo general: abre el panel en Chrome (no dentro de otra app como WhatsApp o Instagram) y vuelve a mirar el menú.
 
 ## Avisos de pedidos nuevos
 
