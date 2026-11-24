@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HoyOrder, HoyPayment, HoyResponse } from "@/app/api/admin/[tenant]/caja/hoy/route";
 import CashSessionSheet, { type CashState } from "./CashSessionSheet";
-import CajaDia from "./CajaDia";
+import CajaDia, { type TicketDetail } from "./CajaDia";
+import Link from "next/link";
+import { usePrintPreview } from "../PrintPreview";
+import { howLabel } from "../pedidos/orderBoard";
 import NewOrder, { type NewOrderProps } from "../NewOrder";
 
 // Caja (menú): el dinero del local, pensado para el día a día.
@@ -52,7 +55,7 @@ const matches = (o: HoyOrder, f: Filter) => {
   return o.paid && !cancelled && (o.paymentMethod === f || (f === "CASH" && o.cashPartCents > 0));
 };
 
-type Sheet = null | "main" | "close" | "in" | "out";
+type Sheet = null | "main" | "close" | "in" | "out" | "movimientos";
 const CARD = "rounded-3xl p-5 ring-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:p-6";
 const BIG = "p-press flex min-h-14 items-center justify-center gap-2 rounded-2xl px-5 text-[15px] font-semibold";
 
@@ -68,6 +71,19 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
   const [day, setDay] = useState<HoyResponse | null>(null);
   const [ticket, setTicket] = useState<HoyOrder | null>(null);
   const [showAll, setShowAll] = useState(false); // la lista empieza con los 6 últimos (menos scroll)
+  // Tickets como en Pedidos: tarjetas que se abren ahí mismo con su detalle.
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [details, setDetails] = useState<Record<string, TicketDetail>>({});
+  const printer = usePrintPreview(tenant);
+  const toggle = (o: HoyOrder) => {
+    const next = openId === o.id ? null : o.id;
+    setOpenId(next);
+    if (next && !details[o.id])
+      fetch(`/api/admin/${tenant}/caja/ticket/${o.id}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: TicketDetail | null) => d && setDetails((m) => ({ ...m, [o.id]: d })))
+        .catch(() => {});
+  };
 
   const loadCash = useCallback(() => {
     fetch(`/api/admin/${tenant}/caja/sesion`, { cache: "no-store" })
@@ -118,6 +134,7 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
 
   return (
     <div className="text-[var(--p-ink)]">
+      {printer.node}
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Caja</h1>
@@ -192,7 +209,7 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
                   Cerrar caja y contar
                 </button>
               </div>
-              <button type="button" onClick={() => setSheet("main")} className="mt-3 self-center text-sm font-semibold text-[var(--p-muted)] underline underline-offset-2">
+              <button type="button" onClick={() => setSheet("movimientos")} className="mt-3 self-center text-sm font-semibold text-[var(--p-muted)] underline underline-offset-2">
                 Movimientos y cierre parcial
               </button>
             </div>
@@ -238,7 +255,7 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
                           type="button"
                           disabled={!(k === "CASH" || k === "CARD_TERMINAL" || k === "BIZUM")}
                           onClick={() => (k === "CASH" || k === "CARD_TERMINAL" || k === "BIZUM") && setFilter(k)}
-                          className="flex min-h-10 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm enabled:hover:bg-black/[0.04]"
+                          className="p-row flex min-h-10 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm transition-colors"
                         >
                           <span className="flex items-center gap-2">
                             <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${PAY[k].color}`} />
@@ -300,43 +317,112 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
           ) : list.length === 0 ? (
             <p className="py-8 text-center text-sm text-[var(--p-muted)]">{searching ? `Nada con «${day.search}».` : "No hay tickets aquí."}</p>
           ) : (
-            <ul className="mt-4 divide-y divide-[var(--p-line)]">
+            <ul className="mt-4 space-y-2 rounded-2xl bg-[var(--p-bg)] p-2">
               {shown.map((o) => {
                 const cancelled = o.status === "CANCELLED";
+                const isOpen = openId === o.id;
+                const d = details[o.id];
                 return (
-                  <li key={o.id}>
-                    <button type="button" onClick={() => setTicket(o)} className={`p-press flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left hover:bg-black/[0.03] ${cancelled ? "opacity-50" : ""}`}>
-                      <span className="w-12 shrink-0 text-sm tabular-nums text-[var(--p-muted)]">{searching ? dayLabel(o.createdAt).split(" ").slice(1).join(" ") : hhmm(o.createdAt)}</span>
+                  <li key={o.id} className="rounded-2xl bg-[var(--p-surface)] px-3 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04]">
+                    <button type="button" onClick={() => toggle(o)} aria-expanded={isOpen} className={`flex min-h-14 w-full items-center gap-3 py-2 text-left ${cancelled ? "opacity-60" : ""}`}>
+                      <span aria-hidden className={`text-[var(--p-muted)] transition-transform ${isOpen ? "rotate-90" : ""}`}>›</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[15px] font-semibold">
-                          #{o.orderNumber} {o.customerName}
+                        <span className="block truncate">
+                          <span className="font-bold">#{o.orderNumber}</span> <span className="font-medium">{o.customerName}</span>
                         </span>
-                        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--p-muted)]">
-                          <span>{FROM[o.source]}</span>
-                          <span aria-hidden>·</span>
-                          {cancelled ? (
-                            <span>Cancelado</span>
-                          ) : o.paid ? (
-                            <span className="inline-flex items-center gap-1.5">
-                              <span aria-hidden className={`h-2 w-2 rounded-full ${PAY[o.paymentMethod].color}`} />
-                              {o.cashPartCents > 0 ? "Pago mixto" : PAY[o.paymentMethod].label}
-                            </span>
-                          ) : (
-                            <span className="font-semibold text-amber-700">Sin cobrar</span>
-                          )}
-                          {!cancelled && (
-                            <>
-                              <span aria-hidden>·</span>
-                              <span>{STATUS[o.status] ?? o.status}</span>
-                            </>
-                          )}
+                        <span className="block truncate text-xs text-[var(--p-muted)]">
+                          {searching ? `${dayLabel(o.createdAt)}, ` : ""}
+                          {hhmm(o.createdAt)} · {FROM[o.source]}
                         </span>
                       </span>
-                      <span className={`shrink-0 text-[15px] font-semibold tabular-nums ${cancelled ? "line-through" : ""}`}>{euros(o.totalCents)}</span>
-                      <span aria-hidden className="text-[var(--p-faint)]">
-                        ›
+                      <span className="flex shrink-0 flex-col items-end gap-1">
+                        <span className={`font-semibold tabular-nums ${cancelled ? "line-through" : ""}`}>{euros(o.totalCents)}</span>
+                        {cancelled ? (
+                          <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">Cancelado</span>
+                        ) : o.paid ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--p-bg)] px-2 py-0.5 text-[11px] font-semibold">
+                            <span aria-hidden className={`h-2 w-2 rounded-full ${PAY[o.paymentMethod].color}`} />
+                            {o.cashPartCents > 0 ? "Mixto" : PAY[o.paymentMethod].label}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Sin cobrar</span>
+                        )}
                       </span>
                     </button>
+                    {isOpen && (
+                      <div className="mb-3 rounded-2xl bg-[var(--p-bg)] p-4">
+                        {!d ? (
+                          <p className="text-center text-sm text-[var(--p-muted)]">Cargando…</p>
+                        ) : (
+                          <>
+                            <ul className="space-y-1.5">
+                              {d.lines.map((l) => (
+                                <li key={l.id} className="flex gap-2">
+                                  <span className="w-7 shrink-0 font-semibold tabular-nums">{l.quantity}×</span>
+                                  <span className="min-w-0 flex-1">
+                                    {l.name}
+                                    {l.modifiers.length > 0 && <span className="block text-xs text-[var(--p-muted)]">{l.modifiers.join(" · ")}</span>}
+                                    {l.note && <span className="block text-xs text-[var(--p-muted)]">Nota: {l.note}</span>}
+                                  </span>
+                                  <span className="tabular-nums">{euros(l.totalCents)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="mt-3 grid gap-x-4 gap-y-1 border-t border-[var(--p-line)] pt-3 sm:grid-cols-2">
+                              <p>
+                                <span className="text-[var(--p-muted)]">Pedido:</span> {FROM[o.source]} · {howLabel({ channel: d.channel, source: o.source, dineIn: d.dineIn })}
+                              </p>
+                              <p>
+                                <span className="text-[var(--p-muted)]">Hora:</span> {dayLabel(o.createdAt)}, {hhmm(o.createdAt)}
+                              </p>
+                              <p>
+                                <span className="text-[var(--p-muted)]">Estado:</span> {STATUS[o.status] ?? o.status}
+                              </p>
+                              <p>
+                                <span className="text-[var(--p-muted)]">Pago:</span> {cancelled ? "Cancelado" : o.totalCents === 0 ? "Sin importe (0 €)" : o.paid ? (o.cashPartCents > 0 ? `Mixto (${euros(o.cashPartCents)} en efectivo)` : PAY[o.paymentMethod].label) : "Sin cobrar"}
+                              </p>
+                              {d.customer.phone && (
+                                <p>
+                                  <span className="text-[var(--p-muted)]">Teléfono:</span> {d.customer.phone}
+                                </p>
+                              )}
+                              {d.customer.address && (
+                                <p>
+                                  <span className="text-[var(--p-muted)]">Dirección:</span> {d.customer.address}
+                                </p>
+                              )}
+                              {d.invoiceNumber && (
+                                <p>
+                                  <span className="text-[var(--p-muted)]">Factura:</span> {d.invoiceNumber}
+                                </p>
+                              )}
+                            </div>
+                            {d.notes && <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-amber-900">Nota: {d.notes}</p>}
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-base font-semibold">Total {euros(o.totalCents)}</p>
+                              <span className="flex flex-wrap gap-2">
+                                {o.paid && !cancelled && day?.canMethod && (o.paymentMethod === "CASH" || o.paymentMethod === "CARD_TERMINAL" || o.paymentMethod === "BIZUM") && (
+                                  <button type="button" onClick={() => setTicket(o)} className="inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-xs font-semibold">
+                                    Cambiar cómo pagó
+                                  </button>
+                                )}
+                                {o.paid && !cancelled && o.totalCents > 0 && (
+                                  <Link href={`/admin/${tenant}/facturas?pedido=${o.id}`} className="inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-xs font-semibold">
+                                    🧾 Factura
+                                  </Link>
+                                )}
+                                <button type="button" onClick={() => printer.print(o.id, "KITCHEN", `#${o.orderNumber}`)} className="inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-xs font-semibold">
+                                  🖨 Comanda
+                                </button>
+                                <button type="button" onClick={() => printer.print(o.id, "RECEIPT", `#${o.orderNumber}`)} className="inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-xs font-semibold">
+                                  🖨 Ticket
+                                </button>
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </li>
                 );
               })}

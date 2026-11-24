@@ -5,6 +5,7 @@ import type { HoyOrder, HoyPayment, HoyResponse } from "@/app/api/admin/[tenant]
 import { ask } from "@/app/lib/dialog";
 import { BTN } from "../buttons";
 import { usePrintPreview } from "../PrintPreview";
+import PanelPortal from "../PanelPortal";
 
 // «Hoy en caja»: lo vendido en el día (y en días anteriores con ‹ ›). Cada
 // ticket se abre para ver qué se cobró, reimprimirlo o cambiar la forma de pago
@@ -20,6 +21,7 @@ const shiftDay = (ymd: string, n: number) => {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
+export type TicketDetail = Detail;
 type Detail = {
   lines: { id: string; name: string; quantity: number; totalCents: number; modifiers: string[]; note: string | null }[];
   invoiceNumber: string | null;
@@ -303,6 +305,7 @@ export default function CajaDia({ tenant, onClose, onChanged, inline = false, in
         {content}
       </section>
     ) : (
+      <PanelPortal>
       <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label={title}>
         <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/40" />
         {printer.node}
@@ -311,6 +314,7 @@ export default function CajaDia({ tenant, onClose, onChanged, inline = false, in
           {content}
         </div>
       </div>
+      </PanelPortal>
     )
   );
 }
