@@ -1,44 +1,35 @@
 # Caja
 
-Es tu TPV: tomas los pedidos del mostrador, los cobras y salen a cocina, igual que los pedidos online. Aquí también abres y cierras la caja (el arqueo).
+El dinero del local: abrir y cerrar la caja, lo que entra y sale del cajón y lo vendido en el día.
 
-**Dónde:** Menú → Caja. La ven el gerente y los puestos Encargado de sala y Caja. Los importes del día solo los ve quien tiene el permiso «Ve lo recaudado».
+**Dónde:** Menú → Caja (gerente, encargado y el puesto de caja). Los pedidos se toman con «＋ Nuevo pedido», aquí o en Pedidos.
 
-## Abrir la caja (obligatorio antes de vender)
+## Abrir la caja (obligatorio antes de vender en el local)
 
-Si la caja está cerrada no puedes cobrar: al entrar se abre sola la hoja «Caja» y arriba sale el aviso «Abre la caja para empezar a vender».
-1. En «¿Con cuánto efectivo empiezas?» escribe el fondo del cajón o toca un atajo (0 €, 50 €, 100 €, 150 €, 200 €). Si no dejas nada, pon 0.
-2. Si prefieres contarlo, toca «▸ Contar por billetes y monedas» (ver más abajo).
-3. Toca «Abrir caja». El recuadro «Caja» de arriba pasa a «Abierta».
-Consejo: si se ha caído internet, la Caja deja vender aunque no sepa si está abierta.
+1. Entra en **Caja**. Si está cerrada verás «La caja está cerrada» y el botón «Abrir caja».
+2. Toca «Abrir caja» y pon con cuánto efectivo empiezas (aunque sea 0): escríbelo o toca «▸ Contar por billetes y monedas».
+3. Toca «Abrir caja». Ya puedes vender en el local.
 
-## Contar el dinero por billetes y monedas
+## Cerrar la caja al final del día
 
-Sirve tanto al abrir como al cerrar la caja.
-1. En la hoja «Caja», toca «▸ Contar por billetes y monedas».
-2. Escribe cuántos tienes de cada uno, de 500 € a 1 céntimo.
-3. La «Suma» se calcula sola y se escribe en el total.
-Para quitarlo, toca «▾ Ocultar el recuento por billetes».
+1. Entra en **Caja** y toca el botón rojo «Cerrar caja».
+2. Cuenta el efectivo del cajón (todo, incluido el fondo): escribe el total o cuéntalo por billetes y monedas.
+3. Toca «Cerrar caja» y confirma. Verás si cuadra, sobra o falta.
 
-## ¿Cómo cobro un pedido en el mostrador?
+## Apuntar dinero que entra o sale del cajón
 
-1. En la carta, toca los productos (al entrar se ve «Más vendidos»; cambia de categoría arriba o usa «Buscar producto…»).
-2. Elige arriba del pedido «Para llevar», «Comer aquí» o «A domicilio».
-3. Toca «Cobrar X €» (en el móvil, el botón «Cobrar» de abajo).
-4. Elige la forma de pago y toca «Confirmar X € y enviar a cocina».
-5. En la pantalla final verás el número de pedido y, si pagó en efectivo, «Devuelve al cliente» con el cambio. Toca «Nuevo pedido» para seguir.
+En **Caja**, con la caja abierta, toca «+ Entra dinero» o «− Sale dinero», escribe el importe y el motivo. Así al cerrar cuadra.
 
-## Formas de pago en la Caja
+## Ver lo vendido hoy
 
-- «Efectivo»: toca «Justo» o un billete, o escribe lo entregado con el teclado; ves el cambio al momento.
-- «Datáfono»: cobra en el datáfono y confirma aquí.
-- «Bizum»: cuando llegue el Bizum, confirma aquí.
-- «Pagar al recoger»: el pedido va a cocina sin cobrar («Enviar a cocina sin cobrar»).
-- «Mixto: parte en efectivo y el resto con tarjeta»: escribe la parte en efectivo (menor que el total) y elige si el resto va por datáfono o Bizum.
+En **Caja**, debajo del estado, tienes las ventas del día, el desglose (efectivo, datáfono, Bizum), lo pendiente de cobrar y los tickets. Con ‹ › ves otros días y con el buscador encuentras un pedido por nombre, teléfono o número. Toca un ticket para verlo, reimprimirlo o cambiar cómo pagó.
 
-## Tomar un pedido por teléfono
+## Tomar un pedido (para llevar, comer aquí o por teléfono)
 
-Los pedidos por teléfono se apuntan en **Pedidos**, no en la Caja: en Pedidos, toca «＋ Pedido por teléfono». La Caja es para lo que se vende en el mostrador.
+1. Toca «＋ Nuevo pedido» (en Caja o en Pedidos): se abre encima, sin cambiar de página.
+2. Elige arriba «Para llevar», «Comer aquí» o «📞 Por teléfono».
+3. Por teléfono: elige «Lo recoge» o «A domicilio» y escribe el teléfono del cliente (y la dirección si es a domicilio). Sin esos datos no se puede cobrar ni enviar.
+4. Toca los productos, «Cobrar» y elige cómo paga. Al terminar, «✕ Cerrar».
 
 ## Añadir una nota, un descuento o quitar un producto del pedido
 
@@ -60,21 +51,6 @@ Ojo: se guardan solo en ese aparato. Un pedido aparcado en la tablet no se ve en
 Mantén pulsado un producto de la carta: se abre su foto y sus ingredientes, con el botón «Añadir». Útil para quien aún no se sabe la carta.
 Los productos con opciones o los menús abren su hoja para elegir; los sencillos se añaden con un toque.
 
-## Apuntar una entrada o salida de dinero del cajón
-
-1. Toca el recuadro «Caja» de arriba.
-2. Toca «− Sale dinero» o «+ Entra dinero».
-3. Escribe el importe y elige el motivo: Pago a proveedor, Retirada al banco, Cambio para el cajón, Propinas u Otro.
-4. Toca «Apuntar salida» o «Apuntar entrada». Se tiene en cuenta en lo que debería haber en el cajón.
-
-## Cerrar la caja al final del turno
-
-1. Toca el recuadro «Caja» y luego «Cerrar caja y contar».
-2. Cuenta todo el efectivo del cajón, fondo incluido, y escribe el total (o usa «▸ Contar por billetes y monedas»).
-3. Añade una nota si hace falta (un billete roto, un vale…) y toca «Cerrar caja».
-4. Verás «Cuadra», «Sobran X €» o «Faltan X €», con lo que debería haber y lo contado. Si hay impresora de tickets, sale el informe de cierre.
-El recuento es a ciegas: lo esperado nunca se ve antes de contar.
-
 ## ¿Por qué no veo si la caja cuadra al cerrar?
 
 Solo quien tiene el permiso «Ve lo recaudado» ve lo que debería haber, la diferencia y los cierres anteriores. Sin él, cierras igual y verás «Recuento guardado… El administrador verá si cuadra».
@@ -82,15 +58,9 @@ El gerente puede dar el permiso en Configuración → Usuarios y permisos.
 
 ## Imprimir un cierre parcial sin cerrar la caja
 
-1. Con la caja abierta, toca el recuadro «Caja».
+1. En **Caja**, con la caja abierta, toca «Ver movimientos y cierre parcial».
 2. Toca «Imprimir cierre parcial». Sale en la impresora con las ventas y el efectivo esperado hasta ahora; la caja sigue abierta.
 Solo aparece a quien tiene «Ve lo recaudado». Si no hay impresora de tickets, las cifras de la hoja son el cierre parcial.
-
-## Ver lo vendido hoy («Hoy en caja»)
-
-Toca el recuadro «Hoy» de arriba, o la tarjeta «Recaudado hoy» que sale con el ticket vacío.
-Verás las ventas, el desglose por forma de pago, lo pendiente de cobrar, lo devuelto y la lista de pedidos. Con ‹ › ves días anteriores.
-El ojo junto a «Hoy» tapa los importes (••••) cuando hay alguien mirando. Solo con el permiso «Ve lo recaudado».
 
 ## Buscar un pedido antiguo, reimprimir el ticket o cambiar cómo pagó
 
@@ -121,7 +91,7 @@ Abajo verás «N envíos guardados sin conexión». Al volver la conexión se en
 - En efectivo, lo entregado es menos que el total.
 - En «Mixto», la parte en efectivo tiene que ser menos que el total.
 
-## No me deja vender en Caja
+## No me deja vender en el local
 
 - **La caja está cerrada:** sale «Abre la caja para empezar a vender». Toca «Abrir caja», pon el fondo (aunque sea 0) y confirma.
 - **No veo Caja en el menú:** solo la tienen el gerente y los puestos Encargado de sala y Caja. El gerente lo cambia en Configuración → Usuarios y permisos.
@@ -137,7 +107,7 @@ Lo que debería haber = fondo de apertura + cobros en efectivo desde que abriste
 4. En pagos mixtos, solo la parte en efectivo cuenta para el cajón.
 Si corriges algo de un día ya cerrado, su cierre guardado no cambia.
 
-## No veo el botón «Hoy» ni lo recaudado
+## No veo lo vendido ni lo recaudado
 
 Lo vendido, «Recaudado hoy» y el resultado del cierre solo los ve quien tiene el permiso «Ve lo recaudado».
 El gerente lo activa en Configuración → Usuarios y permisos → «Editar» en esa persona.

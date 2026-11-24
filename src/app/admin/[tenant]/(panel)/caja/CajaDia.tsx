@@ -30,7 +30,8 @@ type Detail = {
   source: string;
 };
 
-export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string; onClose: () => void; onChanged: () => void }) {
+// inline: dentro de la página Caja (sin ventana encima ni «Cerrar»).
+export default function CajaDia({ tenant, onClose, onChanged, inline = false }: { tenant: string; onClose?: () => void; onChanged: () => void; inline?: boolean }) {
   const [date, setDate] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState(""); // lo buscado (con un poco de espera al escribir)
@@ -101,17 +102,13 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
   const t = ticket;
   const methodEditable = !!t && !!data?.canMethod && t.paid && t.status !== "CANCELLED" && CHANGEABLE.includes(t.paymentMethod);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/40" />
-      {printer.node}
-      <div className="relative flex max-h-[92vh] w-full flex-col overflow-y-auto [&>*]:shrink-0 rounded-t-[24px] bg-[var(--p-surface)] p-4 pb-[max(16px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-xl lg:rounded-[24px] lg:p-6">
-        <div aria-hidden className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-full bg-black/15 lg:hidden" />
+  const content = (
+    <>
         {t ? (
           <>
             <div className="flex items-start justify-between gap-3">
               <button type="button" onClick={() => setTicket(null)} className={BTN.back}>‹ Todos los tickets</button>
-              <button type="button" onClick={onClose} className="rounded-full px-3 py-1 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">Cerrar</button>
+              {!inline && <button type="button" onClick={onClose} className="rounded-full px-3 py-1 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">Cerrar</button>}
             </div>
             <h2 className="mt-1 text-xl font-semibold">#{t.orderNumber} {t.customerName}</h2>
             <p className="text-sm text-[var(--p-muted)]">
@@ -182,7 +179,7 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
                 <h2 className="text-lg font-semibold">{title}</h2>
                 <p className="text-xs text-[var(--p-muted)] first-letter:uppercase">{data?.day}</p>
               </div>
-              <button type="button" onClick={onClose} className="rounded-full px-3 py-1 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">Cerrar</button>
+              {!inline && <button type="button" onClick={onClose} className="rounded-full px-3 py-1 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">Cerrar</button>}
             </div>
             <div className={`mt-3 flex items-center gap-1 self-start rounded-full bg-black/[0.05] p-1 ${query.trim() ? "hidden" : ""}`}>
               <button type="button" aria-label="Día anterior" disabled={!data} onClick={() => data && setDate(shiftDay(data.date, -1))} className="p-press h-10 w-10 rounded-full text-lg font-semibold">‹</button>
@@ -286,7 +283,24 @@ export default function CajaDia({ tenant, onClose, onChanged }: { tenant: string
             )}
           </>
         )}
+    </>
+  );
+
+  return (
+    inline ? (
+      <section className="rounded-3xl bg-[var(--p-surface)] p-4 text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-[var(--p-line)] lg:p-6" aria-label={title}>
+        {printer.node}
+        {content}
+      </section>
+    ) : (
+      <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label={title}>
+        <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/40" />
+        {printer.node}
+        <div className="relative flex max-h-[92vh] w-full flex-col overflow-y-auto [&>*]:shrink-0 rounded-t-[24px] bg-[var(--p-surface)] p-4 pb-[max(16px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-xl lg:rounded-[24px] lg:p-6">
+          <div aria-hidden className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-full bg-black/15 lg:hidden" />
+          {content}
+        </div>
       </div>
-    </div>
+    )
   );
 }

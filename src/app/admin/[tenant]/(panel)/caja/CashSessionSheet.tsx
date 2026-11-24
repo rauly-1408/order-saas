@@ -51,11 +51,25 @@ function MoneyInput({ value, onChange, label, autoFocus }: { value: string; onCh
   );
 }
 
-export default function CashSessionSheet({ tenant, state, onState, onClose }: { tenant: string; state: CashState | null; onState: (s: CashState) => void; onClose: () => void }) {
+// start: abrir la hoja directamente en «cerrar caja» o en «entra / sale dinero»
+// (botones de la página Caja).
+export default function CashSessionSheet({
+  tenant,
+  state,
+  onState,
+  onClose,
+  start = "main",
+}: {
+  tenant: string;
+  state: CashState | null;
+  onState: (s: CashState) => void;
+  onClose: () => void;
+  start?: "main" | "close" | "in" | "out";
+}) {
   const api = `/api/admin/${tenant}/caja/sesion`;
-  const [step, setStep] = useState<"main" | "move" | "close" | "done">("main");
+  const [step, setStep] = useState<"main" | "move" | "close" | "done">(start === "close" ? "close" : start === "in" || start === "out" ? "move" : "main");
   const [amount, setAmount] = useState("");
-  const [moveKind, setMoveKind] = useState<"IN" | "OUT">("OUT");
+  const [moveKind, setMoveKind] = useState<"IN" | "OUT">(start === "in" ? "IN" : "OUT");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);

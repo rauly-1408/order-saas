@@ -1,12 +1,14 @@
 import { getSession, requireAreaPage } from "@/app/lib/auth";
 import { canManageTenant } from "@/app/lib/roles";
-import CajaClient from "./CajaClient";
+import CajaPanel from "./CajaPanel";
 
-// Caja: tomar pedidos en mostrador y por teléfono desde el panel. La usan el
-// gerente, el encargado y la caja (lib/roles.ts).
+// Caja: el dinero (abrir, cerrar, entradas y salidas, lo vendido hoy). Los
+// pedidos se toman con «＋ Nuevo pedido» (aquí o en Pedidos). La usan el
+// gerente, el encargado y la caja (lib/roles.ts). Ver docs/CAJA.md
 export default async function CajaPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
-  await requireAreaPage(tenant, "caja");
+  const access = await requireAreaPage(tenant, "caja");
   const session = await getSession();
-  return <CajaClient tenant={tenant} canSeeTakings={Boolean(session?.seesTakings)} canDiscount={canManageTenant(session?.role ?? "")} />;
+  const seesTakings = Boolean(session?.seesTakings);
+  return <CajaPanel tenant={tenant} canSeeTakings={seesTakings} newOrder={{ canSeeTakings: seesTakings, canDiscount: canManageTenant(session?.role ?? ""), canCounter: true, canPhone: access.pedidos }} />;
 }

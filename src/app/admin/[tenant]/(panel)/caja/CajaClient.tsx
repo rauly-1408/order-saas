@@ -41,6 +41,12 @@ const STAT = "p-press flex min-h-11 flex-1 flex-col justify-center px-2.5 py-1 t
 const STAT_CAPTION = "text-[10px] font-semibold uppercase tracking-wide text-[var(--p-muted)]";
 const STAT_VALUE = "text-sm font-semibold";
 const MODE_LABEL: Record<Mode, string> = { TAKEAWAY: "Para llevar", DINE_IN: "Comer aquí", DELIVERY: "A domicilio" };
+// Lo primero al tomar un pedido: en el local (para llevar o comer aquí) o por teléfono.
+const KINDS: { label: string; phone: boolean; mode: Mode }[] = [
+  { label: "Para llevar", phone: false, mode: "TAKEAWAY" },
+  { label: "Comer aquí", phone: false, mode: "DINE_IN" },
+  { label: "📞 Por teléfono", phone: true, mode: "TAKEAWAY" },
+];
 const PAYMENT_LABEL: Record<Payment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", IN_STORE: "Pagar al recoger" };
 const HOY_PAYMENT_LABEL: Record<HoyPayment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
 // Color por categoría: los que eligió el restaurante, por el nombre de la
@@ -90,10 +96,29 @@ function quickAmounts(totalCents: number): number[] {
 // canSeeTakings: permiso «Ve lo recaudado» (Configuración → Usuarios). Sin él no
 // se carga ni se muestra nada de lo recaudado; con él, el ojo lo tapa a la vista.
 // canDiscount: los descuentos por línea solo los aplica un gerente.
-// phoneMode: «Pedido por teléfono» desde Pedidos (pedidos/telefono). Misma
-// pantalla, pero sin caja (no hay que abrirla: se cobra al recoger o al
-// entregar), con el teléfono del cliente siempre a la vista y sin «Comer aquí».
-export default function CajaClient({ tenant, canSeeTakings = false, canDiscount = false, phoneMode = false }: { tenant: string; canSeeTakings?: boolean; canDiscount?: boolean; phoneMode?: boolean }) {
+// «Nuevo pedido» (Pedidos → ＋ Nuevo pedido, ruta pedidos/nuevo). Arriba se
+// elige dónde está el cliente: «En el local» (se cobra en el momento: hace
+// falta la caja abierta) o «Por teléfono» (teléfono a la vista, sin «Comer
+// aquí», cobro por defecto al recoger, sin caja). canCounter = puede vender en
+// el local (puesto con Caja); canPhone = puede apuntar pedidos por teléfono
+// (puesto con Pedidos). La Caja del menú es solo el dinero (CajaPanel.tsx).
+export default function CajaClient({
+  tenant,
+  canSeeTakings = false,
+  canDiscount = false,
+  canCounter = true,
+  canPhone = true,
+  startPhone = false,
+  onClose,
+}: {
+  tenant: string;
+  canSeeTakings?: boolean;
+  canDiscount?: boolean;
+  canCounter?: boolean;
+  canPhone?: boolean;
+  startPhone?: boolean;
+  onClose?: () => void; // abierta encima de Pedidos o Caja (NewOrder.tsx)
+}) {
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [error, setError] = useState("");
   const [cat, setCat] = useState("");
@@ -102,8 +127,9 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const [optionsFor, setOptionsFor] = useState<Product | null>(null);
   const [comboFor, setComboFor] = useState<Product | null>(null);
   const [mode, setMode] = useState<Mode>("TAKEAWAY");
-  // Origen del pedido, sin preguntarlo: Caja = mostrador; desde Pedidos = teléfono.
-  const source: "COUNTER" | "PHONE" = phoneMode ? "PHONE" : "COUNTER";
+  // Dónde está el cliente: en el local o al teléfono.
+  const [source, setSource] = useState<"COUNTER" | "PHONE">((startPhone && canPhone) || !canCounter ? "PHONE" : "COUNTER");
+  const phoneMode = source === "PHONE";
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -149,34 +175,34 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const [parkedReady, setParkedReady] = useState(false);
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(parkedKey(tenant, phoneMode));
+      const raw = localStorage.getItem(parkedKey(tenant));
       if (raw) setParked(JSON.parse(raw) as Parked[]);
     } catch {}
     setParkedReady(true);
-  }, [tenant, phoneMode]);
+  }, [tenant]);
   useEffect(() => {
     if (!parkedReady) return;
     try {
-      localStorage.setItem(parkedKey(tenant, phoneMode), JSON.stringify(parked));
+      localStorage.setItem(parkedKey(tenant), JSON.stringify(parked));
     } catch {}
-  }, [parked, parkedReady, tenant, phoneMode]);
+  }, [parked, parkedReady, tenant]);
   const [hoyOpen, setHoyOpen] = useState(false);
   // Cierre de caja: sesión del local (abierta o no) y la hoja para gestionarla.
   const [cash, setCash] = useState<CashState | null>(null);
   const [cashOpen, setCashOpen] = useState(false);
   const loadCash = useCallback(() => {
-    if (phoneMode) return; // el pedido por teléfono no pasa por la caja
+    if (!canCounter) return; // sin Caja en su puesto: solo pedidos por teléfono
     fetch(`/api/admin/${tenant}/caja/sesion`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: CashState | null) => {
         if (!d) return;
         setCash(d);
-        if (!d.open) setCashOpen(true); // sin abrir la caja no se vende: se pide el fondo nada más entrar
+        if (!d.open && !startPhone) setCashOpen(true); // sin abrir la caja no se vende en el local: se pide el fondo nada más entrar
       })
       .catch(() => {});
-  }, [tenant, phoneMode]);
+  }, [tenant, canCounter, startPhone]);
   // Caja cerrada = no se puede vender (sin conexión no se sabe: no se bloquea).
-  const locked = cash != null && !cash.open;
+  const locked = !phoneMode && cash != null && !cash.open;
   useEffect(() => {
     loadCash();
   }, [loadCash]);
@@ -211,12 +237,12 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
 
   // Resumen «Hoy en caja»: al entrar, tras cada venta y al abrirlo.
   const loadHoy = useCallback(() => {
-    if (!canSeeTakings || phoneMode) return;
+    if (!canSeeTakings || !canCounter) return;
     fetch(`/api/admin/${tenant}/caja/hoy`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setHoy(d as HoyResponse))
       .catch(() => {});
-  }, [tenant, canSeeTakings, phoneMode]);
+  }, [tenant, canSeeTakings, canCounter]);
   useEffect(() => {
     loadHoy();
   }, [loadHoy]);
@@ -318,7 +344,9 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const change = tenderedCents != null && tenderedCents >= subtotal ? tenderedCents - subtotal : null;
   const missing = tenderedCents != null && tenderedCents < subtotal ? subtotal - tenderedCents : null;
   const detailsSummary = [name, phone, coupon && `cupón ${coupon.toUpperCase()}`, collabCode && `de ${collabs.find((c) => c.code === collabCode)?.name ?? collabCode}`, notes && `nota: ${notes}`].filter(Boolean).join(" · ");
-  const canConfirm = !locked && lines.length > 0 && !sending && (mode !== "DELIVERY" || address.trim().length > 0) && (payment !== "CASH" || tenderedCents == null || tenderedCents >= subtotal) && (!mixed || (cashPartCents > 0 && cashPartCents < subtotal));
+  // Por teléfono: sin teléfono (y sin dirección si va a domicilio) no se cobra ni se envía.
+  const phoneOk = !phoneMode || phone.replace(/\D/g, "").length >= 9;
+  const canConfirm = !locked && lines.length > 0 && !sending && phoneOk && (mode !== "DELIVERY" || address.trim().length > 0) && (payment !== "CASH" || tenderedCents == null || tenderedCents >= subtotal) && (!mixed || (cashPartCents > 0 && cashPartCents < subtotal));
 
   function add(product: Product, extra: { optionIds: string[]; comboChoices?: ComboChoice[]; modifiers: OrderLineModifier[]; unitPriceCents: number; note?: string }) {
     // Con nota, línea aparte (no se suma a la misma sin nota).
@@ -332,6 +360,18 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
       setStep("order");
       setDone(null);
     }
+  }
+  // Elegir el tipo de pedido: el cobro por defecto y, en el local con la caja
+  // cerrada, pedir el fondo.
+  function chooseKind(k: "COUNTER" | "PHONE", m: Mode) {
+    if (k !== source) {
+      setSource(k);
+      setPayment(k === "PHONE" ? "IN_STORE" : "CASH");
+      setMixed(false);
+      setTendered("");
+      if (k === "COUNTER" && cash && !cash.open) setCashOpen(true);
+    }
+    setMode(k === "PHONE" ? (mode === "DELIVERY" ? "DELIVERY" : "TAKEAWAY") : m);
   }
   function tap(product: Product) {
     if (locked) return setCashOpen(true);
@@ -492,18 +532,36 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           </button>
         )}
       </div>
+      {/* Tipo de pedido: en el local (para llevar o comer aquí) o por teléfono */}
       <div className="mt-3 flex gap-1.5 rounded-xl bg-black/[0.05] p-1" role="radiogroup" aria-label="Tipo de pedido">
-        {(Object.keys(MODE_LABEL) as Mode[]).filter((m) => !phoneMode || m !== "DINE_IN").map((m) => (
-          <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`min-h-11 flex-1 rounded-lg text-[13px] font-semibold outline-none transition-colors ${mode === m ? "bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.06)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
-            {MODE_LABEL[m]}
-          </button>
-        ))}
+        {KINDS.filter((k) => (k.phone ? canPhone : canCounter)).map((k) => {
+          const on = k.phone ? phoneMode : !phoneMode && mode === k.mode;
+          return (
+            <button key={k.label} type="button" role="radio" aria-checked={on} onClick={() => chooseKind(k.phone ? "PHONE" : "COUNTER", k.mode)} className={`min-h-11 flex-1 rounded-lg text-[13px] font-semibold outline-none transition-colors ${on ? "bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.06)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
+              {k.label}
+            </button>
+          );
+        })}
       </div>
-      {(phoneMode || mode === "DELIVERY") && (
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono del cliente" inputMode="tel" aria-label="Teléfono del cliente" className="mt-3 w-full rounded-lg px-3 py-2.5 text-base tabular-nums" />
+      {phoneMode && (
+        <div className="mt-2 flex gap-1.5 rounded-xl bg-black/[0.05] p-1" role="radiogroup" aria-label="¿Lo recoge o a domicilio?">
+          {(
+            [
+              ["TAKEAWAY", "Lo recoge"],
+              ["DELIVERY", "A domicilio"],
+            ] as const
+          ).map(([m, l]) => (
+            <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`min-h-11 flex-1 rounded-lg text-[13px] font-semibold outline-none transition-colors ${mode === m ? "bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.06)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
+              {l}
+            </button>
+          ))}
+        </div>
       )}
-      {(phoneMode || mode === "DELIVERY") && known && <KnownCustomer known={known} />}
-      {mode === "DELIVERY" && <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Dirección de entrega (obligatoria)" aria-label="Dirección" className="mt-3 w-full rounded-lg px-3 py-2.5 text-sm" />}
+      {phoneMode && (
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono del cliente (obligatorio)" inputMode="tel" aria-label="Teléfono del cliente" aria-invalid={!phoneOk} className={`mt-3 w-full rounded-lg px-3 py-2.5 text-base tabular-nums ${phoneOk ? "" : "ring-1 ring-[var(--p-accent)]"}`} />
+      )}
+      {phoneMode && known && <KnownCustomer known={known} />}
+      {mode === "DELIVERY" && <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Dirección de entrega (obligatoria)" aria-label="Dirección" aria-invalid={!address.trim()} className={`mt-2 w-full rounded-lg px-3 py-2.5 text-sm ${address.trim() ? "" : "ring-1 ring-[var(--p-accent)]"}`} />}
       {mode === "DELIVERY" && known && known.addresses.length > 1 && (
         <div className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Direcciones del cliente">
           {known.addresses.map((a) => (
@@ -805,6 +863,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
       )}
 
       <div className="mt-3">
+        {!phoneOk && <p className="mb-2 text-center text-xs text-[var(--p-accent)]">Falta el teléfono del cliente (en el pedido).</p>}
         {mode === "DELIVERY" && !address.trim() && <p className="mb-2 text-center text-xs text-[var(--p-accent)]">Falta la dirección de entrega (en el pedido).</p>}
         {locked && (
           <button type="button" onClick={() => setCashOpen(true)} className="mb-2 w-full text-center text-sm font-semibold text-amber-900 underline underline-offset-2">
@@ -888,23 +947,25 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         )}
         {/* Arriba, siempre a mano: buscador, estado de la caja, hoy y categorías */}
         <div className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)] px-4 pt-2 pb-3 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8 lg:pt-6 lg:pb-4">
-          {phoneMode ? (
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight">📞 Pedido por teléfono</h1>
-              <div className="flex shrink-0 gap-2">
-                {parked.length > 0 && (
-                  <button type="button" onClick={() => setParkedOpen(true)} className="p-press rounded-full bg-red-50 px-4 py-2 text-sm font-semibold text-[var(--p-accent)]">
-                    En espera · {parked.length}
-                  </button>
-                )}
-                <Link href={`/admin/${tenant}/pedidos`} className="p-press rounded-full bg-black/[0.05] px-4 py-2 text-sm font-semibold">
-                  ← Pedidos
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight">Nuevo pedido</h1>
+            <div className="flex shrink-0 gap-2">
+              {!canCounter && parked.length > 0 && (
+                <button type="button" onClick={() => setParkedOpen(true)} className="p-press rounded-full bg-red-50 px-4 py-2 text-sm font-semibold text-[var(--p-accent)]">
+                  En espera · {parked.length}
+                </button>
+              )}
+              {onClose ? (
+                <button type="button" onClick={onClose} className="p-press rounded-full bg-black/[0.05] px-4 py-2 text-sm font-semibold">
+                  ✕ Cerrar
+                </button>
+              ) : (
+                <Link href={`/admin/${tenant}/${canPhone ? "pedidos" : "caja"}`} className="p-press rounded-full bg-black/[0.05] px-4 py-2 text-sm font-semibold">
+                  ← {canPhone ? "Pedidos" : "Caja"}
                 </Link>
-              </div>
+              )}
             </div>
-          ) : (
-            <h1 className="sr-only">Caja</h1>
-          )}
+          </div>
           {/* Según el hueco de la carta (no la pantalla): estrecho, en dos filas;
               ancho, en una con el buscador de un ancho cómodo a la izquierda. */}
           <div className="flex flex-wrap items-center gap-2 @xl:flex-nowrap @xl:gap-3">
@@ -915,7 +976,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="h-11 w-full rounded-xl pl-9 pr-3 text-sm" />
             </div>
             {/* Estado del turno: un panel con apartados, no píldoras, para que no se confunda con las categorías */}
-            <div className={`${phoneMode ? "hidden" : "flex"} order-first w-full shrink-0 items-stretch divide-x divide-[var(--p-line)] overflow-hidden rounded-xl border border-[var(--p-line)] bg-[var(--p-surface)] @xl:order-none @xl:ml-auto @xl:w-auto`}>
+            <div className={`${canCounter ? "flex" : "hidden"} order-first w-full shrink-0 items-stretch divide-x divide-[var(--p-line)] overflow-hidden rounded-xl border border-[var(--p-line)] bg-[var(--p-surface)] @xl:order-none @xl:ml-auto @xl:w-auto`}>
               <button
                 type="button"
                 onClick={() => {
