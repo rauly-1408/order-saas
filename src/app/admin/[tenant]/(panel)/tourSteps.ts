@@ -45,7 +45,7 @@ export const TOURS: Tour[] = [
       { target: "main button::Caja", title: "Estado de la caja", text: "Para vender hay que abrir la caja con el efectivo del cajón. Desde aquí apuntas entradas y salidas de dinero y haces el cierre." },
       { target: "input[aria-label='Buscar producto']", title: "Buscar", text: "Escribe parte del nombre para encontrar un producto al momento." },
       { target: "nav[aria-label='Categorías']", title: "Categorías", text: "Toca una categoría para ver sus productos. Luego toca un producto para añadirlo al pedido." },
-      { target: "[aria-label='Tipo de pedido']", title: "Tipo de pedido", text: "Para llevar, comer aquí o a domicilio, y si llega en el mostrador o por teléfono." },
+      { target: "[aria-label='Tipo de pedido']", title: "Tipo de pedido", text: "Para llevar, comer aquí o a domicilio. A domicilio te pide el teléfono y la dirección del cliente." },
       { target: "aside button::cobrar", title: "Cobrar", text: "Cuando el pedido esté listo, cobra en efectivo, con datáfono o Bizum. El pedido pasa solo a cocina." },
     ],
   },
