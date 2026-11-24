@@ -14,7 +14,7 @@ export default function CartaTabs({ tenant }: { tenant: string }) {
     <div className="text-[var(--p-ink)]">
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Carta</h1>
       <p className="mt-1 text-sm text-[var(--p-muted)]">Tus productos, sus opciones y los menús a precio cerrado</p>
-      <nav className="mt-6 mb-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1">
+      <nav className="mt-6 mb-6 flex w-fit max-w-full flex-wrap gap-1 rounded-[22px] bg-black/[0.05] p-1">
         {(
           [
             ["productos", "Productos"],

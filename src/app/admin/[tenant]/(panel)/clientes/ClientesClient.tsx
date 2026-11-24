@@ -48,7 +48,7 @@ export default function ClientesClient({ tenant }: { tenant: string }) {
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Clientes</h1>
       <p className="mt-1 text-sm text-[var(--p-muted)]">Quién te pide, quién ha dejado de hacerlo y cómo hacer que vuelva</p>
 
-      <nav className="mt-6 mb-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1">
+      <nav className="mt-6 mb-6 flex w-fit max-w-full flex-wrap gap-1 rounded-[22px] bg-black/[0.05] p-1">
         {TABS.map((t) => (
           <button
             key={t.key}

@@ -10,7 +10,7 @@ export default function ArchivosClient({ tenant, initialTab }: { tenant: string;
     <div className="text-[var(--p-ink)]">
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Archivos</h1>
       <p className="mt-1 text-sm text-[var(--p-muted)]">Tu biblioteca: las fotos de tus productos y tus vídeos, en un solo sitio</p>
-      <nav className="mt-6 mb-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1" aria-label="Tipo de archivo">
+      <nav className="mt-6 mb-6 flex w-fit max-w-full flex-wrap gap-1 rounded-[22px] bg-black/[0.05] p-1" aria-label="Tipo de archivo">
         {(
           [
             ["imagenes", "🖼 Imágenes"],

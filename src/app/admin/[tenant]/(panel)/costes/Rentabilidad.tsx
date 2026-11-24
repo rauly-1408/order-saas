@@ -230,7 +230,7 @@ export default function Rentabilidad({ data, api, onSaved, onGoToRecipes }: Prop
           <h2 className="text-[17px] font-semibold">Tus platos</h2>
           <p className="text-xs text-[var(--p-muted)]">Tal como salen de cocina. Toca uno para ver de dónde sale su coste.</p>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar plato…" aria-label="Buscar plato" className="mt-3 w-full rounded-lg border border-[var(--p-line)] px-3 py-1.5 text-sm sm:w-64" />
-          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {(
               [
                 ["all", `Todos (${dishes.length})`],

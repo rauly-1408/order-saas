@@ -186,13 +186,13 @@ export default function ReservasClient({ tenant, initialDate, canConfigure }: { 
       </div>
 
       {/* Tira de días: toca un día; el número es cuántas reservas tiene */}
-      <div className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+      <div className="mt-5 grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
         {strip.map(([ymd, c]) => {
           const d = new Date(`${ymd}T12:00:00`);
           const on = ymd === day;
           const top = ymd === data?.today ? "Hoy" : data && ymd === addDays(data.today, 1) ? "Mañana" : ymd === (data && addDays(data.today, -1)) ? "Ayer" : d.toLocaleDateString("es-ES", { weekday: "short" });
           return (
-            <button key={ymd} type="button" onClick={() => setDate(ymd)} aria-pressed={on} className={`p-press relative flex w-[72px] shrink-0 flex-col items-center rounded-2xl px-2 py-2.5 ${on ? "bg-[var(--p-brand)] text-white" : "bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"}`}>
+            <button key={ymd} type="button" onClick={() => setDate(ymd)} aria-pressed={on} className={`p-press relative flex w-full flex-col sm:w-[72px] sm:shrink-0 items-center rounded-2xl px-2 py-2.5 ${on ? "bg-[var(--p-brand)] text-white" : "bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"}`}>
               <span className={`text-xs font-semibold first-letter:uppercase ${on ? "text-white/85" : "text-[var(--p-muted)]"}`}>{top}</span>
               <span className="text-xl font-semibold tabular-nums">{d.getDate()}</span>
               <span className={`text-[11px] tabular-nums ${on ? "text-white/85" : c.count ? "text-[var(--p-ink)]" : "text-[var(--p-faint)]"}`}>{c.count ? `${c.count} res.` : "—"}</span>

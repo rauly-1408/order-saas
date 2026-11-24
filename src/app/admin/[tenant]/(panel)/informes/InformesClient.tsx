@@ -117,7 +117,7 @@ export default function InformesClient({ tenant, today }: { tenant: string; toda
         </a>
       </div>
 
-      <nav className="mt-5 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1" aria-label="Periodo">
+      <nav className="mt-5 flex w-fit max-w-full flex-wrap gap-1 rounded-[22px] bg-black/[0.05] p-1" aria-label="Periodo">
         {PRESETS.map((p) => (
           <button
             key={p.key}
