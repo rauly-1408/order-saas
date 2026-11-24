@@ -238,6 +238,14 @@ summary {
     filter: none;
     opacity: 0.75;
   }
+  /* Filas de una lista (tickets, pedidos, leyendas): solo cambia el tono del
+     fondo; ni se levantan, ni sombra, ni se oscurecen (p-row). */
+  .panel .p-row:not(:disabled):hover {
+    transform: none;
+    box-shadow: none;
+    filter: none;
+    background-color: var(--p-bg);
+  }
   /* Filas plegables y opciones de lista: solo cambio de tono, sin saltar. */
   .panel button[aria-expanded]:not(:disabled):hover,
   .panel [role="radiogroup"] button:not(:disabled):not([aria-checked="true"]):hover {

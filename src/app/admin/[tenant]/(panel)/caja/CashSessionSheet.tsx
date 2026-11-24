@@ -2,6 +2,7 @@
 
 import { ask } from "@/app/lib/dialog";
 import { useEffect, useState } from "react";
+import PanelPortal from "../PanelPortal";
 
 // Hoja «Caja»: abrir con un fondo (obligatorio para vender en la Caja; se
 // escribe el total o se cuenta por billetes), apuntar entradas y salidas de
@@ -64,10 +65,10 @@ export default function CashSessionSheet({
   state: CashState | null;
   onState: (s: CashState) => void;
   onClose: () => void;
-  start?: "main" | "close" | "in" | "out";
+  start?: "main" | "close" | "in" | "out" | "movimientos";
 }) {
   const api = `/api/admin/${tenant}/caja/sesion`;
-  const [step, setStep] = useState<"main" | "move" | "close" | "done">(start === "close" ? "close" : start === "in" || start === "out" ? "move" : "main");
+  const [step, setStep] = useState<"main" | "move" | "close" | "done" | "movimientos">(start === "close" ? "close" : start === "in" || start === "out" ? "move" : start === "movimientos" ? "movimientos" : "main");
   const [amount, setAmount] = useState("");
   const [moveKind, setMoveKind] = useState<"IN" | "OUT">(start === "in" ? "IN" : "OUT");
   const [reason, setReason] = useState("");
@@ -150,6 +151,7 @@ export default function CashSessionSheet({
   const fig = state?.figures;
 
   return (
+    <PanelPortal>
     <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label="Caja">
       <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/40" />
       <div className="relative flex max-h-[92vh] w-full flex-col overflow-y-auto rounded-t-[24px] bg-[var(--p-surface)] p-5 pb-[max(20px,env(safe-area-inset-bottom))] text-[var(--p-ink)] lg:max-w-lg lg:rounded-[24px]">
@@ -288,6 +290,47 @@ export default function CashSessionSheet({
               </button>
             </div>
           </div>
+        ) : step === "movimientos" ? (
+          /* ── Solo movimientos, cierre parcial e historial (desde la página Caja, que ya enseña las cifras) ── */
+          <div className="mt-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--p-muted)]">Entradas y salidas de hoy</p>
+            {open.movements.length === 0 ? (
+              <p className="mt-2 rounded-2xl bg-[var(--p-bg)] p-4 text-sm text-[var(--p-muted)]">Todavía no has metido ni sacado dinero del cajón. Hazlo con «+ Entra dinero» o «− Sale dinero».</p>
+            ) : (
+              <ul className="mt-1 divide-y divide-[var(--p-line)] text-sm">
+                {open.movements.map((m) => (
+                  <li key={m.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{m.reason}</span>
+                      <span className="block text-xs text-[var(--p-muted)]">
+                        {hhmm(m.createdAt)}
+                        {m.userName && ` · ${m.userName}`}
+                      </span>
+                    </span>
+                    <span className={`shrink-0 font-semibold tabular-nums ${m.kind === "OUT" ? "text-[var(--p-accent)]" : "text-emerald-700"}`}>
+                      {m.kind === "OUT" ? "−" : "+"}
+                      {euros(m.amountCents)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {fig && (
+              <div className="mt-5 rounded-2xl bg-[var(--p-bg)] p-4">
+                <p className="text-sm font-semibold">Cierre parcial</p>
+                <p className="mt-0.5 text-xs text-[var(--p-muted)]">Imprime cómo va la caja (ventas y efectivo esperado) sin cerrarla. Útil en el cambio de turno.</p>
+                <button type="button" onClick={printPartial} disabled={busy} className="p-press mt-3 min-h-12 w-full rounded-2xl bg-[var(--p-surface)] px-3 text-sm font-semibold ring-1 ring-[var(--p-line)] disabled:opacity-50">
+                  Imprimir cierre parcial
+                </button>
+                {partialMsg && (
+                  <p className="mt-2 text-center text-xs text-[var(--p-muted)]" role="status">
+                    {partialMsg}
+                  </p>
+                )}
+              </div>
+            )}
+            {state.history.length > 0 && <History items={state.history} />}
+          </div>
         ) : (
           /* ── Caja abierta ── */
           <div className="mt-5">
@@ -392,6 +435,7 @@ export default function CashSessionSheet({
         )}
       </div>
     </div>
+    </PanelPortal>
   );
 }
 
