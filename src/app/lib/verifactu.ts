@@ -3,8 +3,8 @@
 // queda cobrado y una rectificativa por diferencias (R5) si después se cancela.
 // A petición del cliente, una factura completa a su nombre: F3 si sustituye a la
 // simplificada, F1 si el pedido no la tenía (y su rectificativa sería R1).
-// El envío a la AEAT necesita el certificado digital del restaurante y aún no
-// está: los registros quedan «PENDIENTE_ENVIO». Ver docs/VERIFACTU.md
+// Cada registro nace «PENDIENTE_ENVIO» y se envía a la AEAT en segundo plano con
+// el certificado digital del restaurante (lib/aeatSend.ts). Ver docs/VERIFACTU.md
 import { createHash } from "crypto";
 import { prisma } from "@/app/lib/prisma";
 import { normalizeTaxId, readBusiness, TAX_ID } from "@/app/lib/business";
@@ -123,7 +123,7 @@ async function appendRecord(order: IssuedOrder, cfg: VerifactuSettings, d: Recor
   const tz = tenantTimeZone(order.tenant.settings);
 
   // Un registro detrás de otro: el bloqueo evita dos huellas sobre la misma anterior.
-  return prisma.$transaction(async (tx) => {
+  const rec = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"verifactu:" + order.tenantId}))`;
     const again = await tx.invoice.findUnique({ where: { orderId_invoiceType: { orderId: order.id, invoiceType: d.kind } } });
     if (again) return again;
@@ -169,6 +169,11 @@ async function appendRecord(order: IssuedOrder, cfg: VerifactuSettings, d: Recor
       },
     });
   });
+  // A la AEAT en segundo plano (si falta el certificado, se queda pendiente).
+  if (rec.mode === "VERIFACTU" && rec.aeatStatus === "PENDIENTE_ENVIO") {
+    void import("@/app/lib/aeatSend").then((m) => m.queueAeatSend(order.tenantId)).catch(() => {});
+  }
+  return rec;
 }
 
 const FULL_TYPES = ["F1", "F3"];
