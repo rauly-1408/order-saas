@@ -3,8 +3,9 @@
 import { ask } from "@/app/lib/dialog";
 import { useEffect, useState } from "react";
 
-// Hoja «Caja»: abrir con un fondo, apuntar entradas y salidas de efectivo y
-// cerrar contando el cajón. Quien no tiene «Ve lo recaudado» cuenta a ciegas:
+// Hoja «Caja»: abrir con un fondo (obligatorio para vender en la Caja; se
+// escribe el total o se cuenta por billetes), apuntar entradas y salidas de
+// efectivo y cerrar contando el cajón. Quien no tiene «Ve lo recaudado» cuenta a ciegas:
 // no ve cuánto debería haber ni la diferencia. Ver docs/CAJA.md
 
 type PayKey = "CASH" | "CARD_TERMINAL" | "BIZUM" | "CARD" | "IN_STORE";
@@ -85,11 +86,13 @@ export default function CashSessionSheet({ tenant, state, onState, onClose }: { 
   }
 
   async function openCash() {
-    const c = parseEuros(amount || "0");
-    if (c == null) return setError("Escribe el efectivo con el que abres, por ejemplo 100.");
+    const c = parseEuros(amount);
+    if (c == null) return setError("Escribe con cuánto efectivo empiezas, por ejemplo 100. Si no dejas nada, pon 0.");
     if (await post({ action: "open", floatCents: c })) {
       setAmount("");
+      setByCoins(false);
       setStep("main");
+      onClose(); // abierta: a vender
     }
   }
   async function addMove() {
@@ -189,19 +192,25 @@ export default function CashSessionSheet({ tenant, state, onState, onClose }: { 
           /* ── Abrir caja ── */
           <div className="mt-5">
             <p className="text-sm font-medium">¿Con cuánto efectivo empiezas?</p>
-            <p className="mt-0.5 text-xs text-[var(--p-muted)]">El cambio que dejas en el cajón al abrir. Si no dejas nada, pon 0.</p>
+            <p className="mt-0.5 text-xs text-[var(--p-muted)]">Obligatorio para poder vender: el cambio que dejas en el cajón. Escribe el total o cuéntalo por billetes. Si no dejas nada, pon 0.</p>
             <div className="mt-3">
-              <MoneyInput value={amount} onChange={setAmount} label="Fondo de apertura" autoFocus />
+              <MoneyInput value={amount} onChange={setAmount} label="Fondo de apertura" autoFocus={!byCoins} />
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {[0, 50, 100, 150, 200].map((v) => (
-                <button key={v} type="button" onClick={() => setAmount(String(v))} className="p-press rounded-full bg-black/[0.05] px-3.5 py-2 text-sm font-semibold tabular-nums">
-                  {v} €
-                </button>
-              ))}
-            </div>
+            {!byCoins && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[0, 50, 100, 150, 200].map((v) => (
+                  <button key={v} type="button" onClick={() => setAmount(String(v))} className="p-press min-h-11 rounded-full bg-black/[0.05] px-3.5 text-sm font-semibold tabular-nums">
+                    {v} €
+                  </button>
+                ))}
+              </div>
+            )}
+            <button type="button" onClick={() => setByCoins((v) => !v)} aria-expanded={byCoins} className="mt-2 min-h-11 text-sm font-semibold text-[var(--p-brand)]">
+              {byCoins ? "▾ Ocultar el recuento por billetes" : "▸ Contar por billetes y monedas"}
+            </button>
+            {byCoins && <CoinCounter onTotal={(c) => setAmount((c / 100).toFixed(2).replace(".", ","))} />}
             {error && <p className="mt-3 text-sm text-[var(--p-accent)]" role="alert">{error}</p>}
-            <button type="button" onClick={openCash} disabled={busy} className="p-press mt-5 w-full rounded-full bg-[var(--p-brand)] py-3.5 text-base font-semibold text-white disabled:opacity-50">
+            <button type="button" onClick={openCash} disabled={busy || amount === ""} className="p-press mt-5 w-full rounded-full bg-[var(--p-brand)] py-3.5 text-base font-semibold text-white disabled:opacity-50">
               {busy ? "Abriendo…" : "Abrir caja"}
             </button>
             {state.history.length > 0 && <History items={state.history} />}

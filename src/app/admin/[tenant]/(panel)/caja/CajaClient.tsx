@@ -163,9 +163,15 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const loadCash = useCallback(() => {
     fetch(`/api/admin/${tenant}/caja/sesion`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setCash(d as CashState))
+      .then((d: CashState | null) => {
+        if (!d) return;
+        setCash(d);
+        if (!d.open) setCashOpen(true); // sin abrir la caja no se vende: se pide el fondo nada más entrar
+      })
       .catch(() => {});
   }, [tenant]);
+  // Caja cerrada = no se puede vender (sin conexión no se sabe: no se bloquea).
+  const locked = cash != null && !cash.open;
   useEffect(() => {
     loadCash();
   }, [loadCash]);
@@ -307,7 +313,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const change = tenderedCents != null && tenderedCents >= subtotal ? tenderedCents - subtotal : null;
   const missing = tenderedCents != null && tenderedCents < subtotal ? subtotal - tenderedCents : null;
   const detailsSummary = [name, phone, coupon && `cupón ${coupon.toUpperCase()}`, collabCode && `de ${collabs.find((c) => c.code === collabCode)?.name ?? collabCode}`, notes && `nota: ${notes}`].filter(Boolean).join(" · ");
-  const canConfirm = lines.length > 0 && !sending && (mode !== "DELIVERY" || address.trim().length > 0) && (payment !== "CASH" || tenderedCents == null || tenderedCents >= subtotal) && (!mixed || (cashPartCents > 0 && cashPartCents < subtotal));
+  const canConfirm = !locked && lines.length > 0 && !sending && (mode !== "DELIVERY" || address.trim().length > 0) && (payment !== "CASH" || tenderedCents == null || tenderedCents >= subtotal) && (!mixed || (cashPartCents > 0 && cashPartCents < subtotal));
 
   function add(product: Product, extra: { optionIds: string[]; comboChoices?: ComboChoice[]; modifiers: OrderLineModifier[]; unitPriceCents: number; note?: string }) {
     // Con nota, línea aparte (no se suma a la misma sin nota).
@@ -323,6 +329,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     }
   }
   function tap(product: Product) {
+    if (locked) return setCashOpen(true);
     if (product.isCombo) return setComboFor(product);
     if (product.modifierGroups.length) return setOptionsFor(product);
     add(product, { optionIds: [], modifiers: [], unitPriceCents: product.basePriceCents });
@@ -807,6 +814,11 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
 
       <div className="mt-3">
         {mode === "DELIVERY" && !address.trim() && <p className="mb-2 text-center text-xs text-[var(--p-accent)]">Falta la dirección de entrega (en el pedido).</p>}
+        {locked && (
+          <button type="button" onClick={() => setCashOpen(true)} className="mb-2 w-full text-center text-sm font-semibold text-amber-900 underline underline-offset-2">
+            La caja está cerrada: ábrela para poder cobrar
+          </button>
+        )}
         {error && (
           <p className="mb-2 text-center text-sm text-[var(--p-accent)]" role="alert">
             {error}
@@ -873,15 +885,14 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     <div className="-mx-4 -mt-20 -mb-12 flex h-[100dvh] flex-col overflow-y-auto lg:-mx-10 lg:-mt-10 lg:flex-row lg:overflow-visible" style={STORE_VARS}>
       {/* Carta */}
       <div className="@container flex shrink-0 flex-col px-4 pt-20 pb-28 lg:min-h-0 lg:flex-1 lg:shrink lg:overflow-y-auto lg:px-8 lg:pt-0 lg:pb-10">
-        {cash && !cash.open && (
-          <div className="mb-1 flex items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 lg:mt-6">
-            <span>
-              La caja está cerrada<span className="hidden @xl:inline">. Ábrela con el efectivo del cajón para poder cuadrar al final del día</span>.
+        {locked && (
+          <button type="button" onClick={() => setCashOpen(true)} className="p-press mb-1 flex w-full items-center justify-between gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-left text-amber-900 ring-1 ring-amber-200 lg:mt-6">
+            <span className="min-w-0">
+              <span className="block text-[15px] font-semibold">Abre la caja para empezar a vender</span>
+              <span className="block text-sm">Pon con cuánto efectivo empiezas: así al cerrar sabrás si cuadra.</span>
             </span>
-            <button type="button" onClick={() => setCashOpen(true)} className="p-press shrink-0 whitespace-nowrap rounded-full bg-amber-900 px-4 py-1.5 text-xs font-semibold text-white">
-              Abrir caja
-            </button>
-          </div>
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-900 px-4 py-2.5 text-sm font-semibold text-white">Abrir caja</span>
+          </button>
         )}
         {/* Arriba, siempre a mano: buscador, estado de la caja, hoy y categorías */}
         <div className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)] px-4 pt-2 pb-3 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8 lg:pt-6 lg:pb-4">

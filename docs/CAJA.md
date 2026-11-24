@@ -32,8 +32,8 @@ La búsqueda es `GET /api/admin/[tenant]/caja/cliente?telefono=…` y necesita a
 
 **Quién ve lo recaudado.** Solo los usuarios con la casilla **«Ve lo recaudado»** (Configuración → Usuarios y permisos): al crear el restaurante la tiene el administrador principal y nadie más. Sin ella, la Caja no muestra ni el botón «Hoy», ni la tarjeta «Recaudado hoy», ni la barra del móvil; Inicio enseña «Pedidos de hoy» en lugar de los ingresos y oculta el ticket medio; Informes no sale en el menú y su página explica cómo pedir el permiso; y las APIs de resumen, informes y exportación responden 403. Quien la tiene dispone además de un **ojo**, junto al botón «Hoy», para tapar los importes (••••) cuando haya alguien mirando; se recuerda en el dispositivo.
 
-**Abrir y cerrar caja (arqueo).** El botón «Abrir caja / Caja abierta» de arriba abre la hoja **Caja**. Si está cerrada, un aviso lo recuerda al entrar.
-1. **Abrir**: «¿Con cuánto efectivo empiezas?» (el fondo; atajos 0, 50, 100, 150, 200 €).
+**Abrir y cerrar caja (arqueo).** El botón «Abrir caja / Caja abierta» de arriba abre la hoja **Caja**. **Abrir es obligatorio para vender** (2026-11-24): si está cerrada, al entrar sale la hoja para poner el fondo; mientras siga cerrada, tocar un producto vuelve a pedirlo y no se puede confirmar ningún cobro (aviso «Abre la caja para empezar a vender»). Sin conexión no se sabe el estado y no se bloquea.
+1. **Abrir**: «¿Con cuánto efectivo empiezas?» (el fondo, obligatorio aunque sea 0): se escribe el total (atajos 0, 50, 100, 150, 200 €) o se cuenta **por billetes y monedas**, igual que al cerrar.
 2. **Durante el día**: «− Sale dinero» y «+ Entra dinero», con motivo (pago a proveedor, retirada al banco, cambio para el cajón, propinas, otro).
 3. **Cerrar**: se cuenta el cajón y se escribe el total (más una nota si hace falta). Se cuenta **a ciegas**: lo que debería haber se ve después, nunca antes.
    - **«Contar por billetes y monedas»** despliega cuántos hay de cada uno, de 500 € a 1 céntimo, y la suma se escribe sola en el total.
