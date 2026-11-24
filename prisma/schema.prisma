@@ -236,9 +236,10 @@ model Tenant {
   purchaseOrders PurchaseOrder[]
   priceChanges   IngredientPriceChange[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  priceLists PriceList[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  priceLists      PriceList[]
+  verifactuSender VerifactuSender? // VeriFactu: certificado y envío a la AEAT
 }
 
 // ─────────────────────────────────────────────
@@ -583,7 +584,7 @@ model OrderLine {
   discountCents Int     @default(0)
 
   // Mesas: número de ronda (0 fuera de mesas) y quién la añadió
-  round         Int     @default(0)
+  round         Int       @default(0)
   addedByUserId String?
   readyAt       DateTime? // pantalla de cocina: la ronda (o la línea) está lista
 
@@ -608,27 +609,27 @@ enum ReservationSource {
 }
 
 model Reservation {
-  id        String  @id @default(cuid())
-  tenantId  String
-  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  storeId   String
-  store     Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  tableId   String? // sin uso: las mesas van en tableIds
-  table     DiningTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
-  tableIds  String[] @default([]) // mesa o mesas asignadas (una combinación)
-  code      String  @unique // enlace del cliente para ver o cancelar su reserva
-  startsAt  DateTime
-  durationMinutes Int @default(90)
-  guests    Int
-  name      String
-  phone     String
-  email     String?
-  notes     String?
-  status    ReservationStatus @default(CONFIRMED)
-  source    ReservationSource @default(ONLINE)
-  createdByUserId String?
-  cancelledAt DateTime?
-  cancelledBy String? // "CUSTOMER" | "RESTAURANT"
+  id                  String            @id @default(cuid())
+  tenantId            String
+  tenant              Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  storeId             String
+  store               Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  tableId             String? // sin uso: las mesas van en tableIds
+  table               DiningTable?      @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  tableIds            String[]          @default([]) // mesa o mesas asignadas (una combinación)
+  code                String            @unique // enlace del cliente para ver o cancelar su reserva
+  startsAt            DateTime
+  durationMinutes     Int               @default(90)
+  guests              Int
+  name                String
+  phone               String
+  email               String?
+  notes               String?
+  status              ReservationStatus @default(CONFIRMED)
+  source              ReservationSource @default(ONLINE)
+  createdByUserId     String?
+  cancelledAt         DateTime?
+  cancelledBy         String? // "CUSTOMER" | "RESTAURANT"
   reminderSentAt      DateTime? // recordatorio por email enviado
   customerConfirmedAt DateTime? // el cliente confirmó que va (botón del recordatorio)
   waitlistNotifiedAt  DateTime? // lista de espera: se le avisó de que quedó sitio
@@ -1537,18 +1538,35 @@ model PasswordReset {
 // Cartas de delivery: precios a mano para las plataformas de reparto (Glovo,
 // Uber Eats, Just Eat). Cada plataforma usa una sola carta. Ver docs/REPARTO-PLATAFORMAS.md
 model PriceList {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name     String
-  channels String[] @default([]) // "glovo" | "ubereats" | "justeat"
-  prices   Json     @default("{}") // { productId: céntimos }; sin precio = el del local
-  hidden   String[] @default([]) // platos que no se ofrecen en esta carta
-  descriptions Json  @default("{}") // { productId: texto }; sin texto = la descripción del local
-  images       Json  @default("{}") // { productId: url }; sin foto = la del local
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  channels     String[] @default([]) // "glovo" | "ubereats" | "justeat"
+  prices       Json     @default("{}") // { productId: céntimos }; sin precio = el del local
+  hidden       String[] @default([]) // platos que no se ofrecen en esta carta
+  descriptions Json     @default("{}") // { productId: texto }; sin texto = la descripción del local
+  images       Json     @default("{}") // { productId: url }; sin foto = la del local
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([tenantId])
+}
+
+// VeriFactu: certificado digital del restaurante (cifrado) y estado del envío a
+// la AEAT. Uno por restaurante. Ver docs/VERIFACTU.md
+model VerifactuSender {
+  tenantId    String    @id
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  certSealed  String? // clave y certificado en PEM, cifrados (secretBox, «aeat-cert»)
+  holderName  String?
+  holderNif   String?
+  notAfter    DateTime?
+  uploadedAt  DateTime?
+  nextSendAt  DateTime? // control de flujo: la AEAT dice cuánto esperar entre envíos
+  lockedUntil DateTime? // un solo envío a la vez por restaurante
+  lastSentAt  DateTime?
+  lastError   String?
+  updatedAt   DateTime  @updatedAt
 }

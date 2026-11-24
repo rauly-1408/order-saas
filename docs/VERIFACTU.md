@@ -4,7 +4,7 @@ Entrega 4 de la Caja (2026-10-23). Facturas simplificadas con numeración legal,
 
 ## Qué hace la app
 
-- **Configuración → Facturación · VeriFactu** (gerente): activar (exige razón social y NIF en Información del negocio), modalidad (**VERI*FACTU**, recomendada, o sin envío automático), entorno (**Pruebas** o **Producción**) y letra de la serie. Apagado por defecto.
+- **Configuración → Facturación · VeriFactu** (gerente): activar (exige razón social y NIF en Información del negocio), entorno (**Pruebas** o **Producción**), letra de la serie y **certificado digital** para el envío. Apagado por defecto. Modalidad: solo **VERI*FACTU**; la «sin envío» (firma XAdES y registro de eventos) sale como «próximamente» y el servidor la ignora.
 - **Al cobrar** un pedido se emite su **factura simplificada (F2)**: en la Caja (efectivo, datáfono, Bizum), al confirmarse un pago online y al apuntar el cobro al entregar un pedido «al recoger». Un pedido sin cobrar no se factura.
 - **Si se cancela un pedido facturado**, se emite su **rectificativa por diferencias** con los importes en negativo, en su propia serie: R5 si solo tenía la simplificada, R1 si se le hizo factura completa.
 - **Factura completa a nombre del cliente** (sección **Facturas** del menú, 2026-10-28): se busca el ticket por su número (`T2026-000012`) o por el del pedido, se ponen NIF/CIF, razón social y domicilio fiscal del cliente y se emite. Si el pedido tenía su simplificada, la completa es una **F3** («factura emitida en sustitución de facturas simplificadas», mismos importes) y dice a cuál sustituye; si no, una **F1**. Una por pedido. Serie propia `F2026-000001`. Sale en una hoja A4 para imprimir o guardar en PDF y, si hay email configurado (Resend), se envía al cliente. Se llega también desde Pedidos (botón «Factura» en los pedidos cobrados y en «Últimas 24 h») y desde la pantalla final de la Caja («¿Quiere factura a su nombre?»). Exige VeriFactu activo; la puede hacer cualquier usuario del local (la pide el cliente en el mostrador).
@@ -22,10 +22,18 @@ Entrega 4 de la Caja (2026-10-23). Facturas simplificadas con numeración legal,
 - **Inalterable**: un disparador en la base de datos impide borrar registros y cambiar cualquier dato salvo el estado de envío a la AEAT, y otro impide vaciar la tabla (`TRUNCATE`, migración `20261024100000_verifactu_truncate`). El CSV neutraliza las celdas que Excel tomaría por fórmulas.
 - **QR**: `https://www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQR?nif=…&numserie=…&fecha=dd-mm-aaaa&importe=…` (en Pruebas, `prewww2.aeat.es`), corrección de errores M.
 
+## Envío a la AEAT (2026-11-24)
+
+- **Certificado digital** del restaurante (o de un representante apoderado): se sube en Configuración → Facturación (archivo .p12/.pfx y su contraseña). Se lee con `node-forge` (entiende los .p12 antiguos de la FNMT), se guardan **solo la clave y el certificado en PEM, cifrados** (`secretBox`, propósito «aeat-cert») en `VerifactuSender`; ni el archivo ni la contraseña se guardan, y nunca se devuelven al navegador. Se muestra a nombre de quién está, su NIF y su caducidad (aviso 30 días antes). Si el NIF no es el del restaurante, avisa de que solo sirve con apoderamiento y se envía con `Representante` en la cabecera.
+- **Cuándo se envía**: al emitir cada factura (en segundo plano con `after()`), al subir el certificado, con el botón «Enviar ahora» y en el cron diario (`/api/cron/daily-summary`). Siempre en orden de la cadena, hasta 1.000 registros por envío y del mismo entorno.
+- **Control de flujo**: tras cada envío se espera lo que diga `TiempoEsperaEnvio` (normalmente 60 s), guardado en `nextSendAt`. Dentro de una petición en segundo plano se espera hasta 65 s y se hacen como mucho 3 rondas; lo que quede sale en el siguiente disparo. `lockedUntil` evita dos envíos a la vez del mismo restaurante.
+- **Respuesta**: por cada factura `ACEPTADO`, `ACEPTADO_CON_ERRORES` o `RECHAZADO`, con el CSV, el código y la descripción en `aeatResponse` (lo único que el disparador deja cambiar). El código 3000 (duplicado, ya estaba en la AEAT) cuenta como aceptado. Si falla la conexión o la AEAT devuelve un error SOAP, todo sigue pendiente y el motivo sale en «Último intento».
+- **Pendiente**: subsanar y reenviar una factura rechazada (`Subsanacion`/`RechazoPrevio`) y la modalidad sin envío. Si un restaurante pasa de Pruebas a Producción, el primer registro de producción enlaza con el último de pruebas.
+
 ## Lo que falta (necesita al restaurante o al fabricante)
 
-1. **Envío a la AEAT**: necesita el **certificado digital** del restaurante (de la sociedad o del autónomo) para firmar las llamadas al servicio web de la AEAT. Hasta entonces las facturas quedan **«Pendiente de envío»**, encadenadas y guardadas; se enviarán en orden cuando esté. En modalidad sin envío, el certificado sirve para firmar cada registro (XAdES).
-2. **Declaración responsable del sistema informático**: la firma el **fabricante del software** (quien comercializa la app, no cada restaurante), con su NIF, nombre del sistema y versión. Se configura con `VERIFACTU_PRODUCER_NAME` y `VERIFACTU_PRODUCER_NIF` en Vercel y debe constar en la web del producto.
+1. **Declaración responsable del sistema informático**: la firma el **fabricante del software** con su NIF, nombre del sistema y versión. Se configura con `VERIFACTU_PRODUCER_NAME` y `VERIFACTU_PRODUCER_NIF` en Vercel (y opcionalmente `VERIFACTU_SOFTWARE_VERSION`, por defecto «1.0») y debe constar en la web del producto. **Sin estas variables no se envía nada.**
+2. **Probar en el entorno de pruebas de la AEAT** con un certificado real antes de pasar a Producción.
 3. **Revisión de un asesor fiscal** antes de pasar a Producción con clientes reales.
 
 ## Técnica
@@ -37,3 +45,5 @@ Entrega 4 de la Caja (2026-10-23). Facturas simplificadas con numeración legal,
 - `GET/PUT /api/admin/[tenant]/verifactu` y `GET /api/admin/[tenant]/verifactu/export` (CSV, con «Ve lo recaudado»).
 - Impresión: `Escpos.qr()` (GS ( k, modelo 2, corrección M) y bloque de factura en `renderReceipt`.
 - Web: librería `qrcode` (MIT) para el QR en SVG de la confirmación.
+- Envío: `lib/aeatCert.ts` (leer el .p12), `lib/aeatXml.ts` (mensaje `RegFactuSistemaFacturacion` en el orden de los esquemas y lectura de la respuesta), `lib/aeatSend.ts` (`sendPending`, `queueAeatSend`, `sendAllPending`), modelo `VerifactuSender` (migración `20261124130000_verifactu_envio`), rutas `POST/DELETE /api/admin/[tenant]/verifactu/certificado` y `POST /api/admin/[tenant]/verifactu/enviar`. Datos fijos del sistema: nombre «NorApp», id «NA», `NumeroInstalacion` = id del restaurante, `TipoUsoPosibleSoloVerifactu` S, `TipoUsoPosibleMultiOT` S, `IndicadorMultiplesOT` N.
+- Pruebas en local: `AEAT_ENDPOINT_OVERRIDE` apunta a un servidor propio (se ignora en Vercel). Pruebas en `lib/__tests__/aeat.test.ts`.
