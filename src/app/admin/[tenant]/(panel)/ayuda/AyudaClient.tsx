@@ -5,7 +5,7 @@ import type { ManualSection } from "@/app/lib/manual";
 import { openAssistant, SparkIcon } from "../Assistant";
 import RichText from "../RichText";
 import { useRouter } from "next/navigation";
-import { resetTour, TOURS, WELCOME } from "../tourSteps";
+import { resetTour, TOURS } from "../tourSteps";
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
@@ -18,8 +18,7 @@ export default function AyudaClient({ tenant, manual, canAsk }: { tenant: string
   // «Ver el recorrido»: vuelve a enseñar las nubes de esa sección.
   const replay = (slug: string) => {
     if (slug === "panel") {
-      resetTour(WELCOME.key);
-      return router.push(`/admin/${tenant}/home`);
+      return router.push(`/admin/${tenant}/home?recorrido=bienvenida`);
     }
     const t = TOURS.find((x) => x.manual === slug && x.key !== "ayuda");
     if (!t) return;
