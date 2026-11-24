@@ -285,16 +285,13 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
           ) : !day ? (
             <p className="py-8 text-center text-sm text-[var(--p-muted)]">Cargando…</p>
           ) : (
+            /* Lo vendido: el total, tres datos en recuadros y cómo se cobró, forma por
+               forma con su parte del total (toca una para ver sus tickets). */
             <>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--p-muted)]">{isToday ? "Vendido hoy" : `Vendido el ${dayLabel(`${day.date}T12:00:00`)}`}</p>
                   <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight">{euros(day.totalCents)}</p>
-                  <p className="mt-1 text-sm text-[var(--p-muted)]">
-                    {day.sales} {day.sales === 1 ? "pedido" : "pedidos"}
-                    {day.sales > 0 && ` · ticket medio ${euros(avg)}`}
-                    {day.cancelled > 0 && ` · ${day.cancelled} ${day.cancelled === 1 ? "cancelado" : "cancelados"}`}
-                  </p>
                 </div>
                 {day.pendingCents > 0 && (
                   <button type="button" onClick={() => setFilter("pendientes")} className="p-press rounded-2xl bg-amber-50 px-4 py-3 text-left ring-1 ring-amber-200">
@@ -303,33 +300,55 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
                   </button>
                 )}
               </div>
-              {paySum > 0 && (
-                <>
-                  <div className="mt-5 flex h-3 w-full gap-0.5 overflow-hidden rounded-full bg-black/[0.05]" role="img" aria-label={payKeys.map((k) => `${PAY[k].label} ${euros(day.byPayment[k])}`).join(", ")}>
-                    {payKeys.map((k) => (
-                      <span key={k} className={`h-full ${PAY[k].color}`} style={{ width: `${(day.byPayment[k] / paySum) * 100}%` }} />
-                    ))}
+              <dl className="mt-4 grid grid-cols-3 gap-2">
+                <div className="rounded-2xl bg-[var(--p-bg)] px-3 py-2.5">
+                  <dt className="text-xs text-[var(--p-muted)]">Pedidos</dt>
+                  <dd className="text-lg font-semibold tabular-nums">{day.sales}</dd>
+                </div>
+                <div className="rounded-2xl bg-[var(--p-bg)] px-3 py-2.5">
+                  <dt className="text-xs text-[var(--p-muted)]">Ticket medio</dt>
+                  <dd className="text-lg font-semibold tabular-nums">{day.sales > 0 ? euros(avg) : "—"}</dd>
+                </div>
+                {day.cancelled > 0 ? (
+                  <button type="button" onClick={() => setFilter("cancelados")} className="p-press rounded-2xl bg-red-50 px-3 py-2.5 text-left">
+                    <dt className="text-xs text-red-700">Cancelados ›</dt>
+                    <dd className="text-lg font-semibold tabular-nums text-red-600">{day.cancelled}</dd>
+                  </button>
+                ) : (
+                  <div className="rounded-2xl bg-[var(--p-bg)] px-3 py-2.5">
+                    <dt className="text-xs text-[var(--p-muted)]">Cancelados</dt>
+                    <dd className="text-lg font-semibold tabular-nums">0</dd>
                   </div>
-                  <ul className="mt-3 grid gap-x-4 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
-                    {payKeys.map((k) => (
-                      <li key={k}>
-                        <button
-                          type="button"
-                          disabled={!(k === "CASH" || k === "CARD_TERMINAL" || k === "BIZUM")}
-                          onClick={() => (k === "CASH" || k === "CARD_TERMINAL" || k === "BIZUM") && setFilter(k)}
-                          className="p-row flex min-h-10 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm transition-colors"
-                        >
-                          <span className="flex items-center gap-2">
-                            <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${PAY[k].color}`} />
-                            {PAY[k].label}
-                          </span>
-                          <span className="font-semibold tabular-nums">{euros(day.byPayment[k])}</span>
-                        </button>
-                      </li>
-                    ))}
+                )}
+              </dl>
+              {paySum > 0 && (
+                <div className="mt-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--p-muted)]">Cómo se cobró</p>
+                  <ul className="mt-1.5 space-y-1">
+                    {payKeys.map((k) => {
+                      const pct = Math.round((day.byPayment[k] / paySum) * 100);
+                      const canFilter = k === "CASH" || k === "CARD_TERMINAL" || k === "BIZUM";
+                      return (
+                        <li key={k}>
+                          <button type="button" disabled={!canFilter} onClick={() => canFilter && setFilter(k)} className="p-row w-full rounded-xl px-2 py-2 text-left transition-colors" aria-label={`${PAY[k].label}: ${euros(day.byPayment[k])}, ${pct} % del total${canFilter ? ". Ver sus tickets" : ""}`}>
+                            <span className="flex items-center gap-3 text-sm">
+                              <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-full ${PAY[k].color}`} />
+                              <span className="min-w-0 flex-1 truncate font-medium">{PAY[k].label}</span>
+                              <span className="w-10 shrink-0 text-right text-xs tabular-nums text-[var(--p-muted)]">{pct} %</span>
+                              <span className="w-24 shrink-0 text-right font-semibold tabular-nums">{euros(day.byPayment[k])}</span>
+                              {canFilter ? <span aria-hidden className="w-3 shrink-0 text-[var(--p-muted)]">›</span> : <span aria-hidden className="w-3 shrink-0" />}
+                            </span>
+                            <span aria-hidden className="ml-[22px] mr-6 mt-1.5 block h-1.5 overflow-hidden rounded-full bg-black/[0.06]">
+                              <span className={`block h-full rounded-full ${PAY[k].color}`} style={{ width: `${Math.max(pct, 2)}%` }} />
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
-                </>
+                </div>
               )}
+              {paySum === 0 && <p className="mt-5 rounded-2xl bg-[var(--p-bg)] p-4 text-sm text-[var(--p-muted)]">Todavía no se ha cobrado nada este día.</p>}
             </>
           )}
         </section>
@@ -340,16 +359,46 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
         <section aria-label="Tickets" className={`${CARD} mt-4 bg-[var(--p-surface)] ring-[var(--p-line)]`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">{searching ? "Resultados" : isToday ? "Tickets de hoy" : `Tickets del ${dayLabel(`${day?.date}T12:00:00`)}`}</h2>
-            <div className={`flex items-center gap-1 rounded-full bg-black/[0.05] p-1 ${searching ? "hidden" : ""}`}>
-              <button type="button" aria-label="Día anterior" disabled={!day} onClick={() => day && setDate(shiftDay(day.date, -1))} className="p-press h-10 w-10 rounded-full text-lg font-semibold">
-                ‹
-              </button>
-              <button type="button" disabled={isToday} onClick={() => setDate(null)} className={`p-press h-10 rounded-full px-4 text-sm font-semibold ${isToday ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : ""}`}>
-                Hoy
-              </button>
-              <button type="button" aria-label="Día siguiente" disabled={isToday} onClick={() => day && setDate(shiftDay(day.date, 1) >= day.today ? null : shiftDay(day.date, 1))} className="p-press h-10 w-10 rounded-full text-lg font-semibold disabled:opacity-30">
-                ›
-              </button>
+            {/* Día: ‹ › de uno en uno o el calendario para ir a cualquier día. */}
+            <div className={`flex items-center gap-2 ${searching ? "hidden" : ""}`}>
+              {!isToday && (
+                <button type="button" onClick={() => setDate(null)} className="p-press h-10 rounded-full px-3 text-sm font-semibold text-[var(--p-brand)]">
+                  Hoy
+                </button>
+              )}
+              <div className="flex items-center gap-1 rounded-full bg-black/[0.05] p-1">
+                <button type="button" aria-label="Día anterior" disabled={!day} onClick={() => day && setDate(shiftDay(day.date, -1))} className="p-press h-10 w-10 rounded-full text-lg font-semibold">
+                  ‹
+                </button>
+                {/* El calendario del propio aparato: un campo de fecha invisible encima del botón (funciona también en iPad antiguos). */}
+                <label className="relative flex h-10 cursor-pointer items-center gap-1.5 rounded-full bg-[var(--p-surface)] px-3 text-sm font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.12)]">
+                  <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 text-[var(--p-muted)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                    <path d="M3 10h18M8 3v4M16 3v4" />
+                  </svg>
+                  <span className="whitespace-nowrap first-letter:uppercase">{isToday ? "Hoy" : dayLabel(`${day?.date}T12:00:00`)}</span>
+                  <input
+                    type="date"
+                    aria-label="Elegir el día"
+                    value={day?.date ?? ""}
+                    max={day?.today}
+                    onClick={(e) => {
+                      try {
+                        (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
+                      } catch {}
+                    }}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (!v || !day) return;
+                      setDate(v >= day.today ? null : v);
+                    }}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                </label>
+                <button type="button" aria-label="Día siguiente" disabled={isToday} onClick={() => day && setDate(shiftDay(day.date, 1) >= day.today ? null : shiftDay(day.date, 1))} className="p-press h-10 w-10 rounded-full text-lg font-semibold disabled:opacity-30">
+                  ›
+                </button>
+              </div>
             </div>
           </div>
           <input

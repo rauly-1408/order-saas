@@ -51,9 +51,9 @@ En **Caja**, con la caja abierta, toca «+ Entra dinero» o «− Sale dinero»,
 
 ## Ver lo vendido hoy
 
-En **Caja**, a la derecha (debajo en el móvil), «Vendido hoy»: el total, los pedidos, el ticket medio y una barra con lo que entró por cada forma de pago (toca una para ver sus tickets). Si hay algo «Pendiente de cobrar», tócalo para ver qué pedidos son.
+En **Caja**, a la derecha (debajo en el móvil), «Vendido hoy»: el total; en recuadros los pedidos, el ticket medio y los cancelados (tócalo para verlos); y «Cómo se cobró», cada forma de pago con su importe y su parte del total (toca una para ver sus tickets). Si hay algo «Pendiente de cobrar», tócalo para ver qué pedidos son.
 
-Debajo, «Tickets de hoy»: filtra por «Sin cobrar», «Efectivo», «Datáfono», «Bizum» o «Cancelados», busca por nombre, teléfono o número, y con ‹ › mira otros días. Toca un ticket para verlo, reimprimirlo o cambiar cómo pagó.
+Debajo, «Tickets de hoy»: filtra por «Sin cobrar», «Efectivo», «Datáfono», «Bizum» o «Cancelados», busca por nombre, teléfono o número, y mira otros días con ‹ › o tocando la fecha (se abre el calendario para elegir cualquier día; «Hoy» vuelve a hoy). Toca un ticket para verlo, reimprimirlo o cambiar cómo pagó.
 
 ## Tomar un pedido (para llevar o a domicilio)
 
