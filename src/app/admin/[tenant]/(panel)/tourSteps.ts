@@ -45,7 +45,7 @@ export const TOURS: Tour[] = [
       { target: "main button::Caja", title: "Estado de la caja", text: "Para vender hay que abrir la caja con el efectivo del cajón. Desde aquí apuntas entradas y salidas de dinero y haces el cierre." },
       { target: "input[aria-label='Buscar producto']", title: "Buscar", text: "Escribe parte del nombre para encontrar un producto al momento." },
       { target: "nav[aria-label='Categorías']", title: "Categorías", text: "Toca una categoría para ver sus productos. Luego toca un producto para añadirlo al pedido." },
-      { target: "[aria-label='Tipo de pedido']", title: "Tipo de pedido", text: "Para llevar, comer aquí o a domicilio. A domicilio te pide el teléfono y la dirección del cliente." },
+      { target: "[aria-label='Tipo de pedido']", title: "Tipo de pedido", text: "Para llevar, comer aquí o a domicilio. Los pedidos por teléfono se apuntan en Pedidos." },
       { target: "aside button::cobrar", title: "Cobrar", text: "Cuando el pedido esté listo, cobra en efectivo, con datáfono o Bizum. El pedido pasa solo a cocina." },
     ],
   },
@@ -55,6 +55,7 @@ export const TOURS: Tour[] = [
     manual: "pedidos",
     steps: [
       { target: "main h1", title: "Pedidos", text: "Todos los pedidos (tienda online, Caja y teléfono) en un tablero: Nuevos, Preparando, Listos y En reparto." },
+      { target: "main a::Pedido por teléfono", title: "Pedidos por teléfono", text: "Cuando te llamen, apunta aquí el pedido: con el teléfono del cliente se rellenan sus datos y sale en el tablero como «Teléfono»." },
       { target: "main button::Sonido", title: "Sonido", text: "Suena cada vez que entra un pedido nuevo. Si no suena, toca aquí para activarlo." },
       { target: "[aria-label='Tiempo extra de preparación']", title: "¿Mucho jaleo?", text: "Suma minutos de espera a los pedidos online para que el cliente sepa cuándo estará." },
       { target: "main button::Pausar pedidos", title: "Pausar", text: "Si no das abasto, pausa los pedidos online un rato. La tienda avisa a los clientes." },

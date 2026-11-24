@@ -4,6 +4,15 @@ Es el tablero donde llegan y se gestionan todos los pedidos: los de tu tienda on
 
 **Dónde:** Menú → Pedidos. Lo ven todos los puestos. Cocina y Barra ven solo los platos de sus secciones («Vista de cocina» o «Vista de barra») y no cobran ni cancelan.
 
+
+## Apuntar un pedido por teléfono
+
+1. En Pedidos, arriba, toca «＋ Pedido por teléfono».
+2. Escribe el teléfono del cliente: si ya ha pedido antes, se rellenan su nombre y su dirección («✓ … · datos rellenados»).
+3. Elige «Para llevar» o «A domicilio» (a domicilio pide la dirección) y toca los productos.
+4. Cobro: por defecto «Pagar al recoger» (se cobra cuando lo recoge o al entregarlo); también puedes cobrar ya con datáfono o Bizum.
+5. Envíalo a cocina: sale en el tablero con la etiqueta «Teléfono». No hace falta tener la caja abierta.
+6. Para volver, toca «← Pedidos».
 ## ¿Cómo funciona el tablero?
 
 Hay cuatro columnas: «Nuevos», «Preparando», «Listos» y «En reparto» (solo pedidos a domicilio).

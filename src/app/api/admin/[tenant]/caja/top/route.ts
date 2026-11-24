@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
     const session = await getSessionFromRequest(req);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return NextResponse.json({ error: "Prohibido" }, { status: 403 });
-    const noArea = denyUnlessArea(session, "caja");
+    // También desde Pedidos (pedido por teléfono).
+    const noArea = denyUnlessArea(session, "caja") && denyUnlessArea(session, "pedidos");
     if (noArea) return noArea;
 
     const since = new Date(Date.now() - 30 * 86_400_000);

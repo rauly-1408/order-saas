@@ -273,7 +273,13 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
             {!error && <span className="hidden sm:inline">· actualiza cada 10 s</span>}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Los pedidos que llegan por teléfono se apuntan aquí (no en la Caja) */}
+          {!perms.station && (
+            <Link href={`/admin/${tenant}/pedidos/telefono`} className="p-press flex min-h-11 items-center gap-1.5 rounded-full bg-[var(--p-brand)] px-4 text-sm font-semibold text-[var(--p-on-brand)] shadow-sm">
+              <span aria-hidden>📞</span> ＋ Pedido por teléfono
+            </Link>
+          )}
           <button
             onClick={toggleSound}
             aria-pressed={soundOn}
