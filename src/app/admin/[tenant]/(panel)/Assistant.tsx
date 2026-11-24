@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { ChatMessage, PendingAction } from "@/app/lib/assistant";
+import RichText from "./RichText";
 
 // NORA («pregúntale al panel»): el dueño pregunta (escribiendo o con el micro) y la IA
 // responde con los datos del restaurante. Los cambios que propone (agotar o
@@ -36,25 +37,6 @@ export function SparkIcon({ className = "h-5 w-5" }: { className?: string }) {
       <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
       <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" />
     </svg>
-  );
-}
-
-// Texto de la IA: párrafos, listas con «- » y **negritas**.
-function Rich({ text }: { text: string }) {
-  const inline = (s: string) => s.split(/(\*\*[^*]+\*\*)/g).map((part, i) => (part.startsWith("**") && part.endsWith("**") ? <strong key={i}>{part.slice(2, -2)}</strong> : part));
-  return (
-    <div className="space-y-1.5">
-      {text.split("\n").filter((l) => l.trim()).map((l, i) =>
-        /^\s*[-•*]\s+/.test(l) ? (
-          <p key={i} className="flex gap-2">
-            <span aria-hidden className="text-[var(--p-muted)]">•</span>
-            <span>{inline(l.replace(/^\s*[-•*]\s+/, ""))}</span>
-          </p>
-        ) : (
-          <p key={i}>{inline(l.replace(/^#+\s*/, ""))}</p>
-        )
-      )}
-    </div>
   );
 }
 
@@ -255,7 +237,7 @@ export default function Assistant({ tenant }: { tenant: string }) {
               </div>
             ) : (
               <div key={i} className="max-w-[92%] rounded-2xl rounded-bl-md bg-[var(--p-surface)] px-4 py-3 text-[15px] leading-relaxed shadow-sm ring-1 ring-[var(--p-line)]">
-                <Rich text={t.text} />
+                <RichText text={t.text} tenant={tenant} onNavigate={() => window.matchMedia("(max-width: 639px)").matches && setOpen(false)} />
                 {t.actions?.map((a) => {
                   const st = acts[a.productId] ?? "idle";
                   return (

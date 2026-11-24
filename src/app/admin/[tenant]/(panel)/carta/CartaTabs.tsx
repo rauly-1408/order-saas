@@ -6,10 +6,14 @@ import Combos from "./Combos";
 import Opciones from "./Opciones";
 import CartasDelivery from "./CartasDelivery";
 import Link from "next/link";
+import { useTabFromUrl } from "../useTabFromUrl";
+
+const TAB_KEYS = ["productos", "opciones", "combos", "delivery"] as const;
 
 // Carta: productos sueltos, opciones (pan, extras…) y combos / menús a precio cerrado.
 export default function CartaTabs({ tenant }: { tenant: string }) {
-  const [tab, setTab] = useState<"productos" | "opciones" | "combos" | "delivery">("productos");
+  const [tab, setTab] = useState<(typeof TAB_KEYS)[number]>("productos");
+  useTabFromUrl(TAB_KEYS, setTab); // ?tab=opciones o un enlace de NORA
   return (
     <div className="text-[var(--p-ink)]">
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Carta</h1>

@@ -112,8 +112,8 @@ describe("preguntas frecuentes (como_se_hace)", () => {
     expect(searchGuide("como hago un 2x1")[0].id).toBe("promos");
   });
   it("no se inventa nada si no hay entrada", async () => {
-    expect(searchGuide("quién ganó el partido ayer")).toEqual([]);
-    expect((await runTool(ctx, "como_se_hace", { pregunta: "quién ganó el partido ayer" })).text).toMatch(/No está en la guía/);
+    expect(searchGuide("cuál es la capital de Francia")).toEqual([]);
+    expect((await runTool(ctx, "como_se_hace", { pregunta: "cuál es la capital de Francia" })).text).toMatch(/No está en el manual/);
   });
   it("todas las entradas tienen id único y ruta del panel", () => {
     expect(new Set(GUIDE.map((e) => e.id)).size).toBe(GUIDE.length);

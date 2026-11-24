@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTabFromUrl } from "../useTabFromUrl";
 import type { Overview } from "./types";
 import { readPanelCache, writePanelCache } from "../panelCache";
 import Rentabilidad from "./Rentabilidad";
@@ -28,6 +29,7 @@ const TABS = [
   { key: "proveedores", label: "Proveedores" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
+const TAB_KEYS = TABS.map((t) => t.key);
 
 // Primeros pasos: el orden en que conviene rellenar Costes. Desaparece cuando
 // están los cuatro hechos.
@@ -99,11 +101,8 @@ export default function CostesClient({ tenant }: { tenant: string }) {
     reload();
   }, [reload]);
 
-  // Enlace directo a una pestaña (p. ej. el aviso de stock → ?tab=compras).
-  useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get("tab");
-    if (t && TABS.some((x) => x.key === t)) setTab(t as TabKey);
-  }, []);
+  // Enlace directo a una pestaña (p. ej. el aviso de stock → ?tab=compras, o un enlace de NORA).
+  useTabFromUrl(TAB_KEYS, setTab);
 
   return (
     <div className="text-[var(--p-ink)]">

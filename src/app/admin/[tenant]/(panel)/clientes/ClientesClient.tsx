@@ -9,6 +9,7 @@ import Cupones from "./Cupones";
 import Promociones from "./Promociones";
 import Fidelizacion from "./Fidelizacion";
 import Resenas from "./Resenas";
+import { useTabFromUrl } from "../useTabFromUrl";
 
 const TABS = [
   { key: "clientes", label: "Clientes" },
@@ -19,9 +20,11 @@ const TABS = [
   { key: "resenas", label: "Reseñas" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
+const TAB_KEYS = TABS.map((t) => t.key);
 
 export default function ClientesClient({ tenant }: { tenant: string }) {
   const [tab, setTab] = useState<TabKey>("clientes");
+  useTabFromUrl(TAB_KEYS, setTab); // ?tab=cupones o un enlace de NORA
   const [data, setData] = useState<Overview | null>(() => readPanelCache<Overview>(`clientes:${tenant}`) ?? null);
   const [error, setError] = useState("");
   const api = `/api/admin/${tenant}/retention`;

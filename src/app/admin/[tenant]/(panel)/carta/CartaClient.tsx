@@ -511,7 +511,7 @@ export default function CartaClient({ tenant }: { tenant: string; embedded?: boo
                   {(
                     [
                       ["isActive", "En la carta", "Se ve en la tienda. Apágalo para esconderlo sin borrarlo.", false],
-                      ["isAvailable", "Agotado", "Se sigue viendo, pero no se puede pedir hasta que lo repongas.", true],
+                      ["isAvailable", "Agotado", "Deja de salir en la tienda y no se puede pedir hasta que lo repongas.", true],
                       ["isFeatured", "Destacado", "Sale arriba de la tienda, en «Nuestros favoritos» (hasta 6), y con la etiqueta «Recomendado». «Lo más pedido» se pone solo.", false],
                     ] as const
                   ).map(([key, label, hint, inverted]) => (
