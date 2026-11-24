@@ -45,7 +45,8 @@ export const TOURS: Tour[] = [
       { target: "[aria-label='Estado de la caja']", title: "Tu caja", text: "Aquí ves si la caja está abierta o cerrada. Para vender en el local hay que abrirla con el efectivo del cajón; al final del día, «Cerrar caja» y cuentas el dinero." },
       { target: "[aria-label='Estado de la caja'] button::Entra dinero || [aria-label='Estado de la caja'] button::Abrir caja", title: "Entradas y salidas", text: "Apunta el dinero que metes o sacas del cajón (cambio, un pago a un proveedor…), así al cerrar cuadra." },
       { target: "main button::Nuevo pedido", title: "Tomar un pedido", text: "Para llevar, comer aquí o por teléfono. Se abre encima, sin salir de esta página." },
-      { target: "main section[aria-label]::Hoy || main section[aria-label]::Caja del día", title: "Lo vendido hoy", text: "Ventas, desglose por forma de pago, lo pendiente de cobrar y los tickets del día. Toca un ticket para verlo, reimprimirlo o cambiar cómo pagó." },
+      { target: "section[aria-label='Lo vendido']", title: "Lo vendido hoy", text: "El total, los pedidos, el ticket medio y cuánto entró por cada forma de pago. Si hay algo pendiente de cobrar, tócalo para verlo." },
+      { target: "section[aria-label='Tickets']", title: "Los tickets", text: "Todos los tickets del día con filtros (sin cobrar, efectivo, datáfono…) y buscador. Toca uno para verlo, reimprimirlo o cambiar cómo pagó." },
     ],
   },
   {

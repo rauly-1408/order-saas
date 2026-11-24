@@ -31,12 +31,13 @@ type Detail = {
 };
 
 // inline: dentro de la página Caja (sin ventana encima ni «Cerrar»).
-export default function CajaDia({ tenant, onClose, onChanged, inline = false }: { tenant: string; onClose?: () => void; onChanged: () => void; inline?: boolean }) {
+// initialTicket: abrir directamente el detalle de un ticket (desde la lista de la página Caja).
+export default function CajaDia({ tenant, onClose, onChanged, inline = false, initialTicket = null }: { tenant: string; onClose?: () => void; onChanged: () => void; inline?: boolean; initialTicket?: HoyOrder | null }) {
   const [date, setDate] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState(""); // lo buscado (con un poco de espera al escribir)
   const [data, setData] = useState<HoyResponse | null>(null);
-  const [ticket, setTicket] = useState<HoyOrder | null>(null);
+  const [ticket, setTicket] = useState<HoyOrder | null>(initialTicket);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -62,6 +63,15 @@ export default function CajaDia({ tenant, onClose, onChanged, inline = false }: 
       alive = false;
     };
   }, [url]);
+
+  useEffect(() => {
+    if (!initialTicket) return;
+    fetch(`/api/admin/${tenant}/caja/ticket/${initialTicket.id}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setDetail(d))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function open(o: HoyOrder) {
     setTicket(o);
@@ -107,7 +117,7 @@ export default function CajaDia({ tenant, onClose, onChanged, inline = false }: 
         {t ? (
           <>
             <div className="flex items-start justify-between gap-3">
-              <button type="button" onClick={() => setTicket(null)} className={BTN.back}>‹ Todos los tickets</button>
+              {!initialTicket && <button type="button" onClick={() => setTicket(null)} className={BTN.back}>‹ Todos los tickets</button>}
               {!inline && <button type="button" onClick={onClose} className="rounded-full px-3 py-1 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">Cerrar</button>}
             </div>
             <h2 className="mt-1 text-xl font-semibold">#{t.orderNumber} {t.customerName}</h2>
