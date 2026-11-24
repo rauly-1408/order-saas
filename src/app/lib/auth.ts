@@ -36,7 +36,7 @@ export async function clearSessionCookie(): Promise<void> {
 // empleado o cambiarle el permiso (Configuración → Usuarios) vale al momento.
 async function fresh(payload: SessionPayload | null): Promise<SessionPayload | null> {
   if (!payload) return null;
-  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { active: true, role: true, tenantId: true, storeId: true, email: true, seesTakings: true, passwordChangedAt: true, position: true, canCharge: true, stationCategoryIds: true } });
+  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { active: true, role: true, tenantId: true, storeId: true, email: true, seesTakings: true, passwordChangedAt: true, position: true, canCharge: true, stationCategoryIds: true, cajaUntil: true, cajaCloseDay: true } });
   if (!user || !user.active) return null;
   // Tras cambiar la contraseña, las sesiones abiertas antes (otros móviles) se cierran.
   if (user.passwordChangedAt && (payload.issuedAt ?? 0) < Math.floor(user.passwordChangedAt.getTime() / 1000)) return null;
@@ -50,6 +50,8 @@ async function fresh(payload: SessionPayload | null): Promise<SessionPayload | n
     position: user.position,
     canCharge: user.canCharge,
     stationCategoryIds: user.stationCategoryIds,
+    cajaUntil: user.cajaUntil,
+    cajaCloseDay: user.cajaCloseDay,
   };
 }
 

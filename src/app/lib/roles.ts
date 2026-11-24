@@ -19,8 +19,8 @@ export type Puesto = "GERENTE" | Position;
 export const PUESTOS: { key: Puesto; label: string; hint: string }[] = [
   { key: "GERENTE", label: "Gerente", hint: "Todo el panel: carta, costes, clientes, configuración y usuarios." },
   { key: "ENCARGADO", label: "Encargado de sala", hint: "El día a día completo: Caja, Pedidos, Mesas y Facturas. Puede anular lo enviado a cocina, cancelar pedidos y cerrar mesas sin cobrar." },
-  { key: "CAJA", label: "Caja", hint: "Cobra: Caja, Pedidos, Mesas y Facturas. Abre y cierra la caja." },
-  { key: "CAMARERO", label: "Camarero", hint: "Mesas (abrir, tomar nota, pedir la cuenta y, si se le permite, cobrar) y Pedidos para entregar." },
+  { key: "CAJA", label: "Caja", hint: "Cobra: Caja, Pedidos, Mesas y Facturas. Abre la caja y cierra turnos (X); el cierre del día (Z) lo hace el encargado." },
+  { key: "CAMARERO", label: "Camarero", hint: "Mesas (abrir, tomar nota, pedir la cuenta y, si se le permite, cobrar) y Pedidos para entregar. La caja solo si el encargado o el gerente se la presta." },
   { key: "COCINA", label: "Cocina", hint: "Solo Pedidos, con los platos de sus secciones de la carta. Marca preparando y listo." },
   { key: "BARRA", label: "Barra", hint: "Solo Pedidos, con las bebidas y lo de sus secciones. Marca preparando y listo." },
 ];
@@ -35,18 +35,34 @@ export type Access = {
   facturas: boolean;
   cobrar: boolean; // cobrar mesas y pedidos «al recoger»
   anular: boolean; // anular lo enviado a cocina, cerrar mesas sin cobrar, cancelar pedidos
+  cierreDia: boolean; // cerrar la caja del día (informe Z): encargado, gerente o a quien se lo presten
+  prestada: boolean; // tiene la caja prestada ahora mismo (no es de su puesto)
   station: "COCINA" | "BARRA" | null; // vista de cocina o barra: solo sus líneas y solo preparar
   home: "home" | "pedidos" | "caja" | "mesas" | "cocina"; // a dónde va al entrar
 };
 
-export function accessOf(u: { role: string; position?: string | null; canCharge?: boolean | null }): Access {
+// Caja prestada: vigente si no ha caducado.
+export const cajaPrestada = (u: { cajaUntil?: Date | string | null }, now = new Date()) => !!u.cajaUntil && new Date(u.cajaUntil) > now;
+
+export function accessOf(u: { role: string; position?: string | null; canCharge?: boolean | null; cajaUntil?: Date | string | null; cajaCloseDay?: boolean | null }): Access {
+  const a = baseAccess(u);
+  // El encargado o el gerente puede prestar la caja a un camarero (abrir y
+  // cerrar turno) y, si quiere, también el cierre del día.
+  if (!a.manager && !a.station && cajaPrestada(u)) {
+    const prestada = !a.caja;
+    return { ...a, caja: true, facturas: true, cobrar: true, cierreDia: a.cierreDia || !!u.cajaCloseDay, prestada };
+  }
+  return a;
+}
+
+function baseAccess(u: { role: string; position?: string | null; canCharge?: boolean | null }): Access {
   const puesto = puestoOf(u);
-  const base = { manager: false, pedidos: true, caja: false, mesas: false, facturas: false, cobrar: false, anular: false, station: null };
+  const base = { manager: false, pedidos: true, caja: false, mesas: false, facturas: false, cobrar: false, anular: false, cierreDia: false, prestada: false, station: null };
   switch (puesto) {
     case "GERENTE":
-      return { manager: true, pedidos: true, caja: true, mesas: true, facturas: true, cobrar: true, anular: true, station: null, home: "home" };
+      return { manager: true, pedidos: true, caja: true, mesas: true, facturas: true, cobrar: true, anular: true, cierreDia: true, prestada: false, station: null, home: "home" };
     case "ENCARGADO":
-      return { ...base, caja: true, mesas: true, facturas: true, cobrar: true, anular: true, home: "caja" };
+      return { ...base, caja: true, mesas: true, facturas: true, cobrar: true, anular: true, cierreDia: true, home: "caja" };
     case "CAJA":
       return { ...base, caja: true, mesas: true, facturas: true, cobrar: true, home: "caja" };
     case "CAMARERO":

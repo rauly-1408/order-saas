@@ -582,65 +582,13 @@ export async function enqueueTest(tenantId: string, tenantName: string, p: Print
   await prisma.printJob.create({ data: { tenantId, kind: "TEST", printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderTest(p, tenantName)) } });
 }
 
-// Informe Z: resumen del cierre de caja en la impresora de tickets.
+// Informes de caja en la impresora de tickets: el del turno (X) y el del día (Z).
+// El Z «resumen» lleva cada turno en una línea (hora, quién, efectivo, si
+// cuadró y su nota) y los totales del día; el «detallado», además, el desglose
+// de cada turno (formas de pago, invitaciones y movimientos). Ver docs/CAJA.md
 const PAY_NAME: Record<string, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
-export function renderClosing(
-  c: {
-    openedAt: Date;
-    closedAt: Date;
-    openedByName: string | null;
-    closedByName: string | null;
-    openingFloatCents: number;
-    countedCashCents: number | null; // null en el cierre parcial (no se cuenta)
-    expectedCashCents: number;
-    differenceCents: number | null;
-    summary: ClosingSummary;
-    notes: string | null;
-    partial?: boolean; // cierre parcial (informe X): las cifras hasta ahora, sin cerrar la caja
-    storeName: string;
-    tenantName: string;
-    tz: string;
-  },
-  p: Printer
-): Uint8Array {
-  const t = new Escpos({ width: p.width, codepage: p.codepage });
-  t.align("center").bold(true).size(2, 2).line(c.partial ? "CIERRE PARCIAL" : "CIERRE DE CAJA").size(1, 1).bold(false);
-  if (c.partial) t.line("La caja sigue abierta");
-  t.line(c.tenantName).line(c.storeName);
-  t.align("left").rule();
-  t.row("Apertura", `${dmy(c.openedAt, c.tz)} ${hhmm(c.openedAt, c.tz)}`);
-  if (c.openedByName) t.row("  por", c.openedByName);
-  t.row(c.partial ? "Hasta" : "Cierre", `${dmy(c.closedAt, c.tz)} ${hhmm(c.closedAt, c.tz)}`);
-  if (c.closedByName) t.row("  por", c.closedByName);
-  t.rule();
-  t.bold(true).line("VENTAS COBRADAS").bold(false);
-  for (const [k, v] of Object.entries(c.summary.byPayment)) if (v) t.row(PAY_NAME[k] ?? k, euros(v));
-  t.bold(true).row(`Total (${c.summary.orders} pedidos)`, euros(c.summary.totalCents)).bold(false);
-  if (c.summary.orders > 0) t.row("Ticket medio", euros(Math.round(c.summary.totalCents / c.summary.orders)));
-  if (c.summary.taxCents != null && c.summary.baseCents != null) {
-    t.row(`Base imponible`, euros(c.summary.baseCents));
-    t.row(`IVA ${c.summary.taxRate ?? ""} %`, euros(c.summary.taxCents));
-  }
-  if (c.summary.tipsCents) t.row("Propinas", euros(c.summary.tipsCents));
-  if (c.summary.discountCents) t.row("Descuentos hechos", euros(c.summary.discountCents));
-  if (c.summary.cancelled) t.row(`Cancelados (${c.summary.cancelled})`, c.summary.refundedCents ? `devuelto ${euros(c.summary.refundedCents)}` : "");
-  t.rule();
-  t.bold(true).line("EFECTIVO EN EL CAJÓN").bold(false);
-  t.row("Fondo de apertura", euros(c.openingFloatCents));
-  t.row("+ Ventas en efectivo", euros(c.summary.byPayment.CASH ?? 0));
-  if (c.summary.inCents) t.row("+ Entradas", euros(c.summary.inCents));
-  if (c.summary.outCents) t.row("- Salidas", euros(c.summary.outCents));
-  t.bold(true).row("Debería haber", euros(c.expectedCashCents)).bold(false);
-  if (c.countedCashCents != null && c.differenceCents != null) {
-    t.row("Contado", euros(c.countedCashCents));
-    t.bold(true).size(1, 2).row(c.differenceCents === 0 ? "Cuadra" : c.differenceCents > 0 ? "Sobra" : "Falta", euros(Math.abs(c.differenceCents))).size(1, 1).bold(false);
-  }
-  if (c.notes) t.rule().wrap(`Nota: ${c.notes}`);
-  t.cut();
-  return t.bytes();
-}
 
-// Resumen guardado al cerrar (los cierres antiguos no llevan los campos opcionales).
+// Resumen guardado de un turno o del día (los cierres antiguos no llevan los campos opcionales).
 export type ClosingSummary = {
   orders: number;
   byPayment: Record<string, number>;
@@ -654,20 +602,159 @@ export type ClosingSummary = {
   taxRate?: number;
   baseCents?: number;
   taxCents?: number;
+  invitations?: { name: string; quantity: number; valueCents: number; by: string | null }[];
+  invitedCents?: number;
+};
+export type ShiftForPrint = {
+  number: number;
+  startedAt: Date;
+  endedAt: Date;
+  startedByName: string | null;
+  closedByName: string | null;
+  openingCashCents: number;
+  expectedCashCents: number;
+  countedCashCents: number;
+  differenceCents: number;
+  summary: ClosingSummary;
+  notes: string | null;
 };
 
-export async function enqueueClosing(sessionId: string): Promise<number> {
-  const s = await prisma.cashSession.findUnique({ where: { id: sessionId } });
-  if (!s || !s.closedAt || s.countedCashCents == null || s.expectedCashCents == null || s.differenceCents == null) return 0;
+const squareLabel = (d: number) => (d === 0 ? "Cuadra" : d > 0 ? `Sobran ${euros(d)}` : `Faltan ${euros(-d)}`);
+
+function salesBlock(t: Escpos, sm: ClosingSummary, detail = true) {
+  for (const [k, v] of Object.entries(sm.byPayment)) if (v) t.row(PAY_NAME[k] ?? k, euros(v));
+  t.bold(true).row(`Total (${sm.orders} pedidos)`, euros(sm.totalCents)).bold(false);
+  if (!detail) return;
+  if (sm.orders > 0) t.row("Ticket medio", euros(Math.round(sm.totalCents / sm.orders)));
+  if (sm.taxCents != null && sm.baseCents != null) {
+    t.row("Base imponible", euros(sm.baseCents));
+    t.row(`IVA ${sm.taxRate ?? ""} %`, euros(sm.taxCents));
+  }
+  if (sm.tipsCents) t.row("Propinas", euros(sm.tipsCents));
+  if (sm.discountCents) t.row("Descuentos", euros(sm.discountCents));
+  if (sm.invitedCents) t.row(`Invitaciones (${(sm.invitations ?? []).reduce((a, i) => a + i.quantity, 0)})`, euros(sm.invitedCents));
+  if (sm.cancelled) t.row(`Cancelados (${sm.cancelled})`, sm.refundedCents ? `dev. ${euros(sm.refundedCents)}` : "");
+}
+
+function invitationsBlock(t: Escpos, sm: ClosingSummary) {
+  const inv = sm.invitations ?? [];
+  if (!inv.length) return;
+  t.line("Invitaciones:");
+  for (const i of inv) t.row(`  ${i.quantity}x ${i.name}${i.by ? ` (${i.by})` : ""}`, euros(i.valueCents));
+}
+
+export function renderShift(sh: ShiftForPrint & { tenantName: string; storeName: string; tz: string }, p: Printer): Uint8Array {
+  const t = new Escpos({ width: p.width, codepage: p.codepage });
+  t.align("center").bold(true).size(2, 2).line(`TURNO X${sh.number}`).size(1, 1).bold(false);
+  t.line("Cierre de turno").line(sh.tenantName).line(sh.storeName);
+  t.align("left").rule();
+  t.row("Desde", `${dmy(sh.startedAt, sh.tz)} ${hhmm(sh.startedAt, sh.tz)}`);
+  t.row("Hasta", `${dmy(sh.endedAt, sh.tz)} ${hhmm(sh.endedAt, sh.tz)}`);
+  if (sh.startedByName) t.row("  empezó", sh.startedByName);
+  if (sh.closedByName) t.row("  cerró", sh.closedByName);
+  t.rule().bold(true).line("VENTAS DEL TURNO").bold(false);
+  salesBlock(t, sh.summary);
+  invitationsBlock(t, sh.summary);
+  t.rule().bold(true).line("EFECTIVO EN EL CAJÓN").bold(false);
+  t.row("Al empezar el turno", euros(sh.openingCashCents));
+  t.row("+ Ventas en efectivo", euros(sh.summary.byPayment.CASH ?? 0));
+  if (sh.summary.inCents) t.row("+ Entradas", euros(sh.summary.inCents));
+  if (sh.summary.outCents) t.row("- Salidas", euros(sh.summary.outCents));
+  t.bold(true).row("Debería haber", euros(sh.expectedCashCents)).bold(false);
+  t.row("Contado", euros(sh.countedCashCents));
+  t.bold(true).size(1, 2).row(sh.differenceCents === 0 ? "Cuadra" : sh.differenceCents > 0 ? "Sobra" : "Falta", euros(Math.abs(sh.differenceCents))).size(1, 1).bold(false);
+  if (sh.notes) t.rule().wrap(`Nota: ${sh.notes}`);
+  t.cut();
+  return t.bytes();
+}
+
+export function renderClosing(
+  c: {
+    openedAt: Date;
+    closedAt: Date;
+    openedByName: string | null;
+    closedByName: string | null;
+    openingFloatCents: number;
+    countedCashCents: number | null; // null en el cierre parcial (no se cuenta)
+    expectedCashCents: number;
+    differenceCents: number | null;
+    summary: ClosingSummary;
+    notes: string | null;
+    shifts?: ShiftForPrint[];
+    detailed?: boolean; // Z detallado: el desglose de cada turno
+    partial?: boolean; // cierre parcial (informe X sin cerrar el turno)
+    storeName: string;
+    tenantName: string;
+    tz: string;
+  },
+  p: Printer
+): Uint8Array {
+  const t = new Escpos({ width: p.width, codepage: p.codepage });
+  t.align("center").bold(true).size(2, 2).line(c.partial ? "INFORME X" : "CIERRE DEL DÍA").size(1, 1).bold(false);
+  t.line(c.partial ? "La caja sigue abierta" : c.detailed ? "Informe Z detallado" : "Informe Z");
+  t.line(c.tenantName).line(c.storeName);
+  t.align("left").rule();
+  t.row("Apertura", `${dmy(c.openedAt, c.tz)} ${hhmm(c.openedAt, c.tz)}`);
+  if (c.openedByName) t.row("  por", c.openedByName);
+  t.row(c.partial ? "Hasta" : "Cierre", `${dmy(c.closedAt, c.tz)} ${hhmm(c.closedAt, c.tz)}`);
+  if (c.closedByName) t.row("  por", c.closedByName);
+  t.row("Fondo de apertura", euros(c.openingFloatCents));
+
+  // Cada turno (X) del día: hora, quién, efectivo y si cuadró, con su nota.
+  if (c.shifts?.length) {
+    t.rule().bold(true).line(`TURNOS (${c.shifts.length})`).bold(false);
+    for (const sh of c.shifts) {
+      t.bold(true).row(`X${sh.number} ${hhmm(sh.startedAt, c.tz)}-${hhmm(sh.endedAt, c.tz)}`, sh.closedByName ?? "").bold(false);
+      t.row("  Efectivo contado", euros(sh.countedCashCents));
+      t.row("  Ventas del turno", euros(sh.summary.totalCents));
+      t.row("  Caja", squareLabel(sh.differenceCents));
+      if (sh.notes) t.wrap(`Nota: ${sh.notes}`, { indent: 2 });
+      if (c.detailed) {
+        for (const [k, v] of Object.entries(sh.summary.byPayment)) if (v) t.row(`  Cobrado en ${(PAY_NAME[k] ?? k).toLowerCase()}`, euros(v));
+        invitationsBlock(t, sh.summary);
+        if (sh.summary.inCents) t.row("  + Entradas", euros(sh.summary.inCents));
+        if (sh.summary.outCents) t.row("  - Salidas", euros(sh.summary.outCents));
+      }
+    }
+  }
+
+  t.rule().bold(true).line(c.partial ? "VENTAS HASTA AHORA" : "VENTAS DEL DÍA").bold(false);
+  salesBlock(t, c.summary);
+  if (c.detailed) invitationsBlock(t, c.summary);
+  t.rule().bold(true).line("EFECTIVO").bold(false);
+  t.row("Fondo de apertura", euros(c.openingFloatCents));
+  t.row("+ Ventas en efectivo", euros(c.summary.byPayment.CASH ?? 0));
+  if (c.summary.inCents) t.row("+ Entradas", euros(c.summary.inCents));
+  if (c.summary.outCents) t.row("- Salidas", euros(c.summary.outCents));
+  if (c.countedCashCents != null) t.row("Contado al cerrar", euros(c.countedCashCents));
+  else t.bold(true).row("Debería haber", euros(c.expectedCashCents)).bold(false);
+  if (c.differenceCents != null) {
+    t.bold(true).size(1, 2).row(c.differenceCents === 0 ? "Cuadre perfecto" : c.differenceCents > 0 ? "Sobra en el día" : "Descuadre del día", c.differenceCents === 0 ? "" : euros(Math.abs(c.differenceCents))).size(1, 1).bold(false);
+  }
+  if (c.notes) t.rule().wrap(`Nota: ${c.notes}`);
+  t.cut();
+  return t.bytes();
+}
+
+async function receiptPrinters(tenantId: string, storeId: string) {
   const [tenant, store] = await Promise.all([
-    prisma.tenant.findUnique({ where: { id: s.tenantId }, select: { name: true, settings: true } }),
-    prisma.store.findUnique({ where: { id: s.storeId }, select: { name: true } }),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, settings: true } }),
+    prisma.store.findUnique({ where: { id: storeId }, select: { name: true } }),
   ]);
-  if (!tenant) return 0;
+  if (!tenant) return null;
   const cfg = readPrinting(tenant.settings);
-  const printers = cfg.agentToken ? cfg.printers.filter((x) => x.roles.includes("receipt") && (!x.storeId || x.storeId === s.storeId)) : [];
-  if (!printers.length) return 0;
-  const summary = s.summary as unknown as ClosingSummary;
+  const printers = cfg.agentToken ? cfg.printers.filter((x) => x.roles.includes("receipt") && (!x.storeId || x.storeId === storeId)) : [];
+  return { printers, tenantName: tenant.name, storeName: store?.name ?? "", tz: tenantTimeZone(tenant.settings) };
+}
+
+const shiftForPrint = (sh: { number: number; startedAt: Date; endedAt: Date; startedByName: string | null; closedByName: string | null; openingCashCents: number; expectedCashCents: number; countedCashCents: number; differenceCents: number; summary: unknown; notes: string | null }): ShiftForPrint => ({ ...sh, summary: sh.summary as ClosingSummary });
+
+// Cierre del día (Z), resumen o detallado. Devuelve en cuántas impresoras sale.
+export async function enqueueClosing(sessionId: string, detailed = false): Promise<number> {
+  const s = await prisma.cashSession.findUnique({ where: { id: sessionId }, include: { shifts: { orderBy: { number: "asc" } } } });
+  if (!s || !s.closedAt || s.countedCashCents == null || s.expectedCashCents == null || s.differenceCents == null) return 0;
+  const r = await receiptPrinters(s.tenantId, s.storeId);
+  if (!r || !r.printers.length) return 0;
   const data = {
     openedAt: s.openedAt,
     closedAt: s.closedAt,
@@ -677,31 +764,37 @@ export async function enqueueClosing(sessionId: string): Promise<number> {
     countedCashCents: s.countedCashCents,
     expectedCashCents: s.expectedCashCents,
     differenceCents: s.differenceCents,
-    summary,
+    summary: s.summary as unknown as ClosingSummary,
     notes: s.notes,
-    storeName: store?.name ?? "",
-    tenantName: tenant.name,
-    tz: tenantTimeZone(tenant.settings),
+    shifts: s.shifts.map(shiftForPrint),
+    detailed,
+    storeName: r.storeName,
+    tenantName: r.tenantName,
+    tz: r.tz,
   };
-  await prisma.printJob.createMany({ data: printers.map((p) => ({ tenantId: s.tenantId, kind: "CLOSING" as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderClosing(data, p)) })) });
-  return printers.length;
+  await prisma.printJob.createMany({ data: r.printers.map((p) => ({ tenantId: s.tenantId, kind: "CLOSING" as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderClosing(data, p)) })) });
+  return r.printers.length;
 }
 
-// Cierre parcial (informe X): las ventas y el efectivo esperado hasta ahora, sin
-// cerrar la caja. Devuelve en cuántas impresoras sale.
+// Cierre de turno (X). Devuelve en cuántas impresoras sale.
+export async function enqueueShift(shiftId: string): Promise<number> {
+  const sh = await prisma.cashShift.findUnique({ where: { id: shiftId }, include: { session: { select: { tenantId: true, storeId: true } } } });
+  if (!sh) return 0;
+  const r = await receiptPrinters(sh.session.tenantId, sh.session.storeId);
+  if (!r || !r.printers.length) return 0;
+  const data = { ...shiftForPrint(sh), tenantName: r.tenantName, storeName: r.storeName, tz: r.tz };
+  await prisma.printJob.createMany({ data: r.printers.map((p) => ({ tenantId: sh.session.tenantId, kind: "CLOSING" as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderShift(data, p)) })) });
+  return r.printers.length;
+}
+
+// Informe X sin cerrar el turno: las ventas y el efectivo esperado hasta ahora.
 export async function enqueuePartialClosing(
   s: { tenantId: string; storeId: string; openedAt: Date; openedByName: string | null; openingFloatCents: number },
   fig: ClosingSummary & { expectedCashCents: number },
   byName: string | null
 ): Promise<number> {
-  const [tenant, store] = await Promise.all([
-    prisma.tenant.findUnique({ where: { id: s.tenantId }, select: { name: true, settings: true } }),
-    prisma.store.findUnique({ where: { id: s.storeId }, select: { name: true } }),
-  ]);
-  if (!tenant) return 0;
-  const cfg = readPrinting(tenant.settings);
-  const printers = cfg.agentToken ? cfg.printers.filter((x) => x.roles.includes("receipt") && (!x.storeId || x.storeId === s.storeId)) : [];
-  if (!printers.length) return 0;
+  const r = await receiptPrinters(s.tenantId, s.storeId);
+  if (!r || !r.printers.length) return 0;
   const data = {
     openedAt: s.openedAt,
     closedAt: new Date(),
@@ -713,13 +806,13 @@ export async function enqueuePartialClosing(
     differenceCents: null,
     summary: fig,
     notes: null,
-    storeName: store?.name ?? "",
-    tenantName: tenant.name,
-    tz: tenantTimeZone(tenant.settings),
     partial: true,
+    storeName: r.storeName,
+    tenantName: r.tenantName,
+    tz: r.tz,
   };
-  await prisma.printJob.createMany({ data: printers.map((p) => ({ tenantId: s.tenantId, kind: "CLOSING" as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderClosing(data, p)) })) });
-  return printers.length;
+  await prisma.printJob.createMany({ data: r.printers.map((p) => ({ tenantId: s.tenantId, kind: "CLOSING" as PrintKind, printerId: p.id, host: p.host, port: p.port, data: Buffer.from(renderClosing(data, p)) })) });
+  return r.printers.length;
 }
 
 // Pedidos programados que ya tienen que empezar a prepararse: su comanda sale

@@ -155,6 +155,12 @@ model User {
   // Ve lo recaudado (Caja → «Hoy en caja»). Solo el administrador principal
   // por defecto; se concede por usuario en Configuración → Usuarios.
   seesTakings        Boolean         @default(false)
+  // Caja prestada: el encargado o el gerente deja la caja a un camarero (abrir y
+  // cerrar turno X; con cajaCloseDay, también el cierre del día Z). Caduca sola
+  // al cerrar el día o a la hora de cajaUntil. Ver docs/CAJA.md
+  cajaUntil          DateTime?
+  cajaCloseDay       Boolean         @default(false)
+  cajaGrantedBy      String?
   lastLoginAt        DateTime?
   // Al cambiar la contraseña se cierran las sesiones abiertas antes (lib/auth.ts → fresh)
   passwordChangedAt  DateTime?
@@ -1343,8 +1349,35 @@ model CashSession {
   summary           Json? // al cerrar: ventas por forma de pago, pedidos, movimientos
   notes             String?
   movements         CashMovement[]
+  shifts            CashShift[] // cierres de turno (X) de esta caja; el último se crea al cerrar el día (Z)
 
   @@index([tenantId, storeId, closedAt])
+}
+
+// Cierre de turno (informe X): al acabar su turno, quien está en la caja cuenta
+// el cajón. Queda guardado (de qué hora a qué hora, quién, efectivo esperado y
+// contado, descuadre, ventas e invitaciones del turno y su nota) y sale en el
+// cierre del día (Z). El siguiente turno empieza con el efectivo contado.
+// Ver docs/CAJA.md
+model CashShift {
+  id                String      @id @default(cuid())
+  sessionId         String
+  session           CashSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  number            Int // X1, X2… dentro de la caja del día
+  startedAt         DateTime
+  endedAt           DateTime
+  startedByName     String? // quién estaba al empezar (abrió la caja o cerró el turno anterior)
+  closedByUserId    String?
+  closedByName      String?
+  openingCashCents  Int // efectivo en el cajón al empezar el turno
+  expectedCashCents Int
+  countedCashCents  Int
+  differenceCents   Int // contado − esperado
+  summary           Json // ventas por forma de pago, pedidos, invitaciones, movimientos…
+  notes             String?
+  createdAt         DateTime    @default(now())
+
+  @@index([sessionId, number])
 }
 
 // Entradas y salidas de efectivo durante la sesión (pago a proveedor, retirada…).

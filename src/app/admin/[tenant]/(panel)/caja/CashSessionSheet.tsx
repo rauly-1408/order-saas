@@ -6,22 +6,40 @@ import PanelPortal from "../PanelPortal";
 
 // Hoja «Caja»: abrir con un fondo (obligatorio para vender en la Caja; se
 // escribe el total o se cuenta por billetes), apuntar entradas y salidas de
-// efectivo y cerrar contando el cajón. Quien no tiene «Ve lo recaudado» cuenta a ciegas:
-// no ve cuánto debería haber ni la diferencia. Ver docs/CAJA.md
+// efectivo, cerrar el turno (X, cualquiera) y cerrar el día (Z, encargado o
+// gerente) contando el cajón. Si no cuadra, la nota es obligatoria. Quien no
+// tiene «Ve lo recaudado» cuenta a ciegas: no ve cuánto debería haber ni la
+// diferencia. Ver docs/CAJA.md
 
 type PayKey = "CASH" | "CARD_TERMINAL" | "BIZUM" | "CARD" | "IN_STORE";
-type Figures = { orders: number; byPayment: Record<PayKey, number>; totalCents: number; cashSalesCents: number; inCents: number; outCents: number; expectedCashCents: number };
+type Invitation = { name: string; quantity: number; valueCents: number; by: string | null };
+type Figures = { orders: number; byPayment: Record<PayKey, number>; totalCents: number; cashSalesCents: number; inCents: number; outCents: number; expectedCashCents: number; invitations?: Invitation[]; invitedCents?: number };
 type Movement = { id: string; kind: "IN" | "OUT"; amountCents: number; reason: string; userName: string | null; createdAt: string };
-export type ClosingSummaryView = { orders: number; byPayment: Record<string, number>; totalCents: number; inCents: number; outCents: number; tipsCents?: number; discountCents?: number; cancelled?: number; refundedCents?: number; taxRate?: number; baseCents?: number; taxCents?: number };
-export type Closing = { id: string; openedAt: string; closedAt: string; openedByName: string | null; closedByName: string | null; openingFloatCents: number; countedCashCents: number; expectedCashCents: number; differenceCents: number; notes: string | null; summary?: ClosingSummaryView | null };
+export type ClosingSummaryView = { orders: number; byPayment: Record<string, number>; totalCents: number; inCents: number; outCents: number; tipsCents?: number; discountCents?: number; cancelled?: number; refundedCents?: number; taxRate?: number; baseCents?: number; taxCents?: number; invitations?: Invitation[]; invitedCents?: number };
+// Un turno cerrado (informe X). Quien cuenta a ciegas solo recibe hora, quién y nota.
+export type ShiftView = { id: string; number: number; startedAt: string; endedAt: string; startedByName: string | null; closedByName: string | null; openingCashCents?: number; expectedCashCents?: number; countedCashCents?: number; differenceCents?: number; summary?: ClosingSummaryView; notes: string | null };
+export type Closing = { id: string; openedAt: string; closedAt: string; openedByName: string | null; closedByName: string | null; openingFloatCents: number; countedCashCents: number; expectedCashCents: number; differenceCents: number; notes: string | null; summary?: ClosingSummaryView | null; shifts?: ShiftView[] };
 export type CashState = {
   seesTakings: boolean;
-  open: { id: string; openedAt: string; openedByName: string | null; openingFloatCents: number; movements: Movement[] } | null;
-  figures: Figures | null;
+  canCloseDay: boolean; // encargado o gerente (o a quien se lo presten): cierre del día (Z)
+  canLend: boolean; // encargado o gerente: puede prestar la caja
+  lent: { by: string | null; closeDay: boolean; until: string | null } | null; // tiene la caja prestada
+  open: {
+    id: string;
+    openedAt: string;
+    openedByName: string | null;
+    openingFloatCents: number;
+    movements: Movement[];
+    shift: { number: number; startedAt: string; startedByName: string | null; openingCashCents: number | null } | null; // el turno en curso
+    shifts: ShiftView[]; // turnos ya cerrados hoy
+  } | null;
+  figures: Figures | null; // el turno en curso
+  dayFigures: Figures | null; // todo el día
   history: Closing[];
   reasons: string[];
 };
-type Closed = { id: string; countedCashCents: number; expectedCashCents?: number; differenceCents?: number; figures?: Figures };
+type Closed = { kind: "X" | "Z"; id: string; shiftNumber: number; countedCashCents: number; expectedCashCents?: number; differenceCents?: number; figures?: Figures; dayFigures?: Figures | null; dayDifferenceCents?: number | null };
+type CloseKind = "X" | "Z";
 
 const euros = (c: number) => (c / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 const parseEuros = (v: string): number | null => {
@@ -66,10 +84,10 @@ export default function CashSessionSheet({
   state: CashState | null;
   onState: (s: CashState) => void;
   onClose: () => void;
-  start?: "main" | "close" | "in" | "out" | "movimientos";
+  start?: "main" | "shift" | "close" | "in" | "out" | "movimientos";
 }) {
   const api = `/api/admin/${tenant}/caja/sesion`;
-  const [step, setStep] = useState<"main" | "move" | "close" | "done" | "movimientos">(start === "close" ? "close" : start === "in" || start === "out" ? "move" : start === "movimientos" ? "movimientos" : "main");
+  const [step, setStep] = useState<"main" | "move" | "close" | "done" | "movimientos">(start === "close" || start === "shift" ? "close" : start === "in" || start === "out" ? "move" : start === "movimientos" ? "movimientos" : "main");
   const [amount, setAmount] = useState("");
   const [moveKind, setMoveKind] = useState<"IN" | "OUT">(start === "in" ? "IN" : "OUT");
   const [reason, setReason] = useState("");
@@ -79,6 +97,8 @@ export default function CashSessionSheet({
   const [closed, setClosed] = useState<Closed | null>(null);
   const [partialMsg, setPartialMsg] = useState("");
   const [byCoins, setByCoins] = useState(false); // contar el cajón por billetes y monedas
+  const [closeKind, setCloseKind] = useState<CloseKind>(start === "close" ? "Z" : "X");
+  const [needNote, setNeedNote] = useState<{ diff: number | null } | null>(null); // no cuadra: nota obligatoria
 
   useEffect(() => {
     if (state?.reasons?.length && !reason) setReason(state.reasons[0]);
@@ -119,17 +139,53 @@ export default function CashSessionSheet({
       setStep("main");
     }
   }
+  // Cerrar turno (X) o el día (Z). Se cuenta a ciegas; si no cuadra, el
+  // servidor lo dice y pide una nota antes de guardar.
   async function closeCash() {
     const c = parseEuros(amount);
     if (c == null) return setError("Escribe el efectivo que has contado (puede ser 0).");
-    if (!(await ask(`¿Cerrar la caja con ${euros(c)} contados en el cajón?`, { confirm: "Cerrar la caja" }))) return;
-    const r = await post({ action: "close", countedCents: c, notes });
-    if (r?.closed) {
-      setClosed(r.closed);
+    if (needNote && !notes.trim()) return setError("Escribe una nota: por qué no cuadra la caja.");
+    const isDay = closeKind === "Z";
+    if (!needNote && !(await ask(isDay ? `¿Cerrar la caja del día con ${euros(c)} contados en el cajón?` : `¿Cerrar tu turno con ${euros(c)} contados en el cajón?`, { confirm: isDay ? "Cerrar el día" : "Cerrar el turno" }))) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: isDay ? "close" : "shift", countedCents: c, notes }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (json.needNote) {
+          setNeedNote({ diff: typeof json.differenceCents === "number" ? json.differenceCents : null });
+          return;
+        }
+        throw new Error(json.error ?? "No se pudo guardar");
+      }
+      onState(json as CashState);
+      setClosed(json.closed as Closed);
       setAmount("");
       setNotes("");
+      setNeedNote(null);
+      setByCoins(false);
       setStep("done");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo guardar");
+    } finally {
+      setBusy(false);
     }
+  }
+  const startClose = (k: CloseKind) => {
+    setCloseKind(k);
+    setAmount("");
+    setNotes("");
+    setNeedNote(null);
+    setError("");
+    setStep("close");
+  };
+  async function reprint(body: Record<string, unknown>) {
+    setBusy(true);
+    const r = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
+    const j = (await r?.json().catch(() => ({}))) as { printed?: number; error?: string } | undefined;
+    setBusy(false);
+    setPartialMsg(r?.ok ? (j?.printed ? "Enviado a la impresora." : "No hay impresora de tickets conectada. Imprímelo desde Caja → Cierres de caja → «En este ordenador».") : (j?.error ?? "No se ha podido imprimir."));
   }
 
   // Cierre parcial (informe X): sale en la impresora y la caja sigue abierta.
@@ -170,56 +226,51 @@ export default function CashSessionSheet({
         {!state ? (
           <p className="py-8 text-center text-sm text-[var(--p-muted)]">Cargando…</p>
         ) : step === "done" && closed ? (
-          /* ── Resultado del cierre ── */
+          /* ── Resultado del cierre (turno X o día Z) ── */
           <div className="mt-6 text-center" role="status">
+            <p className="text-sm font-semibold text-[var(--p-muted)]">{closed.kind === "Z" ? "Caja del día cerrada" : `Turno ${closed.shiftNumber} cerrado`}</p>
             {closed.differenceCents != null ? (
               <>
-                <p className="text-sm text-[var(--p-muted)]">Caja cerrada</p>
                 <p className={`mx-auto mt-3 inline-block rounded-2xl px-5 py-3 text-3xl font-semibold ${diffTone(closed.differenceCents)}`}>{diffLabel(closed.differenceCents)}</p>
-                <dl className="mx-auto mt-5 max-w-xs space-y-1.5 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="text-[var(--p-muted)]">Debería haber</dt>
-                    <dd className="font-semibold tabular-nums">{euros(closed.expectedCashCents ?? 0)}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-[var(--p-muted)]">Contado</dt>
-                    <dd className="font-semibold tabular-nums">{euros(closed.countedCashCents)}</dd>
-                  </div>
-                  {closed.figures && (
-                    <div className="flex justify-between">
-                      <dt className="text-[var(--p-muted)]">Cobrado en total</dt>
-                      <dd className="font-semibold tabular-nums">{euros(closed.figures.totalCents)}</dd>
-                    </div>
-                  )}
+                <dl className="mx-auto mt-5 max-w-xs space-y-1.5 text-left text-sm">
+                  <Row label="Debería haber" value={euros(closed.expectedCashCents ?? 0)} />
+                  <Row label="Contado" value={euros(closed.countedCashCents)} />
+                  {closed.figures && <Row label={closed.kind === "Z" ? "Cobrado en el último turno" : "Cobrado en el turno"} value={euros(closed.figures.totalCents)} />}
+                  {closed.kind === "Z" && closed.dayFigures && <Row label="Cobrado en todo el día" value={euros(closed.dayFigures.totalCents)} />}
                 </dl>
+                {closed.kind === "Z" && closed.dayDifferenceCents != null && (
+                  <p className={`mx-auto mt-4 max-w-xs rounded-xl px-3 py-2 text-sm font-semibold ${diffTone(closed.dayDifferenceCents)}`}>
+                    {closed.dayDifferenceCents === 0 ? "Día con cuadre perfecto" : `Descuadre del día: ${diffLabel(closed.dayDifferenceCents).toLowerCase()}`}
+                  </p>
+                )}
               </>
             ) : (
               <>
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl text-emerald-700">✓</div>
-                <p className="mt-3 text-lg font-semibold">Caja cerrada</p>
-                <p className="mt-1 text-sm text-[var(--p-muted)]">Recuento guardado: {euros(closed.countedCashCents)}. El administrador verá si cuadra.</p>
+                <div className="mx-auto mt-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl text-emerald-700">✓</div>
+                <p className="mt-3 text-sm text-[var(--p-muted)]">Recuento guardado: {euros(closed.countedCashCents)}. El encargado verá si cuadra.</p>
               </>
             )}
+            {closed.kind === "X" && <p className="mt-4 text-sm">El siguiente turno empieza con <b className="tabular-nums">{euros(closed.countedCashCents)}</b> en el cajón.</p>}
             {closed.differenceCents != null && (
-              <>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={async () => {
-                    setBusy(true);
-                    const r = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reprint", sessionId: closed.id }) }).catch(() => null);
-                    const j = (await r?.json().catch(() => ({}))) as { printed?: number; error?: string } | undefined;
-                    setBusy(false);
-                    setPartialMsg(r?.ok ? (j?.printed ? "Enviado a la impresora." : "No hay impresora de tickets conectada. Imprímelo desde Caja → Cierres de caja → «En este ordenador».") : (j?.error ?? "No se ha podido imprimir."));
-                  }}
-                  className="p-press mt-5 min-h-12 w-full rounded-2xl bg-black/[0.05] text-sm font-semibold disabled:opacity-50"
-                >
-                  🖨 Imprimir el cierre
-                </button>
-                {partialMsg && <p className="mt-2 text-xs text-[var(--p-muted)]">{partialMsg}</p>}
-              </>
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                {closed.kind === "Z" ? (
+                  <>
+                    <button type="button" disabled={busy} onClick={() => reprint({ action: "reprint", sessionId: closed.id })} className="p-press min-h-12 rounded-2xl bg-black/[0.05] text-sm font-semibold disabled:opacity-50">
+                      🖨 Imprimir resumen
+                    </button>
+                    <button type="button" disabled={busy} onClick={() => reprint({ action: "reprint", sessionId: closed.id, detailed: true })} className="p-press min-h-12 rounded-2xl bg-black/[0.05] text-sm font-semibold disabled:opacity-50">
+                      🖨 Imprimir detallado
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" disabled={busy} onClick={() => reprint({ action: "reprintShift", shiftId: closed.id })} className="p-press min-h-12 rounded-2xl bg-black/[0.05] text-sm font-semibold disabled:opacity-50 sm:col-span-2">
+                    🖨 Imprimir el turno
+                  </button>
+                )}
+              </div>
             )}
-            <p className="mt-4 text-xs text-[var(--p-muted)]">Queda guardado en Caja → «Cierres de caja», con todas sus cifras, para verlo o imprimirlo cuando quieras.</p>
+            {partialMsg && <p className="mt-2 text-xs text-[var(--p-muted)]">{partialMsg}</p>}
+            {closed.kind === "Z" && <p className="mt-4 text-xs text-[var(--p-muted)]">Queda guardado en Caja → «Cierres de caja», con cada turno, para verlo o imprimirlo cuando quieras.</p>}
             <button type="button" onClick={onClose} className="p-press mt-6 w-full rounded-full bg-[var(--p-brand)] py-3.5 text-base font-semibold text-white">
               Listo
             </button>
@@ -288,25 +339,40 @@ export default function CashSessionSheet({
             </div>
           </div>
         ) : step === "close" ? (
-          /* ── Cerrar: contar el cajón (a ciegas: lo esperado se ve después) ── */
+          /* ── Cerrar turno (X) o día (Z): contar el cajón a ciegas ── */
           <div className="mt-5">
-            <p className="text-sm font-medium">Cuenta el efectivo del cajón</p>
-            <p className="mt-0.5 text-xs text-[var(--p-muted)]">Billetes y monedas, incluido el fondo con el que abriste. Escribe el total o cuéntalo por billetes.</p>
+            <p className="text-base font-semibold">{closeKind === "Z" ? "Cerrar la caja del día (Z)" : `Cerrar el turno ${open.shift?.number ?? ""} (X)`}</p>
+            <p className="mt-0.5 text-xs text-[var(--p-muted)]">
+              {closeKind === "Z" ? "Cierra el último turno y el día. " : "El siguiente turno empezará con lo que cuentes. "}
+              Cuenta billetes y monedas del cajón y escribe el total, o cuéntalo por billetes.
+            </p>
             <div className="mt-3">
-              <MoneyInput value={amount} onChange={setAmount} label="Efectivo contado" autoFocus={!byCoins} />
+              <MoneyInput value={amount} onChange={(v) => { setAmount(v); setNeedNote(null); }} label="Efectivo contado" autoFocus={!byCoins} />
             </div>
             <button type="button" onClick={() => setByCoins((v) => !v)} aria-expanded={byCoins} className="mt-2 min-h-11 text-sm font-semibold text-[var(--p-brand)]">
               {byCoins ? "▾ Ocultar el recuento por billetes" : "▸ Contar por billetes y monedas"}
             </button>
-            {byCoins && <CoinCounter onTotal={(c) => setAmount((c / 100).toFixed(2).replace(".", ","))} />}
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 300))} rows={2} placeholder="Nota (opcional): un billete roto, un vale…" className="mt-3 w-full resize-none rounded-xl border border-[var(--p-line)] bg-transparent px-3 py-2.5 text-sm outline-none focus:border-[var(--p-brand)]" />
+            {byCoins && <CoinCounter onTotal={(c) => { setAmount((c / 100).toFixed(2).replace(".", ",")); setNeedNote(null); }} />}
+            {needNote && (
+              <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900" role="alert">
+                La caja no cuadra{needNote.diff != null ? `: ${diffLabel(needNote.diff).toLowerCase()}` : ""}. Vuelve a contar o explica por qué en la nota.
+              </p>
+            )}
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value.slice(0, 300))}
+              rows={2}
+              aria-label="Nota del cierre"
+              placeholder={needNote ? "Nota obligatoria: un billete roto, un vale, un error de cambio…" : "Nota (si no cuadra será obligatoria)"}
+              className={`mt-3 w-full resize-none rounded-xl border bg-transparent px-3 py-2.5 text-sm outline-none focus:border-[var(--p-brand)] ${needNote && !notes.trim() ? "border-amber-400" : "border-[var(--p-line)]"}`}
+            />
             {error && <p className="mt-3 text-sm text-[var(--p-accent)]" role="alert">{error}</p>}
             <div className="mt-5 flex gap-2">
               <button type="button" onClick={() => setStep("main")} className="rounded-full border border-[var(--p-line)] px-5 py-3 text-sm font-medium">
                 Volver
               </button>
-              <button type="button" onClick={closeCash} disabled={busy || amount === ""} className="p-press flex-1 rounded-full bg-[var(--p-accent)] py-3 text-sm font-semibold text-white disabled:opacity-50">
-                {busy ? "Cerrando…" : "Cerrar caja"}
+              <button type="button" onClick={closeCash} disabled={busy || amount === "" || (!!needNote && !notes.trim())} className="p-press flex-1 rounded-full bg-[var(--p-accent)] py-3 text-sm font-semibold text-white disabled:opacity-50">
+                {busy ? "Guardando…" : needNote ? "Guardar con la nota" : closeKind === "Z" ? "Cerrar el día" : "Cerrar el turno"}
               </button>
             </div>
           </div>
@@ -337,10 +403,10 @@ export default function CashSessionSheet({
             )}
             {fig && (
               <div className="mt-5 rounded-2xl bg-[var(--p-bg)] p-4">
-                <p className="text-sm font-semibold">Cierre parcial</p>
-                <p className="mt-0.5 text-xs text-[var(--p-muted)]">Imprime cómo va la caja (ventas y efectivo esperado) sin cerrarla. Útil en el cambio de turno.</p>
+                <p className="text-sm font-semibold">Cómo va la caja</p>
+                <p className="mt-0.5 text-xs text-[var(--p-muted)]">Imprime las ventas y el efectivo esperado hasta ahora sin cerrar nada. Para el cambio de turno usa «Cerrar turno (X)».</p>
                 <button type="button" onClick={printPartial} disabled={busy} className="p-press mt-3 min-h-12 w-full rounded-2xl bg-[var(--p-surface)] px-3 text-sm font-semibold ring-1 ring-[var(--p-line)] disabled:opacity-50">
-                  Imprimir cierre parcial
+                  Imprimir cómo va
                 </button>
                 {partialMsg && (
                   <p className="mt-2 text-center text-xs text-[var(--p-muted)]" role="status">
@@ -356,17 +422,17 @@ export default function CashSessionSheet({
           <div className="mt-5">
             {fig ? (
               <div className="rounded-2xl bg-[var(--p-bg)] p-4">
-                <p className="text-xs uppercase tracking-wide text-[var(--p-muted)]">Debería haber en el cajón</p>
+                <p className="text-xs uppercase tracking-wide text-[var(--p-muted)]">Debería haber en el cajón · turno {open.shift?.number ?? 1}</p>
                 <p className="text-4xl font-semibold tabular-nums tracking-tight">{euros(fig.expectedCashCents)}</p>
                 <dl className="mt-3 space-y-1 text-sm">
-                  <Row label="Fondo de apertura" value={euros(open.openingFloatCents)} />
+                  <Row label={(open.shift?.number ?? 1) > 1 ? "Al empezar el turno" : "Fondo de apertura"} value={euros(open.shift?.openingCashCents ?? open.openingFloatCents)} />
                   <Row label="+ Ventas en efectivo" value={euros(fig.cashSalesCents)} />
                   {fig.inCents > 0 && <Row label="+ Entradas" value={euros(fig.inCents)} />}
                   {fig.outCents > 0 && <Row label="− Salidas" value={euros(fig.outCents)} />}
                 </dl>
                 <div className="mt-3 border-t border-[var(--p-line)] pt-3">
                   <p className="text-xs text-[var(--p-muted)]">
-                    Cobrado desde la apertura · {fig.orders} {fig.orders === 1 ? "pedido" : "pedidos"}
+                    Cobrado en este turno · {fig.orders} {fig.orders === 1 ? "pedido" : "pedidos"}
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {(Object.keys(PAY) as PayKey[])
@@ -429,27 +495,16 @@ export default function CashSessionSheet({
                 + Entra dinero
               </button>
             </div>
-            {fig && (
-              <button type="button" onClick={printPartial} disabled={busy} className="p-press mt-2 min-h-12 w-full rounded-2xl border border-[var(--p-line)] px-3 text-sm font-semibold disabled:opacity-50">
-                Imprimir cierre parcial
-              </button>
-            )}
-            {partialMsg && (
-              <p className="mt-2 text-center text-xs text-[var(--p-muted)]" role="status">
-                {partialMsg}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setAmount("");
-                setError("");
-                setStep("close");
-              }}
-              className="p-press mt-3 w-full rounded-full bg-[var(--p-accent)] py-3.5 text-base font-semibold text-white"
-            >
-              Cerrar caja y contar
+            <button type="button" onClick={() => startClose("X")} className="p-press mt-3 w-full rounded-full bg-[var(--p-ink)] py-3.5 text-base font-semibold text-white">
+              Cerrar turno (X)
             </button>
+            {state.canCloseDay ? (
+              <button type="button" onClick={() => startClose("Z")} className="p-press mt-2 w-full rounded-full bg-[var(--p-accent)] py-3.5 text-base font-semibold text-white">
+                Cerrar caja del día (Z)
+              </button>
+            ) : (
+              <p className="mt-2 text-center text-xs text-[var(--p-muted)]">El cierre del día (Z) lo hace el encargado o el gerente.</p>
+            )}
             {state.history.length > 0 && <History items={state.history} />}
           </div>
         )}

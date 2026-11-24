@@ -16,6 +16,8 @@ export type SessionPayload = {
   seesTakings?: boolean; // ve lo recaudado (se lee de la base de datos)
   position?: string | null; // puesto del empleado (se lee de la base de datos; ver lib/roles.ts)
   canCharge?: boolean; // camarero: puede cobrar (se lee de la base de datos)
+  cajaUntil?: Date | string | null; // caja prestada hasta (se lee de la base de datos)
+  cajaCloseDay?: boolean; // con la caja prestada, también el cierre del día
   stationCategoryIds?: string[]; // cocina y barra: sus secciones de la carta (se lee de la base de datos)
   issuedAt?: number; // segundos (iat): las sesiones anteriores a un cambio de contraseña no valen
 };

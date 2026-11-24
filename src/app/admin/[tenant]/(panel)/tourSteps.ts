@@ -42,7 +42,7 @@ export const TOURS: Tour[] = [
     path: "caja",
     manual: "caja",
     steps: [
-      { target: "[aria-label='Estado de la caja']", title: "Tu caja", text: "Aquí ves si la caja está abierta o cerrada. Para vender en el local hay que abrirla con el efectivo del cajón; al final del día, «Cerrar caja» y cuentas el dinero." },
+      { target: "[aria-label='Estado de la caja']", title: "Tu caja", text: "Aquí ves si la caja está abierta o cerrada. Para vender en el local hay que abrirla con el efectivo del cajón; en cada cambio de turno, «Cerrar turno (X)», y al final del día el encargado hace «Cerrar caja del día (Z)»." },
       { target: "[aria-label='Estado de la caja'] button::Entra dinero || [aria-label='Estado de la caja'] button::Abrir caja", title: "Entradas y salidas", text: "Apunta el dinero que metes o sacas del cajón (cambio, un pago a un proveedor…), así al cerrar cuadra." },
       { target: "main button::Nuevo pedido", title: "Tomar un pedido", text: "Para llevar o a domicilio. Se abre encima, sin salir de esta página." },
       { target: "section[aria-label='Lo vendido']", title: "Lo vendido hoy", text: "El total, los pedidos, el ticket medio y cuánto entró por cada forma de pago. Si hay algo pendiente de cobrar, tócalo para verlo." },
