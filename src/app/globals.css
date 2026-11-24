@@ -240,9 +240,19 @@ summary {
   }
   /* Filas plegables y opciones de lista: solo cambio de tono, sin saltar. */
   .panel button[aria-expanded]:not(:disabled):hover,
-  .panel [role="radiogroup"] button:not(:disabled):hover {
+  .panel [role="radiogroup"] button:not(:disabled):not([aria-checked="true"]):hover {
     transform: none;
     box-shadow: none;
+  }
+  /* La opción elegida (Para llevar / Comer aquí…, aria-checked o aria-pressed)
+     se queda igual al pasar el cursor: si se oscurece y pierde su sombra,
+     deja de verse marcada. */
+  .panel [role="radiogroup"] button[aria-checked="true"]:not(:disabled):hover,
+  .panel [role="radio"][aria-checked="true"]:not(:disabled):hover,
+  .panel button[aria-pressed="true"]:not(:disabled):hover {
+    transform: none;
+    filter: none;
+    box-shadow: var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000), var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
   }
 }
 .panel button:not(:disabled):active,

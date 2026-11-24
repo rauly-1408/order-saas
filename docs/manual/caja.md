@@ -12,7 +12,7 @@ El dinero del local: abrir y cerrar la caja, lo que entra y sale del cajón y lo
 
 ## Cerrar la caja al final del día
 
-1. Entra en **Caja** y toca el botón rojo «Cerrar caja».
+1. Entra en **Caja** y toca el botón rojo «Cerrar caja y contar».
 2. Cuenta el efectivo del cajón (todo, incluido el fondo): escribe el total o cuéntalo por billetes y monedas.
 3. Toca «Cerrar caja» y confirma. Verás si cuadra, sobra o falta.
 
@@ -22,7 +22,9 @@ En **Caja**, con la caja abierta, toca «+ Entra dinero» o «− Sale dinero»,
 
 ## Ver lo vendido hoy
 
-En **Caja**, debajo del estado, tienes las ventas del día, el desglose (efectivo, datáfono, Bizum), lo pendiente de cobrar y los tickets. Con ‹ › ves otros días y con el buscador encuentras un pedido por nombre, teléfono o número. Toca un ticket para verlo, reimprimirlo o cambiar cómo pagó.
+En **Caja**, a la derecha (debajo en el móvil), «Vendido hoy»: el total, los pedidos, el ticket medio y una barra con lo que entró por cada forma de pago (toca una para ver sus tickets). Si hay algo «Pendiente de cobrar», tócalo para ver qué pedidos son.
+
+Debajo, «Tickets de hoy»: filtra por «Sin cobrar», «Efectivo», «Datáfono», «Bizum» o «Cancelados», busca por nombre, teléfono o número, y con ‹ › mira otros días. Toca un ticket para verlo, reimprimirlo o cambiar cómo pagó.
 
 ## Tomar un pedido (para llevar, comer aquí o por teléfono)
 
@@ -58,7 +60,7 @@ El gerente puede dar el permiso en Configuración → Usuarios y permisos.
 
 ## Imprimir un cierre parcial sin cerrar la caja
 
-1. En **Caja**, con la caja abierta, toca «Ver movimientos y cierre parcial».
+1. En **Caja**, con la caja abierta, toca «Movimientos y cierre parcial».
 2. Toca «Imprimir cierre parcial». Sale en la impresora con las ventas y el efectivo esperado hasta ahora; la caja sigue abierta.
 Solo aparece a quien tiene «Ve lo recaudado». Si no hay impresora de tickets, las cifras de la hoja son el cierre parcial.
 
