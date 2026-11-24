@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSheetDrag } from "./useSheetDrag";
 import {
   initialSelection,
@@ -48,6 +48,19 @@ const euros = (cents: number) =>
 export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "es", withNote = false, withQty = false }: Props) {
   const { setPanel, setBackdrop, onPointerDown: dragDown, onPointerMove: dragMove, onPointerUp: dragUp, onPointerCancel: dragCancel } = useSheetDrag(onClose);
   const [note, setNote] = useState("");
+  // Al bajar a las opciones, el nombre del producto se queda arriba en una barra
+  // fina (con su precio y la ✕) para no perder de vista qué se está eligiendo.
+  const scroller = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const root = scroller.current;
+    const el = titleRef.current;
+    if (!root || !el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => setCompact(!e.isIntersecting), { root, threshold: 0 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   const [qty, setQty] = useState(1);
   // Foto grande solo en la tienda online; en Caja y Mesas el personal va rápido.
   const photo = withQty ? product.imageUrl : null;
@@ -120,7 +133,17 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
         )}
 
         {/* Nombre, descripción y opciones se desplazan juntos: en móviles pequeños queda sitio para elegir */}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div ref={scroller} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div
+          aria-hidden={!compact}
+          className={`sticky top-0 z-20 -mb-14 flex h-14 items-center gap-3 border-b border-[var(--border)] bg-[var(--surface-0)] px-5 shadow-[0_6px_16px_-12px_rgba(0,0,0,0.35)] transition-[opacity,transform] duration-200 ${compact ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"}`}
+        >
+          <p className="min-w-0 flex-1 truncate text-[16px] font-bold">{product.name}</p>
+          <p className="shrink-0 text-[15px] font-bold tabular-nums text-[var(--brand-secondary)]">{euros(product.basePriceCents)}</p>
+          <button type="button" onClick={onClose} aria-label={T.close} tabIndex={compact ? 0 : -1} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-1)] text-[20px] leading-none">
+            ×
+          </button>
+        </div>
         {/* Se agarra por aquí para cerrarla deslizando hacia abajo (móvil) */}
         <header
           onPointerDown={photo ? undefined : dragDown}
@@ -131,7 +154,7 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
         >
           {!photo && <span aria-hidden className="absolute left-1/2 top-2.5 h-1.5 w-10 -translate-x-1/2 rounded-full bg-[var(--text-secondary)] opacity-30 sm:hidden" />}
           <div className="min-w-0 flex-1">
-            <h2 className="text-[20px] font-bold leading-tight tracking-[-0.01em] [text-wrap:balance]">{product.name}</h2>
+            <h2 ref={titleRef} className="text-[20px] font-bold leading-tight tracking-[-0.01em] [text-wrap:balance]">{product.name}</h2>
             <p className="mt-1 text-[17px] font-bold tabular-nums text-[var(--brand-secondary)]">{euros(product.basePriceCents)}</p>
             {product.dietTags && product.dietTags.length > 0 && (
               <p className="mt-2 flex flex-wrap gap-1.5">
@@ -344,10 +367,15 @@ export default function ProductOptionsSheet({ product, onClose, onAdd, lang = "e
             );
           })}
         </div>
+        {/* Nota para cocina (panel): al final de las opciones, así abajo solo queda el botón */}
+        {withNote && (
+          <div className="border-t border-[var(--border)] px-5 pt-4 pb-2">
+            <NoteField note={note} setNote={setNote} />
+          </div>
+        )}
         </div>
 
         <footer className="border-t border-[var(--border)] p-4 pb-[max(16px,env(safe-area-inset-bottom))]">
-          {withNote && <NoteField note={note} setNote={setNote} />}
           {error && <p className="mb-2 text-sm text-red-600" role="alert">{error}</p>}
           <div className="flex items-center gap-3">
             {withQty && (
@@ -381,7 +409,7 @@ export function NoteField({ note, setNote }: { note: string; setNote: (fn: (n: s
               <label className="text-[13px] font-semibold" htmlFor="opt-note">
                 Nota para cocina
               </label>
-              <div className="mt-1.5 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {NOTE_CHIPS.map((c) => {
                   const on = note.toLowerCase().includes(c.toLowerCase());
                   return (
