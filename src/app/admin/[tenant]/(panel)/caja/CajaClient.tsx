@@ -98,8 +98,10 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const [lines, setLines] = useState<Line[]>([]);
   const [optionsFor, setOptionsFor] = useState<Product | null>(null);
   const [comboFor, setComboFor] = useState<Product | null>(null);
-  const [source, setSource] = useState<"COUNTER" | "PHONE">("COUNTER");
   const [mode, setMode] = useState<Mode>("TAKEAWAY");
+  // Origen del pedido, sin preguntarlo (ocupaba sitio en la Caja): a domicilio
+  // desde la Caja es por teléfono; lo demás, en el mostrador.
+  const source: "COUNTER" | "PHONE" = mode === "DELIVERY" ? "PHONE" : "COUNTER";
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -360,7 +362,6 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     });
     setLines(p.lines);
     setMode(p.mode);
-    setSource(p.source);
     setName(p.name);
     setPhone(p.phone);
     setAddress(p.address);
@@ -495,27 +496,10 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
           </button>
         ))}
       </div>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="text-xs text-[var(--p-muted)]">¿Cómo llega?</span>
-        <div className="flex gap-1 rounded-full bg-black/[0.05] p-0.5" role="radiogroup" aria-label="Origen del pedido">
-          {(["COUNTER", "PHONE"] as const).map((s) => (
-            <button key={s} type="button" role="radio" aria-checked={source === s} onClick={() => setSource(s)} className={`min-h-10 rounded-full px-3 text-xs font-semibold ${source === s ? "bg-white text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.15)]" : "text-[var(--p-muted)]"}`}>
-              {s === "COUNTER" ? "En el mostrador" : "Por teléfono"}
-            </button>
-          ))}
-        </div>
-      </div>
-      {source === "PHONE" && (
-        <div className="mt-3">
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono del cliente" inputMode="tel" aria-label="Teléfono del cliente" className="w-full rounded-lg px-3 py-2.5 text-base tabular-nums" />
-          {known && (
-            <p className="mt-1.5 text-xs text-emerald-700">
-              ✓ {known.name ?? "Cliente conocido"}
-              {known.orders > 0 && ` · ${known.orders} ${known.orders === 1 ? "pedido" : "pedidos"}`} · datos rellenados
-            </p>
-          )}
-        </div>
+      {mode === "DELIVERY" && (
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono del cliente" inputMode="tel" aria-label="Teléfono del cliente" className="mt-3 w-full rounded-lg px-3 py-2.5 text-base tabular-nums" />
       )}
+      {mode === "DELIVERY" && known && <KnownCustomer known={known} />}
       {mode === "DELIVERY" && <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Dirección de entrega (obligatoria)" aria-label="Dirección" className="mt-3 w-full rounded-lg px-3 py-2.5 text-sm" />}
       {mode === "DELIVERY" && known && known.addresses.length > 1 && (
         <div className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Direcciones del cliente">
@@ -674,9 +658,14 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         {detailsOpen && (
           <div className="mt-2 grid grid-cols-2 gap-2">
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" aria-label="Nombre del cliente" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono (suma sellos)" inputMode="tel" aria-label="Teléfono del cliente" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />
+            {mode !== "DELIVERY" && <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono (suma sellos)" inputMode="tel" aria-label="Teléfono del cliente" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />}
             <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Cupón" aria-label="Cupón" className="min-w-0 rounded-lg px-3 py-2.5 text-sm uppercase" />
             <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Nota para cocina" aria-label="Notas" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />
+            {mode !== "DELIVERY" && known && (
+              <div className="col-span-2 -mt-1">
+                <KnownCustomer known={known} />
+              </div>
+            )}
             {collabs.length > 0 && <CollabPicker collabs={collabs} value={collabCode} onChange={setCollabCode} />}
           </div>
         )}
@@ -718,7 +707,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         <p className="text-xs uppercase tracking-wide text-[var(--p-muted)]">Total a cobrar</p>
         <p className="text-5xl font-semibold tabular-nums tracking-tight">{euros(subtotal)}</p>
         <p className="mt-1 text-xs text-[var(--p-muted)]">
-          {count} {count === 1 ? "artículo" : "artículos"} · {MODE_LABEL[mode]} · {source === "COUNTER" ? "Mostrador" : "Teléfono"}
+          {count} {count === 1 ? "artículo" : "artículos"} · {MODE_LABEL[mode]}
           {mode === "DELIVERY" && " · más envío"}
         </p>
       </div>
@@ -1256,5 +1245,15 @@ function CollabPicker({ collabs, value, onChange }: { collabs: { name: string; p
         </div>
       )}
     </div>
+  );
+}
+
+// Cliente reconocido por su teléfono: sus datos se rellenan solos.
+function KnownCustomer({ known }: { known: ClienteResponse }) {
+  return (
+    <p className="mt-1.5 text-xs text-emerald-700">
+      ✓ {known.name ?? "Cliente conocido"}
+      {known.orders > 0 && ` · ${known.orders} ${known.orders === 1 ? "pedido" : "pedidos"}`} · datos rellenados
+    </p>
   );
 }

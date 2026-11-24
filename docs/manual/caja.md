@@ -38,10 +38,10 @@ Para quitarlo, toca «▾ Ocultar el recuento por billetes».
 
 ## Tomar un pedido por teléfono
 
-1. Arriba del pedido, en «¿Cómo llega?», elige «Por teléfono».
-2. Escribe el teléfono del cliente. Si ya ha pedido antes, se rellenan su nombre y su dirección y verás «✓ Nombre · N pedidos · datos rellenados».
-3. Si es «A domicilio» y tiene varias direcciones, toca la buena. La dirección es obligatoria para poder cobrar.
-4. Sigue como un pedido normal. En Pedidos saldrá con la etiqueta «Teléfono».
+1. Si es **a domicilio**, elige «A domicilio»: sale el campo «Teléfono del cliente». Escríbelo; si ya ha pedido antes, se rellenan su nombre y su dirección y verás «✓ Nombre · N pedidos · datos rellenados».
+2. Si tiene varias direcciones, toca la buena. La dirección es obligatoria para poder cobrar.
+3. Si es **para llevar**, pon su teléfono en «＋ Cliente, cupón o nota» (también reconoce al cliente).
+4. Sigue como un pedido normal. Los pedidos a domicilio de la Caja salen en Pedidos con la etiqueta «Teléfono»; el resto, «Mostrador».
 
 ## Añadir una nota, un descuento o quitar un producto del pedido
 
