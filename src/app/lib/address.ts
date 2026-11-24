@@ -47,15 +47,43 @@ export function inProvinces(c: Pick<Candidate, "postalCode">, prefixes: string[]
   return codes.some((cp) => prefixes.includes(cp.slice(0, 2)));
 }
 
+// Nombre de la provincia tal como lo escribe CartoCiudad ("Granada",
+// "València/Valencia"…), sacado de un código postal suyo. Se guarda un día.
+async function provinceOf(cp: string): Promise<string | null> {
+  const url = new URL(CARTOCIUDAD);
+  url.searchParams.set("q", "calle");
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("cod_postal_filter", cp);
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000), next: { revalidate: 86400 } });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { province?: string | null }[];
+    return (Array.isArray(data) && data[0]?.province) || null;
+  } catch {
+    return null;
+  }
+}
+
+// Busca solo en la provincia (o provincias) del restaurante: así «Gran Vía»
+// da la de su ciudad y no las de toda España.
 export async function suggestAddresses(q: string, postalCodes: string[]): Promise<AddressSuggestion[]> {
-  const prefixes = [...new Set(postalCodes.map((cp) => cp.slice(0, 2)))];
+  const byPrefix = new Map<string, string>();
+  for (const cp of postalCodes) if (!byPrefix.has(cp.slice(0, 2))) byPrefix.set(cp.slice(0, 2), cp);
+  const prefixes = [...byPrefix.keys()];
+  const provinces = (await Promise.all([...byPrefix.values()].map(provinceOf))).filter((x): x is string => !!x);
   const url = new URL(CARTOCIUDAD);
   url.searchParams.set("q", q);
   url.searchParams.set("limit", "25");
+  if (provinces.length) url.searchParams.set("provincia_filter", provinces.join(","));
   const res = await fetch(url, { signal: AbortSignal.timeout(4000), next: { revalidate: 3600 } });
   if (!res.ok) return [];
   const data = (await res.json()) as Candidate[];
-  return Array.isArray(data) ? toSuggestions(data.filter((c) => inProvinces(c, prefixes))) : [];
+  if (!Array.isArray(data)) return [];
+  // Primero las de su ciudad (mismos 3 primeros números del código postal).
+  const near = new Set(postalCodes.map((cp) => cp.slice(0, 3)));
+  const isNear = (c: Candidate) => (c.postalCode ?? "").split(/\s+/).some((cp) => near.has(cp.slice(0, 3)));
+  const inProv = data.filter((c) => inProvinces(c, prefixes));
+  return toSuggestions([...inProv.filter(isNear), ...inProv.filter((c) => !isNear(c))]);
 }
 
 // ─── Coordenadas de una dirección (para el repartidor externo) ─────────────

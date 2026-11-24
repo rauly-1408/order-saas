@@ -13,11 +13,15 @@ type Props = {
   value: string;
   onChange: (v: string) => void;
   onPick: (s: AddressSuggestion) => void;
-  inputStyle: React.CSSProperties;
+  inputStyle?: React.CSSProperties;
   lang?: Lang;
+  // En el panel (pedido a domicilio): con las clases y colores del panel.
+  inputClassName?: string;
+  placeholder?: string;
+  panel?: boolean;
 };
 
-export default function AddressInput({ tenant, value, onChange, onPick, inputStyle, lang = "es" }: Props) {
+export default function AddressInput({ tenant, value, onChange, onPick, inputStyle, lang = "es", inputClassName, placeholder, panel = false }: Props) {
   const T = ui(lang);
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -68,9 +72,11 @@ export default function AddressInput({ tenant, value, onChange, onPick, inputSty
       <input
         ref={input}
         style={inputStyle}
+        className={inputClassName}
         type="text"
-        autoComplete="street-address"
-        placeholder={T.addressPlaceholder}
+        autoComplete={panel ? "off" : "street-address"}
+        placeholder={placeholder ?? T.addressPlaceholder}
+        aria-label={panel ? "Dirección de entrega" : undefined}
         value={value}
         role="combobox"
         aria-expanded={show}
@@ -103,7 +109,7 @@ export default function AddressInput({ tenant, value, onChange, onPick, inputSty
         <ul
           id="address-suggestions"
           role="listbox"
-          className="absolute inset-x-0 z-30 mt-1 overflow-hidden rounded-xl bg-[var(--surface-0)] shadow-[0_12px_32px_-8px_rgba(0,0,0,0.3)]"
+          className={`absolute inset-x-0 z-30 mt-1 overflow-hidden rounded-xl shadow-[0_12px_32px_-8px_rgba(0,0,0,0.3)] ${panel ? "bg-[var(--p-surface)] ring-1 ring-[var(--p-line)]" : "bg-[var(--surface-0)]"}`}
         >
           {suggestions.map((s, i) => (
             <li key={s.label} role="option" aria-selected={i === active}>
@@ -111,12 +117,12 @@ export default function AddressInput({ tenant, value, onChange, onPick, inputSty
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => pick(s)}
-                className={`flex w-full items-start gap-2 px-4 py-2.5 text-left text-[14px] text-[var(--text-primary)] ${i === active ? "bg-[var(--surface-1)]" : ""}`}
+                className={`flex w-full items-start gap-2 px-4 py-2.5 text-left text-[14px] ${panel ? `p-row text-[var(--p-ink)] ${i === active ? "bg-[var(--p-bg)]" : ""}` : `text-[var(--text-primary)] ${i === active ? "bg-[var(--surface-1)]" : ""}`}`}
               >
                 <span aria-hidden className="mt-0.5">📍</span>
                 <span className="min-w-0">
                   <span className="block truncate font-semibold">{s.street}</span>
-                  <span className="block truncate text-[12px] text-[var(--text-secondary)]">
+                  <span className={`block truncate text-[12px] ${panel ? "text-[var(--p-muted)]" : "text-[var(--text-secondary)]"}`}>
                     {s.postalCode ? `${s.postalCode} ` : ""}
                     {s.city}
                     {!s.complete && T.addressPickHint}
@@ -125,10 +131,10 @@ export default function AddressInput({ tenant, value, onChange, onPick, inputSty
               </button>
             </li>
           ))}
-          <li className="px-4 py-1.5 text-right text-[10px] text-[var(--text-secondary)]">Direcciones: CartoCiudad (IGN)</li>
+          <li className={`px-4 py-1.5 text-right text-[10px] ${panel ? "text-[var(--p-muted)]" : "text-[var(--text-secondary)]"}`}>Direcciones: CartoCiudad (IGN)</li>
         </ul>
       )}
-      {hint && <div className="mt-1.5 text-[13px] font-semibold text-[var(--brand-accent)]">{hint}</div>}
+      {hint && <div className={`mt-1.5 text-[13px] font-semibold ${panel ? "text-[var(--p-accent)]" : "text-[var(--brand-accent)]"}`}>{hint}</div>}
     </div>
   );
 }

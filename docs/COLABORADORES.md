@@ -9,7 +9,7 @@ Gente que trae pedidos y se lleva un % de lo que piden, en efectivo, cada mes. I
    - el enlace de la tienda con su código ya puesto (`/pedir/[slug]?c=LAURA`), para pasarlo a sus clientes;
    - su **página privada** (`/colaborador/[enlace secreto]`): lo que lleva ganado este mes, los meses anteriores (pagado o pendiente), sus pedidos (sin datos de clientes) y su **QR** para imprimir o enseñar con el móvil, con botón de compartir por WhatsApp.
 3. El cliente pide **desde su enlace o su QR** (el código se recuerda 30 días en el móvil del cliente), o **escribe el código** al pagar («¿Tienes un código?», o en el campo del cupón si el restaurante tiene cupones). En el pedido sale «Código de colaborador LAURA» y se puede quitar.
-4. **Por teléfono**: en la **Caja**, en «Cliente, cupón, colaborador o nota», se elige «De Laura (Pub…)».
+4. **Por teléfono**: en la **Caja**, en «Cupón, colaborador o nota», se elige «De Laura (Pub…)».
 5. Cada pedido guarda lo que se lleva: su % de lo pedido **sin envío ni propina** y con los descuentos restados. Los pedidos **cancelados no cuentan**.
 6. **A principios de mes**: en Colaboradores se va al mes anterior (‹) y se pulsa **«Marcar pagado X €»** al darle el sobre. Se puede deshacer. Si se olvida, en el mes en curso sale «Le debes X € de meses anteriores».
 
@@ -33,7 +33,7 @@ Su página privada es una **app que se instala** en el móvil («Mis ventas», c
 - **Descuento al cliente** (`Collaborator.discountPct`, 0-50 %; 0 = sin descuento): quien pide con su código se ahorra ese %, sobre la comida (ya quitado el premio de fidelidad). No se acumula con promociones ni cupones: gana el que más ahorra (`lib/collaboratorDiscount.ts → bestDiscount`; a igualdad, promoción o cupón). Se guarda en `Order.collaboratorDiscountCents` y va dentro de `discountCents` (sale en el ticket como «Descuento»). La comisión va sobre lo que paga el cliente.
 - **Online**: con su enlace o QR, la tienda lo enseña en el checkout («Código de colaborador LAURA · Te ahorras un 5 %» y la línea «Descuento de Laura (5 %)»).
 - **En el local (guías turísticos, hoteles…)**: el guía dice «id a Estafetén y decid ROCIO».
-  - **Caja** (barra / para llevar): en «Cliente, cupón, colaborador o nota» se escribe el código (o se busca por nombre o sitio) y el total ya sale con su descuento antes de cobrar.
+  - **Caja** (barra / para llevar): en «Cupón, colaborador o nota» se escribe el código (o se busca por nombre o sitio) y el total ya sale con su descuento antes de cobrar.
   - **Mesas**: en la cuenta, «¿Vienen de parte de alguien?» → código → el descuento se aplica a toda la cuenta (también a lo que se cobre por separado), sale en la cuenta impresa y la comisión cuenta al cobrar (`tables.setTableCollaborator`, acción `collab`; `recompute` aplica descuento y comisión). Al cobrar, aviso al móvil del colaborador.
   - En su app, cada pedido sale como «Online» o «En el local».
 - **Panel rediseñado**: resumen del mes (ventas que traen, comisiones, descuento a sus clientes, colaboradores), aviso de pagos pendientes, filtros (activos, en pausa, por pagar) y buscador; tarjetas con avatar, código (toca para copiar su enlace), «Se lleva 10 %» y «Cliente −5 %», pedidos y ventas en texto («2 pedidos · 21,90 € vendidos») y último pedido; chips del código y las condiciones con la misma altura; acciones: WhatsApp, Editar y «Más» (su app, tarjetas, copiar enlaces, pausar, cambiar enlace, borrar). Alta y edición en una hoja con ejemplo en vivo («pedido de 30 €: el cliente paga 28,50 € y Laura se lleva 2,85 €»).

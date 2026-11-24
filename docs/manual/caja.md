@@ -59,8 +59,8 @@ Debajo, «Tickets de hoy»: filtra por «Sin cobrar», «Efectivo», «Datáfono
 
 1. Toca «＋ Nuevo pedido» (en Caja o en Pedidos): se abre encima, sin cambiar de página.
 2. Elige arriba «🛍 Para llevar» o «🛵 A domicilio» (para comer aquí, usa Mesas).
-3. **Para llevar:** se cobra en el momento (hace falta la caja abierta). Si quieres, pon su teléfono en «＋ Cliente, cupón o nota».
-4. **A domicilio:** escribe el teléfono del cliente y la dirección (si ya ha pedido, se rellenan solos). Sin esos datos no se puede cobrar ni enviar. No hace falta la caja: se cobra al entregar (o ya, si te paga por Bizum).
+3. **Para llevar:** escribe arriba el nombre y el teléfono del cliente (opcional; con el teléfono suma sellos). Se cobra en el momento (hace falta la caja abierta).
+4. **A domicilio:** escribe el teléfono del cliente (si ya ha pedido, se rellenan su nombre y su dirección) y empieza a escribir la dirección: salen sugerencias de calles de tu provincia, primero las de tu ciudad. Elige una y añade el número; al elegir un portal se pone también el código postal. Sin teléfono y dirección no se puede cobrar ni enviar. No hace falta la caja: se cobra al entregar (o ya, si te paga por Bizum).
 5. Toca los productos y «Cobrar». Al terminar, «✕ Cerrar».
 ## Añadir una nota, un descuento o quitar un producto del pedido
 
@@ -68,7 +68,7 @@ Debajo, «Tickets de hoy»: filtra por «Sin cobrar», «Efectivo», «Datáfono
 2. Escribe la «Nota para cocina» (sin cebolla, poco hecho…). Sale en la comanda.
 3. El gerente ve además «Descuento»: «−10 %», «−50 %», «Invitación» o un importe en euros.
 4. «Quitar línea» la borra. «Vaciar» (arriba) borra todo el pedido.
-Para el nombre, el teléfono (suma sellos), un cupón o una nota general, toca «＋ Cliente, cupón o nota para cocina».
+El nombre y el teléfono del cliente van siempre arriba del pedido. Para un cupón o una nota general, toca «＋ Cupón o nota para cocina».
 
 ## Dejar un pedido en espera (aparcar)
 
@@ -107,7 +107,7 @@ Necesita tener activado VeriFactu en Configuración → Facturación · VeriFact
 
 ## Aplicar un código de colaborador (guía, hotel…)
 
-Si tienes colaboradores dados de alta, en «＋ Cliente, cupón, colaborador o nota» aparece «Código de colaborador (guía, hotel…)». Escribe el código y se aplica su descuento.
+Si tienes colaboradores dados de alta, en «＋ Cupón, colaborador o nota» aparece «Código de colaborador (guía, hotel…)». Escribe el código y se aplica su descuento.
 Si pone «Ningún colaborador con ese código», revisa el código en Colaboradores.
 
 ## ¿Qué pasa si se cae internet mientras vendo?

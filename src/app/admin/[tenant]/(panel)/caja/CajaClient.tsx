@@ -1,6 +1,7 @@
 "use client";
 
 import { BTN } from "@/app/admin/[tenant]/(panel)/buttons";
+import AddressInput from "@/app/pedir/[tenant]/checkout/AddressInput";
 import Link from "next/link";
 import { collaboratorDiscountCents } from "@/app/lib/collaboratorDiscount";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -346,7 +347,7 @@ export default function CajaClient({
   const cashPartCents = mixed && tendered.trim() ? (parseEuros(tendered) ?? 0) : 0;
   const change = tenderedCents != null && tenderedCents >= subtotal ? tenderedCents - subtotal : null;
   const missing = tenderedCents != null && tenderedCents < subtotal ? subtotal - tenderedCents : null;
-  const detailsSummary = [name, phone, coupon && `cupón ${coupon.toUpperCase()}`, collabCode && `de ${collabs.find((c) => c.code === collabCode)?.name ?? collabCode}`, notes && `nota: ${notes}`].filter(Boolean).join(" · ");
+  const detailsSummary = [coupon && `cupón ${coupon.toUpperCase()}`, collabCode && `de ${collabs.find((c) => c.code === collabCode)?.name ?? collabCode}`, notes && `nota: ${notes}`].filter(Boolean).join(" · ");
   // Por teléfono: sin teléfono (y sin dirección si va a domicilio) no se cobra ni se envía.
   const phoneOk = !phoneMode || phone.replace(/\D/g, "").length >= 9;
   const canConfirm = !locked && lines.length > 0 && !sending && phoneOk && (mode !== "DELIVERY" || address.trim().length > 0) && (payment !== "CASH" || tenderedCents == null || tenderedCents >= subtotal) && (!mixed || (cashPartCents > 0 && cashPartCents < subtotal));
@@ -547,11 +548,28 @@ export default function CajaClient({
           );
         })}
       </div>
-      {phoneMode && (
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono del cliente (obligatorio)" inputMode="tel" aria-label="Teléfono del cliente" aria-invalid={!phoneOk} className={`mt-3 w-full rounded-lg px-3 py-2.5 text-base tabular-nums ${phoneOk ? "" : "ring-1 ring-[var(--p-accent)]"}`} />
+      {/* El cliente, siempre a la vista: nombre y teléfono. A domicilio el teléfono es
+          obligatorio; para llevar, opcional (con él suma sellos y se le avisa). */}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del cliente" autoComplete="off" aria-label="Nombre del cliente" className="min-w-0 rounded-lg px-3 py-2.5 text-base" />
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={phoneMode ? "Teléfono (obligatorio)" : "Teléfono"} inputMode="tel" autoComplete="off" aria-label="Teléfono del cliente" aria-invalid={!phoneOk} className={`min-w-0 rounded-lg px-3 py-2.5 text-base tabular-nums ${phoneOk ? "" : "ring-1 ring-[var(--p-accent)]"}`} />
+      </div>
+      {known && <KnownCustomer known={known} />}
+      {/* Dirección con sugerencias mientras se escribe, solo de la provincia del
+          restaurante (CartoCiudad, la misma que la tienda online). */}
+      {mode === "DELIVERY" && (
+        <div className="mt-2">
+          <AddressInput
+            tenant={tenant}
+            panel
+            value={address}
+            onChange={setAddress}
+            onPick={(s) => setAddress(`${s.street}, ${s.postalCode ? `${s.postalCode} ` : ""}${s.city}`)}
+            placeholder="Dirección: calle y número (obligatoria)"
+            inputClassName={`w-full rounded-lg px-3 py-2.5 text-base ${address.trim() ? "" : "ring-1 ring-[var(--p-accent)]"}`}
+          />
+        </div>
       )}
-      {phoneMode && known && <KnownCustomer known={known} />}
-      {mode === "DELIVERY" && <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Dirección de entrega (obligatoria)" aria-label="Dirección" aria-invalid={!address.trim()} className={`mt-2 w-full rounded-lg px-3 py-2.5 text-sm ${address.trim() ? "" : "ring-1 ring-[var(--p-accent)]"}`} />}
       {mode === "DELIVERY" && known && known.addresses.length > 1 && (
         <div className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Direcciones del cliente">
           {known.addresses.map((a) => (
@@ -703,20 +721,13 @@ export default function CajaClient({
 
       <div className="mt-2 border-t border-[var(--p-line)] pt-3">
         <button type="button" onClick={() => setDetailsOpen((v) => !v)} aria-expanded={detailsOpen} className="flex min-h-11 w-full items-center justify-between rounded-lg text-left text-sm hover:bg-black/[0.03]">
-          <span className={detailsSummary ? "truncate font-medium" : "text-[var(--p-muted)]"}>{detailsSummary || collabs.length ? "＋ Cliente, cupón, colaborador o nota" : "＋ Cliente, cupón o nota para cocina"}</span>
+          <span className={detailsSummary ? "truncate font-medium" : "text-[var(--p-muted)]"}>{detailsSummary || (collabs.length ? "＋ Cupón, colaborador o nota" : "＋ Cupón o nota para cocina")}</span>
           <span className="ml-2 shrink-0 text-xs text-[var(--p-muted)]">{detailsOpen ? "Ocultar" : "Editar"}</span>
         </button>
         {detailsOpen && (
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" aria-label="Nombre del cliente" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />
-            {!phoneMode && mode !== "DELIVERY" && <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono (suma sellos)" inputMode="tel" aria-label="Teléfono del cliente" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />}
             <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Cupón" aria-label="Cupón" className="min-w-0 rounded-lg px-3 py-2.5 text-sm uppercase" />
             <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Nota para cocina" aria-label="Notas" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />
-            {!phoneMode && mode !== "DELIVERY" && known && (
-              <div className="col-span-2 -mt-1">
-                <KnownCustomer known={known} />
-              </div>
-            )}
             {collabs.length > 0 && <CollabPicker collabs={collabs} value={collabCode} onChange={setCollabCode} />}
           </div>
         )}
