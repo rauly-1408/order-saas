@@ -788,7 +788,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             <input id="caja-tendered" value={tendered} onChange={(e) => setTendered(e.target.value.replace(/[^\d,.]/g, "").replace(".", ","))} inputMode="decimal" placeholder="0,00" aria-label="Efectivo entregado" className="min-w-0 flex-1 rounded-xl px-3 py-2 text-right text-3xl font-semibold tabular-nums" />
             <span className="text-xl text-[var(--p-muted)]">€</span>
           </div>
-          <div className="mt-2 flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {quickAmounts(subtotal).map((c, i) => (
               <button key={c} type="button" onClick={() => setTendered((c / 100).toFixed(2).replace(".", ","))} className="p-press min-h-11 shrink-0 rounded-full bg-black/[0.05] px-4 text-sm font-semibold tabular-nums">
                 {i === 0 ? "Justo" : euros(c).replace(/,00/, "")}
@@ -952,7 +952,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
             </div>
           </div>
           {categories && !q && (
-            <nav aria-label="Categorías" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 lg:-mx-8 lg:px-8 @xl:mx-0 @xl:mt-4 @xl:flex-wrap @xl:overflow-visible @xl:px-0" style={{ scrollbarWidth: "none" }}>
+            <nav aria-label="Categorías" className="mt-3 flex flex-wrap gap-1.5 @xl:mt-4 @xl:gap-2">
               {shelves.map((c) => (
                 <button key={c.id} id={`caja-chip-${c.slug}`} type="button" aria-current={c.slug === shelf?.slug || undefined} onClick={() => setCat(c.slug)} className={`p-press flex shrink-0 items-center gap-1.5 min-h-11 rounded-full px-3.5 text-sm font-semibold transition-colors ${c.slug === shelf?.slug ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
                   {c.slug !== TOP_SLUG && <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${toneOf.get(c.slug)?.dot ?? ""}`} />}

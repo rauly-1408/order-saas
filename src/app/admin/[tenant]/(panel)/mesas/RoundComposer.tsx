@@ -237,7 +237,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, lab
                 )}
                 {noteOpen && (
                   <div className="mt-2">
-                    <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+                    <div className="flex flex-wrap gap-1.5 pb-1">
                       {NOTE_CHIPS.map((c) => (
                         <button key={c} type="button" onClick={() => setNote(i, l.note.trim() ? `${l.note.trim()}, ${c}` : c)} className="p-press shrink-0 rounded-full border border-[var(--p-line)] bg-[var(--p-surface)] px-3 py-2 text-[13px] font-medium">
                           {c}
@@ -287,7 +287,7 @@ export default function RoundComposer({ tenant, orderId, opening, tableName, lab
         {/* Carta */}
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-36 sm:px-5 lg:pb-6">
           {categories && !q && (
-            <nav className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-5 sm:px-5" aria-label="Categorías">
+            <nav className="flex flex-wrap gap-1.5 pb-1 sm:gap-2" aria-label="Categorías">
               {categories.map((c, i) => (
                 <button key={c.id} type="button" onClick={() => setCat(c.slug)} aria-pressed={c.slug === cat} className={`p-press flex shrink-0 items-center gap-2 rounded-full px-5 py-3 text-[15px] font-semibold ${c.slug === cat ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
                   <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: sectionColor(i) }} />

@@ -75,7 +75,7 @@ export default function Prevision({ data, api, onOrder }: Props) {
           </p>
         </div>
 
-        <div className="mt-3 flex gap-1.5 overflow-x-auto px-4 pb-1" role="group" aria-label="Día">
+        <div className="mt-3 flex flex-wrap gap-1.5 px-4 pb-1" role="group" aria-label="Día">
           {res.days.map((d, i) => (
             <DayChip key={d.ymd} active={sel === i} onClick={() => setSel(i)} top={i === 0 ? "Hoy" : i === 1 ? "Mañana" : cap(dateLabel(d.ymd, { weekday: "short" }))} bottom={d.closed ? "Cerrado" : dateLabel(d.ymd, { day: "numeric", month: "short" })} muted={d.closed} />
           ))}

@@ -332,7 +332,7 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
       {error && <div className="mb-4 rounded-2xl bg-[var(--p-accent-soft)] px-4 py-2 text-sm text-[var(--p-accent)]">{error}</div>}
 
       {/* Pestañas con contador (móvil / tablet vertical) */}
-      <nav className="mb-4 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1 lg:hidden">
+      <nav className="mb-4 flex w-fit max-w-full flex-wrap gap-1 rounded-[22px] bg-black/[0.05] p-1 lg:hidden">
         {COLUMNS.map((col) => {
           const count = byColumn(col.key).length;
           const active = tab === col.key;

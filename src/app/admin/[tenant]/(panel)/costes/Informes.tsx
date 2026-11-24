@@ -247,7 +247,7 @@ function InformeAlergenos({ data, onGoToRecipes }: { data: Overview; onGoToRecip
 
       <div className="px-4 pt-3">
         <p className="mb-1.5 text-[11px] font-medium text-[var(--p-muted)]">¿Qué platos puede tomar alguien con alergia a…?</p>
-        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+        <div className="flex flex-wrap gap-1.5">
           {ALLERGENS.map((a) => (
             <button
               key={a}

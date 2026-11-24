@@ -185,7 +185,7 @@ export default function MesasClient({ tenant }: { tenant: string }) {
           {/* Zonas siempre a la vista; el gerente añade más con «+ Nueva zona» */}
           {(zones.length > 0 || data.canManage) && (
             <div className="mt-5 flex flex-wrap items-center gap-2">
-              <nav className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1" aria-label="Zonas">
+              <nav className="flex w-fit max-w-full flex-wrap gap-1 rounded-[22px] bg-black/[0.05] p-1" aria-label="Zonas">
                 {zones.map((z) => {
                   const n = (data.tables ?? []).filter((t) => t.zone === z && t.open).length;
                   return (

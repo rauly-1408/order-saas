@@ -189,9 +189,9 @@ export default function SalaView({
   return (
     <div className="mt-4">
       {/* Resumen de la sala */}
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:px-0 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {kpis.map((k) => (
-          <div key={k.label} className="min-w-[132px] shrink-0 rounded-2xl bg-[var(--p-surface)] px-4 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:min-w-0">
+          <div key={k.label} className="min-w-0 rounded-2xl bg-[var(--p-surface)] px-4 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--p-muted)]">{k.label}</p>
             <p className={`mt-0.5 truncate text-lg font-semibold tabular-nums ${k.tone ?? ""}`}>{k.value}</p>
           </div>
@@ -199,7 +199,7 @@ export default function SalaView({
       </div>
 
       {/* Filtros */}
-      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]" role="radiogroup" aria-label="Mostrar">
+      <div className="mt-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Mostrar">
         {FILTERS.map(([k, label, n]) => (
           <button key={k} type="button" role="radio" aria-checked={filter === k} onClick={() => setFilter(k)} className={`p-press shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium ${filter === k ? "bg-[var(--p-ink)] text-white" : "bg-[var(--p-surface)] text-[var(--p-muted)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"}`}>
             {label} <span className="tabular-nums opacity-70">{n}</span>

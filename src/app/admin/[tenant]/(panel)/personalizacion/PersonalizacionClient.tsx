@@ -288,7 +288,7 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
         </>
       )}
 
-      <nav className="mt-6 mb-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1">
+      <nav className="mt-6 mb-6 flex w-fit max-w-full flex-wrap gap-1 rounded-[22px] bg-black/[0.05] p-1">
         {(
           [
             ["identidad", "Identidad"],
@@ -350,7 +350,7 @@ export default function PersonalizacionClient({ tenant, embedded = false }: { te
                   La vista previa se actualiza al instante. Si dejas un color en
                   automático, usamos uno que se lea bien.
                 </p>
-                <div className="mt-3 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-black/[0.05] p-1">
+                <div className="mt-3 flex w-fit max-w-full flex-wrap gap-1 rounded-[22px] bg-black/[0.05] p-1">
                   {[...MAIN_COLORS, "more" as const].map((k) => (
                     <button
                       key={k}
