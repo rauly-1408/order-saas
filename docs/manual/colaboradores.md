@@ -29,7 +29,7 @@ Los pedidos cancelados no cuentan.
 ## Apuntar un colaborador en Caja o en Mesas
 
 Para clientes que vienen al local «de parte de» alguien:
-1. En Caja, toca «＋ Cliente, cupón, colaborador o nota» y escribe su código (o búscalo por nombre o sitio). El total ya sale con su descuento antes de cobrar.
+1. En Caja, toca «＋ Cupón, colaborador o nota» y escribe su código (o búscalo por nombre o sitio). El total ya sale con su descuento antes de cobrar.
 2. En Mesas, dentro de la cuenta, usa «¿Vienen de parte de alguien?» y pon su código. El descuento se aplica a toda la cuenta y la comisión cuenta al cobrar.
 
 ## ¿Cuánto se lleva un colaborador?

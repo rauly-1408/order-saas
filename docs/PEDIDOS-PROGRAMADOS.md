@@ -18,7 +18,7 @@
 ## Dirección con sugerencias
 
 - Al escribir la dirección de entrega aparecen direcciones reales (a partir de 4 letras). Con un portal concreto se rellenan la dirección y el **código postal**, que decide la zona y el envío. Si solo se elige la calle, pide el número.
-- Proveedor: **CartoCiudad** (Instituto Geográfico Nacional): gratis, sin clave y con los portales de España. Solo se muestran direcciones de la provincia de las zonas de reparto. Si la dirección está fuera de zona, el checkout lo dice.
+- Proveedor: **CartoCiudad** (Instituto Geográfico Nacional): gratis, sin clave y con los portales de España. Se busca solo en la provincia del restaurante (`provincia_filter` de CartoCiudad, con el nombre de provincia sacado de sus códigos postales: zonas de reparto, código postal del negocio y direcciones de sus locales) y salen primero las de su ciudad. Si la dirección está fuera de zona, el checkout lo dice. El mismo buscador sirve en el panel, en «＋ Nuevo pedido» → «A domicilio».
 - **Google Maps**: se puede añadir cuando el restaurante tenga su clave de Google (Places API) configurada en Vercel; el proveedor está aislado en `src/app/lib/address.ts`.
 - Si el servicio no responde, el cliente escribe la dirección a mano, como antes.
 
