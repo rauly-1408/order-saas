@@ -41,11 +41,14 @@ const STAT = "p-press flex min-h-11 flex-1 flex-col justify-center px-2.5 py-1 t
 const STAT_CAPTION = "text-[10px] font-semibold uppercase tracking-wide text-[var(--p-muted)]";
 const STAT_VALUE = "text-sm font-semibold";
 const MODE_LABEL: Record<Mode, string> = { TAKEAWAY: "Para llevar", DINE_IN: "Comer aquí", DELIVERY: "A domicilio" };
-// Lo primero al tomar un pedido: en el local (para llevar o comer aquí) o por teléfono.
+// Lo primero al tomar un pedido (comer aquí va por Mesas):
+// - Para llevar: se cobra en el momento (hace falta la caja abierta); el
+//   teléfono es opcional («Cliente, cupón o nota»).
+// - A domicilio: por teléfono; teléfono y dirección obligatorios, sin caja,
+//   se cobra al entregar (o ya, con datáfono o Bizum).
 const KINDS: { label: string; phone: boolean; mode: Mode }[] = [
-  { label: "Para llevar", phone: false, mode: "TAKEAWAY" },
-  { label: "Comer aquí", phone: false, mode: "DINE_IN" },
-  { label: "📞 Por teléfono", phone: true, mode: "TAKEAWAY" },
+  { label: "🛍 Para llevar", phone: false, mode: "TAKEAWAY" },
+  { label: "🛵 A domicilio", phone: true, mode: "DELIVERY" },
 ];
 const PAYMENT_LABEL: Record<Payment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", IN_STORE: "Pagar al recoger" };
 const HOY_PAYMENT_LABEL: Record<HoyPayment, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger" };
@@ -126,7 +129,7 @@ export default function CajaClient({
   const [lines, setLines] = useState<Line[]>([]);
   const [optionsFor, setOptionsFor] = useState<Product | null>(null);
   const [comboFor, setComboFor] = useState<Product | null>(null);
-  const [mode, setMode] = useState<Mode>("TAKEAWAY");
+  const [mode, setMode] = useState<Mode>((startPhone && canPhone) || !canCounter ? "DELIVERY" : "TAKEAWAY");
   // Dónde está el cliente: en el local o al teléfono.
   const [source, setSource] = useState<"COUNTER" | "PHONE">((startPhone && canPhone) || !canCounter ? "PHONE" : "COUNTER");
   const phoneMode = source === "PHONE";
@@ -371,7 +374,7 @@ export default function CajaClient({
       setTendered("");
       if (k === "COUNTER" && cash && !cash.open) setCashOpen(true);
     }
-    setMode(k === "PHONE" ? (mode === "DELIVERY" ? "DELIVERY" : "TAKEAWAY") : m);
+    setMode(m);
   }
   function tap(product: Product) {
     if (locked) return setCashOpen(true);
@@ -405,6 +408,7 @@ export default function CajaClient({
     });
     setLines(p.lines);
     setMode(p.mode);
+    if (p.source === "PHONE" ? canPhone : canCounter) setSource(p.source === "PHONE" ? "PHONE" : "COUNTER");
     setName(p.name);
     setPhone(p.phone);
     setAddress(p.address);
@@ -432,7 +436,7 @@ export default function CajaClient({
     setCollabCode("");
     setTendered("");
     setMixed(false);
-    setMode("TAKEAWAY");
+    setMode(phoneMode ? "DELIVERY" : "TAKEAWAY");
     setPayment(phoneMode ? "IN_STORE" : "CASH");
     setDetailsOpen(false);
     setError("");
@@ -535,7 +539,7 @@ export default function CajaClient({
       {/* Tipo de pedido: en el local (para llevar o comer aquí) o por teléfono */}
       <div className="mt-3 flex gap-1.5 rounded-xl bg-black/[0.05] p-1" role="radiogroup" aria-label="Tipo de pedido">
         {KINDS.filter((k) => (k.phone ? canPhone : canCounter)).map((k) => {
-          const on = k.phone ? phoneMode : !phoneMode && mode === k.mode;
+          const on = k.phone ? phoneMode : !phoneMode;
           return (
             <button key={k.label} type="button" role="radio" aria-checked={on} onClick={() => chooseKind(k.phone ? "PHONE" : "COUNTER", k.mode)} className={`min-h-11 flex-1 rounded-lg text-[13px] font-semibold outline-none transition-colors ${on ? "bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.06)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
               {k.label}
@@ -543,20 +547,6 @@ export default function CajaClient({
           );
         })}
       </div>
-      {phoneMode && (
-        <div className="mt-2 flex gap-1.5 rounded-xl bg-black/[0.05] p-1" role="radiogroup" aria-label="¿Lo recoge o a domicilio?">
-          {(
-            [
-              ["TAKEAWAY", "Lo recoge"],
-              ["DELIVERY", "A domicilio"],
-            ] as const
-          ).map(([m, l]) => (
-            <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`min-h-11 flex-1 rounded-lg text-[13px] font-semibold outline-none transition-colors ${mode === m ? "bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.06)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
-              {l}
-            </button>
-          ))}
-        </div>
-      )}
       {phoneMode && (
         <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono del cliente (obligatorio)" inputMode="tel" aria-label="Teléfono del cliente" aria-invalid={!phoneOk} className={`mt-3 w-full rounded-lg px-3 py-2.5 text-base tabular-nums ${phoneOk ? "" : "ring-1 ring-[var(--p-accent)]"}`} />
       )}
@@ -774,20 +764,23 @@ export default function CajaClient({
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Forma de pago">
-        {(Object.keys(PAYMENT_LABEL) as Payment[]).map((p) => {
+        {/* A domicilio (por teléfono) solo se puede cobrar al entregar o ya con Bizum */}
+        {(phoneMode ? (["IN_STORE", "BIZUM"] as Payment[]) : (Object.keys(PAYMENT_LABEL) as Payment[])).map((p) => {
           const on = payment === p && !mixed;
           return (
             <button key={p} type="button" role="radio" aria-checked={on} onClick={() => { setPayment(p); setMixed(false); setTendered(""); }} className={`p-press flex items-center gap-2.5 rounded-2xl border-2 px-3 py-3 text-left text-sm font-semibold outline-none transition-colors ${on ? "border-[var(--p-ink)] bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "border-transparent bg-black/[0.04] text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)]"}`}>
               <PayIcon kind={p} />
-              {PAYMENT_LABEL[p]}
+              {p === "IN_STORE" && mode === "DELIVERY" ? "Pagar al entregar" : PAYMENT_LABEL[p]}
             </button>
           );
         })}
-        {/* Pago mixto: parte en efectivo y el resto con datáfono o Bizum */}
+        {/* Pago mixto: parte en efectivo y el resto con datáfono o Bizum (no a domicilio) */}
+        {!phoneMode && (
         <button type="button" role="radio" aria-checked={mixed} onClick={() => { setMixed(true); setPayment("CARD_TERMINAL"); setTendered(""); }} className={`p-press col-span-2 flex items-center justify-center gap-2.5 rounded-2xl border-2 px-3 py-3 text-sm font-semibold outline-none transition-colors ${mixed ? "border-[var(--p-ink)] bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "border-transparent bg-black/[0.04] text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)]"}`}>
           <PayIcon kind="CASH" />+<PayIcon kind="CARD_TERMINAL" />
           Mixto: parte en efectivo y el resto con tarjeta
         </button>
+        )}
       </div>
 
       {mixed && (
@@ -858,7 +851,7 @@ export default function CajaClient({
         <p className="mt-4 flex-1 text-center text-sm text-[var(--p-muted)]">
           {payment === "CARD_TERMINAL" && "Cobra en el datáfono y confirma aquí."}
           {payment === "BIZUM" && "Cuando llegue el Bizum, confirma aquí."}
-          {payment === "IN_STORE" && "El pedido entra sin cobrar: se cobra cuando el cliente venga a recogerlo."}
+          {payment === "IN_STORE" && (mode === "DELIVERY" ? "El pedido entra sin cobrar: se cobra al entregarlo." : "El pedido entra sin cobrar: se cobra cuando el cliente venga a recogerlo.")}
         </p>
       )}
 
@@ -914,7 +907,7 @@ export default function CajaClient({
         <p className="mt-6 text-lg font-semibold tabular-nums">{euros(done.totalCents)}</p>
       )}
       <p className="mt-2 text-sm text-[var(--p-muted)]">
-        {done.payment === "IN_STORE" ? "Pendiente de cobrar al recoger" : done.cashPart ? `Pagado · ${euros(done.cashPart)} en efectivo y ${euros(done.totalCents - done.cashPart)} con ${PAYMENT_LABEL[done.payment].toLowerCase()}` : `Pagado · ${PAYMENT_LABEL[done.payment].toLowerCase()}`} · {euros(done.totalCents)}
+        {done.payment === "IN_STORE" ? "Pendiente de cobrar" : done.cashPart ? `Pagado · ${euros(done.cashPart)} en efectivo y ${euros(done.totalCents - done.cashPart)} con ${PAYMENT_LABEL[done.payment].toLowerCase()}` : `Pagado · ${PAYMENT_LABEL[done.payment].toLowerCase()}`} · {euros(done.totalCents)}
       </p>
       <button type="button" onClick={newOrder} className="p-press mt-8 w-full rounded-full bg-[var(--p-brand)] py-4 text-base font-semibold text-white">
         Nuevo pedido

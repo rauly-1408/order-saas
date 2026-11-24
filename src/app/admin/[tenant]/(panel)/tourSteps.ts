@@ -44,7 +44,7 @@ export const TOURS: Tour[] = [
     steps: [
       { target: "[aria-label='Estado de la caja']", title: "Tu caja", text: "Aquí ves si la caja está abierta o cerrada. Para vender en el local hay que abrirla con el efectivo del cajón; al final del día, «Cerrar caja» y cuentas el dinero." },
       { target: "[aria-label='Estado de la caja'] button::Entra dinero || [aria-label='Estado de la caja'] button::Abrir caja", title: "Entradas y salidas", text: "Apunta el dinero que metes o sacas del cajón (cambio, un pago a un proveedor…), así al cerrar cuadra." },
-      { target: "main button::Nuevo pedido", title: "Tomar un pedido", text: "Para llevar, comer aquí o por teléfono. Se abre encima, sin salir de esta página." },
+      { target: "main button::Nuevo pedido", title: "Tomar un pedido", text: "Para llevar o a domicilio. Se abre encima, sin salir de esta página." },
       { target: "section[aria-label='Lo vendido']", title: "Lo vendido hoy", text: "El total, los pedidos, el ticket medio y cuánto entró por cada forma de pago. Si hay algo pendiente de cobrar, tócalo para verlo." },
       { target: "section[aria-label='Tickets']", title: "Los tickets", text: "Todos los tickets del día con filtros (sin cobrar, efectivo, datáfono…) y buscador. Toca uno para verlo, reimprimirlo o cambiar cómo pagó." },
     ],
@@ -55,7 +55,7 @@ export const TOURS: Tour[] = [
     manual: "pedidos",
     steps: [
       { target: "main h1", title: "Pedidos", text: "Todos los pedidos (tienda online, Caja y teléfono) en un tablero: Nuevos, Preparando, Listos y En reparto." },
-      { target: "main button::Nuevo pedido", title: "Nuevo pedido", text: "Para llevar, comer aquí o por teléfono. Se abre encima, sin salir de Pedidos; por teléfono pide el teléfono y, si es a domicilio, la dirección." },
+      { target: "main button::Nuevo pedido", title: "Nuevo pedido", text: "Para llevar o a domicilio. Se abre encima, sin salir de Pedidos; a domicilio pide el teléfono y la dirección del cliente." },
       { target: "main button::Sonido", title: "Sonido", text: "Suena cada vez que entra un pedido nuevo. Si no suena, toca aquí para activarlo." },
       { target: "[aria-label='Tiempo extra de preparación']", title: "¿Mucho jaleo?", text: "Suma minutos de espera a los pedidos online para que el cliente sepa cuándo estará." },
       { target: "main button::Pausar pedidos", title: "Pausar", text: "Si no das abasto, pausa los pedidos online un rato. La tienda avisa a los clientes." },
