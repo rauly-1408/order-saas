@@ -14,6 +14,7 @@ import OrderAlerts from "./OrderAlerts";
 import DragScroll from "./DragScroll";
 import OutboxBar from "./OutboxBar";
 import PanelOffline from "./PanelOffline";
+import PanelTour from "./PanelTour";
 import Assistant from "./Assistant";
 
 // Texto: tipografía del sistema de Apple (SF) con Inter como respaldo fuera de
@@ -82,6 +83,7 @@ export default async function AdminLayout({
       <OutboxBar />
       <PanelOffline tenant={tenant} />
       {canManageTenant(session.role) && <Assistant tenant={tenant} />}
+      <PanelTour tenant={tenant} />
     </div>
   );
 }

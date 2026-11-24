@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { ManualSection } from "@/app/lib/manual";
 import { openAssistant, SparkIcon } from "../Assistant";
 import RichText from "../RichText";
+import { useRouter } from "next/navigation";
+import { resetTour, TOURS, WELCOME } from "../tourSteps";
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
@@ -12,6 +14,19 @@ const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,
 export default function AyudaClient({ tenant, manual, canAsk }: { tenant: string; manual: ManualSection[]; canAsk: boolean }) {
   const [q, setQ] = useState("");
   const [openSec, setOpenSec] = useState<string | null>(null);
+  const router = useRouter();
+  // «Ver el recorrido»: vuelve a enseñar las nubes de esa sección.
+  const replay = (slug: string) => {
+    if (slug === "panel") {
+      resetTour(WELCOME.key);
+      return router.push(`/admin/${tenant}/home`);
+    }
+    const t = TOURS.find((x) => x.manual === slug && x.key !== "ayuda");
+    if (!t) return;
+    resetTour(t.key);
+    router.push(`/admin/${tenant}/${t.path}?recorrido=1`);
+  };
+  const hasTour = (slug: string) => slug === "panel" || TOURS.some((x) => x.manual === slug && x.key !== "ayuda");
 
   useEffect(() => {
     const go = () => {
@@ -81,6 +96,12 @@ export default function AyudaClient({ tenant, manual, canAsk }: { tenant: string
               </summary>
               <div className="border-t border-[var(--p-line)] px-4 pt-3 pb-4">
                 {s.intro && <RichText text={s.intro} tenant={tenant} className="mb-3 space-y-1 text-sm text-[var(--p-muted)]" />}
+                {hasTour(s.slug) && (
+                  <button type="button" onClick={() => replay(s.slug)} className="p-press mb-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-[var(--p-brand-soft)] px-4 text-sm font-semibold text-[var(--p-brand)]">
+                    <span aria-hidden>▶</span>
+                    {s.slug === "panel" ? "Ver la bienvenida otra vez" : "Ver el recorrido"}
+                  </button>
+                )}
                 <div className="space-y-1.5">
                   {s.entries.map((e) => (
                     <details key={e.id} className="group/e rounded-xl bg-[var(--p-bg)]">

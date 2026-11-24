@@ -148,3 +148,12 @@ En el ordenador o la tablet en horizontal puedes plegar el menú lateral y queda
 3. Para volver a verlo entero, toca el mismo botón («Mostrar el menú»).
 
 El panel lo recuerda en ese dispositivo. En el móvil el menú ya va escondido: se abre con el botón ☰ de arriba.
+
+## Ver otra vez el recorrido guiado
+
+La primera vez que entras en cada sección, unas nubes te enseñan para qué sirve cada parte. Para volver a verlas:
+
+1. Entra en **Ayuda** (en el menú lateral).
+2. Abre la sección que quieras y toca «Ver el recorrido». En «Uso general del panel» está «Ver la bienvenida otra vez».
+
+Durante el recorrido puedes tocar «Saltar» en cualquier momento.
