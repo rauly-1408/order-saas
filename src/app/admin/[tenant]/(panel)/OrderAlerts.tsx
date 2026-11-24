@@ -160,7 +160,7 @@ export default function OrderAlerts({ tenant, canManage }: { tenant: string; can
 
   if (!visibleToast && !needsTap && !cancelToast && !showStock) return null;
   return (
-    <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[60] flex flex-col items-end gap-2 transition-[bottom] duration-300 sm:inset-x-auto sm:right-5 sm:bottom-5 [.has-savebar_&]:bottom-[max(112px,calc(env(safe-area-inset-bottom)+104px))]">
+    <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[60] flex flex-col items-end gap-2 transition-[bottom] duration-300 sm:inset-x-auto sm:right-5 sm:bottom-5 [.has-savebar_&]:bottom-[max(112px,calc(env(safe-area-inset-bottom)+104px))] [.has-fab_&]:bottom-[max(84px,calc(env(safe-area-inset-bottom)+84px))] sm:[.has-fab_&]:bottom-[88px] [.has-fab.has-savebar_&]:bottom-[max(184px,calc(env(safe-area-inset-bottom)+176px))]">
       {needsTap && (
         <button
           onClick={() => unlockAudio().then((ok) => { setUnlocked(ok); if (ok) playOrderChime(); })}
