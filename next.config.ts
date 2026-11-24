@@ -21,8 +21,9 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
-  // La letra del ticket (lib/receiptImage.tsx) se lee del disco al imprimir.
-  outputFileTracingIncludes: { "/**": ["./src/app/lib/fonts/**"] },
+  // La letra del ticket (lib/receiptImage.tsx) se lee del disco al imprimir, y
+  // el manual (docs/manual, lib/manual.ts) lo leen la página Ayuda y NORA.
+  outputFileTracingIncludes: { "/**": ["./src/app/lib/fonts/**", "./docs/manual/**"] },
   typescript: {
     // Los tipos generados por Next.js 16 para route handlers con params dinámicos
     // tienen un conflicto conocido con el strict mode. El código es correcto.

@@ -357,6 +357,17 @@ export default function AdminSidebar({
               Configuración
             </Link>
           )}
+          <Link
+            href={`/admin/${tenant}/ayuda`}
+            onClick={() => setOpen(false)}
+            className={`p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${pathname.startsWith(`/admin/${tenant}/ayuda`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"}`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`h-5 w-5 ${pathname.startsWith(`/admin/${tenant}/ayuda`) ? "text-white" : "text-[var(--p-muted)]"}`} aria-hidden>
+              <circle cx="12" cy="12" r="9" />
+              <path d="M9.5 9.5a2.5 2.5 0 015 .5c0 1.7-2.5 2-2.5 3.5M12 17h.01" />
+            </svg>
+            Ayuda
+          </Link>
           <InstallApp className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
           {ownBrand ? (
             <>

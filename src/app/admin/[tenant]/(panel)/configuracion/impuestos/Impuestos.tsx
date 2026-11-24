@@ -48,7 +48,7 @@ function ImpuestosForm({ f, dirty, setForm, save }: { f: TaxSettings; dirty: boo
           <Toggle checked={f.showOnReceipt} onChange={(v) => setForm({ ...f, showOnReceipt: v })} label="Mostrar «IVA incluido» en la confirmación del pedido" hint={`Ejemplo: en un pedido de 20,00 € → IVA incluido (${f.rate} %): ${euros(includedTax(2000, f.rate))}`} />
         </div>
       </Card>
-      <p className="text-xs text-[var(--p-muted)]">El desglose del IVA también aparece en Informes. La factura legal (si el cliente la pide) la emite tu programa de facturación.</p>
+      <p className="text-xs text-[var(--p-muted)]">El desglose del IVA también aparece en Informes. Si el cliente pide factura a su nombre, hazla en Facturas.</p>
     </div>
   );
 }

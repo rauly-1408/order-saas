@@ -7,6 +7,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/app/lib/prisma";
 import { AiError, claudeClient, toAiError } from "@/app/lib/anthropic";
 import { searchGuide } from "@/app/lib/assistantGuide";
+import { searchManual } from "@/app/lib/manual";
 import { buildReport } from "@/app/lib/reports";
 import { loadReportOrders } from "@/app/lib/reportsApi";
 import { readTax } from "@/app/lib/storePolicies";
@@ -100,7 +101,7 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: "como_se_hace",
     description:
-      "Preguntas frecuentes del panel: cómo se hace algo o dónde está (añadir un producto, horario, impresoras, usuarios, mesas, caja, promociones, facturas, VeriFactu, stock…). Devuelve los pasos con la ruta exacta del menú. Úsala SIEMPRE antes de explicar cómo hacer algo en el panel.",
+      "Manual de uso del panel: cómo se hace algo, dónde está o qué hace una función (carta, caja, pedidos, mesas, reservas, cocina, facturas, VeriFactu, clientes, promociones, colaboradores, informes, costes y stock, configuración, impresoras, usuarios, tienda online, uso sin conexión…). Devuelve los pasos con la ruta exacta del menú. Úsala SIEMPRE antes de explicar cómo hacer algo en el panel.",
     input_schema: obj({ pregunta: { type: "string", description: "Lo que quiere hacer, con sus palabras" } }, ["pregunta"]),
     strict: true,
   },
@@ -233,9 +234,16 @@ async function pedidosEnCurso(ctx: AssistantContext): Promise<ToolOut> {
 }
 
 function comoSeHace(pregunta: string): ToolOut {
+  const manual = searchManual(pregunta);
+  if (manual.length)
+    return {
+      text: manual
+        .map((e) => `[Manual · ${e.sectionTitle} · ${e.title}] (sección completa: Ayuda → ${e.sectionTitle})\n${e.body}`)
+        .join("\n\n"),
+    };
   const found = searchGuide(pregunta);
   if (!found.length)
-    return { text: "No está en la guía. Dilo con claridad y, si lo ves claro, indica el apartado del menú más probable (Día a día: Caja, Pedidos, Mesas, Reservas, Pantalla de cocina, Facturas · Carta · Clientes · Informes · Costes · Configuración) sin inventar botones." };
+    return { text: "No está en el manual. Dilo con claridad y, si lo ves claro, indica el apartado del menú más probable (Día a día: Caja, Pedidos, Mesas, Reservas, Pantalla de cocina, Facturas · Carta · Clientes · Informes · Costes · Configuración) sin inventar botones. Puede mirar Ayuda (el manual)." };
   return { text: found.map((e) => `${e.title}: ${e.answer}`).join("\n") };
 }
 
@@ -283,11 +291,13 @@ Cómo responder (lo más práctico posible):
 - Después, solo si aporta, UN siguiente paso concreto con la ruta exacta del panel (por ejemplo «Carta → Productos → toca el producto»).
 - Corto: 1 a 4 frases, o pasos numerados si son varios. Nada de tecnicismos. Español de España.
 - Si la pregunta es ambigua, elige la interpretación más útil y dilo en media frase («Te digo lo de hoy:»), en vez de devolver la pregunta.
+- Si te cuentan un PROBLEMA («no ve», «no imprime», «no suena», «no me deja», «no cuadra»), búscalo con como_se_hace y da directamente las 2 o 3 causas más habituales con su solución, en pasos, empezando por la más probable. Solo al final, si hace falta, pregunta UNA cosa concreta para afinar (por ejemplo «¿le sale la pantalla en blanco o no le aparecen los pedidos?»). Nunca respondas solo con «cuéntame más».
 - Si puedes resolverlo tú (agotar o reponer un producto), proponlo directamente con proponer_disponibilidad en lugar de explicar cómo se hace.
 
 Datos y límites:
 - Las cifras SOLO salen de las herramientas; nunca las inventes. Importes como los dan (1.234,50 €).
-- Para «cómo se hace» o «dónde está» usa como_se_hace y da esos pasos. No inventes botones ni pantallas que no salgan ahí.
+- Para «cómo se hace», «dónde está» o «qué hace…» usa como_se_hace (el manual) y da esos pasos, resumidos a lo esencial. No inventes botones ni pantallas que no salgan ahí.
+- Escribe siempre las rutas del panel en negrita con flechas y los nombres exactos del menú, por ejemplo **Carta → Productos** o **Configuración → Impresoras**: el chat las convierte en enlaces que llevan ahí. Si la explicación es larga, termina con «Más en **Ayuda → <sección>**».
 - No cambias nada por tu cuenta: los cambios los confirma el dueño con el botón que sale en el chat.
 - No opines sobre los precios que pone el restaurante; si te lo piden, da los datos.
 - Si la pregunta no tiene que ver con el restaurante o el panel, di amablemente que solo ayudas con eso.${ctx.learned ? `\n\n${ctx.learned}` : ""}`;
