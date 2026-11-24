@@ -10,7 +10,8 @@ const product = { findFirst: vi.fn(), findMany: vi.fn() };
 vi.mock("@/app/lib/prisma", () => ({ prisma: { product, ingredient: { findMany: vi.fn() }, order: { findMany: vi.fn(), count: vi.fn() } } }));
 vi.mock("@/app/lib/reportsApi", () => ({ loadReportOrders: vi.fn() }));
 
-const { periodRange, parseHistory, eur, askPanel, TOOLS } = await import("../assistant");
+const { periodRange, parseHistory, eur, askPanel, runTool, TOOLS } = await import("../assistant");
+const { searchGuide, normalize, GUIDE } = await import("../assistantGuide");
 const ctx = { tenantId: "t1", tenantName: "Demo", settings: {}, timeZone: "Europe/Madrid", today: "2026-11-20", seesTakings: true };
 
 describe("periodos del asistente", () => {
@@ -87,8 +88,38 @@ describe("bucle con Claude", () => {
     expect(create.mock.calls[1][0].messages.at(-1).content[0].content).toMatch(/no tiene permiso/);
   });
 
+  it("lleva al prompt lo aprendido y se presenta como NORA", async () => {
+    create.mockResolvedValueOnce({ stop_reason: "end_turn", content: [{ type: "text", text: "Hecho." }] });
+    await askPanel({ ...ctx, learned: "Lo aprendido: X" }, [{ role: "user", text: "hola" }]);
+    const sys = create.mock.calls[0][0].system as string;
+    expect(sys).toMatch(/Eres NORA/);
+    expect(sys).toMatch(/Lo aprendido: X$/);
+  });
+
   it("si la IA declina, da un aviso en español", async () => {
     create.mockResolvedValueOnce({ stop_reason: "refusal", content: [] });
     await expect(askPanel(ctx, [{ role: "user", text: "x" }])).rejects.toThrow(/no puede responder/);
+  });
+});
+
+describe("preguntas frecuentes (como_se_hace)", () => {
+  it("encuentra la entrada aunque se pregunte con otras palabras o sin tildes", () => {
+    expect(searchGuide("¿Cómo pongo un producto como agotado?")[0].id).toBe("agotar");
+    expect(searchGuide("como cambio el horario por vacaciones")[0].id).toBe("horario");
+    expect(searchGuide("la impresora de cocina no imprime")[0].id).toBe("impresora");
+    expect(searchGuide("quiero dar acceso a un camarero")[0].id).toBe("usuarios");
+    expect(searchGuide("donde subo el certificado de hacienda")[0].id).toBe("facturas");
+    expect(searchGuide("como hago un 2x1")[0].id).toBe("promos");
+  });
+  it("no se inventa nada si no hay entrada", async () => {
+    expect(searchGuide("quién ganó el partido ayer")).toEqual([]);
+    expect((await runTool(ctx, "como_se_hace", { pregunta: "quién ganó el partido ayer" })).text).toMatch(/No está en la guía/);
+  });
+  it("todas las entradas tienen id único y ruta del panel", () => {
+    expect(new Set(GUIDE.map((e) => e.id)).size).toBe(GUIDE.length);
+    for (const e of GUIDE) expect(e.answer.length).toBeGreaterThan(30);
+  });
+  it("normaliza tildes y signos", () => {
+    expect(normalize("¿Cuánto   llevo HOY?")).toBe("cuanto llevo hoy");
   });
 });

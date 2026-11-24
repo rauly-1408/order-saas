@@ -1,4 +1,4 @@
-// «Pregúntale al panel»: el dueño pregunta en lenguaje normal («¿cuánto llevo
+// NORA, «pregúntale al panel»: el dueño pregunta en lenguaje normal («¿cuánto llevo
 // hoy?», «¿qué se vende menos?», «agota la cochinita») y Claude responde con
 // los datos del restaurante. Claude solo LEE con estas herramientas; los
 // cambios (agotar o reponer un producto) los propone y el dueño los confirma
@@ -6,6 +6,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/app/lib/prisma";
 import { AiError, claudeClient, toAiError } from "@/app/lib/anthropic";
+import { searchGuide } from "@/app/lib/assistantGuide";
 import { buildReport } from "@/app/lib/reports";
 import { loadReportOrders } from "@/app/lib/reportsApi";
 import { readTax } from "@/app/lib/storePolicies";
@@ -18,7 +19,8 @@ export const MAX_QUESTION_CHARS = 500;
 
 export type ChatMessage = { role: "user" | "assistant"; text: string };
 export type PendingAction = { type: "set_available"; productId: string; productName: string; available: boolean };
-export type AssistantContext = { tenantId: string; tenantName: string; settings: unknown; timeZone: string; today: string; seesTakings: boolean };
+// learned: lo que NORA ha aprendido de este restaurante (ver assistantMemory.ts).
+export type AssistantContext = { tenantId: string; tenantName: string; settings: unknown; timeZone: string; today: string; seesTakings: boolean; learned?: string };
 
 // ── Periodos ────────────────────────────────────────────────────────────────
 export const PERIODS = ["hoy", "ayer", "7_dias", "30_dias", "este_mes", "mes_pasado"] as const;
@@ -93,6 +95,13 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
     name: "pedidos_en_curso",
     description: "Pedidos que están ahora en marcha (nuevos, en cocina, listos, en reparto) y mesas abiertas, con el que más tiempo lleva esperando.",
     input_schema: obj({}, []),
+    strict: true,
+  },
+  {
+    name: "como_se_hace",
+    description:
+      "Preguntas frecuentes del panel: cómo se hace algo o dónde está (añadir un producto, horario, impresoras, usuarios, mesas, caja, promociones, facturas, VeriFactu, stock…). Devuelve los pasos con la ruta exacta del menú. Úsala SIEMPRE antes de explicar cómo hacer algo en el panel.",
+    input_schema: obj({ pregunta: { type: "string", description: "Lo que quiere hacer, con sus palabras" } }, ["pregunta"]),
     strict: true,
   },
   {
@@ -223,6 +232,13 @@ async function pedidosEnCurso(ctx: AssistantContext): Promise<ToolOut> {
   };
 }
 
+function comoSeHace(pregunta: string): ToolOut {
+  const found = searchGuide(pregunta);
+  if (!found.length)
+    return { text: "No está en la guía. Dilo con claridad y, si lo ves claro, indica el apartado del menú más probable (Día a día: Caja, Pedidos, Mesas, Reservas, Pantalla de cocina, Facturas · Carta · Clientes · Informes · Costes · Configuración) sin inventar botones." };
+  return { text: found.map((e) => `${e.title}: ${e.answer}`).join("\n") };
+}
+
 async function proponerDisponibilidad(ctx: AssistantContext, productId: string, available: boolean): Promise<ToolOut> {
   const p = await prisma.product.findFirst({ where: { id: productId, tenantId: ctx.tenantId }, select: { id: true, name: true, isAvailable: true } });
   if (!p) return { text: "Ese producto no existe. Búscalo antes con buscar_producto." };
@@ -246,6 +262,8 @@ export async function runTool(ctx: AssistantContext, name: string, input: unknow
       return stockBajo(ctx);
     case "pedidos_en_curso":
       return pedidosEnCurso(ctx);
+    case "como_se_hace":
+      return comoSeHace(String(i.pregunta ?? ""));
     case "proponer_disponibilidad":
       return typeof i.producto_id === "string" && typeof i.disponible === "boolean"
         ? proponerDisponibilidad(ctx, i.producto_id, i.disponible)
@@ -257,16 +275,22 @@ export async function runTool(ctx: AssistantContext, name: string, input: unknow
 
 // ── Conversación ────────────────────────────────────────────────────────────
 function system(ctx: AssistantContext): string {
-  return `Eres el asistente del panel de NorApp del restaurante «${ctx.tenantName}». Hoy es ${ctx.today} (zona ${ctx.timeZone}).
-Respondes al dueño o al encargado, que suele estar en el local con el móvil o la tablet y poco tiempo.
+  return `Eres NORA, la asistente del panel de gestión del restaurante «${ctx.tenantName}». Hoy es ${ctx.today} (zona ${ctx.timeZone}).
+Te escribe el dueño o el encargado, normalmente en el local, con el móvil o la tablet y poco tiempo.
 
-Reglas:
-- Responde siempre en español de España, corto y claro: 1 a 4 frases o una lista breve. Nada de tecnicismos.
-- Los datos SOLO salen de las herramientas. Si no tienes una herramienta para algo, dilo y sugiere dónde mirarlo en el panel (Informes, Costes, Carta, Pedidos, Clientes…). Nunca inventes cifras.
-- Importes como los dan las herramientas (1.234,50 €).
-- No puedes cambiar nada por tu cuenta. Para agotar o reponer un producto usa proponer_disponibilidad: el panel le mostrará un botón para confirmarlo.
+Cómo responder (lo más práctico posible):
+- La primera frase ES la respuesta: el dato o lo que tiene que hacer. Sin saludos, sin repetir la pregunta, sin rodeos.
+- Después, solo si aporta, UN siguiente paso concreto con la ruta exacta del panel (por ejemplo «Carta → Productos → toca el producto»).
+- Corto: 1 a 4 frases, o pasos numerados si son varios. Nada de tecnicismos. Español de España.
+- Si la pregunta es ambigua, elige la interpretación más útil y dilo en media frase («Te digo lo de hoy:»), en vez de devolver la pregunta.
+- Si puedes resolverlo tú (agotar o reponer un producto), proponlo directamente con proponer_disponibilidad en lugar de explicar cómo se hace.
+
+Datos y límites:
+- Las cifras SOLO salen de las herramientas; nunca las inventes. Importes como los dan (1.234,50 €).
+- Para «cómo se hace» o «dónde está» usa como_se_hace y da esos pasos. No inventes botones ni pantallas que no salgan ahí.
+- No cambias nada por tu cuenta: los cambios los confirma el dueño con el botón que sale en el chat.
 - No opines sobre los precios que pone el restaurante; si te lo piden, da los datos.
-- Si la pregunta no tiene que ver con el restaurante, di amablemente que solo ayudas con el panel.`;
+- Si la pregunta no tiene que ver con el restaurante o el panel, di amablemente que solo ayudas con eso.${ctx.learned ? `\n\n${ctx.learned}` : ""}`;
 }
 
 export type AssistantReply = { reply: string; actions: PendingAction[] };

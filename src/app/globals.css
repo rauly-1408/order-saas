@@ -66,6 +66,15 @@ nav { scrollbar-width: none; }
 .p-page > *:nth-child(5) { animation-delay: 240ms; }
 .p-page > *:nth-child(n + 6) { animation-delay: 300ms; }
 
+/* Ventana que sale de un botón (burbuja del asistente): crece desde su esquina. */
+@keyframes p-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.94); }
+  to   { opacity: 1; transform: none; }
+}
+.p-pop {
+  animation: p-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* Entrada escalonada manual: style={{ "--i": n }} */
 .p-rise {
   animation: p-rise 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -191,7 +200,8 @@ summary {
 
 @media (prefers-reduced-motion: reduce) {
   .p-page > *,
-  .p-rise { animation: none; }
+  .p-rise,
+  .p-pop { animation: none; }
   .p-lift,
   .p-lift:hover,
   .p-press,

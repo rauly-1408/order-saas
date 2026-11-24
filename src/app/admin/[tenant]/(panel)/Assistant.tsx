@@ -1,22 +1,34 @@
 "use client";
 
 import { speechCtor, type Recognition } from "@/app/lib/speech";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { ChatMessage, PendingAction } from "@/app/lib/assistant";
 
-// «Pregúntale al panel»: el dueño pregunta (escribiendo o con el micro) y la IA
+// NORA («pregúntale al panel»): el dueño pregunta (escribiendo o con el micro) y la IA
 // responde con los datos del restaurante. Los cambios que propone (agotar o
-// reponer un producto) solo se hacen al tocar el botón. Se abre desde la barra
-// superior (móvil) o el menú lateral con el evento OPEN_EVENT. Ver docs/ASISTENTE.md
+// reponer un producto) solo se hacen al tocar el botón. Se abre con la burbuja
+// flotante de abajo a la derecha (como un chat de ayuda) o con el evento
+// OPEN_EVENT. En el ordenador la ventana sale de la burbuja y no tapa el panel;
+// en el móvil ocupa casi toda la pantalla. Cada respuesta se puede valorar
+// con 👍/👎 y las preguntas más hechas pasan a ser las sugerencias: así NORA
+// aprende de cada restaurante. Ver docs/ASISTENTE.md
 
 export const OPEN_EVENT = "norapp:asistente";
 export const openAssistant = () => window.dispatchEvent(new Event(OPEN_EVENT));
 
-type Turn = ChatMessage & { actions?: PendingAction[] };
+type Turn = ChatMessage & { actions?: PendingAction[]; questionId?: string | null };
+type Vote = "up" | "down";
 type ActionState = "idle" | "busy" | "done" | "error";
 
-const SUGGESTIONS = ["¿Cuánto llevo vendido hoy?", "¿Qué se ha vendido más esta semana?", "¿Qué ingredientes están bajo mínimos?", "¿Qué productos están agotados?"];
+// Pantallas con su propia barra abajo (cuenta de mesa, caja, cocina): ahí la
+// burbuja taparía botones, así que no se enseña.
+const NO_BUBBLE = ["/mesas", "/caja", "/cocina"];
+
+const noopSubscribe = () => () => {};
+
+const SUGGESTIONS = ["¿Cuánto llevo vendido hoy?", "¿Qué se ha vendido más esta semana?", "¿Qué ingredientes están bajo mínimos?", "¿Cómo pongo un producto como agotado?"];
 
 export function SparkIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -54,15 +66,38 @@ export default function Assistant({ tenant }: { tenant: string }) {
   const [error, setError] = useState("");
   const [listening, setListening] = useState(false);
   const [acts, setActs] = useState<Record<string, ActionState>>({});
+  const [votes, setVotes] = useState<Record<string, Vote>>({});
+  const [suggestions, setSuggestions] = useState<string[]>(SUGGESTIONS);
+  const loaded = useRef(false);
   const rec = useRef<Recognition | null>(null);
   const list = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const pathname = usePathname();
+  // En el servidor no se pinta nada; en el navegador, ya hidratado, sí.
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  const showBubble = !NO_BUBBLE.some((p) => pathname.startsWith(`/admin/${tenant}${p}`));
+
+  // Los avisos de pedidos (abajo a la derecha) suben para no tapar la burbuja.
+  useEffect(() => {
+    document.documentElement.classList.toggle("has-fab", showBubble);
+    return () => document.documentElement.classList.remove("has-fab");
+  }, [showBubble]);
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
     window.addEventListener(OPEN_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_EVENT, onOpen);
   }, []);
+
+  // Sugerencias aprendidas: lo que más se pregunta en este restaurante.
+  useEffect(() => {
+    if (!open || loaded.current) return;
+    loaded.current = true;
+    fetch(`/api/admin/${tenant}/assistant`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { suggestions?: string[] } | null) => d?.suggestions?.length && setSuggestions(d.suggestions))
+      .catch(() => {});
+  }, [open, tenant]);
 
   useEffect(() => {
     if (!open) return;
@@ -91,7 +126,7 @@ export default function Assistant({ tenant }: { tenant: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next.map(({ role, text }) => ({ role, text })) }),
       }).catch(() => null);
-      const data = (await res?.json().catch(() => ({}))) as { reply?: string; actions?: PendingAction[]; error?: string } | undefined;
+      const data = (await res?.json().catch(() => ({}))) as { reply?: string; actions?: PendingAction[]; questionId?: string | null; error?: string } | undefined;
       setBusy(false);
       if (!res?.ok || !data?.reply) {
         setError(data?.error ?? "Sin conexión. Revisa internet e inténtalo de nuevo.");
@@ -99,7 +134,7 @@ export default function Assistant({ tenant }: { tenant: string }) {
         setDraft(q);
         return;
       }
-      setTurns([...next, { role: "assistant", text: data.reply, actions: data.actions }]);
+      setTurns([...next, { role: "assistant", text: data.reply, actions: data.actions, questionId: data.questionId }]);
     },
     [busy, tenant, turns]
   );
@@ -108,6 +143,12 @@ export default function Assistant({ tenant }: { tenant: string }) {
     setActs((s) => ({ ...s, [a.productId]: "busy" }));
     const res = await fetch(`/api/admin/${tenant}/products/${a.productId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isAvailable: a.available }) }).catch(() => null);
     setActs((s) => ({ ...s, [a.productId]: res?.ok ? "done" : "error" }));
+  }
+
+  function vote(questionId: string, v: Vote) {
+    if (votes[questionId]) return;
+    setVotes((s) => ({ ...s, [questionId]: v }));
+    void fetch(`/api/admin/${tenant}/assistant/valorar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ questionId, helpful: v === "up" }) }).catch(() => {});
   }
 
   function toggleMic() {
@@ -133,27 +174,54 @@ export default function Assistant({ tenant }: { tenant: string }) {
     r.start();
   }
 
-  if (!open || typeof document === "undefined") return null;
+  // Burbuja: en el móvil se esconde con la ventana abierta (la ventana ocupa la
+  // pantalla); en el ordenador se queda y pasa a ser la ✕ para cerrar.
+  const bubble = showBubble && (
+    <button
+      type="button"
+      onClick={() => setOpen((o) => !o)}
+      aria-label={open ? "Cerrar NORA" : "Pregúntale a NORA"}
+      aria-expanded={open}
+      className={`p-press fixed right-4 bottom-[max(16px,env(safe-area-inset-bottom))] z-[65] h-14 items-center justify-center gap-2 rounded-full bg-[var(--p-brand)] text-white shadow-[0_12px_30px_-8px_rgba(0,0,0,0.45)] ring-1 ring-black/5 transition-[bottom] duration-300 sm:right-5 sm:bottom-5 [.has-savebar_&]:bottom-[max(112px,calc(env(safe-area-inset-bottom)+104px))] ${open ? "hidden w-14 sm:flex" : "flex w-14 lg:w-auto lg:px-5"}`}
+    >
+      {open ? (
+        <svg viewBox="0 0 12 12" className="h-4 w-4" aria-hidden>
+          <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      ) : (
+        <>
+          <SparkIcon className="h-6 w-6" />
+          <span className="hidden text-[15px] font-semibold tracking-wide lg:inline">NORA</span>
+        </>
+      )}
+    </button>
+  );
+
+  if (!mounted) return null;
+  const host = document.querySelector(".panel") ?? document.body;
+  if (!open) return bubble ? createPortal(bubble, host) : null;
   // Solo se pinta en el navegador (cerrado al cargar), así que se puede mirar aquí.
   const canSpeak = !!speechCtor();
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-end justify-center lg:items-center lg:p-6" role="dialog" aria-modal="true" aria-label="Pregúntale al panel">
-      <button type="button" aria-label="Cerrar" onClick={() => setOpen(false)} className="absolute inset-0 bg-black/45 backdrop-blur-[2px]" />
-      <div className="relative flex h-[88dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.45)] lg:h-[80dvh] lg:max-w-[520px] lg:rounded-[24px]">
-        <div aria-hidden className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-black/15 lg:hidden" />
+    <>
+    {bubble}
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:pointer-events-none sm:inset-auto sm:right-5 sm:bottom-[92px] [.has-savebar_&]:sm:bottom-[188px]" role="dialog" aria-modal="false" aria-label="NORA, tu asistente">
+      <button type="button" aria-label="Cerrar" onClick={() => setOpen(false)} className="absolute inset-0 bg-black/45 backdrop-blur-[2px] sm:hidden" />
+      <div className="p-pop relative flex h-[88dvh] w-full origin-bottom-right flex-col overflow-hidden rounded-t-[24px] bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.45)] ring-1 ring-black/5 sm:pointer-events-auto sm:h-[min(640px,calc(100dvh-120px))] sm:w-[400px] sm:rounded-[24px]">
+        <div aria-hidden className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-black/15 sm:hidden" />
         <div className="flex items-center justify-between gap-3 px-5 pt-3 pb-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--p-brand)] text-white">
               <SparkIcon className="h-[18px] w-[18px]" />
             </span>
             <div className="min-w-0">
-              <h2 className="text-[17px] font-semibold leading-tight">Pregúntale al panel</h2>
-              <p className="truncate text-xs text-[var(--p-muted)]">Ventas, carta, stock y pedidos</p>
+              <h2 className="text-[17px] font-semibold leading-tight tracking-wide">NORA</h2>
+              <p className="truncate text-xs text-[var(--p-muted)]">Tu asistente · ventas, carta, stock y cómo se hace</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {turns.length > 0 && (
-              <button type="button" onClick={() => { setTurns([]); setError(""); setActs({}); }} className="rounded-full px-3 py-2 text-xs font-semibold text-[var(--p-muted)] hover:bg-black/[0.05]">
+              <button type="button" onClick={() => { setTurns([]); setError(""); setActs({}); setVotes({}); }} className="rounded-full px-3 py-2 text-xs font-semibold text-[var(--p-muted)] hover:bg-black/[0.05]">
                 Nueva
               </button>
             )}
@@ -168,15 +236,16 @@ export default function Assistant({ tenant }: { tenant: string }) {
         <div ref={list} className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-[var(--p-bg)] px-4 py-4" aria-live="polite">
           {turns.length === 0 && !busy && (
             <div className="pt-2">
-              <p className="px-1 text-sm text-[var(--p-muted)]">Pregunta como se lo dirías a tu encargado. Por ejemplo:</p>
+              <p className="px-1 text-[15px] font-semibold">Hola, soy NORA.</p>
+              <p className="mt-0.5 px-1 text-sm text-[var(--p-muted)]">Pregúntame como se lo dirías a tu encargado: tus números o cómo se hace algo en el panel.</p>
               <div className="mt-3 grid gap-2">
-                {SUGGESTIONS.map((s) => (
+                {suggestions.map((s) => (
                   <button key={s} type="button" onClick={() => void ask(s)} className="p-press rounded-2xl bg-[var(--p-surface)] px-4 py-3 text-left text-[15px] font-medium shadow-sm ring-1 ring-[var(--p-line)] hover:ring-[var(--p-brand)]">
                     {s}
                   </button>
                 ))}
               </div>
-              <p className="mt-4 px-1 text-xs text-[var(--p-muted)]">También puede agotar o volver a poner a la venta un producto: te lo propondrá y lo confirmas tú.</p>
+              <p className="mt-4 px-1 text-xs text-[var(--p-muted)]">También puedo agotar o volver a poner a la venta un producto: te lo propongo y lo confirmas tú. Marca 👍 o 👎 en mis respuestas y aprenderé qué te sirve.</p>
             </div>
           )}
           {turns.map((t, i) =>
@@ -204,6 +273,22 @@ export default function Assistant({ tenant }: { tenant: string }) {
                     </div>
                   );
                 })}
+                {t.questionId && (
+                  <div className="mt-2 -mb-1 flex items-center gap-1 text-[var(--p-muted)]">
+                    {votes[t.questionId] ? (
+                      <p className="text-xs">{votes[t.questionId] === "up" ? "¡Gracias! Lo tendré en cuenta." : "Gracias. La próxima vez lo responderé mejor."}</p>
+                    ) : (
+                      <>
+                        <span className="mr-1 text-xs">¿Te ha servido?</span>
+                        {(["up", "down"] as const).map((v) => (
+                          <button key={v} type="button" onClick={() => vote(t.questionId!, v)} aria-label={v === "up" ? "Me ha servido" : "No me ha servido"} className="p-press flex h-9 w-9 items-center justify-center rounded-full text-base hover:bg-black/[0.05]">
+                            {v === "up" ? "👍" : "👎"}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )
           )}
@@ -254,7 +339,8 @@ export default function Assistant({ tenant }: { tenant: string }) {
           </button>
         </form>
       </div>
-    </div>,
-    document.querySelector(".panel") ?? document.body
+    </div>
+    </>,
+    host
   );
 }

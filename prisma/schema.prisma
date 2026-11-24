@@ -236,10 +236,11 @@ model Tenant {
   purchaseOrders PurchaseOrder[]
   priceChanges   IngredientPriceChange[]
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  priceLists      PriceList[]
-  verifactuSender VerifactuSender? // VeriFactu: certificado y envío a la AEAT
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  priceLists         PriceList[]
+  verifactuSender    VerifactuSender? // VeriFactu: certificado y envío a la AEAT
+  assistantQuestions AssistantQuestion[] // NORA: lo que se pregunta y si la respuesta sirvió
 }
 
 // ─────────────────────────────────────────────
@@ -1569,4 +1570,25 @@ model VerifactuSender {
   lastSentAt  DateTime?
   lastError   String?
   updatedAt   DateTime  @updatedAt
+}
+
+// NORA (asistente del panel) aprende de lo que pregunta cada restaurante:
+// las preguntas más hechas pasan a ser sus sugerencias y las respuestas con
+// 👍/👎 le sirven de guía en las siguientes. Una fila por pregunta (normalizada).
+model AssistantQuestion {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  key         String // pregunta normalizada (minúsculas, sin tildes ni signos)
+  text        String // la última forma en que se preguntó
+  reply       String? // la última respuesta
+  likedReply  String? // la última respuesta marcada con 👍
+  count       Int      @default(1)
+  helpful     Int      @default(0)
+  unhelpful   Int      @default(0)
+  lastAskedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@unique([tenantId, key])
+  @@index([tenantId, count])
 }
