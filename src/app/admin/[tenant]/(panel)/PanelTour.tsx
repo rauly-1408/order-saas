@@ -9,7 +9,8 @@ import { markTourSeen, tourFor, tourSeen, WELCOME, type Tour, type TourStep } fr
 // Recorrido guiado: la primera vez que alguien entra al panel sale la
 // bienvenida y, la primera vez que entra en cada sección, su recorrido. Una
 // nube señala cada parte (el resto se oscurece) con «Atrás», «Siguiente» y
-// «Saltar». Se recuerda en el dispositivo; se repite desde Ayuda
+// «Saltar» (solo ese). Cada recorrido sale una sola vez
+// (se da por visto al salir) y se recuerda en el dispositivo; se repite desde Ayuda
 // («Ver el recorrido» → ?recorrido=1). Pasos en tourSteps.ts. Ver docs/RECORRIDO.md
 
 const GAP = 12; // separación entre la zona señalada y la nube
@@ -56,9 +57,10 @@ export default function PanelTour({ tenant }: { tenant: string }) {
   // Al entrar en una sección: ¿toca recorrido? Espera a que la pantalla esté lista.
   useEffect(() => {
     const section = tourFor(pathname, tenant);
-    const forced = new URLSearchParams(window.location.search).get("recorrido") === "1";
+    const param = new URLSearchParams(window.location.search).get("recorrido");
+    const forced = param === "1";
     const queue: Tour[] = [];
-    if (!tourSeen(WELCOME.key)) queue.push(WELCOME);
+    if (param === "bienvenida" || (!forced && !tourSeen(WELCOME.key))) queue.push(WELCOME);
     if (section && (forced || !tourSeen(section.key))) queue.push(section);
     if (!queue.length) return;
     let tries = 0;
@@ -71,6 +73,8 @@ export default function PanelTour({ tenant }: { tenant: string }) {
       // Hace falta que se vea al menos un paso con su elemento (la pantalla ya cargó).
       if (!steps.some((s) => s.target)) return;
       window.clearInterval(timer);
+      // Se da por visto al salir: aunque se cambie de página a medias, no se repite.
+      markTourSeen(first.key);
       setI(0);
       setRun({ tour: first, steps, then: second });
     }, 700);
@@ -80,15 +84,19 @@ export default function PanelTour({ tenant }: { tenant: string }) {
     };
   }, [pathname, tenant]);
 
-  const finish = useCallback(() => {
+  // skip («Saltar»): solo se salta este recorrido; el que venía detrás en la
+  // misma página no sale ahora (saldrá la próxima vez) y el resto de secciones
+  // siguen enseñando el suyo la primera vez.
+  const finish = useCallback((skip = false) => {
     if (!run) return;
     markTourSeen(run.tour.key);
-    const then = run.then;
+    const then = skip ? undefined : run.then;
     setRun(null);
     setPos(null);
     if (then) {
       const steps = then.steps.filter((s) => !s.target || findTarget(s.target));
       if (steps.length) {
+        markTourSeen(then.key);
         setI(0);
         setRun({ tour: then, steps });
       }
@@ -157,7 +165,7 @@ export default function PanelTour({ tenant }: { tenant: string }) {
     if (!run) return;
     const onMove = () => place();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") finish();
+      if (e.key === "Escape") finish(true);
       else if (e.key === "ArrowRight") setI((n) => (n + 1 < run.steps.length ? n + 1 : n));
       else if (e.key === "ArrowLeft") setI((n) => Math.max(0, n - 1));
     };
@@ -214,12 +222,16 @@ export default function PanelTour({ tenant }: { tenant: string }) {
           <h2 className="mt-0.5 text-[17px] font-semibold leading-snug">{step.title}</h2>
           <p className="mt-1 text-[15px] leading-relaxed text-[var(--p-muted)]">{step.text}</p>
           {last && (
-            <Link href={`/admin/${tenant}/ayuda#${run.tour.manual}`} onClick={finish} className="mt-2 inline-block text-sm font-semibold text-[var(--p-brand)] underline underline-offset-2">
+            <Link href={`/admin/${tenant}/ayuda#${run.tour.manual}`} onClick={() => finish()} className="mt-2 inline-block text-sm font-semibold text-[var(--p-brand)] underline underline-offset-2">
               Más en Ayuda ↗
             </Link>
           )}
           <div className="mt-4 flex items-center gap-2">
-            <button type="button" onClick={finish} className="min-h-11 rounded-full px-3 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]">
+            <button
+              type="button"
+              onClick={() => finish(true)}
+              className="min-h-11 rounded-full px-3 text-sm font-medium text-[var(--p-muted)] hover:bg-black/[0.05]"
+            >
               Saltar
             </button>
             <span className="flex-1" />
