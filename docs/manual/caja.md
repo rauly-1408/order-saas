@@ -26,13 +26,13 @@ En **Caja**, a la derecha (debajo en el móvil), «Vendido hoy»: el total, los 
 
 Debajo, «Tickets de hoy»: filtra por «Sin cobrar», «Efectivo», «Datáfono», «Bizum» o «Cancelados», busca por nombre, teléfono o número, y con ‹ › mira otros días. Toca un ticket para verlo, reimprimirlo o cambiar cómo pagó.
 
-## Tomar un pedido (para llevar, comer aquí o por teléfono)
+## Tomar un pedido (para llevar o a domicilio)
 
 1. Toca «＋ Nuevo pedido» (en Caja o en Pedidos): se abre encima, sin cambiar de página.
-2. Elige arriba «Para llevar», «Comer aquí» o «📞 Por teléfono».
-3. Por teléfono: elige «Lo recoge» o «A domicilio» y escribe el teléfono del cliente (y la dirección si es a domicilio). Sin esos datos no se puede cobrar ni enviar.
-4. Toca los productos, «Cobrar» y elige cómo paga. Al terminar, «✕ Cerrar».
-
+2. Elige arriba «🛍 Para llevar» o «🛵 A domicilio» (para comer aquí, usa Mesas).
+3. **Para llevar:** se cobra en el momento (hace falta la caja abierta). Si quieres, pon su teléfono en «＋ Cliente, cupón o nota».
+4. **A domicilio:** escribe el teléfono del cliente y la dirección (si ya ha pedido, se rellenan solos). Sin esos datos no se puede cobrar ni enviar. No hace falta la caja: se cobra al entregar (o ya, si te paga por Bizum).
+5. Toca los productos y «Cobrar». Al terminar, «✕ Cerrar».
 ## Añadir una nota, un descuento o quitar un producto del pedido
 
 1. En el pedido, toca el nombre de la línea.

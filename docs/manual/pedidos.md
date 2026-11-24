@@ -5,12 +5,12 @@ Es el tablero donde llegan y se gestionan todos los pedidos: los de tu tienda on
 **Dónde:** Menú → Pedidos. Lo ven todos los puestos. Cocina y Barra ven solo los platos de sus secciones («Vista de cocina» o «Vista de barra») y no cobran ni cancelan.
 
 
-## Tomar un pedido nuevo (en el local o por teléfono)
+## Tomar un pedido nuevo (para llevar o a domicilio)
 
 1. En Pedidos, arriba, toca «＋ Nuevo pedido»: se abre encima, sin salir del tablero.
-2. Elige «Para llevar», «Comer aquí» o «📞 Por teléfono».
-3. Por teléfono: «Lo recoge» o «A domicilio», y escribe el teléfono (si ya ha pedido, se rellenan sus datos) y la dirección si es a domicilio. Sin ellos no se puede cobrar ni enviar.
-4. Toca los productos y «Cobrar». Por teléfono, por defecto «Pagar al recoger». En el local hace falta la caja abierta.
+2. Elige «🛍 Para llevar» o «🛵 A domicilio» (para comer aquí, usa Mesas).
+3. Para llevar: se cobra en el momento y hace falta la caja abierta.
+4. A domicilio: teléfono y dirección obligatorios (si el cliente ya ha pedido, se rellenan); sin caja; se cobra al entregar (o ya, por Bizum). Sale en el tablero como «Teléfono».
 5. Al terminar, «✕ Cerrar»: el pedido ya está en el tablero.
 ## ¿Cómo funciona el tablero?
 
