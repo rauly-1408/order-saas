@@ -49,6 +49,7 @@ export function panelCssVars(brand: PanelBrand): CSSProperties {
     "--p-faint": "#a1a1a6",
     "--p-line": "rgba(0, 0, 0, 0.08)",
     "--p-brand": brand.brand,
+    "--p-on-brand": readableOn(brand.brand), // texto legible sobre --p-brand
     "--p-brand-strong": strong,
     "--p-on-brand-strong": readableOn(strong), // texto legible sobre --p-brand-strong
     "--p-brand-soft": mix(brand.brand, "#ffffff", 0.88),
