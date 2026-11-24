@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { modifierLabels } from "@/app/lib/menuOptions";
 import Link from "next/link";
+import NewOrder, { type NewOrderProps } from "../NewOrder";
 import { useRouter } from "next/navigation";
 import OrderCard, { ALL_PERMS, type Perms } from "./OrderCard";
 import PaidWithChooser, { type PaidWith } from "./PaidWith";
@@ -32,7 +33,16 @@ const STORE_FILTER_KEY = "panel-store-filter";
 
 const DEFAULT_ESTIMATES: Estimates = { deliveryMinutes: 45, pickupMinutes: 20 };
 
-export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: string; perms?: Perms }) {
+export default function AdminPanel({ tenant, perms = ALL_PERMS, newOrder = null }: { tenant: string; perms?: Perms; newOrder?: NewOrderProps | null }) {
+  // «＋ Nuevo pedido» encima del tablero, sin cambiar de página (?nuevo=telefono lo abre por teléfono).
+  const [composer, setComposer] = useState<null | { phone: boolean }>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("nuevo");
+    if (q && newOrder) {
+      setComposer({ phone: q === "telefono" });
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [newOrder]);
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [history, setHistory] = useState<Order[]>([]);
@@ -274,11 +284,11 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Los pedidos que llegan por teléfono se apuntan aquí (no en la Caja) */}
-          {!perms.station && (
-            <Link href={`/admin/${tenant}/pedidos/telefono`} className="p-press flex min-h-11 items-center gap-1.5 rounded-full bg-[var(--p-brand)] px-4 text-sm font-semibold text-[var(--p-on-brand)] shadow-sm">
-              <span aria-hidden>📞</span> ＋ Pedido por teléfono
-            </Link>
+          {/* Todos los pedidos se apuntan aquí: en el local o por teléfono */}
+          {newOrder && (
+            <button type="button" onClick={() => setComposer({ phone: false })} className="p-press flex min-h-11 items-center gap-1.5 rounded-full bg-[var(--p-brand)] px-5 text-sm font-semibold text-[var(--p-on-brand)] shadow-sm">
+              ＋ Nuevo pedido
+            </button>
           )}
           <button
             onClick={toggleSound}
@@ -503,6 +513,17 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
             )}
           </details>
         </div>
+      )}
+      {composer && newOrder && (
+        <NewOrder
+          tenant={tenant}
+          {...newOrder}
+          startPhone={composer.phone}
+          onClose={() => {
+            setComposer(null);
+            void loadOrders();
+          }}
+        />
       )}
     </div>
   );

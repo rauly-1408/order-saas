@@ -1,6 +1,6 @@
 # Caja
 
-> **Pedido por teléfono (2026-11-24):** ya no se apunta en la Caja sino en Pedidos → «＋ Pedido por teléfono» (`/admin/[tenant]/pedidos/telefono`): la misma pantalla (`CajaClient` con `phoneMode`), sin caja (no exige abrirla; cobro por defecto «al recoger»), con el teléfono a la vista, sin «Comer aquí», sus propios pedidos en espera y `source: PHONE`. Lo puede usar quien tenga Pedidos aunque no tenga Caja. En la Caja ya no se pregunta «¿Cómo llega?»: todo es «Mostrador». (pedidos en mostrador y por teléfono)
+> **Caja = el dinero (2026-11-24).** La página Caja (`CajaPanel.tsx`) es el control del dinero: estado con botones grandes («Abrir caja»; abierta: «+ Entra dinero», «− Sale dinero», «Cerrar caja», «Ver movimientos y cierre parcial»), lo que debería haber en el cajón y lo vendido del día (`CajaDia` en línea). Los pedidos se toman con «＋ Nuevo pedido» (Caja o Pedidos), que abre encima la pantalla de pedido (`NewOrder.tsx` → `CajaClient`): «Para llevar», «Comer aquí» o «📞 Por teléfono» (Lo recoge / A domicilio; teléfono obligatorio y dirección a domicilio; sin caja; cobro por defecto al recoger). En el local hace falta la caja abierta. Permisos: en el local, puesto con Caja; por teléfono, con Pedidos. `/pedidos/telefono` redirige a `/pedidos?nuevo=telefono`.
 
 Panel → **Caja**. La usan el gerente y el rol «Pedidos». Sirve para que el restaurante trabaje solo con nuestro panel aunque no tenga TPV: toma el pedido en el mostrador o por teléfono, lo cobra y lo manda a cocina al mismo tablero que los pedidos online.
 

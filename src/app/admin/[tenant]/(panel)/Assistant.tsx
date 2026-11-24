@@ -25,7 +25,7 @@ type ActionState = "idle" | "busy" | "done" | "error";
 
 // Pantallas con su propia barra abajo (cuenta de mesa, caja, cocina): ahí la
 // burbuja taparía botones, así que no se enseña.
-const NO_BUBBLE = ["/mesas", "/caja", "/cocina", "/pedidos/telefono"];
+const NO_BUBBLE = ["/mesas", "/caja", "/cocina"];
 
 const noopSubscribe = () => () => {};
 
@@ -164,7 +164,7 @@ export default function Assistant({ tenant }: { tenant: string }) {
       onClick={() => setOpen((o) => !o)}
       aria-label={open ? "Cerrar NORA" : "Pregúntale a NORA"}
       aria-expanded={open}
-      className={`p-press fixed right-4 bottom-[max(16px,env(safe-area-inset-bottom))] z-[65] h-14 items-center justify-center gap-2 rounded-full bg-[var(--p-brand)] text-white shadow-[0_12px_30px_-8px_rgba(0,0,0,0.45)] ring-1 ring-black/5 transition-[bottom] duration-300 sm:right-5 sm:bottom-5 [.has-savebar_&]:bottom-[max(112px,calc(env(safe-area-inset-bottom)+104px))] ${open ? "hidden w-14 sm:flex" : "flex w-14 lg:w-auto lg:px-5"}`}
+      className={`p-press fixed right-4 [.pedido-abierto_&]:!hidden bottom-[max(16px,env(safe-area-inset-bottom))] z-[65] h-14 items-center justify-center gap-2 rounded-full bg-[var(--p-brand)] text-white shadow-[0_12px_30px_-8px_rgba(0,0,0,0.45)] ring-1 ring-black/5 transition-[bottom] duration-300 sm:right-5 sm:bottom-5 [.has-savebar_&]:bottom-[max(112px,calc(env(safe-area-inset-bottom)+104px))] ${open ? "hidden w-14 sm:flex" : "flex w-14 lg:w-auto lg:px-5"}`}
     >
       {open ? (
         <svg viewBox="0 0 12 12" className="h-4 w-4" aria-hidden>
