@@ -75,8 +75,8 @@ export const GUIDE: GuideEntry[] = [
   {
     id: "caja",
     title: "Caja: abrir, cerrar y cuadrar",
-    keys: ["caja", "cierre de caja", "arqueo", "cuadrar", "efectivo", "abrir caja", "fondo", "z"],
-    answer: "Menú → Caja: «Abrir caja» con el fondo, apuntas entradas y salidas de efectivo y al final «Cerrar caja», contando billetes y monedas. Si algo no cuadra, el cierre te enseña la diferencia.",
+    keys: ["caja", "cierre de caja", "arqueo", "cuadrar", "efectivo", "abrir caja", "fondo", "z", "x", "turno", "cierre de turno", "cierre del dia", "prestar caja", "dejar la caja"],
+    answer: "Menú → Caja: «Abrir caja» con el fondo y apuntas entradas y salidas. En cada cambio de turno, «Cerrar turno (X)»: cuentas el cajón y, si no cuadra, escribes una nota. Al final, el encargado o el gerente hace «Cerrar caja del día (Z)» y sale el resumen con cada turno. Si falta el encargado, puede dejar la caja a un camarero en Caja → «Dejar la caja a otra persona».",
   },
   {
     id: "pedido-manual",

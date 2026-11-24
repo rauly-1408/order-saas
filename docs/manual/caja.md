@@ -1,8 +1,8 @@
 # Caja
 
-El dinero del local: abrir y cerrar la caja, lo que entra y sale del cajón y lo vendido en el día.
+El dinero del local: abrir la caja, cerrar cada turno (X), cerrar el día (Z), lo que entra y sale del cajón y lo vendido en el día.
 
-**Dónde:** Menú → Caja (gerente, encargado y el puesto de caja). Los pedidos se toman con «＋ Nuevo pedido», aquí o en Pedidos.
+**Dónde:** Menú → Caja (gerente, encargado y el puesto de caja; un camarero, solo si el encargado o el gerente le deja la caja). Los pedidos se toman con «＋ Nuevo pedido», aquí o en Pedidos.
 
 ## Abrir la caja (obligatorio antes de vender en el local)
 
@@ -10,16 +10,40 @@ El dinero del local: abrir y cerrar la caja, lo que entra y sale del cajón y lo
 2. Toca «Abrir caja» y pon con cuánto efectivo empiezas (aunque sea 0): escríbelo o toca «▸ Contar por billetes y monedas».
 3. Toca «Abrir caja». Ya puedes vender en el local.
 
-## Cerrar la caja al final del día
+## Cerrar el turno (informe X)
 
-1. En **Caja**, toca el botón rojo «Cerrar caja y contar».
-2. Cuenta el efectivo del cajón (todo, incluido el fondo): escribe el total o cuéntalo por billetes y monedas.
-3. Toca «Cerrar caja» y confirma. Verás si cuadra, sobra o falta.
-4. Toca «🖨 Imprimir el cierre» para sacar el informe de cierre (si hay impresora de tickets también sale solo al cerrar).
+Cuando alguien acaba su turno y entra otro (Juan se va a las 4 y entra Ana a las 5), se cuenta el cajón para que quede claro qué dinero había con cada uno.
+1. En **Caja**, toca «Cerrar turno (X)».
+2. Cuenta el efectivo del cajón: escribe el total o cuéntalo por billetes y monedas.
+3. Toca «Cerrar el turno» y confirma.
+4. Si no cuadra, te pide una **nota obligatoria** explicando por qué (un vale, un error de cambio…). Vuelve a contar o escribe la nota y toca «Guardar con la nota».
+5. Sale el ticket del turno (X) si hay impresora. El siguiente turno empieza con lo que has contado.
+Lo puede hacer cualquiera con acceso a Caja. Queda apuntado quién lo hizo, a qué hora y si cuadró.
 
-## Ver o imprimir el cierre de caja de otro día
+## Cerrar la caja del día (informe Z)
 
-En **Caja**, abajo, «Cierres de caja»: cada cierre con su fecha, horas, quién cerró, lo vendido y si cuadró. Tócalo y verás todo el informe: ventas por forma de pago, número de pedidos, ticket medio, base imponible e IVA, propinas, descuentos, cancelados y devoluciones, el efectivo del cajón (fondo, ventas en efectivo, entradas, salidas, lo que debía haber, lo contado y la diferencia) y quién abrió y cerró. Puedes imprimirlo en la impresora de tickets («🖨 Imprimir ticket») o en el ordenador («🖨 En este ordenador»). Se guardan los cierres del último mes.
+Solo el encargado o el gerente (o a quien se lo dejen).
+1. En **Caja**, toca el botón rojo «Cerrar caja del día (Z)». Cierra el último turno y el día.
+2. Cuenta el cajón igual que en un turno. Si no cuadra, la nota es obligatoria.
+3. Verás si el turno cuadró y el descuadre del día («Día con cuadre perfecto» si todo cuadró).
+4. Toca «🖨 Imprimir resumen» o «🖨 Imprimir detallado». El resumen (sale solo al cerrar si hay impresora) lleva cada turno con su hora, quién, el efectivo, si cuadró y su nota; los totales por forma de pago, el fondo de apertura, el IVA, las invitaciones y el descuadre del día. El detallado añade el desglose de cada turno.
+
+## Dejar la caja a un camarero
+
+Si el encargado falta (un accidente, un imprevisto) y un camarero tiene que llevar la caja, que lo haga con **su propio usuario**: así queda apuntado quién abrió, quién cerró cada turno y quién invitó.
+1. El encargado o el gerente entra en **Caja** y abre «Dejar la caja a otra persona».
+2. Toca «Dejar la caja» junto al camarero. Si también tiene que cerrar el día, marca «También el cierre del día (Z)».
+3. El camarero ya ve Caja en su menú: puede abrirla y cerrar turnos. Cuenta a ciegas: no ve lo recaudado.
+4. Se quita sola al cerrar el día (o a las 14 horas). Para quitarla antes, «Quitar».
+En la pantalla de caja compartida del local, con el usuario del encargado abierto, cualquiera puede atender y cobrar; esto es solo para abrir y cerrar con su nombre.
+
+## Ver o imprimir el cierre de otro día
+
+En **Caja**, abajo, «Cierres de caja»: cada día cerrado con sus horas, cuántos turnos tuvo, quién cerró, lo vendido y si cuadró. Tócalo y verás:
+- **Turnos:** cada X con su hora, quién, las ventas, el efectivo contado, si cuadró y su nota. «Ver detalle por turno» añade las formas de pago, entradas y salidas, cancelados y las invitaciones con quién las hizo; desde ahí puedes imprimir un turno.
+- **Ventas del día:** por forma de pago, pedidos, ticket medio, base imponible e IVA, propinas, descuentos, invitaciones y cancelados.
+- **Efectivo:** fondo de apertura, ventas en efectivo, entradas, salidas, lo contado al cerrar y el descuadre del día.
+Imprímelo en la impresora de tickets («🖨 Imprimir resumen» o «🖨 Imprimir detallado») o en el ordenador («🖨 En este ordenador»). Se guardan los cierres del último mes.
 
 ## Apuntar dinero que entra o sale del cajón
 
@@ -63,11 +87,11 @@ Los productos con opciones o los menús abren su hoja para elegir; los sencillos
 Solo quien tiene el permiso «Ve lo recaudado» ve lo que debería haber, la diferencia y los cierres anteriores. Sin él, cierras igual y verás «Recuento guardado… El administrador verá si cuadra».
 El gerente puede dar el permiso en Configuración → Usuarios y permisos.
 
-## Imprimir un cierre parcial sin cerrar la caja
+## Imprimir cómo va la caja sin cerrar nada
 
-1. En **Caja**, con la caja abierta, toca «Movimientos y cierre parcial».
-2. Toca «Imprimir cierre parcial». Sale en la impresora con las ventas y el efectivo esperado hasta ahora; la caja sigue abierta.
-Solo aparece a quien tiene «Ve lo recaudado». Si no hay impresora de tickets, las cifras de la hoja son el cierre parcial.
+1. En **Caja**, con la caja abierta, toca «Movimientos e informe de cómo va».
+2. Toca «Imprimir cómo va». Sale con las ventas y el efectivo esperado hasta ahora; no cierra el turno.
+Solo aparece a quien tiene «Ve lo recaudado». Para el cambio de turno usa «Cerrar turno (X)».
 
 ## Buscar un pedido antiguo, reimprimir el ticket o cambiar cómo pagó
 
@@ -101,13 +125,21 @@ Abajo verás «N envíos guardados sin conexión». Al volver la conexión se en
 ## No me deja vender en el local
 
 - **La caja está cerrada:** sale «Abre la caja para empezar a vender». Toca «Abrir caja», pon el fondo (aunque sea 0) y confirma.
-- **No veo Caja en el menú:** solo la tienen el gerente y los puestos Encargado de sala y Caja. El gerente lo cambia en Configuración → Usuarios y permisos.
+- **No veo Caja en el menú:** solo la tienen el gerente y los puestos Encargado de sala y Caja. A un camarero se la puede dejar el encargado o el gerente desde Caja → «Dejar la caja a otra persona».
+
+## No puedo cerrar el día
+
+El cierre del día (Z) solo lo hacen el encargado y el gerente. Tú puedes cerrar tu turno con «Cerrar turno (X)». Si tienes que cerrar el día tú, pide al encargado o al gerente que te deje «También el cierre del día (Z)».
+
+## Me pide una nota al cerrar
+
+El cajón no cuadra con lo que debería haber. Vuelve a contar; si sigue sin cuadrar, escribe por qué (un vale, un error de cambio, un billete roto) y toca «Guardar con la nota». La nota sale en el ticket y en el cierre del día.
 - **No se carga la carta:** revisa la conexión y recarga la página.
 - **El botón de cobrar está gris:** mira «No puedo confirmar el cobro».
 
 ## No cuadra la caja
 
-Lo que debería haber = fondo de apertura + cobros en efectivo desde que abriste + entradas − salidas. Revisa:
+Lo que debería haber en un turno = lo que había al empezarlo (el fondo de apertura en el primero, lo contado en el turno anterior en los demás) + cobros en efectivo del turno + entradas − salidas. Revisa:
 1. Que las salidas (pago a proveedor, retirada al banco…) estén apuntadas con «− Sale dinero».
 2. Cobros apuntados con la forma de pago equivocada: búscalos en «Hoy en caja» y corrige «¿Cómo pagó?».
 3. Pedidos «al recoger» entregados sin apuntar el cobro: en Pedidos → «Últimas 24 h», «Sin cobrar · apuntar».

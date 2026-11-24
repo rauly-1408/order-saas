@@ -44,3 +44,26 @@ describe("defaultStationCategories", () => {
     expect(defaultStationCategories("COCINA", cats)).toEqual(["a", "d"]);
   });
 });
+
+describe("caja prestada", () => {
+  const later = new Date(Date.now() + 3600_000);
+  const before = new Date(Date.now() - 1000);
+  it("el camarero no tiene caja hasta que se la dejan", () => {
+    expect(accessOf(emp("CAMARERO")).caja).toBe(false);
+    const a = accessOf({ ...emp("CAMARERO"), cajaUntil: later });
+    expect(a).toMatchObject({ caja: true, prestada: true, cierreDia: false, anular: false });
+    expect(accessOf({ ...emp("CAMARERO"), cajaUntil: later, cajaCloseDay: true }).cierreDia).toBe(true);
+  });
+  it("caduca sola", () => {
+    expect(accessOf({ ...emp("CAMARERO"), cajaUntil: before, cajaCloseDay: true })).toMatchObject({ caja: false, cierreDia: false });
+  });
+  it("el cierre del día: encargado y gerente; Caja solo si se lo dejan", () => {
+    expect(accessOf({ role: "TENANT_ADMIN" }).cierreDia).toBe(true);
+    expect(accessOf(emp("ENCARGADO")).cierreDia).toBe(true);
+    expect(accessOf(emp("CAJA")).cierreDia).toBe(false);
+    expect(accessOf({ ...emp("CAJA"), cajaUntil: later, cajaCloseDay: true })).toMatchObject({ cierreDia: true, prestada: false });
+  });
+  it("cocina no recibe caja aunque se la dejen", () => {
+    expect(accessOf({ ...emp("COCINA"), cajaUntil: later }).caja).toBe(false);
+  });
+});

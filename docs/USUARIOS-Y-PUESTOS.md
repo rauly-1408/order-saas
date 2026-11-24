@@ -8,7 +8,8 @@ Se configura en **Configuración → Usuarios**. El cambio vale al momento, porq
 
 | | Gerente | Encargado de sala | Caja | Camarero | Cocina | Barra |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
-| Caja | ✓ | ✓ | ✓ | — | — | — |
+| Caja (abrir, cerrar turno X) | ✓ | ✓ | ✓ | si se la dejan | — | — |
+| Cierre del día (Z) | ✓ | ✓ | si se lo dejan | si se lo dejan | — | — |
 | Pedidos | ✓ | ✓ | ✓ | ✓ | solo sus líneas | solo sus líneas |
 | Mesas | ✓ | ✓ | ✓ | ✓ | — | — |
 | Cobrar | ✓ | ✓ | ✓ | si tiene «Puede cobrar» | — | — |
@@ -18,6 +19,7 @@ Se configura en **Configuración → Usuarios**. El cambio vale al momento, porq
 | Pantalla al entrar | Inicio | Caja | Caja | Mesas | Pantalla de cocina | Pantalla de cocina |
 
 - **Ve lo recaudado** es aparte: se marca a cada persona, sea cual sea su puesto.
+- **Caja prestada**: el encargado o el gerente deja la caja (y, si quiere, el cierre del día) a un camarero desde Caja → «Dejar la caja a otra persona». Caduca al cerrar el día o a las 14 h. Ver `docs/CAJA.md`.
 - **Cocina y barra**:
   - solo ven las líneas de las **secciones de la carta** que tengan marcadas;
   - por defecto, barra recibe las secciones de bebidas (refrescos, vinos, cervezas, cafés…) y cocina el resto;
