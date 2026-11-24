@@ -248,7 +248,8 @@ export default function AdminSidebar({
   const [menu, setMenu] = useState(false);
   const mini = useSyncExternalStore(subscribeMini, readMini, () => false);
   // Menú plegado: al pasar el cursor (o el foco) por un icono sale al momento su
-  // nombre en una etiqueta pegada a él, a la derecha.
+  // nombre en una etiqueta pegada a él, a la derecha, en el color de la marca
+  // (--p-brand) y con la letra de todo el panel.
   const [tip, setTip] = useState<{ text: string; y: number } | null>(null);
   const showTip = (target: EventTarget | null) => {
     const el = (target as HTMLElement | null)?.closest?.("[data-tip]") as HTMLElement | null;
@@ -598,8 +599,8 @@ export default function AdminSidebar({
       </aside>
       {mini && tip && (
         <div role="tooltip" style={{ top: tip.y }} className="pointer-events-none fixed left-[calc(4.5rem+10px)] z-[70] hidden -translate-y-1/2 items-center lg:flex">
-          <span aria-hidden className="-mr-1 h-2.5 w-2.5 rotate-45 rounded-[2px] bg-[var(--p-ink)]" />
-          <span className="whitespace-nowrap rounded-lg bg-[var(--p-ink)] px-3 py-1.5 text-[13px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)]">{tip.text}</span>
+          <span aria-hidden className="-mr-1 h-2.5 w-2.5 rotate-45 rounded-[2px] bg-[var(--p-brand)]" />
+          <span className="whitespace-nowrap rounded-lg bg-[var(--p-brand)] px-3 py-1.5 text-[13px] font-semibold text-[var(--p-on-brand)] shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)]">{tip.text}</span>
         </div>
       )}
     </>
