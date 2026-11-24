@@ -39,43 +39,82 @@ const subscribeMini = (l: () => void) => {
   return () => miniListeners.delete(l);
 };
 
-type IconName = "home" | "orders" | "cash" | "tables" | "users" | "partners" | "menu" | "costs" | "chart" | "brush" | "gear" | "files" | "invoice" | "kitchen" | "calendar" | "external" | "logout";
+type IconName = "home" | "orders" | "cash" | "tables" | "users" | "partners" | "menu" | "costs" | "chart" | "brush" | "gear" | "files" | "invoice" | "kitchen" | "calendar" | "external" | "logout" | "help";
 
-function Icon({ name }: { name: IconName }) {
+// Iconos del menú: cada uno es el objeto real de su sección (caja registradora,
+// bolsa de pedido, mesa con sillas, gorro de cocinero, tenedor y cuchillo…) para
+// reconocerlo sin leer. Ver docs/USABILIDAD.md
+function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, React.ReactNode> = {
-    home: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
-    tables: (
+    home: (
       <>
-        <rect x="3" y="4" width="7" height="7" rx="1.5" />
-        <rect x="14" y="4" width="7" height="7" rx="1.5" />
-        <rect x="3" y="15" width="7" height="5" rx="1.5" />
-        <circle cx="17.5" cy="17.5" r="2.5" />
+        <path d="M3 10.5 12 3l9 7.5" />
+        <path d="M5 9v11h14V9" />
+        <path d="M10 20v-6h4v6" />
       </>
     ),
+    // Caja registradora: pantalla arriba, teclas y cajón
     cash: (
       <>
-        <rect x="3" y="7" width="18" height="11" rx="2" />
-        <circle cx="12" cy="12.5" r="2.5" />
-        <path d="M7 4h10M3 18h18" />
+        <path d="M8 3h8v5H8z" />
+        <path d="M5 8h14l1 7H4z" />
+        <path d="M3 15h18v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+        <path d="M8 11.5h.01M12 11.5h.01M16 11.5h.01M10 18h4" />
       </>
     ),
+    // Pedido: bolsa para llevar con asas
+    orders: (
+      <>
+        <path d="M5 8h14l-1.2 12a1 1 0 0 1-1 .9H7.2a1 1 0 0 1-1-.9z" />
+        <path d="M9 10V7a3 3 0 0 1 6 0v3" />
+      </>
+    ),
+    // Mesa redonda con cuatro sillas, vista desde arriba
+    tables: (
+      <>
+        <circle cx="12" cy="12" r="4.5" />
+        <rect x="9.5" y="2" width="5" height="2.6" rx="1.2" />
+        <rect x="9.5" y="19.4" width="5" height="2.6" rx="1.2" />
+        <rect x="2" y="9.5" width="2.6" height="5" rx="1.2" />
+        <rect x="19.4" y="9.5" width="2.6" height="5" rx="1.2" />
+      </>
+    ),
+    // Reservas: calendario con ✓
     calendar: (
       <>
         <rect x="3.5" y="5" width="17" height="15" rx="2" />
-        <path d="M3.5 10h17M8 3v4M16 3v4M8 14h3" />
+        <path d="M3.5 10h17M8 3v4M16 3v4" />
+        <path d="M9 15l2 2 4-4" />
       </>
     ),
+    // Pantalla de cocina: gorro de cocinero
     kitchen: (
       <>
-        <rect x="3" y="4" width="18" height="13" rx="2" />
-        <path d="M7 9h4M7 12h7M9 21h6M12 17v4" />
+        <path d="M7 17v3a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-3" />
+        <path d="M7 17a4 4 0 0 1-1.5-7.7A4.5 4.5 0 0 1 12 5a4.5 4.5 0 0 1 6.5 4.3A4 4 0 0 1 17 17z" />
+        <path d="M7 17h10" />
       </>
     ),
-    orders: (
+    // Factura: ticket con €
+    invoice: (
       <>
-        <path d="M6 4h12l1 4H5z" />
-        <path d="M5 8h14v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z" />
-        <path d="M9 12h6" />
+        <path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z" />
+        <path d="M14.5 9.2A2.6 2.6 0 0 0 10 11v1.5a2.6 2.6 0 0 0 4.5 1.8M9 11.2h4M9 13.2h4" />
+      </>
+    ),
+    // Carta: tenedor y cuchillo
+    menu: (
+      <>
+        <path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10" />
+        <path d="M17 21V3c-2 1.5-3 4-3 7v3h3" />
+      </>
+    ),
+    // Archivos: fotos
+    files: (
+      <>
+        <rect x="3" y="5" width="18" height="15" rx="2" />
+        <circle cx="8.5" cy="10" r="1.5" />
+        <path d="M21 16l-5-5-8 9" />
       </>
     ),
     users: (
@@ -85,37 +124,28 @@ function Icon({ name }: { name: IconName }) {
         <path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.4c1.9.8 3 2.8 3 5.6" />
       </>
     ),
-    // Colaboradores: dos manos (trato)
+    // Colaboradores: apretón de manos
     partners: (
       <>
-        <path d="M3 11l4-4 4 2 3-2 4 1 3 3" />
-        <path d="M7 7l-4 4 6 6 2-2M14 7l5 5-6 6-2-2" />
-        <path d="M9 13l2 2M11 11l2 2" />
+        <path d="M2 9l3-3 3 1M22 9l-3-3-4 1.5-4.5 3a1.5 1.5 0 0 0 2 2.2L15 10l4 4" />
+        <path d="M5 6v8l5 5a1.4 1.4 0 0 0 2-2M10 15l3 3a1.4 1.4 0 0 0 2-2M13 13l3 3a1.4 1.4 0 0 0 2-2l-1-1M19 14V6" />
       </>
     ),
-    menu: (
+    // Informes: gráfica que sube
+    chart: (
       <>
-        <path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
-        <path d="M9 8h6M9 12h6M9 16h4" />
+        <path d="M3 3v17a1 1 0 0 0 1 1h17" />
+        <path d="M7 15l4-4 3 3 6-6M16 8h4v4" />
       </>
     ),
+    // Costes: monedas
     costs: (
       <>
-        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
-      </>
-    ),
-    chart: <path d="M3 3v17a1 1 0 0 0 1 1h17M7 15l4-4 3 3 6-6" />,
-    invoice: (
-      <>
-        <path d="M6 3h9l4 4v14l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21V4a1 1 0 0 1 1-1z" />
-        <path d="M9 9h6M9 13h6" />
-      </>
-    ),
-    files: (
-      <>
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <circle cx="8.5" cy="9.5" r="1.5" />
-        <path d="M21 16l-5-5-8 9" />
+        <ellipse cx="9" cy="6" rx="6" ry="2.5" />
+        <path d="M3 6v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V6" />
+        <path d="M3 10v4c0 1.4 2.7 2.5 6 2.5 1 0 2-.1 2.8-.3" />
+        <circle cx="17" cy="16" r="4.5" />
+        <path d="M17 14v4M15.5 16h3" />
       </>
     ),
     brush: (
@@ -124,19 +154,58 @@ function Icon({ name }: { name: IconName }) {
         <path d="M4 20c0-2 1-3 3-3" />
       </>
     ),
+    // Engranaje con dientes
     gear: (
       <>
         <circle cx="12" cy="12" r="3" />
-        <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+      </>
+    ),
+    help: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9.5 9.5a2.5 2.5 0 015 .5c0 1.7-2.5 2-2.5 3.5M12 17h.01" />
       </>
     ),
     external: <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />,
     logout: <path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H3" />,
   };
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       {paths[name]}
     </svg>
+  );
+}
+
+// Cada sección con su color (como los Ajustes del iPhone): se encuentra por el
+// color sin leer, también con el menú plegado. Colores fijos y opacos: el iPad
+// antiguo de Estafetén no entiende transparencias de variables.
+const TILE: Partial<Record<IconName, [bg: string, ink: string]>> = {
+  home: ["bg-[#475569]", "text-[#475569]"],
+  cash: ["bg-[#16a34a]", "text-[#16a34a]"],
+  orders: ["bg-[#ea580c]", "text-[#ea580c]"],
+  tables: ["bg-[#b45309]", "text-[#b45309]"],
+  calendar: ["bg-[#7c3aed]", "text-[#7c3aed]"],
+  kitchen: ["bg-[#dc2626]", "text-[#dc2626]"],
+  invoice: ["bg-[#0284c7]", "text-[#0284c7]"],
+  menu: ["bg-[#e11d48]", "text-[#e11d48]"],
+  files: ["bg-[#0d9488]", "text-[#0d9488]"],
+  users: ["bg-[#2563eb]", "text-[#2563eb]"],
+  partners: ["bg-[#4f46e5]", "text-[#4f46e5]"],
+  chart: ["bg-[#0891b2]", "text-[#0891b2]"],
+  costs: ["bg-[#059669]", "text-[#059669]"],
+  gear: ["bg-[#6b7280]", "text-[#6b7280]"],
+  help: ["bg-[#64748b]", "text-[#64748b]"],
+};
+
+// En la fila activa (fondo del color de la marca) el cuadradito va en blanco con
+// el icono de su color, para que no se pierda si coinciden los colores.
+function Tile({ name, active }: { name: IconName; active?: boolean }) {
+  const [bg, ink] = TILE[name] ?? ["bg-[#6b7280]", "text-[#6b7280]"];
+  return (
+    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.15)] ${active ? `bg-white ${ink}` : `${bg} text-white`}`}>
+      <Icon name={name} size={17} />
+    </span>
   );
 }
 
@@ -370,13 +439,11 @@ export default function AdminSidebar({
                     href={item.href}
                     onClick={() => setOpen(false)}
                     title={item.label}
-                    className={`side-item p-press relative flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${
+                    className={`side-item p-press relative flex items-center gap-3 rounded-xl px-2.5 py-1.5 text-[14px] ${
                       active ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
                     }`}
                   >
-                    <span className={active ? "text-white" : "text-[var(--p-muted)]"}>
-                      <Icon name={item.icon} />
-                    </span>
+                    <Tile name={item.icon} active={active} />
                     <span className="side-label flex-1">{item.label}</span>
                     {badgeOf(item.href) > 0 && (
                       <span aria-label={`${badgeOf(item.href)} por atender`} className={`side-badge min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-bold tabular-nums ${active ? "bg-white text-[var(--p-brand)]" : "bg-[var(--p-accent)] text-white"}`}>
@@ -397,13 +464,11 @@ export default function AdminSidebar({
               href={`/admin/${tenant}/configuracion`}
               onClick={() => setOpen(false)}
               title="Configuración"
-              className={`side-item p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${
+              className={`side-item p-press flex items-center gap-3 rounded-xl px-2.5 py-1.5 text-[14px] ${
                 pathname.startsWith(`/admin/${tenant}/configuracion`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
               }`}
             >
-              <span className={pathname.startsWith(`/admin/${tenant}/configuracion`) ? "text-white" : "text-[var(--p-muted)]"}>
-                <Icon name="gear" />
-              </span>
+              <Tile name="gear" active={pathname.startsWith(`/admin/${tenant}/configuracion`)} />
               <span className="side-label">Configuración</span>
             </Link>
           )}
@@ -411,12 +476,9 @@ export default function AdminSidebar({
             href={`/admin/${tenant}/ayuda`}
             onClick={() => setOpen(false)}
             title="Ayuda"
-            className={`side-item p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${pathname.startsWith(`/admin/${tenant}/ayuda`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"}`}
+            className={`side-item p-press flex items-center gap-3 rounded-xl px-2.5 py-1.5 text-[14px] ${pathname.startsWith(`/admin/${tenant}/ayuda`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"}`}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`h-5 w-5 ${pathname.startsWith(`/admin/${tenant}/ayuda`) ? "text-white" : "text-[var(--p-muted)]"}`} aria-hidden>
-              <circle cx="12" cy="12" r="9" />
-              <path d="M9.5 9.5a2.5 2.5 0 015 .5c0 1.7-2.5 2-2.5 3.5M12 17h.01" />
-            </svg>
+            <Tile name="help" active={pathname.startsWith(`/admin/${tenant}/ayuda`)} />
             <span className="side-label">Ayuda</span>
           </Link>
           <InstallApp className="side-hide p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
