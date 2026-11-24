@@ -89,12 +89,12 @@ export default function GrowthCards({ tenant, cards, total, insight }: { tenant:
                 <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
               </svg>
             </button>
-            <div className="m-2 mb-0 hidden h-32 items-center sm:flex justify-center overflow-hidden rounded-2xl bg-[var(--p-warm)] bg-[linear-gradient(160deg,transparent,rgba(255,255,255,0.45))]" aria-hidden>
+            <div className="m-2 mb-0 flex h-28 items-center justify-center overflow-hidden sm:h-32 rounded-2xl bg-[var(--p-warm)] bg-[linear-gradient(160deg,transparent,rgba(255,255,255,0.45))]" aria-hidden>
               <div className="transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:transform-none">
                 <Art kind={c.art} />
               </div>
             </div>
-            <div className="flex flex-1 flex-col px-5 pt-4 pb-5 pr-12 sm:pr-5">
+            <div className="flex flex-1 flex-col px-5 pt-4 pb-5">
               <h3 className="text-[15px] font-semibold leading-snug tracking-[-0.01em]">{c.title}</h3>
               <p className="mt-1 flex-1 text-sm leading-relaxed text-[var(--p-muted)]">{c.text}</p>
               <Link href={c.href} className="p-press group/cta mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-[var(--p-brand)] px-4 py-2 text-sm font-semibold text-white">
