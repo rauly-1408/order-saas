@@ -402,7 +402,7 @@ export default function CuentaView({ tenant, table, overlay, offlineFreeTables, 
 
       {/* Móvil: barra fija abajo con el total y botones grandes para el dedo */}
       {!closed && !panel && portal && createPortal(
-        <div style={STORE_VARS} className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--p-line)] bg-[var(--p-surface)] px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] text-[var(--p-ink)] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:left-64">
+        <div style={STORE_VARS} className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--p-line)] bg-[var(--p-surface)] px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] text-[var(--p-ink)] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:left-64 lg:[.menu-mini_&]:left-[4.5rem]">
           <div className="mx-auto flex max-w-6xl flex-col gap-2.5">
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">

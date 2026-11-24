@@ -430,7 +430,7 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS }: { tenant: stri
           {drag?.to === "DONE" && (
             <div
               {...dropProps("DONE")}
-              className={`fixed inset-x-4 bottom-5 z-30 rounded-2xl border-2 border-dashed py-6 text-center text-[15px] font-semibold shadow-lg transition-colors lg:left-[calc(16rem+2.5rem)] lg:right-10 ${
+              className={`fixed inset-x-4 bottom-5 z-30 rounded-2xl border-2 border-dashed py-6 text-center text-[15px] font-semibold shadow-lg transition-colors lg:left-[calc(16rem+2.5rem)] lg:[.menu-mini_&]:left-[calc(4.5rem+2.5rem)] lg:right-10 ${
                 over === "DONE" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-emerald-400/70 bg-emerald-50/90 text-emerald-700"
               }`}
             >
