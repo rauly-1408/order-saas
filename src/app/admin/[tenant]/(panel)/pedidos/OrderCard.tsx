@@ -20,6 +20,7 @@ import {
   orderLabel,
   PAYMENT_LABEL,
   SOURCE_LABEL,
+  howLabel,
   timerTone,
   toEuros,
   type Estimates,
@@ -112,7 +113,7 @@ export default function OrderCard({ order, perms = ALL_PERMS, estimates, now, bu
           <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold tabular-nums ${TONE_CLS[tone]}`}>{elapsedLabel(order.createdAt, now)}</span>
         </div>
         <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs font-medium text-[var(--p-muted)]">
-          <span className="whitespace-nowrap">{order.channel === "DELIVERY" ? "🛵 A domicilio" : order.dineIn ? "🍽 Comer aquí" : "🛍 Para recoger"}</span>
+          <span className="whitespace-nowrap">{order.channel === "DELIVERY" ? "🛵 " : order.dineIn || order.source === "TABLE" ? "🍽 " : "🛍 "}{howLabel(order)}</span>
           {order.source && SOURCE_LABEL[order.source] && (
             <>
               <span aria-hidden>·</span>

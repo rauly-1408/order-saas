@@ -405,7 +405,8 @@ export async function GET(req: NextRequest) {
         updatedAt: { gte: since },
       },
       include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, courier: true },
-      orderBy: { updatedAt: "desc" },
+      // Por la hora del pedido (lo más reciente arriba), no por la última vez que se tocó.
+      orderBy: { createdAt: "desc" },
       take: 50,
     });
 

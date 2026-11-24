@@ -11,6 +11,8 @@ import {
   cancelLabel,
   COLUMNS,
   dropTarget,
+  fromLabel,
+  howLabel,
   nextAction,
   orderLabel,
   toEuros,
@@ -463,36 +465,37 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS, newOrder = null 
             ) : (
               <ul className="mx-3 space-y-2 rounded-2xl bg-[var(--p-bg)] p-2 sm:mx-4 sm:p-3">
                 {history.map((o) => (
-                  <li key={o.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-2xl bg-[var(--p-surface)] px-3 py-1.5 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04]">
-                    <button type="button" onClick={() => setOpenHist(openHist === o.id ? null : o.id)} aria-expanded={openHist === o.id} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left">
+                  <li key={o.id} className="rounded-2xl bg-[var(--p-surface)] px-3 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04]">
+                    {/* Nombre y hora arriba; de dónde viene y cómo, debajo; importe y estado a la derecha. Nada cortado. */}
+                    <button type="button" onClick={() => setOpenHist(openHist === o.id ? null : o.id)} aria-expanded={openHist === o.id} className={`flex min-h-14 w-full items-center gap-3 py-2 text-left ${o.status === "CANCELLED" ? "opacity-60" : ""}`}>
                       <span aria-hidden className={`text-[var(--p-muted)] transition-transform ${openHist === o.id ? "rotate-90" : ""}`}>›</span>
-                      <span className="min-w-0 truncate">
-                        <span className="font-bold">{orderLabel(o)}</span>{" "}
-                        <span className="text-[var(--p-muted)]">{o.customerName}</span>{" "}
-                        <span className="text-xs text-[var(--p-faint)] tabular-nums">{new Date(o.createdAt).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate">
+                          <span className="font-bold">{orderLabel(o)}</span> <span className="font-medium">{o.customerName}</span>
+                        </span>
+                        <span className="block truncate text-xs text-[var(--p-muted)]">
+                          {new Date(o.createdAt).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })} · {fromLabel(o.source)} · {howLabel(o)}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end gap-1">
+                        <span className={`font-semibold tabular-nums ${o.status === "CANCELLED" ? "line-through" : ""}`}>{toEuros(o.totalCents)}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${o.status === "DELIVERED" ? "bg-emerald-50 text-emerald-700" : o.cancelledBy === "CUSTOMER" ? "bg-amber-50 text-amber-800" : "bg-red-50 text-red-600"}`}>
+                          {o.status === "DELIVERED" ? "Entregado" : cancelLabel(o)}
+                        </span>
                       </span>
                     </button>
-                    <span className="flex shrink-0 items-center gap-3">
-                      <span className="text-[var(--p-muted)]">{toEuros(o.totalCents)}</span>
-                      {o.status === "DELIVERED" && o.paymentStatus === "PAID" && perms.canInvoice && (
-                        <Link href={`/admin/${tenant}/facturas?pedido=${o.id}`} className="inline-flex min-h-11 items-center rounded-full bg-black/[0.04] px-3 text-xs font-semibold text-[var(--p-muted)] hover:text-[var(--p-ink)]">
-                          Factura
-                        </Link>
-                      )}
-                      {o.status === "DELIVERED" && o.paymentStatus !== "PAID" && o.paymentStatus !== "REFUNDED" && perms.canCharge && (
-                        <button type="button" onClick={() => setCollectFor(collectFor === o.id ? null : o.id)} className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">
-                          Sin cobrar · apuntar
-                        </button>
-                      )}
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          o.status === "DELIVERED" ? "bg-emerald-50 text-emerald-700" : o.cancelledBy === "CUSTOMER" ? "bg-amber-50 text-amber-800" : "bg-red-50 text-red-600"
-                        }`}
-                      >
-                        {o.status === "DELIVERED" ? "Entregado" : cancelLabel(o)}
-                      </span>
-                    </span>
-                    {openHist === o.id && <HistoryDetail o={o} onPrint={(kind) => handlePrint(o.id, kind)} />}
+                    {o.status === "DELIVERED" && o.paymentStatus !== "PAID" && o.paymentStatus !== "REFUNDED" && o.totalCents > 0 && perms.canCharge && (
+                      <button type="button" onClick={() => setCollectFor(collectFor === o.id ? null : o.id)} className="mb-2 ml-6 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+                        Sin cobrar · apuntar
+                      </button>
+                    )}
+                    {openHist === o.id && (
+                      <HistoryDetail
+                        o={o}
+                        onPrint={(kind) => handlePrint(o.id, kind)}
+                        invoiceHref={o.status === "DELIVERED" && o.paymentStatus === "PAID" && o.totalCents > 0 && perms.canInvoice ? `/admin/${tenant}/facturas?pedido=${o.id}` : null}
+                      />
+                    )}
                     {collectFor === o.id && (
                       <div className="basis-full">
                         <PaidWithChooser
@@ -532,10 +535,10 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS, newOrder = null 
 // Detalle de un pedido del historial («Últimas 24 h»): qué llevaba, el cliente,
 // cómo se pagó y reimprimir. Ver docs/PEDIDOS.md
 const PAY_TEXT: Record<string, string> = { CASH: "Efectivo", CARD_TERMINAL: "Datáfono", BIZUM: "Bizum", CARD: "Tarjeta online", IN_STORE: "Al recoger o entregar" };
-function HistoryDetail({ o, onPrint }: { o: Order; onPrint: (kind: "KITCHEN" | "RECEIPT") => void }) {
+function HistoryDetail({ o, onPrint, invoiceHref }: { o: Order; onPrint: (kind: "KITCHEN" | "RECEIPT") => void; invoiceHref: string | null }) {
   const euros = (c: number) => (c / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
-  const how = o.channel === "DELIVERY" ? "A domicilio" : o.dineIn ? "Comer aquí" : "Para recoger";
-  const from = o.source === "COUNTER" ? "Mostrador" : o.source === "PHONE" ? "Teléfono" : "Online";
+  const how = howLabel(o);
+  const from = o.source === "TABLE" ? `Sala · ${o.customerName}` : fromLabel(o.source);
   return (
     <div className="mb-2 basis-full rounded-2xl bg-[var(--p-bg)] p-4 text-sm">
       <ul className="space-y-1.5">
@@ -556,14 +559,19 @@ function HistoryDetail({ o, onPrint }: { o: Order; onPrint: (kind: "KITCHEN" | "
         <p><span className="text-[var(--p-muted)]">Hora:</span> {new Date(o.createdAt).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
         {o.customerPhone && <p><span className="text-[var(--p-muted)]">Teléfono:</span> <a href={`tel:${o.customerPhone}`} className="font-medium text-[var(--p-brand)]">{o.customerPhone}</a></p>}
         {o.customerAddress && <p><span className="text-[var(--p-muted)]">Dirección:</span> {o.customerAddress}</p>}
-        <p><span className="text-[var(--p-muted)]">Pago:</span> {o.paymentStatus === "PAID" ? PAY_TEXT[o.paymentMethod ?? ""] ?? "Cobrado" : o.paymentStatus === "REFUNDED" ? "Devuelto" : "Sin cobrar"}</p>
+        <p><span className="text-[var(--p-muted)]">Pago:</span> {o.totalCents === 0 ? "Sin importe (0 €)" : o.paymentStatus === "PAID" ? PAY_TEXT[o.paymentMethod ?? ""] ?? "Cobrado" : o.paymentStatus === "REFUNDED" ? "Devuelto" : "Sin cobrar"}</p>
         {(o.tipCents ?? 0) > 0 && <p><span className="text-[var(--p-muted)]">Propina:</span> {euros(o.tipCents ?? 0)}</p>}
         {o.coupon && <p><span className="text-[var(--p-muted)]">Cupón:</span> {o.coupon.code}</p>}
       </div>
       {o.notes && <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-amber-900">Nota: {o.notes}</p>}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-base font-semibold">Total {euros(o.totalCents)}</p>
-        <span className="flex gap-2">
+        <span className="flex flex-wrap gap-2">
+          {invoiceHref && (
+            <Link href={invoiceHref} className="inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-xs font-semibold">
+              🧾 Factura
+            </Link>
+          )}
           <button type="button" onClick={() => onPrint("KITCHEN")} className="inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-xs font-semibold">🖨 Comanda</button>
           <button type="button" onClick={() => onPrint("RECEIPT")} className="inline-flex min-h-11 items-center rounded-full bg-black/[0.05] px-4 text-xs font-semibold">🖨 Ticket</button>
         </span>

@@ -33,7 +33,7 @@ export type Order = {
   items: OrderItem[];
   courier?: CourierView | null; // repartidor externo (Glovo, modo prueba…)
   paymentMethod?: "IN_STORE" | "CARD" | "BIZUM" | "CASH" | "CARD_TERMINAL";
-  source?: "ONLINE" | "COUNTER" | "PHONE"; // Caja: mostrador o teléfono
+  source?: "ONLINE" | "COUNTER" | "PHONE" | "TABLE"; // mostrador, teléfono o mesa de la sala
   cancelledBy?: "RESTAURANT" | "CUSTOMER" | "SYSTEM" | null;
   cancelReason?: "MISTAKE" | "ADDRESS_TIME" | "CHANGED_MIND" | null;
   dineIn?: boolean;
@@ -142,6 +142,16 @@ export const toEuros = (cents: number) =>
 
 // Etiquetas de la Caja para la tarjeta del pedido.
 export const SOURCE_LABEL: Record<string, string> = { COUNTER: "Mostrador", PHONE: "Teléfono" };
+
+// Mismas palabras en todo el panel (Inicio, Pedidos, Caja, avisos):
+// de dónde viene y cómo es el pedido. Los de mesa no son «para recoger».
+export const fromLabel = (source?: string | null) => (source === "TABLE" ? "Sala" : source === "COUNTER" ? "Mostrador" : source === "PHONE" ? "Teléfono" : "Online");
+export function howLabel(o: { channel: string; source?: string | null; dineIn?: boolean | null }): string {
+  if (o.source === "TABLE") return "En sala";
+  if (o.channel === "DELIVERY") return "A domicilio";
+  if (o.dineIn) return "Comer aquí";
+  return o.source === "ONLINE" || !o.source ? "Para recoger" : "Para llevar";
+}
 export const CANCEL_REASON_LABEL: Record<string, string> = { MISTAKE: "se equivocó", ADDRESS_TIME: "dirección u hora incorrecta", CHANGED_MIND: "ya no lo quería" };
 // «Cancelado», «Cancelado por el cliente · se equivocó» o «Pago no completado».
 export function cancelLabel(order: Order): string {
