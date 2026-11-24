@@ -1,4 +1,6 @@
-# Caja (pedidos en mostrador y por teléfono)
+# Caja
+
+> **Pedido por teléfono (2026-11-24):** ya no se apunta en la Caja sino en Pedidos → «＋ Pedido por teléfono» (`/admin/[tenant]/pedidos/telefono`): la misma pantalla (`CajaClient` con `phoneMode`), sin caja (no exige abrirla; cobro por defecto «al recoger»), con el teléfono a la vista, sin «Comer aquí», sus propios pedidos en espera y `source: PHONE`. Lo puede usar quien tenga Pedidos aunque no tenga Caja. En la Caja ya no se pregunta «¿Cómo llega?»: todo es «Mostrador». (pedidos en mostrador y por teléfono)
 
 Panel → **Caja**. La usan el gerente y el rol «Pedidos». Sirve para que el restaurante trabaje solo con nuestro panel aunque no tenga TPV: toma el pedido en el mostrador o por teléfono, lo cobra y lo manda a cocina al mismo tablero que los pedidos online.
 

@@ -1,6 +1,6 @@
 # Caja
 
-Es tu TPV: tomas pedidos en el mostrador o por teléfono, los cobras y salen a cocina, igual que los pedidos online. Aquí también abres y cierras la caja (el arqueo).
+Es tu TPV: tomas los pedidos del mostrador, los cobras y salen a cocina, igual que los pedidos online. Aquí también abres y cierras la caja (el arqueo).
 
 **Dónde:** Menú → Caja. La ven el gerente y los puestos Encargado de sala y Caja. Los importes del día solo los ve quien tiene el permiso «Ve lo recaudado».
 
@@ -38,10 +38,7 @@ Para quitarlo, toca «▾ Ocultar el recuento por billetes».
 
 ## Tomar un pedido por teléfono
 
-1. Si es **a domicilio**, elige «A domicilio»: sale el campo «Teléfono del cliente». Escríbelo; si ya ha pedido antes, se rellenan su nombre y su dirección y verás «✓ Nombre · N pedidos · datos rellenados».
-2. Si tiene varias direcciones, toca la buena. La dirección es obligatoria para poder cobrar.
-3. Si es **para llevar**, pon su teléfono en «＋ Cliente, cupón o nota» (también reconoce al cliente).
-4. Sigue como un pedido normal. Los pedidos a domicilio de la Caja salen en Pedidos con la etiqueta «Teléfono»; el resto, «Mostrador».
+Los pedidos por teléfono se apuntan en **Pedidos**, no en la Caja: en Pedidos, toca «＋ Pedido por teléfono». La Caja es para lo que se vende en el mostrador.
 
 ## Añadir una nota, un descuento o quitar un producto del pedido
 

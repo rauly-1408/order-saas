@@ -56,10 +56,11 @@ export async function POST(req: NextRequest) {
     const session = await getSessionFromRequest(req);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     if (session.role !== "SUPERADMIN" && session.tenantId !== tenant.id) return NextResponse.json({ error: "Prohibido" }, { status: 403 });
-    const noArea = denyUnlessArea(session, "caja");
-    if (noArea) return noArea;
-
     const b = ((await req.json().catch(() => null)) ?? {}) as Body;
+    // Caja: quien tenga Caja. Pedido por teléfono (desde Pedidos): también quien tenga Pedidos.
+    const noCaja = denyUnlessArea(session, "caja");
+    const phoneFromPedidos = b.source === "PHONE" && !denyUnlessArea(session, "pedidos");
+    if (noCaja && !phoneFromPedidos) return noCaja;
     return await once(tenant.id, requestIdOf(b.requestId), async () => {
       const items = Array.isArray(b.items) ? b.items : [];
       if (!items.length || items.some(invalidLine)) return NextResponse.json({ error: "Añade algo al pedido" }, { status: 400 });

@@ -29,7 +29,7 @@ type Line = { key: string; productId: string; name: string; unitPriceCents: numb
 // Pedido aparcado («en espera»): se guarda en este dispositivo hasta recuperarlo.
 type Parked = { id: string; savedAt: string; label: string; lines: Line[]; mode: Mode; source: "COUNTER" | "PHONE"; name: string; phone: string; address: string; notes: string; coupon: string };
 const lineTotal = (l: Line) => Math.max(0, l.unitPriceCents * l.quantity - (l.discountCents ?? 0));
-const parkedKey = (tenant: string) => `caja:parked:${tenant}`;
+const parkedKey = (tenant: string, phone = false) => `${phone ? "telefono" : "caja"}:parked:${tenant}`;
 type Payment = "CASH" | "CARD_TERMINAL" | "BIZUM" | "IN_STORE";
 type Mode = "TAKEAWAY" | "DINE_IN" | "DELIVERY";
 type Step = "order" | "pay" | "done";
@@ -90,7 +90,10 @@ function quickAmounts(totalCents: number): number[] {
 // canSeeTakings: permiso «Ve lo recaudado» (Configuración → Usuarios). Sin él no
 // se carga ni se muestra nada de lo recaudado; con él, el ojo lo tapa a la vista.
 // canDiscount: los descuentos por línea solo los aplica un gerente.
-export default function CajaClient({ tenant, canSeeTakings = false, canDiscount = false }: { tenant: string; canSeeTakings?: boolean; canDiscount?: boolean }) {
+// phoneMode: «Pedido por teléfono» desde Pedidos (pedidos/telefono). Misma
+// pantalla, pero sin caja (no hay que abrirla: se cobra al recoger o al
+// entregar), con el teléfono del cliente siempre a la vista y sin «Comer aquí».
+export default function CajaClient({ tenant, canSeeTakings = false, canDiscount = false, phoneMode = false }: { tenant: string; canSeeTakings?: boolean; canDiscount?: boolean; phoneMode?: boolean }) {
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [error, setError] = useState("");
   const [cat, setCat] = useState("");
@@ -99,9 +102,8 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const [optionsFor, setOptionsFor] = useState<Product | null>(null);
   const [comboFor, setComboFor] = useState<Product | null>(null);
   const [mode, setMode] = useState<Mode>("TAKEAWAY");
-  // Origen del pedido, sin preguntarlo (ocupaba sitio en la Caja): a domicilio
-  // desde la Caja es por teléfono; lo demás, en el mostrador.
-  const source: "COUNTER" | "PHONE" = mode === "DELIVERY" ? "PHONE" : "COUNTER";
+  // Origen del pedido, sin preguntarlo: Caja = mostrador; desde Pedidos = teléfono.
+  const source: "COUNTER" | "PHONE" = phoneMode ? "PHONE" : "COUNTER";
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -118,7 +120,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const [coupon, setCoupon] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [known, setKnown] = useState<ClienteResponse | null>(null); // cliente del teléfono (pedido por teléfono)
-  const [payment, setPayment] = useState<Payment>("CASH");
+  const [payment, setPayment] = useState<Payment>(phoneMode ? "IN_STORE" : "CASH");
   const [tendered, setTendered] = useState("");
   const [mixed, setMixed] = useState(false); // pago mixto: «tendered» es la parte en efectivo y el resto va con «payment»
   const [sending, setSending] = useState(false);
@@ -147,22 +149,23 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
   const [parkedReady, setParkedReady] = useState(false);
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(parkedKey(tenant));
+      const raw = localStorage.getItem(parkedKey(tenant, phoneMode));
       if (raw) setParked(JSON.parse(raw) as Parked[]);
     } catch {}
     setParkedReady(true);
-  }, [tenant]);
+  }, [tenant, phoneMode]);
   useEffect(() => {
     if (!parkedReady) return;
     try {
-      localStorage.setItem(parkedKey(tenant), JSON.stringify(parked));
+      localStorage.setItem(parkedKey(tenant, phoneMode), JSON.stringify(parked));
     } catch {}
-  }, [parked, parkedReady, tenant]);
+  }, [parked, parkedReady, tenant, phoneMode]);
   const [hoyOpen, setHoyOpen] = useState(false);
   // Cierre de caja: sesión del local (abierta o no) y la hoja para gestionarla.
   const [cash, setCash] = useState<CashState | null>(null);
   const [cashOpen, setCashOpen] = useState(false);
   const loadCash = useCallback(() => {
+    if (phoneMode) return; // el pedido por teléfono no pasa por la caja
     fetch(`/api/admin/${tenant}/caja/sesion`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: CashState | null) => {
@@ -171,7 +174,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         if (!d.open) setCashOpen(true); // sin abrir la caja no se vende: se pide el fondo nada más entrar
       })
       .catch(() => {});
-  }, [tenant]);
+  }, [tenant, phoneMode]);
   // Caja cerrada = no se puede vender (sin conexión no se sabe: no se bloquea).
   const locked = cash != null && !cash.open;
   useEffect(() => {
@@ -208,12 +211,12 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
 
   // Resumen «Hoy en caja»: al entrar, tras cada venta y al abrirlo.
   const loadHoy = useCallback(() => {
-    if (!canSeeTakings) return;
+    if (!canSeeTakings || phoneMode) return;
     fetch(`/api/admin/${tenant}/caja/hoy`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setHoy(d as HoyResponse))
       .catch(() => {});
-  }, [tenant, canSeeTakings]);
+  }, [tenant, canSeeTakings, phoneMode]);
   useEffect(() => {
     loadHoy();
   }, [loadHoy]);
@@ -390,7 +393,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
     setTendered("");
     setMixed(false);
     setMode("TAKEAWAY");
-    setPayment("CASH");
+    setPayment(phoneMode ? "IN_STORE" : "CASH");
     setDetailsOpen(false);
     setError("");
   }
@@ -490,16 +493,16 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         )}
       </div>
       <div className="mt-3 flex gap-1.5 rounded-xl bg-black/[0.05] p-1" role="radiogroup" aria-label="Tipo de pedido">
-        {(Object.keys(MODE_LABEL) as Mode[]).map((m) => (
+        {(Object.keys(MODE_LABEL) as Mode[]).filter((m) => !phoneMode || m !== "DINE_IN").map((m) => (
           <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`min-h-11 flex-1 rounded-lg text-[13px] font-semibold outline-none transition-colors ${mode === m ? "bg-white text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.06)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}>
             {MODE_LABEL[m]}
           </button>
         ))}
       </div>
-      {mode === "DELIVERY" && (
+      {(phoneMode || mode === "DELIVERY") && (
         <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono del cliente" inputMode="tel" aria-label="Teléfono del cliente" className="mt-3 w-full rounded-lg px-3 py-2.5 text-base tabular-nums" />
       )}
-      {mode === "DELIVERY" && known && <KnownCustomer known={known} />}
+      {(phoneMode || mode === "DELIVERY") && known && <KnownCustomer known={known} />}
       {mode === "DELIVERY" && <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Dirección de entrega (obligatoria)" aria-label="Dirección" className="mt-3 w-full rounded-lg px-3 py-2.5 text-sm" />}
       {mode === "DELIVERY" && known && known.addresses.length > 1 && (
         <div className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Direcciones del cliente">
@@ -658,10 +661,10 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         {detailsOpen && (
           <div className="mt-2 grid grid-cols-2 gap-2">
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" aria-label="Nombre del cliente" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />
-            {mode !== "DELIVERY" && <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono (suma sellos)" inputMode="tel" aria-label="Teléfono del cliente" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />}
+            {!phoneMode && mode !== "DELIVERY" && <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono (suma sellos)" inputMode="tel" aria-label="Teléfono del cliente" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />}
             <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Cupón" aria-label="Cupón" className="min-w-0 rounded-lg px-3 py-2.5 text-sm uppercase" />
             <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Nota para cocina" aria-label="Notas" className="min-w-0 rounded-lg px-3 py-2.5 text-sm" />
-            {mode !== "DELIVERY" && known && (
+            {!phoneMode && mode !== "DELIVERY" && known && (
               <div className="col-span-2 -mt-1">
                 <KnownCustomer known={known} />
               </div>
@@ -885,7 +888,23 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
         )}
         {/* Arriba, siempre a mano: buscador, estado de la caja, hoy y categorías */}
         <div className="sticky top-14 z-20 -mx-4 bg-[var(--p-bg)] px-4 pt-2 pb-3 backdrop-blur lg:top-0 lg:-mx-8 lg:px-8 lg:pt-6 lg:pb-4">
-          <h1 className="sr-only">Caja</h1>
+          {phoneMode ? (
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h1 className="text-2xl font-semibold tracking-tight">📞 Pedido por teléfono</h1>
+              <div className="flex shrink-0 gap-2">
+                {parked.length > 0 && (
+                  <button type="button" onClick={() => setParkedOpen(true)} className="p-press rounded-full bg-red-50 px-4 py-2 text-sm font-semibold text-[var(--p-accent)]">
+                    En espera · {parked.length}
+                  </button>
+                )}
+                <Link href={`/admin/${tenant}/pedidos`} className="p-press rounded-full bg-black/[0.05] px-4 py-2 text-sm font-semibold">
+                  ← Pedidos
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <h1 className="sr-only">Caja</h1>
+          )}
           {/* Según el hueco de la carta (no la pantalla): estrecho, en dos filas;
               ancho, en una con el buscador de un ancho cómodo a la izquierda. */}
           <div className="flex flex-wrap items-center gap-2 @xl:flex-nowrap @xl:gap-3">
@@ -896,7 +915,7 @@ export default function CajaClient({ tenant, canSeeTakings = false, canDiscount 
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" className="h-11 w-full rounded-xl pl-9 pr-3 text-sm" />
             </div>
             {/* Estado del turno: un panel con apartados, no píldoras, para que no se confunda con las categorías */}
-            <div className="order-first flex w-full shrink-0 items-stretch divide-x divide-[var(--p-line)] overflow-hidden rounded-xl border border-[var(--p-line)] bg-[var(--p-surface)] @xl:order-none @xl:ml-auto @xl:w-auto">
+            <div className={`${phoneMode ? "hidden" : "flex"} order-first w-full shrink-0 items-stretch divide-x divide-[var(--p-line)] overflow-hidden rounded-xl border border-[var(--p-line)] bg-[var(--p-surface)] @xl:order-none @xl:ml-auto @xl:w-auto`}>
               <button
                 type="button"
                 onClick={() => {

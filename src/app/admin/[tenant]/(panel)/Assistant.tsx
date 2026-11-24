@@ -25,7 +25,7 @@ type ActionState = "idle" | "busy" | "done" | "error";
 
 // Pantallas con su propia barra abajo (cuenta de mesa, caja, cocina): ahí la
 // burbuja taparía botones, así que no se enseña.
-const NO_BUBBLE = ["/mesas", "/caja", "/cocina"];
+const NO_BUBBLE = ["/mesas", "/caja", "/cocina", "/pedidos/telefono"];
 
 const noopSubscribe = () => () => {};
 
