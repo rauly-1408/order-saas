@@ -1,3 +1,4 @@
+import { howLabel } from "../pedidos/orderBoard";
 import Link from "next/link";
 import { prisma } from "@/app/lib/prisma";
 import { getSession, requireManagerPage } from "@/app/lib/auth";
@@ -186,13 +187,8 @@ export default async function AdminHomePage({ params }: { params: Promise<{ tena
   );
 }
 
-// Cómo es el pedido: los de mesa no son «para recoger».
-function modeOf(o: { channel: string; source: string; dineIn: boolean }): string {
-  if (o.source === "TABLE") return "En sala";
-  if (o.channel === "DELIVERY") return "A domicilio";
-  if (o.dineIn) return "Comer aquí";
-  return o.source === "ONLINE" ? "Para recoger" : "Para llevar";
-}
+// Cómo es el pedido: las mismas palabras que en Pedidos (orderBoard.ts).
+const modeOf = howLabel;
 
 function Stat({ label, value, sub, urgent = false, href }: { label: string; value: React.ReactNode; sub?: string; urgent?: boolean; href?: string }) {
   const body = (

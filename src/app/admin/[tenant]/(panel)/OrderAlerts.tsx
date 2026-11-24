@@ -1,5 +1,6 @@
 "use client";
 
+import { howLabel } from "./pedidos/orderBoard";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -230,7 +231,7 @@ export default function OrderAlerts({ tenant, canManage }: { tenant: string; can
             {pending.length > 1 && <span className="font-normal text-[var(--p-muted)]"> · {pending.length} sin aceptar</span>}
           </p>
           <p className="mt-0.5 truncate text-sm text-[var(--p-muted)]">
-            {visibleToast.customerName} · {visibleToast.channel === "DELIVERY" ? "A domicilio" : "Para recoger"} · {euros(visibleToast.totalCents)}
+            {visibleToast.customerName} · {howLabel(visibleToast)} · {euros(visibleToast.totalCents)}
           </p>
           <span className="mt-3 inline-flex rounded-full bg-[var(--p-brand)] px-3 py-1.5 text-sm font-semibold text-white">Ver pedido</span>
         </Link>
