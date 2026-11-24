@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HoyOrder, HoyPayment, HoyResponse } from "@/app/api/admin/[tenant]/caja/hoy/route";
-import CashSessionSheet, { type CashState } from "./CashSessionSheet";
+import CashSessionSheet, { type CashState, type Closing } from "./CashSessionSheet";
 import CajaDia, { type TicketDetail } from "./CajaDia";
 import Link from "next/link";
 import { usePrintPreview } from "../PrintPreview";
@@ -75,6 +75,25 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
   const [openId, setOpenId] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, TicketDetail>>({});
   const printer = usePrintPreview(tenant);
+  // Cierres de caja anteriores (informe Z): se abren ahí mismo y se reimprimen.
+  const [openClosing, setOpenClosing] = useState<string | null>(null);
+  const [closingMsg, setClosingMsg] = useState<Record<string, string>>({});
+  const [allClosings, setAllClosings] = useState(false); // los 5 últimos y «Ver todos»
+  const reprintClosing = async (id: string) => {
+    const r = await fetch(`/api/admin/${tenant}/caja/sesion`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reprint", sessionId: id }) }).catch(() => null);
+    const j = (await r?.json().catch(() => ({}))) as { printed?: number; error?: string } | undefined;
+    setClosingMsg((m) => ({ ...m, [id]: r?.ok ? (j?.printed ? "Enviado a la impresora de tickets." : "No hay impresora de tickets conectada: usa «En este ordenador».") : (j?.error ?? "No se ha podido imprimir.") }));
+  };
+  const printHere = (id: string) => {
+    setOpenClosing(id);
+    setTimeout(() => {
+      document.getElementById(`cierre-${id}`)?.classList.add("print-area");
+      document.body.classList.add("printing-area");
+      window.print();
+      document.body.classList.remove("printing-area");
+      document.getElementById(`cierre-${id}`)?.classList.remove("print-area");
+    }, 60);
+  };
   const toggle = (o: HoyOrder) => {
     const next = openId === o.id ? null : o.id;
     setOpenId(next);
@@ -436,6 +455,32 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
         </section>
       )}
 
+      {/* 4. Cierres de caja: qué se hizo cada día (informe Z), para verlo o imprimirlo cuando quieras */}
+      {canSeeTakings && cash && cash.history.length > 0 && (
+        <section aria-label="Cierres de caja" className={`${CARD} mt-4 bg-[var(--p-surface)] ring-[var(--p-line)]`}>
+          <h2 className="text-lg font-semibold">Cierres de caja</h2>
+          <p className="mt-0.5 text-sm text-[var(--p-muted)]">Lo que se hizo cada vez que se cerró la caja. Toca uno para ver todas sus cifras o imprimirlo.</p>
+          <ul className="mt-4 space-y-2 rounded-2xl bg-[var(--p-bg)] p-2">
+            {(allClosings ? cash.history : cash.history.slice(0, 5)).map((c) => (
+              <ClosingCard
+                key={c.id}
+                c={c}
+                open={openClosing === c.id}
+                onToggle={() => setOpenClosing(openClosing === c.id ? null : c.id)}
+                onPrint={() => reprintClosing(c.id)}
+                onPrintHere={() => printHere(c.id)}
+                msg={closingMsg[c.id]}
+              />
+            ))}
+          </ul>
+          {!allClosings && cash.history.length > 5 && (
+            <button type="button" onClick={() => setAllClosings(true)} className="p-press mt-2 min-h-12 w-full rounded-2xl bg-black/[0.05] text-sm font-semibold">
+              Ver los {cash.history.length} cierres
+            </button>
+          )}
+        </section>
+      )}
+
       {sheet && (
         <CashSessionSheet
           tenant={tenant}
@@ -473,5 +518,89 @@ export default function CajaPanel({ tenant, canSeeTakings, newOrder }: { tenant:
         />
       )}
     </div>
+  );
+}
+
+// Un cierre de caja (informe Z) en la lista: fecha, horas y si cuadró; al
+// abrirlo, todas las cifras como en el papel.
+function ClosingRow({ k, v, strong = false }: { k: string; v: string; strong?: boolean }) {
+  return (
+    <div className={`flex justify-between gap-3 ${strong ? "font-semibold" : ""}`}>
+      <dt className={strong ? "" : "text-[var(--p-muted)]"}>{k}</dt>
+      <dd className="tabular-nums">{v}</dd>
+    </div>
+  );
+}
+
+function ClosingCard({ c, open, onToggle, onPrint, onPrintHere, msg }: { c: Closing; open: boolean; onToggle: () => void; onPrint: () => void; onPrintHere: () => void; msg?: string }) {
+  const sm = c.summary;
+  const diff = c.differenceCents;
+  const tone = diff === 0 ? "bg-emerald-50 text-emerald-700" : Math.abs(diff) <= 100 ? "bg-amber-50 text-amber-800" : "bg-red-50 text-red-600";
+  const label = diff === 0 ? "Cuadra" : diff > 0 ? `Sobran ${euros(diff)}` : `Faltan ${euros(-diff)}`;
+  return (
+    <li id={`cierre-${c.id}`} className="rounded-2xl bg-[var(--p-surface)] px-3 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04]">
+      <button type="button" onClick={onToggle} aria-expanded={open} className="no-print flex min-h-14 w-full items-center gap-3 py-2 text-left">
+        <span aria-hidden className={`text-[var(--p-muted)] transition-transform ${open ? "rotate-90" : ""}`}>›</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold first-letter:uppercase">{dayLabel(c.closedAt)}</span>
+          <span className="block truncate text-xs text-[var(--p-muted)]">
+            {hhmm(c.openedAt)} – {hhmm(c.closedAt)}
+            {c.closedByName && ` · cerró ${c.closedByName}`}
+          </span>
+        </span>
+        <span className="flex shrink-0 flex-col items-end gap-1">
+          {sm && <span className="font-semibold tabular-nums">{euros(sm.totalCents)}</span>}
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone}`}>{label}</span>
+        </span>
+      </button>
+      {open && (
+        <div className="mb-3 rounded-2xl bg-[var(--p-bg)] p-4">
+          <p className="mb-3 hidden text-base font-semibold print:block">Cierre de caja · {dayLabel(c.closedAt)}</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--p-muted)]">Ventas cobradas</p>
+              <dl className="mt-1 space-y-1">
+                {sm &&
+                  Object.entries(sm.byPayment)
+                    .filter(([, v]) => v)
+                    .map(([k, v]) => <ClosingRow key={k} k={PAY[k as HoyPayment]?.label ?? k} v={euros(v)} />)}
+                {sm && <ClosingRow k={`Total (${sm.orders} pedidos)`} v={euros(sm.totalCents)} strong />}
+                {sm && sm.orders > 0 && <ClosingRow k="Ticket medio" v={euros(Math.round(sm.totalCents / sm.orders))} />}
+                {sm?.baseCents != null && <ClosingRow k="Base imponible" v={euros(sm.baseCents)} />}
+                {sm?.taxCents != null && <ClosingRow k={`IVA ${sm.taxRate ?? ""} %`} v={euros(sm.taxCents)} />}
+                {!!sm?.tipsCents && <ClosingRow k="Propinas" v={euros(sm.tipsCents)} />}
+                {!!sm?.discountCents && <ClosingRow k="Descuentos hechos" v={euros(sm.discountCents)} />}
+                {!!sm?.cancelled && <ClosingRow k={`Cancelados (${sm.cancelled})`} v={sm.refundedCents ? `devuelto ${euros(sm.refundedCents)}` : "—"} />}
+              </dl>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--p-muted)]">Efectivo del cajón</p>
+              <dl className="mt-1 space-y-1">
+                <ClosingRow k="Fondo de apertura" v={euros(c.openingFloatCents)} />
+                {sm && <ClosingRow k="+ Ventas en efectivo" v={euros(sm.byPayment.CASH ?? 0)} />}
+                {!!sm?.inCents && <ClosingRow k="+ Entradas" v={euros(sm.inCents)} />}
+                {!!sm?.outCents && <ClosingRow k="− Salidas" v={euros(sm.outCents)} />}
+                <ClosingRow k="Debería haber" v={euros(c.expectedCashCents)} strong />
+                <ClosingRow k="Contado" v={euros(c.countedCashCents)} />
+                <ClosingRow k={diff === 0 ? "Diferencia" : diff > 0 ? "Sobra" : "Falta"} v={euros(Math.abs(diff))} strong />
+              </dl>
+              <p className="mt-2 text-xs text-[var(--p-muted)]">
+                Abrió {c.openedByName ?? "—"} a las {hhmm(c.openedAt)} · cerró {c.closedByName ?? "—"} a las {hhmm(c.closedAt)}
+              </p>
+            </div>
+          </div>
+          {c.notes && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-amber-900">Nota: {c.notes}</p>}
+          <div className="no-print mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={onPrint} className="inline-flex min-h-11 items-center rounded-full bg-[var(--p-surface)] px-4 text-xs font-semibold ring-1 ring-[var(--p-line)]">
+              🖨 Imprimir ticket
+            </button>
+            <button type="button" onClick={onPrintHere} className="inline-flex min-h-11 items-center rounded-full bg-[var(--p-surface)] px-4 text-xs font-semibold ring-1 ring-[var(--p-line)]">
+              🖨 En este ordenador
+            </button>
+          </div>
+          {msg && <p className="no-print mt-2 text-xs text-[var(--p-muted)]">{msg}</p>}
+        </div>
+      )}
+    </li>
   );
 }

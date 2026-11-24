@@ -430,3 +430,13 @@ summary {
   .side-mini .side-badge { position: absolute; top: 3px; right: 6px; min-width: 0; height: 0.65rem; width: 0.65rem; padding: 0; font-size: 0; }
   .side-mini .side-pop { right: auto; width: 16rem; }
 }
+
+/* Imprimir en el ordenador solo una parte (p. ej. un cierre de caja): lo
+   demás se oculta. Ver CajaPanel («En este ordenador»). */
+@media print {
+  body.printing-area * { visibility: hidden !important; }
+  body.printing-area .print-area,
+  body.printing-area .print-area * { visibility: visible !important; }
+  body.printing-area .print-area { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; }
+  body.printing-area .no-print { display: none !important; }
+}

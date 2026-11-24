@@ -3,6 +3,7 @@
 // Ver docs/CAJA.md
 import type { CashMovement, CashSession, PaymentMethod } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
+import { readTax } from "@/app/lib/storePolicies";
 
 export type PayKey = PaymentMethod; // CASH | CARD_TERMINAL | BIZUM | CARD | IN_STORE
 export type SessionFigures = {
@@ -13,6 +14,14 @@ export type SessionFigures = {
   inCents: number; // entradas de efectivo
   outCents: number; // salidas de efectivo
   expectedCashCents: number; // fondo + efectivo + entradas − salidas
+  // Lo que lleva un cierre de TPV de verdad (informe Z):
+  tipsCents: number; // propinas (incluidas en lo cobrado)
+  discountCents: number; // descuentos hechos (cupones, promociones, fidelización)
+  cancelled: number; // pedidos cancelados en la sesión
+  refundedCents: number; // devuelto al cliente en la sesión
+  taxRate: number; // IVA de los precios (%)
+  baseCents: number; // base imponible de lo cobrado (sin propinas)
+  taxCents: number; // IVA incluido en lo cobrado (sin propinas)
 };
 
 const ZERO: Record<PayKey, number> = { CASH: 0, CARD_TERMINAL: 0, BIZUM: 0, CARD: 0, IN_STORE: 0 };
@@ -41,10 +50,33 @@ export async function sessionFigures(session: CashSession & { movements: CashMov
     byPayment.CASH += cashPart;
     orders += g._count._all;
   }
+  const [extra, cancelledRows, tenant] = await Promise.all([
+    prisma.order.aggregate({
+      where: { tenantId: session.tenantId, storeId: session.storeId, paymentStatus: "PAID", OR: [{ paidAt: window }, { paidAt: null, createdAt: window }] },
+      _sum: { tipCents: true, discountCents: true },
+    }),
+    prisma.order.findMany({
+      where: { tenantId: session.tenantId, storeId: session.storeId, status: "CANCELLED", updatedAt: window },
+      select: { totalCents: true, paymentStatus: true },
+    }),
+    prisma.tenant.findUnique({ where: { id: session.tenantId }, select: { settings: true } }),
+  ]);
   const inCents = session.movements.filter((m) => m.kind === "IN").reduce((a, m) => a + m.amountCents, 0);
   const outCents = session.movements.filter((m) => m.kind === "OUT").reduce((a, m) => a + m.amountCents, 0);
   const totalCents = Object.values(byPayment).reduce((a, v) => a + v, 0);
+  const tipsCents = extra._sum.tipCents ?? 0;
+  const taxRate = readTax(tenant?.settings).rate;
+  // Los precios llevan el IVA incluido; las propinas no llevan IVA.
+  const taxable = Math.max(0, totalCents - tipsCents);
+  const baseCents = Math.round(taxable / (1 + taxRate / 100));
   return {
+    tipsCents,
+    discountCents: extra._sum.discountCents ?? 0,
+    cancelled: cancelledRows.length,
+    refundedCents: cancelledRows.filter((o) => o.paymentStatus === "REFUNDED").reduce((a, o) => a + o.totalCents, 0),
+    taxRate,
+    baseCents,
+    taxCents: taxable - baseCents,
     orders,
     byPayment,
     totalCents,

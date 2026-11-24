@@ -594,7 +594,7 @@ export function renderClosing(
     countedCashCents: number | null; // null en el cierre parcial (no se cuenta)
     expectedCashCents: number;
     differenceCents: number | null;
-    summary: { orders: number; byPayment: Record<string, number>; totalCents: number; inCents: number; outCents: number };
+    summary: ClosingSummary;
     notes: string | null;
     partial?: boolean; // cierre parcial (informe X): las cifras hasta ahora, sin cerrar la caja
     storeName: string;
@@ -616,6 +616,14 @@ export function renderClosing(
   t.bold(true).line("VENTAS COBRADAS").bold(false);
   for (const [k, v] of Object.entries(c.summary.byPayment)) if (v) t.row(PAY_NAME[k] ?? k, euros(v));
   t.bold(true).row(`Total (${c.summary.orders} pedidos)`, euros(c.summary.totalCents)).bold(false);
+  if (c.summary.orders > 0) t.row("Ticket medio", euros(Math.round(c.summary.totalCents / c.summary.orders)));
+  if (c.summary.taxCents != null && c.summary.baseCents != null) {
+    t.row(`Base imponible`, euros(c.summary.baseCents));
+    t.row(`IVA ${c.summary.taxRate ?? ""} %`, euros(c.summary.taxCents));
+  }
+  if (c.summary.tipsCents) t.row("Propinas", euros(c.summary.tipsCents));
+  if (c.summary.discountCents) t.row("Descuentos hechos", euros(c.summary.discountCents));
+  if (c.summary.cancelled) t.row(`Cancelados (${c.summary.cancelled})`, c.summary.refundedCents ? `devuelto ${euros(c.summary.refundedCents)}` : "");
   t.rule();
   t.bold(true).line("EFECTIVO EN EL CAJÓN").bold(false);
   t.row("Fondo de apertura", euros(c.openingFloatCents));
@@ -632,6 +640,22 @@ export function renderClosing(
   return t.bytes();
 }
 
+// Resumen guardado al cerrar (los cierres antiguos no llevan los campos opcionales).
+export type ClosingSummary = {
+  orders: number;
+  byPayment: Record<string, number>;
+  totalCents: number;
+  inCents: number;
+  outCents: number;
+  tipsCents?: number;
+  discountCents?: number;
+  cancelled?: number;
+  refundedCents?: number;
+  taxRate?: number;
+  baseCents?: number;
+  taxCents?: number;
+};
+
 export async function enqueueClosing(sessionId: string): Promise<number> {
   const s = await prisma.cashSession.findUnique({ where: { id: sessionId } });
   if (!s || !s.closedAt || s.countedCashCents == null || s.expectedCashCents == null || s.differenceCents == null) return 0;
@@ -643,7 +667,7 @@ export async function enqueueClosing(sessionId: string): Promise<number> {
   const cfg = readPrinting(tenant.settings);
   const printers = cfg.agentToken ? cfg.printers.filter((x) => x.roles.includes("receipt") && (!x.storeId || x.storeId === s.storeId)) : [];
   if (!printers.length) return 0;
-  const summary = s.summary as unknown as { orders: number; byPayment: Record<string, number>; totalCents: number; inCents: number; outCents: number };
+  const summary = s.summary as unknown as ClosingSummary;
   const data = {
     openedAt: s.openedAt,
     closedAt: s.closedAt,
@@ -667,7 +691,7 @@ export async function enqueueClosing(sessionId: string): Promise<number> {
 // cerrar la caja. Devuelve en cuántas impresoras sale.
 export async function enqueuePartialClosing(
   s: { tenantId: string; storeId: string; openedAt: Date; openedByName: string | null; openingFloatCents: number },
-  fig: { orders: number; byPayment: Record<string, number>; totalCents: number; inCents: number; outCents: number; expectedCashCents: number },
+  fig: ClosingSummary & { expectedCashCents: number },
   byName: string | null
 ): Promise<number> {
   const [tenant, store] = await Promise.all([
@@ -687,7 +711,7 @@ export async function enqueuePartialClosing(
     countedCashCents: null,
     expectedCashCents: fig.expectedCashCents,
     differenceCents: null,
-    summary: { orders: fig.orders, byPayment: fig.byPayment, totalCents: fig.totalCents, inCents: fig.inCents, outCents: fig.outCents },
+    summary: fig,
     notes: null,
     storeName: store?.name ?? "",
     tenantName: tenant.name,
