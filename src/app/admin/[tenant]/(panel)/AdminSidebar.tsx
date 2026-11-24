@@ -177,33 +177,12 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   );
 }
 
-// Cada sección con su color (como los Ajustes del iPhone): se encuentra por el
-// color sin leer, también con el menú plegado. Colores fijos y opacos: el iPad
-// antiguo de Estafetén no entiende transparencias de variables.
-const TILE: Partial<Record<IconName, [bg: string, ink: string]>> = {
-  home: ["bg-[#475569]", "text-[#475569]"],
-  cash: ["bg-[#16a34a]", "text-[#16a34a]"],
-  orders: ["bg-[#ea580c]", "text-[#ea580c]"],
-  tables: ["bg-[#b45309]", "text-[#b45309]"],
-  calendar: ["bg-[#7c3aed]", "text-[#7c3aed]"],
-  kitchen: ["bg-[#dc2626]", "text-[#dc2626]"],
-  invoice: ["bg-[#0284c7]", "text-[#0284c7]"],
-  menu: ["bg-[#e11d48]", "text-[#e11d48]"],
-  files: ["bg-[#0d9488]", "text-[#0d9488]"],
-  users: ["bg-[#2563eb]", "text-[#2563eb]"],
-  partners: ["bg-[#4f46e5]", "text-[#4f46e5]"],
-  chart: ["bg-[#0891b2]", "text-[#0891b2]"],
-  costs: ["bg-[#059669]", "text-[#059669]"],
-  gear: ["bg-[#6b7280]", "text-[#6b7280]"],
-  help: ["bg-[#64748b]", "text-[#64748b]"],
-};
-
-// En la fila activa (fondo del color de la marca) el cuadradito va en blanco con
-// el icono de su color, para que no se pierda si coinciden los colores.
+// Cuadradito del icono con los colores del restaurante (--p-brand y su tono
+// suave), como el resto del panel: se lee bien aunque la marca sea clara. En la
+// fila activa (fondo --p-brand) va en blanco con el icono de la marca.
 function Tile({ name, active }: { name: IconName; active?: boolean }) {
-  const [bg, ink] = TILE[name] ?? ["bg-[#6b7280]", "text-[#6b7280]"];
   return (
-    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.15)] ${active ? `bg-white ${ink}` : `${bg} text-white`}`}>
+    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--p-brand)] ${active ? "bg-white shadow-[0_1px_2px_rgba(0,0,0,0.15)]" : "bg-[var(--p-brand-soft)]"}`}>
       <Icon name={name} size={17} />
     </span>
   );
@@ -268,6 +247,15 @@ export default function AdminSidebar({
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const mini = useSyncExternalStore(subscribeMini, readMini, () => false);
+  // Menú plegado: al pasar el cursor (o el foco) por un icono sale al momento su
+  // nombre en una etiqueta pegada a él, a la derecha.
+  const [tip, setTip] = useState<{ text: string; y: number } | null>(null);
+  const showTip = (target: EventTarget | null) => {
+    const el = (target as HTMLElement | null)?.closest?.("[data-tip]") as HTMLElement | null;
+    if (!mini || !el || !window.matchMedia("(min-width: 1024px)").matches) return setTip(null);
+    const r = el.getBoundingClientRect();
+    setTip({ text: el.dataset.tip ?? "", y: r.top + r.height / 2 });
+  };
   useEffect(() => {
     document.documentElement.classList.toggle("menu-mini", mini);
     return () => document.documentElement.classList.remove("menu-mini");
@@ -386,6 +374,11 @@ export default function AdminSidebar({
         className={`p-glass fixed inset-y-0 left-0 z-50 flex h-screen w-64 min-w-64 flex-col border-r border-[var(--p-line)] transition-[transform,width,min-width] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         } ${mini ? "side-mini" : ""}`}
+        onPointerOver={(e) => showTip(e.target)}
+        onPointerLeave={() => setTip(null)}
+        onFocus={(e) => showTip(e.target)}
+        onBlur={() => setTip(null)}
+        onClick={() => setTip(null)}
       >
         <div className="flex items-start">
         <div className="side-hide min-w-0 flex-1">
@@ -415,7 +408,7 @@ export default function AdminSidebar({
           type="button"
           onClick={() => setMiniStored(!mini)}
           aria-label={mini ? "Mostrar el menú" : "Ocultar el menú"}
-          title={mini ? "Mostrar el menú" : "Ocultar el menú"}
+          data-tip={mini ? "Mostrar el menú" : "Ocultar el menú"}
           aria-pressed={mini}
           className="side-toggle p-press mt-4 mr-2 hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--p-muted)] hover:bg-black/[0.05] hover:text-[var(--p-ink)] lg:flex"
         >
@@ -438,7 +431,7 @@ export default function AdminSidebar({
                   <Link
                     href={item.href}
                     onClick={() => setOpen(false)}
-                    title={item.label}
+                    data-tip={item.label} aria-label={mini ? `${item.label}${badgeOf(item.href) > 0 ? ` (${badgeOf(item.href)} por atender)` : ""}` : undefined}
                     className={`side-item p-press relative flex items-center gap-3 rounded-xl px-2.5 py-1.5 text-[14px] ${
                       active ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
                     }`}
@@ -463,7 +456,7 @@ export default function AdminSidebar({
             <Link
               href={`/admin/${tenant}/configuracion`}
               onClick={() => setOpen(false)}
-              title="Configuración"
+              data-tip="Configuración"
               className={`side-item p-press flex items-center gap-3 rounded-xl px-2.5 py-1.5 text-[14px] ${
                 pathname.startsWith(`/admin/${tenant}/configuracion`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
               }`}
@@ -475,7 +468,7 @@ export default function AdminSidebar({
           <Link
             href={`/admin/${tenant}/ayuda`}
             onClick={() => setOpen(false)}
-            title="Ayuda"
+            data-tip="Ayuda"
             className={`side-item p-press flex items-center gap-3 rounded-xl px-2.5 py-1.5 text-[14px] ${pathname.startsWith(`/admin/${tenant}/ayuda`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"}`}
           >
             <Tile name="help" active={pathname.startsWith(`/admin/${tenant}/ayuda`)} />
@@ -484,20 +477,20 @@ export default function AdminSidebar({
           <InstallApp className="side-hide p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
           {ownBrand ? (
             <>
-              <Link href={`/pedir/${tenant}`} target="_blank" title="Ver carta pública" className="side-item p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
+              <Link href={`/pedir/${tenant}`} target="_blank" data-tip="Ver carta pública" className="side-item p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
                 <Icon name="external" />
                 <span className="side-label">Ver carta pública</span>
               </Link>
               <Link
                 href={`/admin/${tenant}/cuenta`}
                 onClick={() => setOpen(false)}
-                title="Mi cuenta"
+                data-tip="Mi cuenta"
                 className={`side-item p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] hover:bg-black/[0.04] ${pathname.startsWith(`/admin/${tenant}/cuenta`) ? "font-medium text-[var(--p-ink)]" : "text-[var(--p-muted)]"}`}
               >
                 <Icon name="users" />
                 <span className="side-label">Mi cuenta</span>
               </Link>
-              <button onClick={handleLogout} title="Cerrar sesión" className="side-item p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
+              <button onClick={handleLogout} data-tip="Cerrar sesión" className="side-item p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
                 <Icon name="logout" />
                 <span className="side-label">Cerrar sesión</span>
               </button>
@@ -587,7 +580,7 @@ export default function AdminSidebar({
                 onClick={() => setMenu((m) => !m)}
                 aria-expanded={menu}
                 aria-haspopup="menu"
-                title={tenantName}
+                data-tip={tenantName}
                 className={`side-item p-press flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-black/[0.04] ${menu ? "bg-black/[0.04]" : ""}`}
               >
                 {brandMark}
@@ -603,6 +596,12 @@ export default function AdminSidebar({
           )}
         </div>
       </aside>
+      {mini && tip && (
+        <div role="tooltip" style={{ top: tip.y }} className="pointer-events-none fixed left-[calc(4.5rem+10px)] z-[70] hidden -translate-y-1/2 items-center lg:flex">
+          <span aria-hidden className="-mr-1 h-2.5 w-2.5 rotate-45 rounded-[2px] bg-[var(--p-ink)]" />
+          <span className="whitespace-nowrap rounded-lg bg-[var(--p-ink)] px-3 py-1.5 text-[13px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)]">{tip.text}</span>
+        </div>
+      )}
     </>
   );
 }
