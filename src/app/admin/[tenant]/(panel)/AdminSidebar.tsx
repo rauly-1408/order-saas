@@ -2,7 +2,7 @@
 
 import { playOrderChime, soundEnabled } from "./sound";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { NorappLogo } from "../NorappSplash";
 import InstallApp from "./InstallApp";
@@ -14,6 +14,30 @@ import { forgetOfflinePages } from "./PanelOffline";
 // al pulsar el restaurante se abre su menú (carta pública, mi cuenta, cerrar
 // sesión). Marca propia (Estafetén y su franquicia, lib/ownBrand.ts): el logo del
 // restaurante arriba y esas opciones sueltas abajo.
+// En pantallas grandes el menú se puede plegar a una franja de iconos («Ocultar
+// menú») para dar más sitio a la pantalla; se recuerda en este dispositivo y
+// <html> lleva la clase menu-mini para lo que va fijo (barras de abajo).
+
+const MINI_KEY = "norapp-menu-mini";
+const miniListeners = new Set<() => void>();
+const readMini = () => {
+  try {
+    return localStorage.getItem(MINI_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+function setMiniStored(v: boolean) {
+  try {
+    if (v) localStorage.setItem(MINI_KEY, "1");
+    else localStorage.removeItem(MINI_KEY);
+  } catch {}
+  miniListeners.forEach((l) => l());
+}
+const subscribeMini = (l: () => void) => {
+  miniListeners.add(l);
+  return () => miniListeners.delete(l);
+};
 
 type IconName = "home" | "orders" | "cash" | "tables" | "users" | "partners" | "menu" | "costs" | "chart" | "brush" | "gear" | "files" | "invoice" | "kitchen" | "calendar" | "external" | "logout";
 
@@ -174,6 +198,11 @@ export default function AdminSidebar({
   const nav = buildNav(tenant).filter((item) => (canManage || !item.managerOnly) && (seesTakings || !item.takingsOnly) && (!item.area || areas[item.area]));
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
+  const mini = useSyncExternalStore(subscribeMini, readMini, () => false);
+  useEffect(() => {
+    document.documentElement.classList.toggle("menu-mini", mini);
+    return () => document.documentElement.classList.remove("menu-mini");
+  }, [mini]);
   // Puntitos con número: pedidos nuevos sin aceptar y reservas por confirmar o en espera.
   const [counts, setCounts] = useState<{ pedidos: number; reservas: number }>({ pedidos: 0, reservas: 0 });
   // Reserva nueva desde la web: aviso flotante con sonido (una vez por reserva).
@@ -285,10 +314,12 @@ export default function AdminSidebar({
 
       {/* Escritorio: barra fija. Móvil: panel deslizante. */}
       <aside
-        className={`p-glass fixed inset-y-0 left-0 z-50 flex h-screen w-64 min-w-64 flex-col border-r border-[var(--p-line)] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+        className={`p-glass fixed inset-y-0 left-0 z-50 flex h-screen w-64 min-w-64 flex-col border-r border-[var(--p-line)] transition-[transform,width,min-width] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } ${mini ? "side-mini" : ""}`}
       >
+        <div className="flex items-start">
+        <div className="side-hide min-w-0 flex-1">
         {ownBrand ? (
           <div className="flex items-center gap-3 px-5 pt-5 pb-3">
             {canManage ? (
@@ -309,6 +340,23 @@ export default function AdminSidebar({
             <NorappLogo />
           </div>
         )}
+        </div>
+        {/* Plegar o desplegar el menú (solo en pantallas grandes) */}
+        <button
+          type="button"
+          onClick={() => setMiniStored(!mini)}
+          aria-label={mini ? "Mostrar el menú" : "Ocultar el menú"}
+          title={mini ? "Mostrar el menú" : "Ocultar el menú"}
+          aria-pressed={mini}
+          className="side-toggle p-press mt-4 mr-2 hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--p-muted)] hover:bg-black/[0.05] hover:text-[var(--p-ink)] lg:flex"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="3" y="4" width="18" height="16" rx="3" />
+            <path d="M9 4v16" />
+            <path d={mini ? "M13 10l2 2-2 2" : "M16 10l-2 2 2 2"} />
+          </svg>
+        </button>
+        </div>
 
         <nav className="flex-1 overflow-y-auto px-3">
           <ul>
@@ -317,20 +365,21 @@ export default function AdminSidebar({
               const heading = item.group && item.group !== nav[i - 1]?.group ? item.group : null;
               return (
                 <li key={item.href}>
-                  {heading && <p className="px-3 pt-2.5 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--p-accent)]">{heading}</p>}
+                  {heading && <p className="side-heading px-3 pt-2.5 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--p-accent)]">{heading}</p>}
                   <Link
                     href={item.href}
                     onClick={() => setOpen(false)}
-                    className={`p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${
+                    title={item.label}
+                    className={`side-item p-press relative flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${
                       active ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
                     }`}
                   >
                     <span className={active ? "text-white" : "text-[var(--p-muted)]"}>
                       <Icon name={item.icon} />
                     </span>
-                    <span className="flex-1">{item.label}</span>
+                    <span className="side-label flex-1">{item.label}</span>
                     {badgeOf(item.href) > 0 && (
-                      <span aria-label={`${badgeOf(item.href)} por atender`} className={`min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-bold tabular-nums ${active ? "bg-white text-[var(--p-brand)]" : "bg-[var(--p-accent)] text-white"}`}>
+                      <span aria-label={`${badgeOf(item.href)} por atender`} className={`side-badge min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-bold tabular-nums ${active ? "bg-white text-[var(--p-brand)]" : "bg-[var(--p-accent)] text-white"}`}>
                         {badgeOf(item.href)}
                       </span>
                     )}
@@ -347,45 +396,48 @@ export default function AdminSidebar({
             <Link
               href={`/admin/${tenant}/configuracion`}
               onClick={() => setOpen(false)}
-              className={`p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${
+              title="Configuración"
+              className={`side-item p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${
                 pathname.startsWith(`/admin/${tenant}/configuracion`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"
               }`}
             >
               <span className={pathname.startsWith(`/admin/${tenant}/configuracion`) ? "text-white" : "text-[var(--p-muted)]"}>
                 <Icon name="gear" />
               </span>
-              Configuración
+              <span className="side-label">Configuración</span>
             </Link>
           )}
           <Link
             href={`/admin/${tenant}/ayuda`}
             onClick={() => setOpen(false)}
-            className={`p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${pathname.startsWith(`/admin/${tenant}/ayuda`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"}`}
+            title="Ayuda"
+            className={`side-item p-press flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] ${pathname.startsWith(`/admin/${tenant}/ayuda`) ? "bg-[var(--p-brand)] font-medium text-white shadow-sm" : "text-[var(--p-ink)] hover:bg-black/[0.04]"}`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`h-5 w-5 ${pathname.startsWith(`/admin/${tenant}/ayuda`) ? "text-white" : "text-[var(--p-muted)]"}`} aria-hidden>
               <circle cx="12" cy="12" r="9" />
               <path d="M9.5 9.5a2.5 2.5 0 015 .5c0 1.7-2.5 2-2.5 3.5M12 17h.01" />
             </svg>
-            Ayuda
+            <span className="side-label">Ayuda</span>
           </Link>
-          <InstallApp className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
+          <InstallApp className="side-hide p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] font-medium text-[var(--p-brand)] hover:bg-black/[0.04]" />
           {ownBrand ? (
             <>
-              <Link href={`/pedir/${tenant}`} target="_blank" className="p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
+              <Link href={`/pedir/${tenant}`} target="_blank" title="Ver carta pública" className="side-item p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
                 <Icon name="external" />
-                Ver carta pública
+                <span className="side-label">Ver carta pública</span>
               </Link>
               <Link
                 href={`/admin/${tenant}/cuenta`}
                 onClick={() => setOpen(false)}
-                className={`p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] hover:bg-black/[0.04] ${pathname.startsWith(`/admin/${tenant}/cuenta`) ? "font-medium text-[var(--p-ink)]" : "text-[var(--p-muted)]"}`}
+                title="Mi cuenta"
+                className={`side-item p-press flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] hover:bg-black/[0.04] ${pathname.startsWith(`/admin/${tenant}/cuenta`) ? "font-medium text-[var(--p-ink)]" : "text-[var(--p-muted)]"}`}
               >
                 <Icon name="users" />
-                Mi cuenta
+                <span className="side-label">Mi cuenta</span>
               </Link>
-              <button onClick={handleLogout} className="p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
+              <button onClick={handleLogout} title="Cerrar sesión" className="side-item p-press flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] text-[var(--p-muted)] hover:bg-black/[0.04]">
                 <Icon name="logout" />
-                Cerrar sesión
+                <span className="side-label">Cerrar sesión</span>
               </button>
             </>
           ) : (
@@ -394,7 +446,7 @@ export default function AdminSidebar({
                 <div
                   role="menu"
                   aria-label={tenantName}
-                  className="p-rise absolute inset-x-0 bottom-full mb-2 rounded-2xl border border-[var(--p-line)] bg-[var(--p-surface)] p-1.5 shadow-[0_18px_48px_-18px_rgba(0,0,0,0.35)]"
+                  className="side-pop p-rise absolute inset-x-0 bottom-full mb-2 rounded-2xl border border-[var(--p-line)] bg-[var(--p-surface)] p-1.5 shadow-[0_18px_48px_-18px_rgba(0,0,0,0.35)]"
                 >
                   <Link
                     role="menuitem"
@@ -473,14 +525,15 @@ export default function AdminSidebar({
                 onClick={() => setMenu((m) => !m)}
                 aria-expanded={menu}
                 aria-haspopup="menu"
-                className={`p-press flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-black/[0.04] ${menu ? "bg-black/[0.04]" : ""}`}
+                title={tenantName}
+                className={`side-item p-press flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-black/[0.04] ${menu ? "bg-black/[0.04]" : ""}`}
               >
                 {brandMark}
-                <span className="min-w-0 flex-1">
+                <span className="side-label min-w-0 flex-1">
                   <span className="block truncate text-[14px] font-semibold">{tenantName}</span>
                   <span className="block truncate text-xs text-[var(--p-muted)]">{user.puesto}</span>
                 </span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[var(--p-muted)]" aria-hidden>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="side-label text-[var(--p-muted)]" aria-hidden>
                   <path d="M8 9l4-4 4 4M8 15l4 4 4-4" />
                 </svg>
               </button>

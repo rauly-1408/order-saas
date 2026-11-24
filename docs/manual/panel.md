@@ -137,3 +137,13 @@ Al cerrar sesión se borran las pantallas que el aparato guardaba para trabajar 
 ## Usar el panel en una pantalla táctil (tablet o TPV)
 
 El panel está pensado para el dedo: botones grandes y listas que se desplazan arrastrando. En las pantallas táctiles de ordenador que funcionan como un ratón, arrastrar sobre una lista la desplaza en vez de seleccionar texto. Para escribir, toca dentro del campo de texto.
+
+## Ocultar el menú para tener más pantalla
+
+En el ordenador o la tablet en horizontal puedes plegar el menú lateral y quedarte solo con los iconos:
+
+1. Toca el botón con un recuadro que hay arriba del todo en el menú («Ocultar el menú»).
+2. El menú se queda en una franja estrecha con los iconos; al pasar por encima de uno sale su nombre.
+3. Para volver a verlo entero, toca el mismo botón («Mostrar el menú»).
+
+El panel lo recuerda en ese dispositivo. En el móvil el menú ya va escondido: se abre con el botón ☰ de arriba.

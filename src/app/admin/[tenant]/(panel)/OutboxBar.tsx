@@ -47,7 +47,7 @@ export default function OutboxBar() {
   return (
     // En el ordenador va abajo a la izquierda, sobre el menú: así no tapa las
     // barras de cobrar de la Caja y de Mesas.
-    <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+68px)] z-[60] flex justify-center px-3 lg:inset-x-auto lg:top-auto lg:bottom-3 lg:left-3 lg:w-[232px] lg:px-0" role="status">
+    <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+68px)] z-[60] flex justify-center px-3 lg:inset-x-auto lg:top-auto lg:bottom-3 lg:left-3 lg:[.menu-mini_&]:left-[calc(4.5rem+0.75rem)] lg:w-[232px] lg:px-0" role="status">
       <div className="pointer-events-auto w-full max-w-md rounded-2xl bg-[#1d1d1f] text-white shadow-2xl">
         {!list.length ? (
           <p className="px-4 py-3 text-sm font-semibold">✓ {sentMsg}</p>
