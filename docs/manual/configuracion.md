@@ -45,7 +45,9 @@ Para activar o quitar un módulo, escribe al equipo de NorApp. Los importes solo
 1. Ve a Configuración → Usuarios y permisos y toca «+ Añadir usuario».
 2. Escribe su «Email», su «Nombre» (opcional) y elige el «Puesto»: Gerente, Encargado de sala, Caja, Camarero, Cocina o Barra.
 3. Si tienes varios locales, elige su «Local» o deja «Todos los locales».
-4. Toca «Crear usuario». Sale su contraseña temporal una sola vez: apúntala y dásela en mano. Luego toca «Ya la he apuntado».
+4. Toca «Crear usuario». Sale una ventana con su contraseña temporal, una sola vez: apúntala o toca «Copiar» y dásela en mano. Luego toca «Ya la he apuntado».
+
+Para darle otra contraseña a alguien (la ha olvidado): «Editar» en esa persona → «Nueva contraseña» → «Crear». Sale igual, en una ventana en medio de la pantalla.
 La persona entra con su email y esa contraseña, y puede cambiarla en «Mi cuenta».
 
 ## Qué puede hacer cada puesto
