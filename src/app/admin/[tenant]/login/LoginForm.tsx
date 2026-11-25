@@ -19,6 +19,7 @@ const seen = () => {
 export default function LoginForm({ tenant, tenantName, norapp = true }: { tenant: string; tenantName: string; norapp?: boolean }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false); // el ojo: ver lo que se escribe
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [intro, setIntro] = useState(false);
@@ -32,7 +33,7 @@ export default function LoginForm({ tenant, tenantName, norapp = true }: { tenan
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, tenant }),
+        body: JSON.stringify({ email: email.trim(), password, tenant }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) {
@@ -82,15 +83,33 @@ export default function LoginForm({ tenant, tenantName, norapp = true }: { tenan
 
               <label className="block">
                 <span className="mb-1.5 block text-[13px] font-medium text-[var(--p-muted)]">Contraseña</span>
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                  className="w-full px-4 py-3 text-[15px] text-[var(--p-ink)]"
-                  placeholder="••••••••"
-                />
+                <span className="relative block">
+                  <input
+                    type={showPw ? "text" : "password"}
+                    autoComplete="current-password"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                    className="w-full py-3 pl-4 pr-14 text-[15px] text-[var(--p-ink)]"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    aria-label={showPw ? "Ocultar la contraseña" : "Ver la contraseña"}
+                    aria-pressed={showPw}
+                    className="absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[var(--p-muted)]"
+                  >
+                    <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                      <circle cx="12" cy="12" r="3" />
+                      {showPw && <path d="M4 4l16 16" />}
+                    </svg>
+                  </button>
+                </span>
               </label>
 
               {error && <div className="rounded-2xl bg-[var(--p-accent-soft)] px-4 py-3 text-sm text-[var(--p-accent)]">{error}</div>}
