@@ -4,6 +4,7 @@ import { ask } from "@/app/lib/dialog";
 import { useEffect, useState } from "react";
 import { PUESTOS, puestoOf, type Puesto } from "@/app/lib/roles";
 import { Card, Msg, Toggle, ghostBtn, input, primaryBtn, toast } from "../ui";
+import PanelPortal from "../../PanelPortal";
 
 type User = {
   id: string;
@@ -122,16 +123,9 @@ export default function Usuarios({ tenant }: { tenant: string }) {
 
   return (
     <div className="space-y-5">
-      {secret && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="status">
-          <p className="font-semibold">Contraseña de {secret.email}</p>
-          <p className="mt-1 font-mono text-base tracking-wide">{secret.password}</p>
-          <p className="mt-1 text-xs">{secret.emailed ? "Se la hemos enviado también a su email." : "Dásela a esa persona en mano."} No se vuelve a mostrar; puede cambiarla al entrar.</p>
-          <button type="button" onClick={() => setSecret(null)} className="mt-2 text-xs font-semibold underline">
-            Ya la he apuntado
-          </button>
-        </div>
-      )}
+      {/* La contraseña nueva, en una ventana en medio de la pantalla: se ve
+          aunque estés abajo en la lista. Solo se enseña esta vez. */}
+      {secret && <SecretDialog secret={secret} onClose={() => setSecret(null)} />}
 
       <Card title="Usuarios" description="Cada persona entra con su puesto y solo ve lo suyo. Ventas, informes y lo recaudado solo los ve quien tenga activado «Ve lo recaudado».">
         {!users ? (
@@ -379,5 +373,34 @@ export default function Usuarios({ tenant }: { tenant: string }) {
       </Card>
       </div>
     </div>
+  );
+}
+
+function SecretDialog({ secret, onClose }: { secret: { email: string; password: string; emailed: boolean }; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <PanelPortal>
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Contraseña nueva">
+        <div aria-hidden className="absolute inset-0 bg-black/45" />
+        <div className="relative w-full max-w-sm rounded-[24px] bg-[var(--p-surface)] p-6 text-[var(--p-ink)] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.45)]">
+          <p className="text-lg font-semibold">Contraseña de {secret.email}</p>
+          <p className="mt-1 text-sm text-[var(--p-muted)]">Apúntala ahora: no se vuelve a mostrar.</p>
+          <p className="mt-4 select-all break-all rounded-2xl bg-[var(--p-bg)] px-4 py-3 text-center font-mono text-xl font-semibold tracking-wide">{secret.password}</p>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard?.writeText(secret.password).then(() => setCopied(true), () => setCopied(false));
+            }}
+            className="p-press mt-3 min-h-12 w-full rounded-full bg-black/[0.05] text-sm font-semibold"
+          >
+            {copied ? "✓ Copiada" : "Copiar"}
+          </button>
+          <p className="mt-3 text-xs text-[var(--p-muted)]">{secret.emailed ? "También se la hemos enviado a su email. " : "Dásela a esa persona en mano. "}Entra con su email y esta contraseña, y puede cambiarla en «Mi cuenta».</p>
+          <button type="button" onClick={onClose} className="p-press mt-4 min-h-12 w-full rounded-full bg-[var(--p-brand)] text-[15px] font-semibold text-[var(--p-on-brand)]">
+            Ya la he apuntado
+          </button>
+        </div>
+      </div>
+    </PanelPortal>
   );
 }
