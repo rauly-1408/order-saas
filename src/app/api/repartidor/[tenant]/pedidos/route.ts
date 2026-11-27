@@ -14,9 +14,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     if (!session || session.tenantId !== tenant.id) return NextResponse.json({ error: "Inicia sesión con tu código" }, { status: 401 });
     const rider = await prisma.deliveryRider.findFirst({
       where: { id: session.riderId, tenantId: tenant.id, active: true },
-      select: { id: true, name: true },
+      select: { id: true, name: true, accessCodeIssuedAt: true },
     });
-    if (!rider) return NextResponse.json({ error: "Acceso desactivado. Contacta con el comercio." }, { status: 401 });
+    if (!rider || !rider.accessCodeIssuedAt || rider.accessCodeIssuedAt.getTime() !== session.codeIssuedAt) return NextResponse.json({ error: "Tu código ha cambiado o el acceso está desactivado. Vuelve a iniciar sesión." }, { status: 401 });
 
     const orders = await prisma.order.findMany({
       where: { tenantId: tenant.id, deliveryRiderId: rider.id, status: { in: ["READY", "DELIVERING"] } },
