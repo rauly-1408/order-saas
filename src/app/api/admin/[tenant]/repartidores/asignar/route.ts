@@ -21,12 +21,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
     const order = await prisma.order.findFirst({
       where: { id: body.orderId, tenantId: tenant.id },
-      select: { id: true, channel: true, status: true, courier: { select: { id: true } } },
+      select: { id: true, channel: true, status: true, deliveryRiderId: true, courier: { select: { id: true } } },
     });
     if (!order) return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 });
     if (order.channel !== "DELIVERY") return NextResponse.json({ error: "Solo se pueden asignar pedidos a domicilio" }, { status: 400 });
     if (order.courier) return NextResponse.json({ error: "Este pedido ya tiene un repartidor externo asignado" }, { status: 409 });
-    if (["DELIVERED", "CANCELLED", "OPEN"].includes(order.status)) {
+    if (!["CREATED", "ACCEPTED", "PREPARING", "READY"].includes(order.status)) {
       return NextResponse.json({ error: "Este pedido ya no admite cambios de repartidor" }, { status: 409 });
     }
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     }
 
     const updated = await prisma.order.updateMany({
-      where: { id: order.id, tenantId: tenant.id },
+      where: { id: order.id, tenantId: tenant.id, channel: "DELIVERY", status: order.status, deliveryRiderId: order.deliveryRiderId, courier: { is: null } },
       data: { deliveryRiderId: body.riderId },
     });
     if (!updated.count) return NextResponse.json({ error: "No se pudo actualizar el pedido" }, { status: 409 });
