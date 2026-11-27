@@ -23,11 +23,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const accessCodeHash = createHmac("sha256", secret).update(code).digest("hex");
     const rider = await prisma.deliveryRider.findFirst({
       where: { tenantId: tenant.id, active: true, accessCodeHash },
-      select: { id: true, name: true },
+      select: { id: true, name: true, accessCodeIssuedAt: true },
     });
-    if (!rider) return NextResponse.json({ error: "Código incorrecto o caducado" }, { status: 401 });
+    if (!rider?.accessCodeIssuedAt) return NextResponse.json({ error: "Código incorrecto o caducado" }, { status: 401 });
 
-    const token = await createRiderToken(rider.id, tenant.id);
+    const token = await createRiderToken(rider.id, tenant.id, rider.accessCodeIssuedAt.getTime());
     const response = NextResponse.json({ ok: true, rider: { name: rider.name } });
     response.cookies.set(setRiderCookie(token));
     return response;
