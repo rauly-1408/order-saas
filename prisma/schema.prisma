@@ -568,6 +568,8 @@ model Order {
 
   items   OrderLine[]
   courier CourierDelivery?
+  deliveryRiderId String?
+  deliveryRider   DeliveryRider? @relation(fields: [deliveryRiderId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, orderNumber])
   @@index([tableId, status])
