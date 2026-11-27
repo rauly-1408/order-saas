@@ -30,7 +30,7 @@ const CLOCK_MS = 15_000;
 // Mientras haya pedidos sin aceptar, el aviso se repite (como las tablets de
 // Glovo / Uber Eats) para que ninguno se quede olvidado.
 
-type OrdersResponse = { orders: Order[]; history?: Order[]; estimates?: Estimates; store?: StoreLive | null; courierEnabled?: boolean; printingEnabled?: boolean; stores?: { id: string; name: string }[]; storeFilter?: string | null };
+type OrdersResponse = { orders: Order[]; history?: Order[]; deliveryRiders?: { id: string; name: string; active: boolean }[]; canManageDeliveryRiders?: boolean; estimates?: Estimates; store?: StoreLive | null; courierEnabled?: boolean; printingEnabled?: boolean; stores?: { id: string; name: string }[]; storeFilter?: string | null };
 const STORE_FILTER_KEY = "panel-store-filter";
 
 const DEFAULT_ESTIMATES: Estimates = { deliveryMinutes: 45, pickupMinutes: 20 };
@@ -52,6 +52,8 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS, newOrder = null 
   const [storeLive, setStoreLive] = useState<StoreLive | null>(null);
   const [courierEnabled, setCourierEnabled] = useState(false);
   const [printingEnabled, setPrintingEnabled] = useState(false);
+  const [deliveryRiders, setDeliveryRiders] = useState<{ id: string; name: string; active: boolean }[]>([]);
+  const [canManageDeliveryRiders, setCanManageDeliveryRiders] = useState(false);
   // Sucursales: filtro por local (se recuerda en este dispositivo).
   const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
   const [storeFilter, setStoreFilter] = useState<string>(() => {
@@ -113,6 +115,8 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS, newOrder = null 
       setStoreLive(data.store ?? null);
       setCourierEnabled(!!data.courierEnabled);
       setPrintingEnabled(!!data.printingEnabled);
+      setDeliveryRiders(data.deliveryRiders ?? []);
+      setCanManageDeliveryRiders(!!data.canManageDeliveryRiders);
       setStores(data.stores ?? []);
       setError("");
     } catch {
@@ -207,6 +211,26 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS, newOrder = null 
   function handlePrint(orderId: string, kind: "KITCHEN" | "RECEIPT") {
     const o = [...orders, ...history].find((x) => x.id === orderId);
     printer.print(orderId, kind, o?.orderNumber ? `#${o.orderNumber}` : undefined);
+  }
+
+  // Repartidor propio: asignar o quitar una asignación de un pedido a domicilio.
+  async function handleAssignRider(orderId: string, riderId: string | null) {
+    setUpdating(orderId);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/${tenant}/repartidores/asignar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, riderId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      await loadOrders();
+      if (!res.ok) setError(data.error ?? "No se pudo asignar el repartidor");
+    } catch {
+      setError("Sin conexión. No se pudo asignar el repartidor.");
+    } finally {
+      setUpdating(null);
+    }
   }
 
   // Repartidor externo: pedir/reintentar (POST) o cancelar (DELETE).
@@ -422,6 +446,8 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS, newOrder = null 
                           onStatus={handleStatus}
                           courierEnabled={courierEnabled}
                           onCourier={handleCourier}
+                          deliveryRiders={deliveryRiders}
+                          onAssignRider={canManageDeliveryRiders ? handleAssignRider : undefined}
                           printingEnabled={printingEnabled}
                           onPrint={handlePrint}
                           draggable={canDrag && !perms.station && !!dropTarget(o)}

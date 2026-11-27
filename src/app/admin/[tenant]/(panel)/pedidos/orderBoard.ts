@@ -32,6 +32,7 @@ export type Order = {
   updatedAt: string;
   items: OrderItem[];
   courier?: CourierView | null; // repartidor externo (Glovo, modo prueba…)
+  deliveryRider?: { id: string; name: string; active: boolean } | null; // repartidor propio asignado
   paymentMethod?: "IN_STORE" | "CARD" | "BIZUM" | "CASH" | "CARD_TERMINAL";
   source?: "ONLINE" | "COUNTER" | "PHONE" | "TABLE"; // mostrador, teléfono o mesa de la sala
   cancelledBy?: "RESTAURANT" | "CUSTOMER" | "SYSTEM" | null;

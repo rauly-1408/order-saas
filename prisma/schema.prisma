@@ -224,6 +224,7 @@ model Tenant {
   modifierGroups ModifierGroup[]
   orders         Order[]
   courierAccount CourierAccount?
+  deliveryRiders DeliveryRider[]
   paymentAccount PaymentAccount?
   giftCards      GiftCard[]
   mediaFiles     MediaFile[]
@@ -567,6 +568,8 @@ model Order {
 
   items   OrderLine[]
   courier CourierDelivery?
+  deliveryRiderId String?
+  deliveryRider   DeliveryRider? @relation(fields: [deliveryRiderId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, orderNumber])
   @@index([tableId, status])
@@ -1624,4 +1627,27 @@ model AssistantQuestion {
 
   @@unique([tenantId, key])
   @@index([tenantId, count])
+}
+
+
+// ─────────────────────────────────────────────
+//  REPARTIDORES PROPIOS (delivery del restaurante)
+// ─────────────────────────────────────────────
+model DeliveryRider {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name      String
+  phone     String?
+  notes     String?
+  active    Boolean  @default(true)
+  accessCodeHash      String?   @unique
+  accessCodeIssuedAt  DateTime?
+
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, active])
 }

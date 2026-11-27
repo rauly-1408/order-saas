@@ -56,6 +56,8 @@ type OrderCardProps = {
   onDragEnd?: () => void;
   // Sube cada vez que, al soltar la tarjeta, hay que preguntar cómo ha pagado.
   payRequest?: number;
+  deliveryRiders?: { id: string; name: string; active: boolean }[];
+  onAssignRider?: (orderId: string, riderId: string | null) => void;
 };
 
 const COURIER_TONE: Record<string, string> = {
@@ -66,7 +68,7 @@ const COURIER_TONE: Record<string, string> = {
 const SECONDARY = "flex min-h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-black/[0.04] px-2 py-2 text-xs font-medium text-[var(--p-muted)] hover:bg-black/[0.07] hover:text-[var(--p-ink)] disabled:opacity-50";
 const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : null);
 
-export default function OrderCard({ order, perms = ALL_PERMS, estimates, now, busy, onStatus, courierEnabled = false, onCourier, printingEnabled = false, onPrint, draggable = false, dragging = false, onDragStart, onDragEnd, payRequest = 0 }: OrderCardProps) {
+export default function OrderCard({ order, perms = ALL_PERMS, estimates, now, busy, onStatus, courierEnabled = false, onCourier, printingEnabled = false, onPrint, draggable = false, dragging = false, onDragStart, onDragEnd, payRequest = 0, deliveryRiders = [], onAssignRider }: OrderCardProps) {
   const next = nextAction(order);
   // Cocina y barra solo preparan: aceptar, «preparando» y «listo».
   const action = next && (!perms.station || STATION_STATUSES.includes(next.status)) ? next : null;
@@ -209,6 +211,21 @@ export default function OrderCard({ order, perms = ALL_PERMS, estimates, now, bu
         <button onClick={() => onCourier(order.id, "request")} disabled={busy} className="p-press mb-2 w-full rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800 disabled:opacity-50">
           🛵 Pedir repartidor
         </button>
+      )}
+      {order.channel === "DELIVERY" && onAssignRider && (
+        <label className="mb-2 flex flex-col gap-1 rounded-xl bg-black/[0.04] px-3 py-2 text-xs text-[var(--p-muted)]">
+          <span className="font-semibold">Repartidor del comercio</span>
+          <select
+            value={order.deliveryRider?.id ?? ""}
+            onChange={(e) => onAssignRider(order.id, e.target.value || null)}
+            disabled={busy || !["CREATED", "ACCEPTED", "PREPARING", "READY"].includes(order.status)}
+            className="min-h-9 w-full rounded-lg border border-[var(--p-line)] bg-[var(--p-surface)] px-2 text-sm text-[var(--p-ink)] disabled:opacity-60"
+          >
+            <option value="">Sin asignar</option>
+            {deliveryRiders.map((rider) => <option key={rider.id} value={rider.id} disabled={!rider.active && order.deliveryRider?.id !== rider.id}>{rider.name}{rider.active ? "" : " (inactivo)"}</option>)}
+          </select>
+          {deliveryRiders.length === 0 && <span>Añade repartidores en Configuración → Envío y entrega.</span>}
+        </label>
       )}
       {!!order.discountCents &&
         discountLines({ ...order, discountCents: order.discountCents }).map((d) => (
