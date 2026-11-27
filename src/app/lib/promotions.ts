@@ -56,10 +56,19 @@ export function promotionDiscount(p: PromotionRule, ctx: PromoContext): number {
   if (p.kind === "SECOND_UNIT_PERCENT") {
     const eligible = new Set(p.productIds ?? []);
     const pct = Math.min(Math.max(p.value, 0), 100);
-    const raw = ctx.lines?.reduce((sum, line) => {
-      if (!line.productId || !eligible.has(line.productId)) return sum;
-      return sum + Math.round((line.unitBaseCents * pct) / 100) * Math.floor(line.quantity / 2);
-    }, 0) ?? 0;
+    const quantities = new Map<string, { quantity: number; unitBaseCents: number }>();
+    for (const line of ctx.lines ?? []) {
+      if (!line.productId || !eligible.has(line.productId)) continue;
+      const current = quantities.get(line.productId);
+      quantities.set(line.productId, {
+        quantity: (current?.quantity ?? 0) + line.quantity,
+        unitBaseCents: line.unitBaseCents,
+      });
+    }
+    const raw = [...quantities.values()].reduce(
+      (sum, product) => sum + Math.round((product.unitBaseCents * pct) / 100) * Math.floor(product.quantity / 2),
+      0,
+    );
     return Math.min(raw, ctx.subtotalCents);
   }
   const raw = p.kind === "ORDER_PERCENT" ? Math.round((ctx.subtotalCents * Math.min(Math.max(p.value, 0), 100)) / 100) : Math.max(p.value, 0);
