@@ -28,10 +28,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       const code = String(randomInt(1000000000, 9999999999));
       const accessCodeHash = hashCode(code);
       try {
-        await prisma.deliveryRider.update({ where: { id: rider.id }, data: { accessCodeHash, accessCodeIssuedAt: new Date() } });
+        const updated = await prisma.deliveryRider.updateMany({
+          where: { id: rider.id, tenantId: tenant.id, active: true },
+          data: { accessCodeHash, accessCodeIssuedAt: new Date() },
+        });
+        if (!updated.count) return NextResponse.json({ error: "El repartidor ha sido dado de baja. Actualiza la lista e inténtalo de nuevo." }, { status: 409 });
         return NextResponse.json({ code });
       } catch (error) {
-        if (attempt === 4) throw error;
+        // Solo repetir ante una colisión real del índice único; otros errores
+        // de base de datos deben salir inmediatamente para no ocultar el problema.
+        if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002" && attempt < 4) continue;
+        throw error;
       }
     }
     return NextResponse.json({ error: "No se pudo generar el código" }, { status: 500 });
