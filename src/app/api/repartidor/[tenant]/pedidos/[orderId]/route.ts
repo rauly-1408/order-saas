@@ -13,7 +13,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ te
     if (!tenant) return NextResponse.json({ error: "Comercio no encontrado" }, { status: 404 });
     const session = await readRiderToken(req);
     if (!session || session.tenantId !== tenant.id) return NextResponse.json({ error: "Inicia sesión con tu código" }, { status: 401 });
-    const rider = await prisma.deliveryRider.findFirst({ where: { id: session.riderId, tenantId: tenant.id, active: true }, select: { id: true } });
+    const rider = await prisma.deliveryRider.findFirst({ where: { id: session.riderId, tenantId: tenant.id, active: true }, select: { id: true, accessCodeIssuedAt: true } });
     if (!rider || !rider.accessCodeIssuedAt || rider.accessCodeIssuedAt.getTime() !== session.codeIssuedAt) return NextResponse.json({ error: "Tu código ha cambiado o el acceso está desactivado. Vuelve a iniciar sesión." }, { status: 401 });
 
     const body = (await req.json().catch(() => ({}))) as { status?: unknown };
