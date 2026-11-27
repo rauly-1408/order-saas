@@ -10,7 +10,7 @@ export default async function EntregaPage({ params }: { params: Promise<{ tenant
     <SettingsSection slug="entrega">
       <div className="space-y-7">
         <ConfiguracionClient tenant={tenant} />
-        <Repartidores />
+        <Repartidores tenant={tenant} />
         <RepartoExterno tenant={tenant} />
       </div>
     </SettingsSection>
