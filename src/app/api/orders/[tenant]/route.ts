@@ -391,7 +391,7 @@ export async function GET(req: NextRequest) {
         ...byStore,
         status: { in: ["CREATED", "ACCEPTED", "PREPARING", "READY", "DELIVERING"] },
       },
-      include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, courier: true, deliveryRider: { select: { id: true, name: true, active: true } }, deliveryRider: { select: { id: true, name: true, active: true } } },
+      include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, courier: true, deliveryRider: { select: { id: true, name: true, active: true } } },
       orderBy: { createdAt: "asc" },
     });
 
