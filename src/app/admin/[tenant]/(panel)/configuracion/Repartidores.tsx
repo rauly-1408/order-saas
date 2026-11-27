@@ -207,7 +207,8 @@ export default function Repartidores({ tenant }: { tenant: string }) {
 
       {accessCode && (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="rider-code-title">
-          <div className="w-full max-w-sm rounded-2xl bg-[var(--p-surface)] p-6 shadow-2xl">
+          <style>{`@media print { body * { visibility: hidden !important; } [data-rider-print], [data-rider-print] * { visibility: visible !important; } [data-rider-print] { position: fixed; inset: 0; display: grid; place-content: center; background: white; color: black; } }`}</style>
+          <div data-rider-print className="w-full max-w-sm rounded-2xl bg-[var(--p-surface)] p-6 shadow-2xl">
             <div className="print:hidden">
               <h4 id="rider-code-title" className="text-lg font-bold text-[var(--p-ink)]">Código de acceso generado</h4>
               <p className="mt-1 text-sm text-[var(--p-muted)]">Entrégaselo a {accessCode.name}. Por seguridad, solo se muestra ahora; si lo pierdes tendrás que generar otro.</p>
