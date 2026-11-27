@@ -391,7 +391,7 @@ export async function GET(req: NextRequest) {
         ...byStore,
         status: { in: ["CREATED", "ACCEPTED", "PREPARING", "READY", "DELIVERING"] },
       },
-      include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, courier: true },
+      include: { items: true, coupon: { select: { code: true } }, promotion: { select: { name: true } }, courier: true, deliveryRider: { select: { id: true, name: true, active: true } } },
       orderBy: { createdAt: "asc" },
     });
 
@@ -414,6 +414,7 @@ export async function GET(req: NextRequest) {
     const ops = await getStoreOps(tenant.id, tenant.settings, new Date(), storeFilter);
 
     const account = await prisma.courierAccount.findUnique({ where: { tenantId: tenant.id }, select: { provider: true } });
+    const deliveryRiders = await prisma.deliveryRider.findMany({ where: { tenantId: tenant.id, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
     const withCourier = <T extends { courier: Parameters<typeof toPublicCourier>[0] }>(o: T) => ({ ...o, courier: toPublicCourier(o.courier) });
     // Cocina y barra: cada uno ve solo las líneas de sus secciones de la carta (y
     // solo los pedidos que tienen alguna). Ver lib/roles.ts
@@ -431,6 +432,7 @@ export async function GET(req: NextRequest) {
       orders: forStation(orders).map(withCourier),
       history: forStation(history).map(withCourier),
       courierEnabled: !!account && account.provider !== "NONE",
+      deliveryRiders,
       printingEnabled: readPrinting(tenant.settings).printers.length > 0,
       // Sucursales: lista para el filtro (solo si hay más de un local) y el filtro aplicado.
       stores: stores.length > 1 && !session.storeId ? stores.map((st) => ({ id: st.id, name: st.name })) : [],
