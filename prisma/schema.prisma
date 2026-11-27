@@ -1642,6 +1642,8 @@ model DeliveryRider {
   phone     String?
   notes     String?
   active    Boolean  @default(true)
+  accessCodeHash      String?   @unique
+  accessCodeIssuedAt  DateTime?
 
   orders    Order[]
   createdAt DateTime @default(now())
