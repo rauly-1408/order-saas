@@ -5,7 +5,7 @@ import { readRiderToken } from "@/app/lib/riderSession";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// El repartidor solo puede marcar como entregado un pedido suyo que ya esté en reparto.
+// El repartidor puede iniciar su reparto al recogerlo y confirmar la entrega.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ tenant: string; orderId: string }> }) {
   try {
     const { tenant: slug, orderId } = await params;
@@ -17,10 +17,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ te
     if (!rider) return NextResponse.json({ error: "Acceso desactivado" }, { status: 401 });
 
     const body = (await req.json().catch(() => ({}))) as { status?: unknown };
-    if (body.status !== "DELIVERED") return NextResponse.json({ error: "Transición no permitida" }, { status: 400 });
+    if (body.status !== "DELIVERING" && body.status !== "DELIVERED") return NextResponse.json({ error: "Transición no permitida" }, { status: 400 });
     const updated = await prisma.order.updateMany({
-      where: { id: orderId, tenantId: tenant.id, deliveryRiderId: rider.id, status: "DELIVERING", channel: "DELIVERY" },
-      data: { status: "DELIVERED" },
+      where: { id: orderId, tenantId: tenant.id, deliveryRiderId: rider.id, status: body.status === "DELIVERING" ? "READY" : "DELIVERING", channel: "DELIVERY" },
+      data: { status: body.status },
     });
     if (!updated.count) return NextResponse.json({ error: "El pedido ya cambió o no está asignado a tu cuenta" }, { status: 409 });
     return NextResponse.json({ ok: true });
