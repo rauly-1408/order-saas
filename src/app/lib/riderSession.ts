@@ -10,8 +10,8 @@ function secret() {
   return new TextEncoder().encode(value);
 }
 
-export async function createRiderToken(riderId: string, tenantId: string) {
-  return new SignJWT({ tenantId, kind: "delivery-rider" })
+export async function createRiderToken(riderId: string, tenantId: string, codeIssuedAt: number) {
+  return new SignJWT({ tenantId, kind: "delivery-rider", codeIssuedAt })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(riderId)
     .setIssuedAt()
@@ -19,13 +19,13 @@ export async function createRiderToken(riderId: string, tenantId: string) {
     .sign(secret());
 }
 
-export async function readRiderToken(req: NextRequest): Promise<{ riderId: string; tenantId: string } | null> {
+export async function readRiderToken(req: NextRequest): Promise<{ riderId: string; tenantId: string; codeIssuedAt: number } | null> {
   const token = req.cookies.get(COOKIE)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret());
-    if (payload.kind !== "delivery-rider" || typeof payload.sub !== "string" || typeof payload.tenantId !== "string") return null;
-    return { riderId: payload.sub, tenantId: payload.tenantId };
+    if (payload.kind !== "delivery-rider" || typeof payload.sub !== "string" || typeof payload.tenantId !== "string" || typeof payload.codeIssuedAt !== "number") return null;
+    return { riderId: payload.sub, tenantId: payload.tenantId, codeIssuedAt: payload.codeIssuedAt };
   } catch {
     return null;
   }
