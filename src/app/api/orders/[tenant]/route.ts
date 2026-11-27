@@ -1,4 +1,4 @@
-import { accessOf } from "@/app/lib/roles";
+import { accessOf, canManageTenant } from "@/app/lib/roles";
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyNewOrder } from "@/app/lib/notifyOrder";
 import { printOnNewOrder, readPrinting } from "@/app/lib/printing";
@@ -414,7 +414,8 @@ export async function GET(req: NextRequest) {
     const ops = await getStoreOps(tenant.id, tenant.settings, new Date(), storeFilter);
 
     const account = await prisma.courierAccount.findUnique({ where: { tenantId: tenant.id }, select: { provider: true } });
-    const deliveryRiders = await prisma.deliveryRider.findMany({ where: { tenantId: tenant.id, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+    const canManageDeliveryRiders = canManageTenant(session.role);
+    const deliveryRiders = canManageDeliveryRiders ? await prisma.deliveryRider.findMany({ where: { tenantId: tenant.id, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
     const withCourier = <T extends { courier: Parameters<typeof toPublicCourier>[0] }>(o: T) => ({ ...o, courier: toPublicCourier(o.courier) });
     // Cocina y barra: cada uno ve solo las líneas de sus secciones de la carta (y
     // solo los pedidos que tienen alguna). Ver lib/roles.ts
@@ -433,6 +434,7 @@ export async function GET(req: NextRequest) {
       history: forStation(history).map(withCourier),
       courierEnabled: !!account && account.provider !== "NONE",
       deliveryRiders,
+      canManageDeliveryRiders,
       printingEnabled: readPrinting(tenant.settings).printers.length > 0,
       // Sucursales: lista para el filtro (solo si hay más de un local) y el filtro aplicado.
       stores: stores.length > 1 && !session.storeId ? stores.map((st) => ({ id: st.id, name: st.name })) : [],
