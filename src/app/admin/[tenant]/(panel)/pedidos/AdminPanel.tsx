@@ -30,7 +30,7 @@ const CLOCK_MS = 15_000;
 // Mientras haya pedidos sin aceptar, el aviso se repite (como las tablets de
 // Glovo / Uber Eats) para que ninguno se quede olvidado.
 
-type OrdersResponse = { orders: Order[]; history?: Order[]; deliveryRiders?: { id: string; name: string }[]; estimates?: Estimates; store?: StoreLive | null; courierEnabled?: boolean; printingEnabled?: boolean; stores?: { id: string; name: string }[]; storeFilter?: string | null };
+type OrdersResponse = { orders: Order[]; history?: Order[]; deliveryRiders?: { id: string; name: string }[]; canManageDeliveryRiders?: boolean; estimates?: Estimates; store?: StoreLive | null; courierEnabled?: boolean; printingEnabled?: boolean; stores?: { id: string; name: string }[]; storeFilter?: string | null };
 const STORE_FILTER_KEY = "panel-store-filter";
 
 const DEFAULT_ESTIMATES: Estimates = { deliveryMinutes: 45, pickupMinutes: 20 };
@@ -53,6 +53,7 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS, newOrder = null 
   const [courierEnabled, setCourierEnabled] = useState(false);
   const [printingEnabled, setPrintingEnabled] = useState(false);
   const [deliveryRiders, setDeliveryRiders] = useState<{ id: string; name: string }[]>([]);
+  const [canManageDeliveryRiders, setCanManageDeliveryRiders] = useState(false);
   // Sucursales: filtro por local (se recuerda en este dispositivo).
   const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
   const [storeFilter, setStoreFilter] = useState<string>(() => {
@@ -115,6 +116,7 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS, newOrder = null 
       setCourierEnabled(!!data.courierEnabled);
       setPrintingEnabled(!!data.printingEnabled);
       setDeliveryRiders(data.deliveryRiders ?? []);
+      setCanManageDeliveryRiders(!!data.canManageDeliveryRiders);
       setStores(data.stores ?? []);
       setError("");
     } catch {
@@ -445,7 +447,7 @@ export default function AdminPanel({ tenant, perms = ALL_PERMS, newOrder = null 
                           courierEnabled={courierEnabled}
                           onCourier={handleCourier}
                           deliveryRiders={deliveryRiders}
-                          onAssignRider={handleAssignRider}
+                          onAssignRider={canManageDeliveryRiders ? handleAssignRider : undefined}
                           printingEnabled={printingEnabled}
                           onPrint={handlePrint}
                           draggable={canDrag && !perms.station && !!dropTarget(o)}
