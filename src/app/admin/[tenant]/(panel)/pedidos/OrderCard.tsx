@@ -218,7 +218,7 @@ export default function OrderCard({ order, perms = ALL_PERMS, estimates, now, bu
           <select
             value={order.deliveryRider?.id ?? ""}
             onChange={(e) => onAssignRider(order.id, e.target.value || null)}
-            disabled={busy || ["DELIVERED", "CANCELLED"].includes(order.status)}
+            disabled={busy || !["CREATED", "ACCEPTED", "PREPARING", "READY"].includes(order.status)}
             className="min-h-9 w-full rounded-lg border border-[var(--p-line)] bg-[var(--p-surface)] px-2 text-sm text-[var(--p-ink)] disabled:opacity-60"
           >
             <option value="">Sin asignar</option>
