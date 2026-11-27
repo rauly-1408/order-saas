@@ -36,6 +36,8 @@ export default function Repartidores({ tenant }: { tenant: string }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<RiderForm>(emptyForm);
+  const [accessCode, setAccessCode] = useState<{ name: string; code: string } | null>(null);
+  const [generatingCode, setGeneratingCode] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -89,6 +91,21 @@ export default function Repartidores({ tenant }: { tenant: string }) {
       toast(error instanceof Error ? error.message : "No se pudo guardar el repartidor", false);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function generateAccessCode(rider: Rider) {
+    if (!window.confirm(`Generar un nuevo código para ${rider.name}? El código anterior dejará de funcionar.`)) return;
+    setGeneratingCode(rider.id);
+    try {
+      const res = await fetch(`${api}/${rider.id}/codigo`, { method: "POST" });
+      const json = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
+      if (!res.ok || !json.code) throw new Error(json.error ?? "No se pudo generar el código");
+      setAccessCode({ name: rider.name, code: json.code });
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "No se pudo generar el código", false);
+    } finally {
+      setGeneratingCode(null);
     }
   }
 
@@ -173,6 +190,7 @@ export default function Repartidores({ tenant }: { tenant: string }) {
                   {rider.notes && <p className="mt-1 whitespace-pre-wrap text-xs text-[var(--p-muted)]">{rider.notes}</p>}
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
+                  {rider.active && <button type="button" disabled={generatingCode === rider.id} onClick={() => void generateAccessCode(rider)} className={buttonClass}>{generatingCode === rider.id ? "Generando…" : "Código de acceso"}</button>}
                   <button type="button" onClick={() => startEdit(rider)} className={buttonClass}>Editar</button>
                   <button type="button" onClick={() => void setActive(rider, !rider.active)} className={buttonClass}>{rider.active ? "Dar de baja" : "Reactivar"}</button>
                 </div>
@@ -184,8 +202,28 @@ export default function Repartidores({ tenant }: { tenant: string }) {
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--p-line)] pt-4">
         <p className="text-xs text-[var(--p-muted)]">Los repartidores inactivos se conservan en el historial y pueden reactivarse.</p>
-        <button type="button" disabled title="La impresión de códigos se habilitará en la siguiente fase" className={`${buttonClass} opacity-50`}>Imprimir códigos · Próximamente</button>
+        <span className="text-xs text-[var(--p-muted)]">Genera un código individual para cada repartidor activo.</span>
       </div>
+
+      {accessCode && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="rider-code-title">
+          <div className="w-full max-w-sm rounded-2xl bg-[var(--p-surface)] p-6 shadow-2xl">
+            <div className="print:hidden">
+              <h4 id="rider-code-title" className="text-lg font-bold text-[var(--p-ink)]">Código de acceso generado</h4>
+              <p className="mt-1 text-sm text-[var(--p-muted)]">Entrégaselo a {accessCode.name}. Por seguridad, solo se muestra ahora; si lo pierdes tendrás que generar otro.</p>
+            </div>
+            <div className="my-6 rounded-xl border border-dashed border-[var(--p-line)] p-5 text-center">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--p-muted)]">{accessCode.name}</p>
+              <p className="mt-2 font-mono text-3xl font-bold tracking-[0.25em] text-[var(--p-ink)]">{accessCode.code}</p>
+              <p className="mt-3 text-xs text-[var(--p-muted)]">Acceso: /repartidor/{tenant}</p>
+            </div>
+            <div className="flex justify-end gap-2 print:hidden">
+              <button type="button" onClick={() => setAccessCode(null)} className={buttonClass}>Cerrar</button>
+              <button type="button" onClick={() => window.print()} className="p-press inline-flex h-9 items-center justify-center rounded-xl bg-[var(--p-brand)] px-4 text-sm font-semibold text-white">Imprimir código</button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
