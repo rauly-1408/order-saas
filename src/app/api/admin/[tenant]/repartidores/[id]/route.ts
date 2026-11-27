@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     const c = await context(req, params);
     if ("error" in c) return c.error;
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const data: { name?: string; phone?: string | null; notes?: string | null; active?: boolean } = {};
+    const data: { name?: string; phone?: string | null; notes?: string | null; active?: boolean; accessCodeHash?: string | null; accessCodeIssuedAt?: Date | null } = {};
 
     if (body.name !== undefined) {
       if (typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 80) {
@@ -41,6 +41,10 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     if (body.active !== undefined) {
       if (typeof body.active !== "boolean") return NextResponse.json({ error: "Estado no válido" }, { status: 400 });
       data.active = body.active;
+      if (!body.active) {
+        data.accessCodeHash = null;
+        data.accessCodeIssuedAt = null;
+      }
     }
     if (!Object.keys(data).length) return NextResponse.json({ error: "No hay cambios que guardar" }, { status: 400 });
 
@@ -64,7 +68,7 @@ export async function DELETE(req: NextRequest, { params }: Context) {
     if ("error" in c) return c.error;
     const result = await prisma.deliveryRider.updateMany({
       where: { id: c.id, tenantId: c.tenant.id },
-      data: { active: false },
+      data: { active: false, accessCodeHash: null, accessCodeIssuedAt: null },
     });
     if (!result.count) return NextResponse.json({ error: "Repartidor no encontrado" }, { status: 404 });
     return NextResponse.json({ ok: true });
