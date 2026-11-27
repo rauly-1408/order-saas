@@ -415,7 +415,7 @@ export async function GET(req: NextRequest) {
 
     const account = await prisma.courierAccount.findUnique({ where: { tenantId: tenant.id }, select: { provider: true } });
     const canManageDeliveryRiders = canManageTenant(session.role);
-    const deliveryRiders = canManageDeliveryRiders ? await prisma.deliveryRider.findMany({ where: { tenantId: tenant.id, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
+    const deliveryRiders = canManageDeliveryRiders ? await prisma.deliveryRider.findMany({ where: { tenantId: tenant.id }, select: { id: true, name: true, active: true }, orderBy: [{ active: "desc" }, { name: "asc" }] }) : [];
     const withCourier = <T extends { courier: Parameters<typeof toPublicCourier>[0] }>(o: T) => ({ ...o, courier: toPublicCourier(o.courier) });
     // Cocina y barra: cada uno ve solo las líneas de sus secciones de la carta (y
     // solo los pedidos que tienen alguna). Ver lib/roles.ts
