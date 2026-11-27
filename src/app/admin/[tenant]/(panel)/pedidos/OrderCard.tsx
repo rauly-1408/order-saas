@@ -56,7 +56,7 @@ type OrderCardProps = {
   onDragEnd?: () => void;
   // Sube cada vez que, al soltar la tarjeta, hay que preguntar cómo ha pagado.
   payRequest?: number;
-  deliveryRiders?: { id: string; name: string }[];
+  deliveryRiders?: { id: string; name: string; active: boolean }[];
   onAssignRider?: (orderId: string, riderId: string | null) => void;
 };
 
@@ -222,7 +222,7 @@ export default function OrderCard({ order, perms = ALL_PERMS, estimates, now, bu
             className="min-h-9 w-full rounded-lg border border-[var(--p-line)] bg-[var(--p-surface)] px-2 text-sm text-[var(--p-ink)] disabled:opacity-60"
           >
             <option value="">Sin asignar</option>
-            {deliveryRiders.map((rider) => <option key={rider.id} value={rider.id}>{rider.name}</option>)}
+            {deliveryRiders.map((rider) => <option key={rider.id} value={rider.id} disabled={!rider.active && order.deliveryRider?.id !== rider.id}>{rider.name}{rider.active ? "" : " (inactivo)"}</option>)}
           </select>
           {deliveryRiders.length === 0 && <span>Añade repartidores en Configuración → Envío y entrega.</span>}
         </label>
