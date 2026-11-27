@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 type RiderOrder = {
   id: string;
@@ -51,7 +51,7 @@ export default function RepartidorPortal({ tenant }: { tenant: string }) {
     return () => window.clearInterval(timer);
   }, [load]);
 
-  async function login(e: React.FormEvent) {
+  async function login(e: FormEvent) {
     e.preventDefault();
     setBusy("login");
     setError("");
