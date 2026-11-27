@@ -6,6 +6,7 @@ type RiderOrder = {
   id: string;
   orderNumber: number | null;
   status: "READY" | "DELIVERING";
+  paymentStatus: "UNPAID" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
   customerName: string;
   customerPhone: string;
   customerAddress: string | null;
@@ -21,6 +22,7 @@ export default function RepartidorPortal({ tenant }: { tenant: string }) {
   const [orders, setOrders] = useState<RiderOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [paymentChoices, setPaymentChoices] = useState<Record<string, "CASH" | "CARD_TERMINAL" | "BIZUM">>({});
   const [error, setError] = useState("");
   const api = `/api/repartidor/${tenant}/pedidos`;
 
@@ -73,14 +75,14 @@ export default function RepartidorPortal({ tenant }: { tenant: string }) {
     }
   }
 
-  async function updateOrder(order: RiderOrder, status: "DELIVERING" | "DELIVERED") {
+  async function updateOrder(order: RiderOrder, status: "DELIVERING" | "DELIVERED", paidWith?: "CASH" | "CARD_TERMINAL" | "BIZUM") {
     setBusy(order.id);
     setError("");
     try {
       const res = await fetch(`${api}/${order.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...(paidWith ? { paidWith } : {}) }),
       });
       const data = await res.json().catch(() => ({})) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "No se pudo actualizar el pedido");
@@ -134,7 +136,17 @@ export default function RepartidorPortal({ tenant }: { tenant: string }) {
                 {order.customerAddress && <p className="mt-2 text-sm">{order.customerAddress}{order.customerPostalCode ? `, ${order.customerPostalCode}` : ""}</p>}
                 {order.notes && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">Nota: {order.notes}</p>}
                 <ul className="mt-3 border-t border-slate-100 pt-3 text-sm text-slate-600">{order.items.map((item) => <li key={item.id}>{item.quantity}× {item.productName}</li>)}</ul>
-                <button disabled={busy === order.id} onClick={() => void updateOrder(order, order.status === "READY" ? "DELIVERING" : "DELIVERED")} className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">{busy === order.id ? "Actualizando…" : order.status === "READY" ? "Recoger pedido" : "Marcar como entregado"}</button>
+                {order.status === "DELIVERING" && order.paymentStatus !== "PAID" && order.paymentStatus !== "REFUNDED" && (
+                  <label className="mt-4 block text-sm font-medium text-slate-700">¿Cómo has cobrado?
+                    <select value={paymentChoices[order.id] ?? ""} onChange={(e) => setPaymentChoices((current) => ({ ...current, [order.id]: e.target.value as "CASH" | "CARD_TERMINAL" | "BIZUM" }))} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3">
+                      <option value="">Selecciona la forma de pago</option>
+                      <option value="CASH">Efectivo</option>
+                      <option value="CARD_TERMINAL">Tarjeta (TPV)</option>
+                      <option value="BIZUM">Bizum</option>
+                    </select>
+                  </label>
+                )}
+                <button disabled={busy === order.id || (order.status === "DELIVERING" && order.paymentStatus !== "PAID" && order.paymentStatus !== "REFUNDED" && !paymentChoices[order.id])} onClick={() => void updateOrder(order, order.status === "READY" ? "DELIVERING" : "DELIVERED", paymentChoices[order.id])} className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">{busy === order.id ? "Actualizando…" : order.status === "READY" ? "Recoger pedido" : "Marcar como entregado"}</button>
               </li>
             ))}
           </ul>
