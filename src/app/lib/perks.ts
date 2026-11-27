@@ -23,7 +23,7 @@ export async function loadPerks(tenantId: string, settings: unknown, addons: str
   const promotions = promos
     .map((p): PromotionRule & { translations?: unknown } => ({
       translations: p.translations,
-      id: p.id, name: p.name, kind: p.kind, value: p.value, minOrderCents: p.minOrderCents, weekdays: p.weekdays,
+      id: p.id, name: p.name, kind: p.kind, value: p.value, productIds: p.productIds, minOrderCents: p.minOrderCents, weekdays: p.weekdays,
       startTime: p.startTime, endTime: p.endTime, channel: p.channel, firstOrderOnly: p.firstOrderOnly,
       startsAt: p.startsAt, endsAt: p.endsAt, active: p.active,
     }))
