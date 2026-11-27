@@ -27,6 +27,7 @@ const headingStyle = (upper: boolean): CSSProperties => ({
 function bigValue(p: PromotionRule, lang: Lang): { value: string; caption: string } {
   const T = ui(lang);
   if (p.kind === "FREE_DELIVERY") return { value: T.freeDelivery, caption: T.athome };
+  if (p.kind === "SECOND_UNIT_PERCENT") return { value: `−${p.value} %`, caption: lang === "en" ? "on the second item" : "en la segunda unidad" };
   if (p.kind === "ORDER_PERCENT") return { value: `−${p.value} %`, caption: T.onYourOrder };
   return { value: `−${euros(p.value).replace(",00", "")}`, caption: T.onYourOrder };
 }
