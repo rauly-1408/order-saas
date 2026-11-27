@@ -11,8 +11,9 @@ Descuentos que se aplican solos al pedir, sin código, y se anuncian en la carta
 | % de descuento | 15 % los martes para recoger |
 | € de descuento | 3 € en pedidos desde 20 € |
 | Envío gratis | Envío gratis a domicilio desde 25 € |
+| Segunda unidad | 50 % en la segunda unidad de productos seleccionados; también en la 4.ª, 6.ª… si se compran más unidades |
 
-Condiciones opcionales: pedido mínimo, días de la semana, franja horaria (puede pasar de medianoche), solo domicilio o solo recogida, solo el primer pedido del cliente y fechas de inicio y fin. Días y horas se evalúan en la **hora del restaurante**.
+En las promociones de segunda unidad se seleccionan uno o varios productos concretos de la carta. El porcentaje se descuenta sobre el precio base de cada unidad bonificada: una unidad con cantidad 2 descuenta una; cantidad 4 descuenta dos. Los extras y modificadores no entran en el descuento. Condiciones opcionales: pedido mínimo, días de la semana, franja horaria (puede pasar de medianoche), solo domicilio o solo recogida, solo el primer pedido del cliente y fechas de inicio y fin. Días y horas se evalúan en la **hora del restaurante**.
 
 ## Tarjeta de fidelidad
 
