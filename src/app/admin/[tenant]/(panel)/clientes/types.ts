@@ -46,8 +46,9 @@ export type CampaignRow = {
 export type PromotionRow = {
   id: string;
   name: string;
-  kind: "ORDER_PERCENT" | "ORDER_FIXED" | "FREE_DELIVERY";
+  kind: "ORDER_PERCENT" | "ORDER_FIXED" | "FREE_DELIVERY" | "SECOND_UNIT_PERCENT";
   value: number;
+  productIds: string[];
   minOrderCents: number;
   weekdays: number[];
   startTime: string | null;
@@ -81,6 +82,7 @@ export type Overview = {
   promotions: PromotionRow[];
   loyalty: LoyaltyRow | null;
   categories: { id: string; name: string }[];
+  products: { id: string; name: string; categoryName: string }[];
   campaigns: CampaignRow[];
 };
 
