@@ -177,12 +177,12 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
     perks?.loyalty && perksFor?.loyalty?.rewardAvailable
       ? rewardDiscount(
           perks.loyalty,
-          items.map((i) => ({ key: i.id, categoryId: productInfo[i.productId]?.categoryId ?? null, unitBaseCents: productInfo[i.productId]?.basePriceCents ?? 0, quantity: i.quantity }))
+          items.map((i) => ({ key: i.id, productId: i.productId, categoryId: productInfo[i.productId]?.categoryId ?? null, unitBaseCents: productInfo[i.productId]?.basePriceCents ?? 0, quantity: i.quantity }))
         )
       : null;
   const loyaltyDiscount = reward?.discountCents ?? 0;
   const afterLoyalty = subtotal - loyaltyDiscount;
-  const promo = perks ? bestPromotion(perks.promotions, { subtotalCents: afterLoyalty, feesCents: fee, channel, firstOrder: perksFor ? perksFor.firstOrder : null }) : null;
+  const promo = perks ? bestPromotion(perks.promotions, { subtotalCents: afterLoyalty, feesCents: fee, channel, firstOrder: perksFor ? perksFor.firstOrder : null, lines: items.map((i) => ({ key: i.id, productId: i.productId, categoryId: productInfo[i.productId]?.categoryId ?? null, unitBaseCents: productInfo[i.productId]?.basePriceCents ?? 0, quantity: i.quantity })) }) : null;
   // El descuento se recalcula al cambiar cantidades; bajo el mínimo no se aplica.
   const couponBelowMin = coupon ? subtotal < coupon.minOrderCents : false;
   const couponAmount = coupon && !couponBelowMin ? couponDiscount(coupon, afterLoyalty) : 0;

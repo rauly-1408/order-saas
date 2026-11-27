@@ -83,8 +83,9 @@ const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export type PromotionInput = {
   name: string;
-  kind: "ORDER_PERCENT" | "ORDER_FIXED" | "FREE_DELIVERY";
+  kind: "ORDER_PERCENT" | "ORDER_FIXED" | "FREE_DELIVERY" | "SECOND_UNIT_PERCENT";
   value: number;
+  productIds: string[];
   minOrderCents: number;
   weekdays: number[];
   startTime: string | null;
@@ -102,14 +103,20 @@ function dateOrNull(v: unknown, endOfDay: boolean): Date | null | "invalid" {
   return Number.isNaN(d.getTime()) ? "invalid" : d;
 }
 
-export function parsePromotion(body: unknown): PromotionInput | string {
+export function parsePromotion(body: unknown, validProductIds?: Set<string>): PromotionInput | string {
   const b = (body ?? {}) as Record<string, unknown>;
   const name = trimOrNull(b.name);
   if (!name || name.length > 60) return "Ponle un nombre a la promoción (máx. 60 caracteres)";
-  if (b.kind !== "ORDER_PERCENT" && b.kind !== "ORDER_FIXED" && b.kind !== "FREE_DELIVERY") return "Tipo de promoción no válido";
+  if (b.kind !== "ORDER_PERCENT" && b.kind !== "ORDER_FIXED" && b.kind !== "FREE_DELIVERY" && b.kind !== "SECOND_UNIT_PERCENT") return "Tipo de promoción no válido";
   const value = b.kind === "FREE_DELIVERY" ? 0 : Number(b.value);
   if (!Number.isInteger(value) || value < 0 || (b.kind !== "FREE_DELIVERY" && value === 0)) return "El descuento debe ser mayor que 0";
-  if (b.kind === "ORDER_PERCENT" && value > 100) return "El porcentaje no puede pasar de 100";
+  if ((b.kind === "ORDER_PERCENT" || b.kind === "SECOND_UNIT_PERCENT") && value > 100) return "El porcentaje no puede pasar de 100";
+  const productIds = Array.isArray(b.productIds) ? [...new Set(b.productIds.filter((id): id is string => typeof id === "string"))] : [];
+  if (b.kind === "SECOND_UNIT_PERCENT") {
+    if (!productIds.length) return "Selecciona al menos un producto para esta promoción";
+    if (productIds.length !== (Array.isArray(b.productIds) ? b.productIds.length : 0)) return "La selección de productos no es válida";
+    if (validProductIds && productIds.some((id) => !validProductIds.has(id))) return "Alguno de los productos seleccionados no está disponible";
+  }
   const minOrderCents = b.minOrderCents == null || b.minOrderCents === "" ? 0 : Number(b.minOrderCents);
   if (!Number.isInteger(minOrderCents) || minOrderCents < 0) return "Pedido mínimo no válido";
   const weekdays = Array.isArray(b.weekdays) ? [...new Set(b.weekdays.map(Number))] : [];
@@ -124,7 +131,7 @@ export function parsePromotion(body: unknown): PromotionInput | string {
   const endsAt = dateOrNull(b.endsAt, true);
   if (startsAt === "invalid" || endsAt === "invalid") return "Fechas no válidas";
   if (startsAt && endsAt && endsAt <= startsAt) return "La fecha de fin debe ser posterior a la de inicio";
-  return { name, kind: b.kind, value, minOrderCents, weekdays: weekdays.sort(), startTime, endTime, channel, firstOrderOnly: b.firstOrderOnly === true, startsAt, endsAt };
+  return { name, kind: b.kind, value, productIds: b.kind === "SECOND_UNIT_PERCENT" ? productIds : [], minOrderCents, weekdays: weekdays.sort(), startTime, endTime, channel, firstOrderOnly: b.firstOrderOnly === true, startsAt, endsAt };
 }
 
 export type LoyaltyInput = {

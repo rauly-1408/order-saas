@@ -21,9 +21,10 @@ type Form = {
   firstOrderOnly: boolean;
   startsAt: string;
   endsAt: string;
+  productIds: string[];
 };
 
-const EMPTY: Form = { id: null, name: "", kind: "ORDER_PERCENT", value: "10", minOrder: "", weekdays: [], allDay: true, startTime: "20:00", endTime: "23:00", channel: "", firstOrderOnly: false, startsAt: "", endsAt: "" };
+const EMPTY: Form = { id: null, name: "", kind: "ORDER_PERCENT", value: "10", minOrder: "", weekdays: [], allDay: true, startTime: "20:00", endTime: "23:00", channel: "", firstOrderOnly: false, startsAt: "", endsAt: "", productIds: [] };
 
 // Ideas de partida en un clic.
 const IDEAS: { title: string; form: Partial<Form> }[] = [
@@ -36,6 +37,7 @@ const KINDS: { key: PromotionRow["kind"]; label: string }[] = [
   { key: "ORDER_PERCENT", label: "% de descuento" },
   { key: "ORDER_FIXED", label: "€ de descuento" },
   { key: "FREE_DELIVERY", label: "Envío gratis" },
+  { key: "SECOND_UNIT_PERCENT", label: "Descuento en segunda unidad" },
 ];
 
 const toCents = (v: string) => Math.round(Number(v.replace(",", ".")) * 100);
@@ -56,6 +58,7 @@ function toForm(p: PromotionRow): Form {
     firstOrderOnly: p.firstOrderOnly,
     startsAt: dateInput(p.startsAt),
     endsAt: dateInput(p.endsAt),
+    productIds: p.productIds ?? [],
   };
 }
 
@@ -82,7 +85,8 @@ export default function Promociones({ data, api, onSaved }: { data: Overview; ap
         body: JSON.stringify({
           name: form.name,
           kind: form.kind,
-          value: form.kind === "ORDER_PERCENT" ? Number(form.value) : form.kind === "ORDER_FIXED" ? toCents(form.value) : 0,
+          value: form.kind === "ORDER_PERCENT" || form.kind === "SECOND_UNIT_PERCENT" ? Number(form.value) : form.kind === "ORDER_FIXED" ? toCents(form.value) : 0,
+          productIds: form.productIds,
           minOrderCents: form.minOrder ? toCents(form.minOrder) : 0,
           weekdays: form.weekdays,
           startTime: form.allDay ? null : form.startTime,
@@ -132,7 +136,7 @@ export default function Promociones({ data, api, onSaved }: { data: Overview; ap
       {form && (
         <div className={`${card} p-4 sm:p-6`}>
           <h3 className="mb-4 text-[17px] font-semibold">{form.id ? "Editar promoción" : "Nueva promoción"}</h3>
-          <PromotionFields form={form} onChange={setForm} />
+          <PromotionFields form={form} products={data.products} onChange={setForm} />
           {error && <p className="mt-3 text-sm text-[var(--p-accent)]">{error}</p>}
           <div className="mt-5 flex flex-wrap gap-2">
             <button onClick={save} disabled={saving} className={primaryBtn}>
@@ -183,7 +187,7 @@ export default function Promociones({ data, api, onSaved }: { data: Overview; ap
   );
 }
 
-function PromotionFields({ form, onChange }: { form: Form; onChange: (f: Form) => void }) {
+function PromotionFields({ form, products, onChange }: { form: Form; products: Overview["products"]; onChange: (f: Form) => void }) {
   const toggleDay = (d: number) => onChange({ ...form, weekdays: form.weekdays.includes(d) ? form.weekdays.filter((x) => x !== d) : [...form.weekdays, d] });
   const pill = (on: boolean) => `p-press rounded-full px-3 py-1 text-sm font-medium ${on ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"}`;
   return (
@@ -196,7 +200,7 @@ function PromotionFields({ form, onChange }: { form: Form; onChange: (f: Form) =
         <label className={label}>Qué se lleva el cliente</label>
         <div className="flex flex-wrap gap-1 rounded-2xl bg-black/[0.05] p-1 sm:w-fit sm:rounded-full">
           {KINDS.map((k) => (
-            <button key={k.key} type="button" onClick={() => onChange({ ...form, kind: k.key })} className={pill(form.kind === k.key)}>
+            <button key={k.key} type="button" onClick={() => onChange({ ...form, kind: k.key, value: k.key === "SECOND_UNIT_PERCENT" && form.kind !== "SECOND_UNIT_PERCENT" ? "50" : form.value })} className={pill(form.kind === k.key)}>
               {k.label}
             </button>
           ))}
@@ -204,8 +208,23 @@ function PromotionFields({ form, onChange }: { form: Form; onChange: (f: Form) =
       </div>
       {form.kind !== "FREE_DELIVERY" && (
         <div>
-          <label className={label}>{form.kind === "ORDER_PERCENT" ? "Descuento (%)" : "Descuento (€)"}</label>
+          <label className={label}>{form.kind === "ORDER_PERCENT" || form.kind === "SECOND_UNIT_PERCENT" ? "Descuento (%)" : "Descuento (€)"}</label>
           <input value={form.value} onChange={(e) => onChange({ ...form, value: e.target.value })} inputMode="decimal" className={input} />
+        </div>
+      )}
+      {form.kind === "SECOND_UNIT_PERCENT" && (
+        <div className="sm:col-span-2 rounded-xl border border-[var(--p-line)] p-3">
+          <label className={label}>Productos incluidos</label>
+          <p className="mb-2 text-xs text-[var(--p-muted)]">Se descuenta el porcentaje indicado en la segunda unidad y en cada pareja adicional (4.ª, 6.ª…).</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {products.map((product) => (
+              <label key={product.id} className={`flex items-center gap-2 text-sm ${product.active ? "" : "opacity-50"}`}>
+                <input type="checkbox" checked={form.productIds.includes(product.id)} disabled={!product.active && !form.productIds.includes(product.id)} onChange={(e) => onChange({ ...form, productIds: e.target.checked ? [...form.productIds, product.id] : form.productIds.filter((id) => id !== product.id) })} className="h-4 w-4 accent-[var(--p-brand)]" />
+                <span>{product.name} <span className="text-xs text-[var(--p-muted)]">· {product.categoryName}{product.active ? "" : " · no disponible"}</span></span>
+              </label>
+            ))}
+          </div>
+          {products.length === 0 && <p className="text-sm text-[var(--p-muted)]">No hay productos disponibles para seleccionar.</p>}
         </div>
       )}
       <div>

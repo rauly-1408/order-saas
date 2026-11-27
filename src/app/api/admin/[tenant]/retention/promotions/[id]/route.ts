@@ -20,7 +20,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const promotion = await prisma.promotion.update({ where: { id }, data: { active: body.active } });
     return NextResponse.json({ promotion });
   }
-  const input = parsePromotion(body);
+  const validProductIds = new Set((await prisma.product.findMany({ where: { tenantId: ctx.tenant.id, isCombo: false }, select: { id: true } })).map((p) => p.id));
+  const input = parsePromotion(body, validProductIds);
   if (typeof input === "string") return NextResponse.json({ error: input }, { status: 400 });
   const promotion = await prisma.promotion.update({ where: { id }, data: input });
   return NextResponse.json({ promotion });

@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       let loyaltyDiscountCents = 0;
       if (perks.loyalty && state.loyalty?.rewardAvailable) loyaltyDiscountCents = rewardDiscount(perks.loyalty, cartLines).discountCents;
       const afterLoyalty = subtotalCents - loyaltyDiscountCents;
-      const promo = bestPromotion(perks.promotions, { subtotalCents: afterLoyalty, feesCents, channel, firstOrder: state.firstOrder });
+      const promo = bestPromotion(perks.promotions, { subtotalCents: afterLoyalty, feesCents, channel, firstOrder: state.firstOrder, lines: cartLines });
       const code = typeof b.couponCode === "string" && b.couponCode.trim() ? normalizeCode(b.couponCode) : "";
       let coupon: { id: string; oncePerCustomer: boolean; maxRedemptions: number | null } | null = null;
       let couponDiscountCents = 0;

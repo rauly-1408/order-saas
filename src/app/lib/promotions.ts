@@ -3,7 +3,7 @@
 // checkout para enseñar el descuento. Ver docs/PROMOCIONES-Y-FIDELIZACION.md
 import { toMinutes } from "@/app/lib/storeStatus";
 
-export type PromotionKind = "ORDER_PERCENT" | "ORDER_FIXED" | "FREE_DELIVERY";
+export type PromotionKind = "ORDER_PERCENT" | "ORDER_FIXED" | "FREE_DELIVERY" | "SECOND_UNIT_PERCENT";
 export type Channel = "DELIVERY" | "TAKEAWAY";
 
 export type PromotionRule = {
@@ -11,6 +11,7 @@ export type PromotionRule = {
   name: string;
   kind: PromotionKind;
   value: number;
+  productIds: string[];
   minOrderCents: number;
   weekdays: number[]; // ISO 1-7; vacío = todos los días
   startTime: string | null; // "HH:MM"
@@ -43,7 +44,7 @@ export function promotionLiveAt(p: PromotionRule, now: Date, clock: { isoWeekday
   return true;
 }
 
-export type PromoContext = { subtotalCents: number; feesCents: number; channel: Channel; firstOrder: boolean | null };
+export type PromoContext = { subtotalCents: number; feesCents: number; channel: Channel; firstOrder: boolean | null; lines?: CartLine[] };
 
 // Descuento de una promoción ya en vigor (0 si no se cumplen sus condiciones).
 // firstOrder = null cuando aún no sabemos quién pide (checkout sin teléfono).
@@ -52,6 +53,24 @@ export function promotionDiscount(p: PromotionRule, ctx: PromoContext): number {
   if (ctx.subtotalCents < p.minOrderCents) return 0;
   if (p.firstOrderOnly && ctx.firstOrder !== true) return 0;
   if (p.kind === "FREE_DELIVERY") return ctx.channel === "DELIVERY" ? ctx.feesCents : 0;
+  if (p.kind === "SECOND_UNIT_PERCENT") {
+    const eligible = new Set(p.productIds ?? []);
+    const pct = Math.min(Math.max(p.value, 0), 100);
+    const quantities = new Map<string, { quantity: number; unitBaseCents: number }>();
+    for (const line of ctx.lines ?? []) {
+      if (!line.productId || !eligible.has(line.productId)) continue;
+      const current = quantities.get(line.productId);
+      quantities.set(line.productId, {
+        quantity: (current?.quantity ?? 0) + line.quantity,
+        unitBaseCents: line.unitBaseCents,
+      });
+    }
+    const raw = [...quantities.values()].reduce(
+      (sum, product) => sum + Math.round((product.unitBaseCents * pct) / 100) * Math.floor(product.quantity / 2),
+      0,
+    );
+    return Math.min(raw, ctx.subtotalCents);
+  }
   const raw = p.kind === "ORDER_PERCENT" ? Math.round((ctx.subtotalCents * Math.min(Math.max(p.value, 0), 100)) / 100) : Math.max(p.value, 0);
   return Math.min(raw, ctx.subtotalCents);
 }
@@ -69,6 +88,7 @@ export function bestPromotion<P extends PromotionRule>(promos: P[], ctx: PromoCo
 // Texto para la carta y el panel: "20 % los martes de 20:00 a 23:00 · desde 15 €".
 export function promotionLabel(p: Pick<PromotionRule, "kind" | "value">, lang: "es" | "en" = "es"): string {
   if (p.kind === "FREE_DELIVERY") return lang === "en" ? "Free delivery" : "Envío gratis";
+  if (p.kind === "SECOND_UNIT_PERCENT") return lang === "en" ? `${p.value}% off the second item` : `${p.value} % en la segunda unidad`;
   if (lang === "en") return p.kind === "ORDER_PERCENT" ? `${p.value}% off` : `${eur(p.value)} off`;
   return p.kind === "ORDER_PERCENT" ? `${p.value} % de descuento` : `${eur(p.value)} de descuento`;
 }
@@ -117,7 +137,7 @@ export function loyaltyProgress(rule: Pick<LoyaltyRule, "ordersRequired">, paidO
   return { stamps: Math.min(stamps, needed), needed, rewardAvailable: stamps >= needed };
 }
 
-export type CartLine = { key: string; categoryId: string | null; unitBaseCents: number; quantity: number };
+export type CartLine = { key: string; productId?: string; categoryId: string | null; unitBaseCents: number; quantity: number };
 
 // Qué productos del carrito salen gratis: en cada hueco, el más caro de sus
 // categorías (solo el precio base; los extras se cobran), con el tope si lo hay.

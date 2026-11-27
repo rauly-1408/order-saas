@@ -774,6 +774,7 @@ enum PromotionKind {
   ORDER_PERCENT // value = % sobre el subtotal
   ORDER_FIXED // value = céntimos de descuento
   FREE_DELIVERY // envío gratis
+  SECOND_UNIT_PERCENT // value = % de descuento en cada segunda unidad de productos seleccionados
 }
 
 model Promotion {
@@ -784,6 +785,7 @@ model Promotion {
   name  String
   kind  PromotionKind
   value Int           @default(0)
+  productIds String[]  @default([])
 
   minOrderCents  Int       @default(0)
   weekdays       Int[]     @default([]) // días ISO 1-7 (lun-dom); vacío = todos

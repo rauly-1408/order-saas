@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const sees = Boolean((await getSessionFromRequest(req))?.seesTakings); // «Ve lo recaudado»
 
-  const [customers, coupons, campaigns, promotions, loyalty, categories, promoUses, loyaltyUses] = await Promise.all([
+  const [customers, coupons, campaigns, promotions, loyalty, categories, products, promoUses, loyaltyUses] = await Promise.all([
     prisma.customer.findMany({
       where: { tenantId },
       orderBy: { lastOrderAt: "desc" },
@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
     prisma.promotion.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } }),
     prisma.loyaltyProgram.findUnique({ where: { tenantId } }),
     prisma.category.findMany({ where: { tenantId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
+    prisma.product.findMany({ where: { tenantId, isCombo: false }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, isActive: true, category: { select: { name: true } } } }),
     prisma.order.groupBy({ by: ["promotionId"], where: { tenantId, promotionId: { not: null }, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } }, _count: true, _sum: { promotionDiscountCents: true } }),
     prisma.order.aggregate({ where: { tenantId, loyaltyReward: true, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } }, _count: true, _sum: { loyaltyDiscountCents: true } }),
   ]);
@@ -80,6 +81,7 @@ export async function GET(req: NextRequest) {
     promotions: promotions.map((p) => ({ ...p, ...(usesByPromo.get(p.id) ?? { uses: 0, discountCents: 0 }) })),
     loyalty: loyalty && { ...loyalty, rewardsGiven: loyaltyUses._count, rewardsCents: loyaltyUses._sum.loyaltyDiscountCents ?? 0 },
     categories,
+    products: products.map((p) => ({ id: p.id, name: p.name, active: p.isActive, categoryName: p.category.name })),
     campaigns: campaigns.map(({ sends, ...c }) => ({
       ...c,
       couponCode: c.coupon?.code ?? null,

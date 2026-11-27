@@ -6,6 +6,7 @@ const base: PromotionRule = {
   name: "Martes",
   kind: "ORDER_PERCENT",
   value: 10,
+  productIds: [],
   minOrderCents: 0,
   weekdays: [],
   startTime: null,
@@ -46,6 +47,15 @@ describe("promotionDiscount", () => {
     expect(promotionDiscount({ ...base, kind: "ORDER_FIXED", value: 300 }, ctx)).toBe(300);
     expect(promotionDiscount({ ...base, kind: "FREE_DELIVERY" }, ctx)).toBe(250);
     expect(promotionDiscount({ ...base, kind: "FREE_DELIVERY" }, { ...ctx, channel: "TAKEAWAY" })).toBe(0);
+  });
+  it("aplica el porcentaje a la segunda unidad y a cada pareja adicional de productos seleccionados", () => {
+    const p = { ...base, kind: "SECOND_UNIT_PERCENT" as const, value: 50, productIds: ["burger"] };
+    const lines = [
+      { key: "a", productId: "burger", categoryId: "c1", unitBaseCents: 1000, quantity: 1 },
+      { key: "b", productId: "burger", categoryId: "c1", unitBaseCents: 1000, quantity: 3 },
+      { key: "c", productId: "drink", categoryId: "c2", unitBaseCents: 300, quantity: 3 },
+    ];
+    expect(promotionDiscount(p, { ...ctx, subtotalCents: 4900, lines })).toBe(1000);
   });
   it("nunca descuenta más que el subtotal ni por debajo del mínimo", () => {
     expect(promotionDiscount({ ...base, kind: "ORDER_FIXED", value: 5000 }, ctx)).toBe(2000);
