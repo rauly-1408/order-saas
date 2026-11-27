@@ -131,7 +131,7 @@ export async function priceOrderItems(tenantId: string, items: OrderLineInput[],
       const choices = (item.comboChoices ?? []).map((c) => ({ ...c, optionIds: c.optionIds ?? [] }));
       const priced = priceCombo({ name: product.name, basePriceCents: product.basePriceCents, slots: product.comboSlots }, choices, choiceById);
       if (typeof priced === "string") return { error: priced };
-      cartLines.push({ key: String(cartLines.length), categoryId: product.categoryId, unitBaseCents: product.basePriceCents, quantity: item.quantity });
+      cartLines.push({ key: String(cartLines.length), productId: product.id, categoryId: product.categoryId, unitBaseCents: product.basePriceCents, quantity: item.quantity });
       for (const c of choices) consumption.push({ productId: c.productId, quantity: item.quantity, optionIds: c.optionIds });
       linesCreate.push(withLineExtras({
         productId: product.id,
