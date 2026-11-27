@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     const orders = await prisma.order.findMany({
       where: { tenantId: tenant.id, deliveryRiderId: rider.id, status: { in: ["READY", "DELIVERING"] } },
       select: {
-        id: true, orderNumber: true, status: true, customerName: true, customerPhone: true,
+        id: true, orderNumber: true, status: true, paymentStatus: true, customerName: true, customerPhone: true,
         customerAddress: true, customerPostalCode: true, notes: true, createdAt: true,
         items: { select: { id: true, productName: true, quantity: true } },
       },
