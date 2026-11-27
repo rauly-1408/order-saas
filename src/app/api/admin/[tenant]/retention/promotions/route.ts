@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   // Carta en inglés: lo nuevo o cambiado se traduce solo, después de responder.
   after(() => autoTranslateMenu(ctx.tenant.id));
   const body = await req.json().catch(() => null);
-  const validProductIds = new Set((await prisma.product.findMany({ where: { tenantId: ctx.tenant.id, isActive: true, isCombo: false }, select: { id: true } })).map((p) => p.id));
+  const validProductIds = new Set((await prisma.product.findMany({ where: { tenantId: ctx.tenant.id, isCombo: false }, select: { id: true } })).map((p) => p.id));
   const input = parsePromotion(body, validProductIds);
   if (typeof input === "string") return NextResponse.json({ error: input }, { status: 400 });
   const promotion = await prisma.promotion.create({ data: { tenantId: ctx.tenant.id, ...input } });
