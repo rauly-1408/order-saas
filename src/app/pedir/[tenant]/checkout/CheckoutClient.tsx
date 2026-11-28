@@ -78,10 +78,12 @@ function submitPaymentForm(action: string, fields: Record<string, string>) {
 export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false, perks, productInfo = {}, deliveryPartners = [], lang = "es", payment = { card: false, bizum: false, inStore: true, test: false }, storeId = null, storeName = null, tenantName = null, checkout = DEFAULT_CHECKOUT, giftCardsEnabled = false }: CheckoutClientProps) {
   const T = ui(lang);
   const router = useRouter();
-  const { items, subtotalCents, clear, inc, dec } = useCart();
+  const { items, subtotalCents, clear, inc, dec, reprice } = useCart();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [channel, setChannel] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
+  const [priceMode, setPriceMode] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
+  const [deliveryBasePrices, setDeliveryBasePrices] = useState<Record<string, number>>({});
   const [address, setAddress] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [notes, setNotes] = useState("");
@@ -115,10 +117,41 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   // «A domicilio» con plataformas: abre «¿Con quién quieres tu pedido?» (como Burger King).
   const [chooser, setChooser] = useState(false);
   const takeawayOn = channel === "TAKEAWAY";
-  const pickDelivery = () => (deliveryPartners.length > 0 ? setChooser(true) : setChannel("DELIVERY"));
-  // Si en la carta ya eligió «Con <restaurante>», empezar en «A domicilio».
+  async function changeChannel(next: "TAKEAWAY" | "DELIVERY") {
+    if (next === channel) return;
+    if (next === "DELIVERY" && priceMode !== "DELIVERY") {
+      try {
+        const response = await fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" });
+        const menu = await response.json();
+        if (!response.ok || !Array.isArray(menu.categories)) throw new Error(menu.error ?? "No se pudo cargar la carta delivery");
+        const prices = Object.fromEntries(menu.categories.flatMap((category: { products: { id: string; basePriceCents: number }[] }) => category.products.map((product) => [product.id, product.basePriceCents])) as [string, number][]);
+        const hidden = Object.keys(productInfo).filter((id) => !Object.prototype.hasOwnProperty.call(prices, id));
+        const removed = reprice(prices, Object.fromEntries(Object.entries(productInfo).map(([id, p]) => [id, p.basePriceCents])), hidden);
+        setDeliveryBasePrices(prices);
+        setPriceMode("DELIVERY");
+        try { sessionStorage.setItem("pedir-price-channel", "DELIVERY"); } catch {}
+        setChannel("DELIVERY");
+        if (removed) setError("Algunos productos no están disponibles en la carta a domicilio y se quitaron del pedido.");
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "No se pudo cargar la carta delivery");
+      }
+      return;
+    }
+    if (next === "TAKEAWAY" && priceMode === "DELIVERY") {
+      const removed = reprice(Object.fromEntries(Object.entries(productInfo).map(([id, p]) => [id, p.basePriceCents])), deliveryBasePrices);
+      setPriceMode("TAKEAWAY");
+      try { sessionStorage.removeItem("pedir-price-channel"); } catch {}
+      setChannel("TAKEAWAY");
+      if (removed) setError("Se quitaron productos que no están disponibles para recogida.");
+      return;
+    }
+    setChannel(next);
+  }
+  const pickDelivery = () => (deliveryPartners.length > 0 ? setChooser(true) : void changeChannel("DELIVERY"));
+  // Recupera el canal y el modo de precios elegidos en la carta.
   useEffect(() => {
     try {
+      if (sessionStorage.getItem("pedir-price-channel") === "DELIVERY") setPriceMode("DELIVERY");
       if (sessionStorage.getItem("pedir-channel") === "DELIVERY" && settings?.deliveryEnabled) setChannel("DELIVERY");
       sessionStorage.removeItem("pedir-channel");
     } catch {}
@@ -476,7 +509,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 {takeawayEnabled && (
                   <button
                     type="button"
-                    onClick={() => setChannel("TAKEAWAY")}
+                    onClick={() => void changeChannel("TAKEAWAY")}
                     style={{ flex: 1, padding: "12px", borderRadius: "12px", border: `2px solid ${takeawayOn ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: takeawayOn ? `${cssVars["--brand-accent"]}15` : "transparent", color: takeawayOn ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: takeawayOn ? 700 : 400, fontSize: "14px", cursor: "pointer" }}
                   >
                     {T.pickup}
@@ -506,7 +539,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 <DeliveryChooser
                   partners={deliveryPartners}
                   ownName={deliveryEnabled ? tenantName || T.delivery : null}
-                  onOwn={() => { setChannel("DELIVERY"); setChooser(false); }}
+                  onOwn={() => { setChooser(false); void changeChannel("DELIVERY"); }}
                   onClose={() => setChooser(false)}
                   lang={lang}
                 />
