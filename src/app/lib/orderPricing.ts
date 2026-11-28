@@ -165,7 +165,7 @@ export async function priceOrderItems(tenantId: string, items: OrderLineInput[],
 
     const modifiers = selectionToModifiers(groups, selection);
     const unitCents = product.basePriceCents + modifiers.reduce((acc, m) => acc + m.priceDeltaCents, 0);
-    cartLines.push({ key: String(cartLines.length), categoryId: product.categoryId, unitBaseCents: product.basePriceCents, quantity: item.quantity });
+    cartLines.push({ key: String(cartLines.length), productId: product.id, categoryId: product.categoryId, unitBaseCents: product.basePriceCents, quantity: item.quantity });
     consumption.push({ productId: product.id, quantity: item.quantity, optionIds: Object.values(selection).flat() });
     linesCreate.push(withLineExtras({
       productId: product.id,
