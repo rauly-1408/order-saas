@@ -244,7 +244,7 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
       const menu = await response.json();
       if (!response.ok || !Array.isArray(menu.categories)) throw new Error(menu.error ?? "No se pudo cargar la carta delivery");
       setCategories(menu.categories);
-      try { sessionStorage.setItem("pedir-channel", "DELIVERY"); } catch {}
+      try { sessionStorage.setItem("pedir-channel", "DELIVERY"); sessionStorage.setItem("pedir-price-channel", "DELIVERY"); } catch {}
       setChooser(false);
       if (menu.categories[0]?.slug) scrollToCategory(menu.categories[0].slug);
     } catch (error) {
