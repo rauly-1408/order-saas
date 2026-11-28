@@ -255,7 +255,7 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
   // Si vuelve a la carta antes de pasar por checkout, conserva el canal elegido.
   useEffect(() => {
     try {
-      if (sessionStorage.getItem("pedir-channel") !== "DELIVERY") return;
+      if (sessionStorage.getItem("pedir-price-channel") !== "DELIVERY") return;
       let cancelled = false;
       fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" })
         .then((r) => r.ok ? r.json() : null)
