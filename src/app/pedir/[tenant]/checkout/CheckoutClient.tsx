@@ -169,8 +169,12 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   // Recupera el canal y el modo de precios elegidos en la carta.
   useEffect(() => {
     try {
-      if (sessionStorage.getItem("pedir-price-channel") === "DELIVERY") setPriceMode("DELIVERY");
-      if (sessionStorage.getItem("pedir-channel") === "DELIVERY" && settings?.deliveryEnabled) setChannel("DELIVERY");
+      if (sessionStorage.getItem("pedir-price-channel") === "DELIVERY") {
+        setPriceMode("DELIVERY");
+        setChannel("DELIVERY");
+      } else if (sessionStorage.getItem("pedir-channel") === "DELIVERY" && settings?.deliveryEnabled) {
+        setChannel("DELIVERY");
+      }
       sessionStorage.removeItem("pedir-channel");
     } catch {}
   }, [settings?.deliveryEnabled]);
