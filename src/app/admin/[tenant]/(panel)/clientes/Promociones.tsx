@@ -189,7 +189,7 @@ export default function Promociones({ data, api, onSaved }: { data: Overview; ap
 
 function PromotionFields({ form, products, categories, onChange }: { form: Form; products: Overview["products"]; categories: Overview["categories"]; onChange: (f: Form) => void }) {
   const toggleDay = (d: number) => onChange({ ...form, weekdays: form.weekdays.includes(d) ? form.weekdays.filter((x) => x !== d) : [...form.weekdays, d] });
-  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+  const [pickerView, setPickerView] = useState<"category" | "list" | null>(null);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const availableCategories = categories.filter((category) => products.some((product) => product.categoryId === category.id && product.active));
   const selectedCategory = availableCategories.find((category) => category.id === activeCategoryId) ?? availableCategories[0] ?? null;
@@ -238,94 +238,81 @@ function PromotionFields({ form, products, categories, onChange }: { form: Form;
         <div className="sm:col-span-2 rounded-xl border border-[var(--p-line)] p-3">
           <label className={label}>Productos incluidos</label>
           <p className="mb-2 text-xs text-[var(--p-muted)]">Se descuenta el porcentaje indicado en la segunda unidad y en cada pareja adicional (4.ª, 6.ª…).</p>
-          <section aria-labelledby="promotion-category-selection-title" className="mb-4 rounded-xl border border-[var(--p-line)] p-3 sm:p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="overflow-hidden rounded-xl border border-[var(--p-line)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--p-line)] p-3 sm:p-4">
               <div>
-                <h4 id="promotion-category-selection-title" className="text-sm font-semibold">Selección por categoría</h4>
-                <p className="mt-1 text-xs text-[var(--p-muted)]">Abrí una ventana aparte para explorar las categorías y elegir sus productos.</p>
-              </div>
-              <button type="button" onClick={() => { setActiveCategoryId(availableCategories[0]?.id ?? null); setCategoryPickerOpen(true); }} disabled={availableCategories.length === 0} className="p-press rounded-xl border border-[var(--p-line)] bg-[var(--p-surface)] px-4 py-2 text-sm font-semibold text-[var(--p-brand)] hover:border-[var(--p-brand)] disabled:opacity-50">
-                Abrir categorías
-              </button>
-            </div>
-          </section>
-          <section aria-labelledby="promotion-product-selection-title" className="rounded-xl border border-[var(--p-line)] p-3 sm:p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h4 id="promotion-product-selection-title" className="text-sm font-semibold">Selección por producto</h4>
-                <p className="mt-1 text-xs text-[var(--p-muted)]">Elegí directamente cada producto de la lista.</p>
+                <h4 className="text-sm font-semibold">¿Cómo querés seleccionar los productos?</h4>
+                <p className="mt-1 text-xs text-[var(--p-muted)]">Elegí una opción para desplegar sus productos. Podés cambiar cuando quieras.</p>
               </div>
               <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-medium text-[var(--p-muted)]">{form.productIds.length} seleccionados</span>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-            {products.map((product) => (
-              <label key={product.id} className={`flex items-center gap-2 text-sm ${product.active ? "" : "opacity-50"}`}>
-                <input type="checkbox" checked={form.productIds.includes(product.id)} disabled={!product.active} onChange={(e) => toggleProduct(product.id, e.target.checked)} className="h-4 w-4 accent-[var(--p-brand)]" />
-                <span>{product.name} <span className="text-xs text-[var(--p-muted)]">· {product.categoryName}{product.active ? "" : " · no disponible"}</span></span>
-              </label>
-            ))}
+            <div className="grid grid-cols-2 gap-1 border-b border-[var(--p-line)] bg-black/[0.025] p-1.5" role="tablist" aria-label="Forma de seleccionar productos">
+              <button type="button" aria-pressed={pickerView === "category"} onClick={() => setPickerView(pickerView === "category" ? null : "category")} className={`p-press rounded-lg border px-3 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-brand)] ${pickerView === "category" ? "border-[var(--p-brand)] bg-[var(--p-brand)] text-white shadow-sm" : "border-[var(--p-line)] bg-[var(--p-surface)] text-[var(--p-muted)] hover:border-[var(--p-brand)] hover:text-[var(--p-brand)]"}`}>
+                Por categoría
+              </button>
+              <button type="button" aria-pressed={pickerView === "list"} onClick={() => setPickerView(pickerView === "list" ? null : "list")} className={`p-press rounded-lg border px-3 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-brand)] ${pickerView === "list" ? "border-[var(--p-brand)] bg-[var(--p-brand)] text-white shadow-sm" : "border-[var(--p-line)] bg-[var(--p-surface)] text-[var(--p-muted)] hover:border-[var(--p-brand)] hover:text-[var(--p-brand)]"}`}>
+                Por lista
+              </button>
             </div>
-            {products.length === 0 && <p className="text-sm text-[var(--p-muted)]">No hay productos disponibles para seleccionar.</p>}
-          </section>
 
-          {categoryPickerOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3 sm:p-6" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setCategoryPickerOpen(false); }}>
-              <section role="dialog" aria-modal="true" aria-labelledby="promotion-category-picker-title" className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--p-line)] bg-[var(--p-surface)] shadow-2xl">
-                <header className="flex items-start justify-between gap-3 border-b border-[var(--p-line)] p-4 sm:p-5">
-                  <div>
-                    <h3 id="promotion-category-picker-title" className="text-base font-semibold">Elegir productos por categoría</h3>
-                    <p className="mt-1 text-xs text-[var(--p-muted)]">Elegí una categoría y marcá los productos que querés incluir.</p>
-                  </div>
-                  <button type="button" onClick={() => setCategoryPickerOpen(false)} aria-label="Cerrar selector de categorías" className="p-press rounded-full px-3 py-1 text-lg leading-none text-[var(--p-muted)] hover:bg-black/[0.05]">×</button>
-                </header>
-                <div className="grid min-h-0 flex-1 sm:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.5fr)]">
-                  <nav aria-label="Categorías" className="max-h-40 space-y-1 overflow-y-auto border-b border-[var(--p-line)] p-3 sm:max-h-none sm:border-b-0 sm:border-r">
-                    {availableCategories.map((category) => {
-                      const items = products.filter((product) => product.categoryId === category.id && product.active);
-                      if (items.length === 0) return null;
-                      const count = items.filter((product) => form.productIds.includes(product.id)).length;
-                      const active = selectedCategory?.id === category.id;
-                      return (
-                        <button key={category.id} type="button" onClick={() => setActiveCategoryId(category.id)} aria-current={active ? "true" : undefined} className={`p-press flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm ${active ? "bg-[var(--p-brand)] text-white" : "text-[var(--p-text)] hover:bg-black/[0.05]"}`}>
-                          <span className="min-w-0 truncate">{category.name}</span>
-                          <span className={`shrink-0 text-xs tabular-nums ${active ? "text-white/80" : "text-[var(--p-muted)]"}`}>{count}/{items.length}</span>
+            {pickerView === "category" ? (
+              <div role="tabpanel" className="grid min-h-[300px] sm:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.5fr)]">
+                <nav aria-label="Categorías" className="flex gap-2 overflow-x-auto border-b border-[var(--p-line)] p-3 sm:block sm:space-y-1 sm:overflow-y-auto sm:border-b-0 sm:border-r">
+                  {availableCategories.map((category) => {
+                    const items = products.filter((product) => product.categoryId === category.id && product.active);
+                    if (items.length === 0) return null;
+                    const count = items.filter((product) => form.productIds.includes(product.id)).length;
+                    const active = selectedCategory?.id === category.id;
+                    return (
+                      <button key={category.id} type="button" onClick={() => setActiveCategoryId(category.id)} aria-pressed={active} className={`p-press flex shrink-0 items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm sm:w-full ${active ? "bg-[var(--p-brand)] text-white" : "border border-[var(--p-line)] text-[var(--p-text)] hover:border-[var(--p-brand)]"}`}>
+                        <span className="max-w-40 truncate">{category.name}</span>
+                        <span className={`shrink-0 text-xs tabular-nums ${active ? "text-white/80" : "text-[var(--p-muted)]"}`}>{count}/{items.length}</span>
+                      </button>
+                    );
+                  })}
+                  {availableCategories.length === 0 && <p className="px-2 py-3 text-sm text-[var(--p-muted)]">No hay categorías con productos activos.</p>}
+                </nav>
+                <div className="min-w-0 p-3 sm:p-4">
+                  {selectedCategory ? (
+                    <>
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h5 className="font-semibold">{selectedCategory.name}</h5>
+                          <p className="text-xs text-[var(--p-muted)]">{categoryProducts.length} productos · {selectedInCategory} seleccionados</p>
+                        </div>
+                        <button type="button" onClick={() => toggleCategory(selectedCategory.id, selectedInCategory !== categoryProducts.length)} disabled={categoryProducts.length === 0} className="p-press rounded-lg border border-[var(--p-line)] px-3 py-2 text-xs font-semibold text-[var(--p-brand)] hover:border-[var(--p-brand)] disabled:opacity-50">
+                          {selectedInCategory === categoryProducts.length ? "Quitar todos" : "Seleccionar todos"}
                         </button>
-                      );
-                    })}
-                  </nav>
-                  <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
-                    {selectedCategory ? (
-                      <>
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <h4 className="font-semibold">{selectedCategory.name}</h4>
-                            <p className="text-xs text-[var(--p-muted)]">{categoryProducts.length} productos disponibles</p>
-                          </div>
-                          <button type="button" onClick={() => toggleCategory(selectedCategory.id, selectedInCategory !== categoryProducts.length)} disabled={categoryProducts.length === 0} className="p-press rounded-lg border border-[var(--p-line)] px-3 py-2 text-xs font-semibold text-[var(--p-brand)] hover:border-[var(--p-brand)] disabled:opacity-50">
-                            {selectedInCategory === categoryProducts.length ? "Quitar todos" : "Seleccionar todos"}
-                          </button>
-                        </div>
-                        <div className="space-y-2">
-                          {categoryProducts.map((product) => (
-                            <label key={product.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--p-line)] px-3 py-3 text-sm hover:bg-black/[0.025]">
-                              <input type="checkbox" checked={form.productIds.includes(product.id)} onChange={(e) => toggleProduct(product.id, e.target.checked)} className="h-4 w-4 shrink-0 accent-[var(--p-brand)]" />
-                              <span className="min-w-0 flex-1">{product.name}</span>
-                              <span className="text-xs text-[var(--p-muted)]">{form.productIds.includes(product.id) ? "Incluido" : "No incluido"}</span>
-                            </label>
-                          ))}
-                          {categoryProducts.length === 0 && <p className="text-sm text-[var(--p-muted)]">Esta categoría no tiene productos activos.</p>}
-                        </div>
-                      </>
-                    ) : <p className="text-sm text-[var(--p-muted)]">No hay categorías con productos activos.</p>}
-                  </div>
+                      </div>
+                      <div className="space-y-2">
+                        {categoryProducts.map((product) => (
+                          <label key={product.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--p-line)] px-3 py-3 text-sm hover:bg-black/[0.025]">
+                            <input type="checkbox" checked={form.productIds.includes(product.id)} onChange={(e) => toggleProduct(product.id, e.target.checked)} className="h-4 w-4 shrink-0 accent-[var(--p-brand)]" />
+                            <span className="min-w-0 flex-1">{product.name}</span>
+                            <span className="text-xs text-[var(--p-muted)]">{form.productIds.includes(product.id) ? "Incluido" : "Añadir"}</span>
+                          </label>
+                        ))}
+                        {categoryProducts.length === 0 && <p className="text-sm text-[var(--p-muted)]">Esta categoría no tiene productos activos.</p>}
+                      </div>
+                    </>
+                  ) : <p className="text-sm text-[var(--p-muted)]">No hay categorías con productos activos.</p>}
                 </div>
-                <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--p-line)] p-4 sm:px-5">
-                  <span className="text-xs text-[var(--p-muted)]">{form.productIds.length} productos seleccionados en total</span>
-                  <button type="button" onClick={() => setCategoryPickerOpen(false)} className={primaryBtn}>Listo</button>
-                </footer>
-              </section>
-            </div>
-          )}
+              </div>
+            ) : pickerView === "list" ? (
+              <div role="region" aria-label="Lista de productos" className="p-3 sm:p-4">
+                <p className="mb-3 text-xs text-[var(--p-muted)]">Marcá uno o varios productos. Los cambios también se reflejan en la vista por categoría.</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {products.map((product) => (
+                    <label key={product.id} className={`flex items-center gap-3 rounded-xl border border-[var(--p-line)] px-3 py-3 text-sm ${product.active ? "cursor-pointer hover:bg-black/[0.025]" : "opacity-50"}`}>
+                      <input type="checkbox" checked={form.productIds.includes(product.id)} disabled={!product.active} onChange={(e) => toggleProduct(product.id, e.target.checked)} className="h-4 w-4 shrink-0 accent-[var(--p-brand)]" />
+                      <span className="min-w-0 flex-1">{product.name}<span className="ml-1 text-xs text-[var(--p-muted)]">· {product.categoryName}{product.active ? "" : " · no disponible"}</span></span>
+                    </label>
+                  ))}
+                </div>
+                {products.length === 0 && <p className="text-sm text-[var(--p-muted)]">No hay productos disponibles para seleccionar.</p>}
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
       <div>
