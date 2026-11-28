@@ -221,7 +221,7 @@ function PromotionFields({ form, products, categories, onChange }: { form: Form;
               <p className="mb-2 text-xs font-semibold text-[var(--p-muted)]">Seleccionar por categoría</p>
               <div className="flex flex-wrap gap-2">
                 {categories.map((category) => {
-                  const categoryProducts = products.filter((product) => product.categoryName === category.name && product.active);
+                  const categoryProducts = products.filter((product) => product.categoryId === category.id && product.active);
                   if (categoryProducts.length === 0) return null;
                   const selectedCount = categoryProducts.filter((product) => form.productIds.includes(product.id)).length;
                   const checked = selectedCount === categoryProducts.length;
