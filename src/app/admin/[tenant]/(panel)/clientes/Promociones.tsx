@@ -189,7 +189,7 @@ export default function Promociones({ data, api, onSaved }: { data: Overview; ap
 
 function PromotionFields({ form, products, categories, onChange }: { form: Form; products: Overview["products"]; categories: Overview["categories"]; onChange: (f: Form) => void }) {
   const toggleDay = (d: number) => onChange({ ...form, weekdays: form.weekdays.includes(d) ? form.weekdays.filter((x) => x !== d) : [...form.weekdays, d] });
-  const [pickerView, setPickerView] = useState<"category" | "product">("category");
+  const [pickerView, setPickerView] = useState<"category" | "list" | null>(null);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const availableCategories = categories.filter((category) => products.some((product) => product.categoryId === category.id && product.active));
   const selectedCategory = availableCategories.find((category) => category.id === activeCategoryId) ?? availableCategories[0] ?? null;
@@ -241,17 +241,17 @@ function PromotionFields({ form, products, categories, onChange }: { form: Form;
           <div className="overflow-hidden rounded-xl border border-[var(--p-line)]">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--p-line)] p-3 sm:p-4">
               <div>
-                <h4 className="text-sm font-semibold">Elegí cómo incluir los productos</h4>
-                <p className="mt-1 text-xs text-[var(--p-muted)]">Podés cambiar de vista cuando quieras; la selección se mantiene.</p>
+                <h4 className="text-sm font-semibold">¿Cómo querés seleccionar los productos?</h4>
+                <p className="mt-1 text-xs text-[var(--p-muted)]">Elegí una opción para desplegar sus productos. Podés cambiar cuando quieras.</p>
               </div>
               <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-medium text-[var(--p-muted)]">{form.productIds.length} seleccionados</span>
             </div>
             <div className="grid grid-cols-2 gap-1 border-b border-[var(--p-line)] bg-black/[0.025] p-1.5" role="tablist" aria-label="Forma de seleccionar productos">
-              <button type="button" role="tab" aria-selected={pickerView === "category"} onClick={() => setPickerView("category")} className={`p-press rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-brand)] ${pickerView === "category" ? "bg-[var(--p-surface)] text-[var(--p-brand)] shadow-sm" : "text-[var(--p-muted)] hover:text-[var(--p-text)]"}`}>
+              <button type="button" aria-pressed={pickerView === "category"} onClick={() => setPickerView(pickerView === "category" ? null : "category")} className={`p-press rounded-lg border px-3 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-brand)] ${pickerView === "category" ? "border-[var(--p-brand)] bg-[var(--p-brand)] text-white shadow-sm" : "border-[var(--p-line)] bg-[var(--p-surface)] text-[var(--p-muted)] hover:border-[var(--p-brand)] hover:text-[var(--p-brand)]"}`}>
                 Por categoría
               </button>
-              <button type="button" role="tab" aria-selected={pickerView === "product"} onClick={() => setPickerView("product")} className={`p-press rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-brand)] ${pickerView === "product" ? "bg-[var(--p-surface)] text-[var(--p-brand)] shadow-sm" : "text-[var(--p-muted)] hover:text-[var(--p-text)]"}`}>
-                Por producto
+              <button type="button" aria-pressed={pickerView === "list"} onClick={() => setPickerView(pickerView === "list" ? null : "list")} className={`p-press rounded-lg border px-3 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-brand)] ${pickerView === "list" ? "border-[var(--p-brand)] bg-[var(--p-brand)] text-white shadow-sm" : "border-[var(--p-line)] bg-[var(--p-surface)] text-[var(--p-muted)] hover:border-[var(--p-brand)] hover:text-[var(--p-brand)]"}`}>
+                Por lista
               </button>
             </div>
 
@@ -298,8 +298,8 @@ function PromotionFields({ form, products, categories, onChange }: { form: Form;
                   ) : <p className="text-sm text-[var(--p-muted)]">No hay categorías con productos activos.</p>}
                 </div>
               </div>
-            ) : (
-              <div role="tabpanel" className="p-3 sm:p-4">
+            ) : pickerView === "list" ? (
+              <div role="region" aria-label="Lista de productos" className="p-3 sm:p-4">
                 <p className="mb-3 text-xs text-[var(--p-muted)]">Marcá uno o varios productos. Los cambios también se reflejan en la vista por categoría.</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {products.map((product) => (
@@ -311,7 +311,7 @@ function PromotionFields({ form, products, categories, onChange }: { form: Form;
                 </div>
                 {products.length === 0 && <p className="text-sm text-[var(--p-muted)]">No hay productos disponibles para seleccionar.</p>}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       )}
