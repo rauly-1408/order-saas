@@ -69,7 +69,11 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
     description: tr(catTr, lang, "description", cat.description),
     products: cat.products.filter((p) => !deliveryList?.hidden.includes(p.id)).map(({ modifierGroups, recipeLines, translations: pTr, comboSlots, allergens: declared, onlinePriceCents, ...product }) => ({
       ...product,
-      basePriceCents: opts.delivery && Number.isInteger(deliveryPrices[product.id]) ? deliveryPrices[product.id] as number : opts.online && onlinePriceCents != null ? onlinePriceCents : product.basePriceCents,
+      // En delivery propio, la lista asignada tiene prioridad absoluta. Si un
+      // producto no tiene precio explícito, usa el precio local, nunca el online.
+      basePriceCents: opts.delivery
+        ? Number.isInteger(deliveryPrices[product.id]) ? deliveryPrices[product.id] as number : product.basePriceCents
+        : opts.online && onlinePriceCents != null ? onlinePriceCents : product.basePriceCents,
       imageUrl: opts.delivery && typeof deliveryImages[product.id] === "string" ? deliveryImages[product.id] as string : product.imageUrl,
       name: tr(pTr, lang, "name", product.name),
       description: opts.delivery && typeof deliveryDescriptions[product.id] === "string" ? deliveryDescriptions[product.id] as string : tr(pTr, lang, "description", product.description ?? ""),
@@ -108,6 +112,9 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
     storeId: currentStoreId,
     deliveryPartners: activePartners(parsePartners((tenant.settings as Record<string, unknown> | null)?.deliveryPartners)),
     categories: menuCategories,
+    // Permite al cliente distinguir una carta delivery asignada de un fallback.
+    deliveryPriceListAssigned: opts.delivery ? !!deliveryList : null,
+    deliveryPriceListName: opts.delivery ? deliveryList?.name ?? null : null,
   };
 }
 
