@@ -189,6 +189,20 @@ export default function Promociones({ data, api, onSaved }: { data: Overview; ap
 
 function PromotionFields({ form, products, categories, onChange }: { form: Form; products: Overview["products"]; categories: Overview["categories"]; onChange: (f: Form) => void }) {
   const toggleDay = (d: number) => onChange({ ...form, weekdays: form.weekdays.includes(d) ? form.weekdays.filter((x) => x !== d) : [...form.weekdays, d] });
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const availableCategories = categories.filter((category) => products.some((product) => product.categoryId === category.id && product.active));
+  const selectedCategory = availableCategories.find((category) => category.id === activeCategoryId) ?? availableCategories[0] ?? null;
+  const categoryProducts = selectedCategory ? products.filter((product) => product.categoryId === selectedCategory.id && product.active) : [];
+  const selectedInCategory = categoryProducts.filter((product) => form.productIds.includes(product.id)).length;
+  const toggleCategory = (categoryId: string, checked: boolean) => {
+    const ids = products.filter((product) => product.categoryId === categoryId && product.active).map((product) => product.id);
+    const nextIds = checked ? [...new Set([...form.productIds, ...ids])] : form.productIds.filter((id) => !ids.includes(id));
+    onChange({ ...form, productIds: nextIds });
+  };
+  const toggleProduct = (productId: string, checked: boolean) => {
+    onChange({ ...form, productIds: checked ? [...new Set([...form.productIds, productId])] : form.productIds.filter((id) => id !== productId) });
+  };
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <div>
@@ -224,40 +238,87 @@ function PromotionFields({ form, products, categories, onChange }: { form: Form;
         <div className="sm:col-span-2 rounded-xl border border-[var(--p-line)] p-3">
           <label className={label}>Productos incluidos</label>
           <p className="mb-2 text-xs text-[var(--p-muted)]">Se descuenta el porcentaje indicado en la segunda unidad y en cada pareja adicional (4.ª, 6.ª…).</p>
-          {categories.length > 0 && (
-            <div className="mb-3 rounded-lg bg-black/[0.03] p-3">
-              <p className="mb-2 text-xs font-semibold text-[var(--p-muted)]">Seleccionar por categoría</p>
-              <div className="flex flex-wrap gap-2">
-                {categories.map((category) => {
-                  const categoryProducts = products.filter((product) => product.categoryId === category.id && product.active);
-                  if (categoryProducts.length === 0) return null;
-                  const selectedCount = categoryProducts.filter((product) => form.productIds.includes(product.id)).length;
-                  const checked = selectedCount === categoryProducts.length;
-                  return (
-                    <label key={category.id} className="flex cursor-pointer items-center gap-2 rounded-full border border-[var(--p-line)] bg-[var(--p-surface)] px-3 py-1.5 text-sm">
-                      <input type="checkbox" checked={checked} onChange={(e) => {
-                        const ids = categoryProducts.map((product) => product.id);
-                        const nextIds = e.target.checked ? [...new Set([...form.productIds, ...ids])] : form.productIds.filter((id) => !ids.includes(id));
-                        onChange({ ...form, productIds: nextIds });
-                      }} className="h-4 w-4 accent-[var(--p-brand)]" />
-                      <span>{category.name}</span>
-                      <span className="text-xs text-[var(--p-muted)]">{selectedCount}/{categoryProducts.length}</span>
-                    </label>
-                  );
-                })}
-              </div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-black/[0.03] p-3">
+            <div>
+              <p className="text-sm font-semibold">Selección por categoría</p>
+              <p className="text-xs text-[var(--p-muted)]">Abrí una categoría para ver y marcar sus productos.</p>
             </div>
-          )}
-          <p className="mb-2 text-xs font-semibold text-[var(--p-muted)]">O elegí productos individuales</p>
+            <button type="button" onClick={() => { setActiveCategoryId(availableCategories[0]?.id ?? null); setCategoryPickerOpen(true); }} disabled={availableCategories.length === 0} className="p-press rounded-xl border border-[var(--p-line)] bg-[var(--p-surface)] px-4 py-2 text-sm font-semibold text-[var(--p-brand)] hover:border-[var(--p-brand)] disabled:opacity-50">
+              Ver categorías y productos
+            </button>
+          </div>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold">Selección individual</p>
+            <span className="text-xs text-[var(--p-muted)]">{form.productIds.length} seleccionados</span>
+          </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {products.map((product) => (
               <label key={product.id} className={`flex items-center gap-2 text-sm ${product.active ? "" : "opacity-50"}`}>
-                <input type="checkbox" checked={form.productIds.includes(product.id)} disabled={!product.active && !form.productIds.includes(product.id)} onChange={(e) => onChange({ ...form, productIds: e.target.checked ? [...form.productIds, product.id] : form.productIds.filter((id) => id !== product.id) })} className="h-4 w-4 accent-[var(--p-brand)]" />
+                <input type="checkbox" checked={form.productIds.includes(product.id)} disabled={!product.active} onChange={(e) => toggleProduct(product.id, e.target.checked)} className="h-4 w-4 accent-[var(--p-brand)]" />
                 <span>{product.name} <span className="text-xs text-[var(--p-muted)]">· {product.categoryName}{product.active ? "" : " · no disponible"}</span></span>
               </label>
             ))}
           </div>
           {products.length === 0 && <p className="text-sm text-[var(--p-muted)]">No hay productos disponibles para seleccionar.</p>}
+
+          {categoryPickerOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3 sm:p-6" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setCategoryPickerOpen(false); }}>
+              <section role="dialog" aria-modal="true" aria-labelledby="promotion-category-picker-title" className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--p-line)] bg-[var(--p-surface)] shadow-2xl">
+                <header className="flex items-start justify-between gap-3 border-b border-[var(--p-line)] p-4 sm:p-5">
+                  <div>
+                    <h3 id="promotion-category-picker-title" className="text-base font-semibold">Elegir productos por categoría</h3>
+                    <p className="mt-1 text-xs text-[var(--p-muted)]">Elegí una categoría y marcá los productos que querés incluir.</p>
+                  </div>
+                  <button type="button" onClick={() => setCategoryPickerOpen(false)} aria-label="Cerrar selector de categorías" className="p-press rounded-full px-3 py-1 text-lg leading-none text-[var(--p-muted)] hover:bg-black/[0.05]">×</button>
+                </header>
+                <div className="grid min-h-0 flex-1 sm:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.5fr)]">
+                  <nav aria-label="Categorías" className="max-h-40 space-y-1 overflow-y-auto border-b border-[var(--p-line)] p-3 sm:max-h-none sm:border-b-0 sm:border-r">
+                    {availableCategories.map((category) => {
+                      const items = products.filter((product) => product.categoryId === category.id && product.active);
+                      if (items.length === 0) return null;
+                      const count = items.filter((product) => form.productIds.includes(product.id)).length;
+                      const active = selectedCategory?.id === category.id;
+                      return (
+                        <button key={category.id} type="button" onClick={() => setActiveCategoryId(category.id)} aria-current={active ? "true" : undefined} className={`p-press flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm ${active ? "bg-[var(--p-brand)] text-white" : "text-[var(--p-text)] hover:bg-black/[0.05]"}`}>
+                          <span className="min-w-0 truncate">{category.name}</span>
+                          <span className={`shrink-0 text-xs tabular-nums ${active ? "text-white/80" : "text-[var(--p-muted)]"}`}>{count}/{items.length}</span>
+                        </button>
+                      );
+                    })}
+                  </nav>
+                  <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
+                    {selectedCategory ? (
+                      <>
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <h4 className="font-semibold">{selectedCategory.name}</h4>
+                            <p className="text-xs text-[var(--p-muted)]">{categoryProducts.length} productos disponibles</p>
+                          </div>
+                          <button type="button" onClick={() => toggleCategory(selectedCategory.id, selectedInCategory !== categoryProducts.length)} disabled={categoryProducts.length === 0} className="p-press rounded-lg border border-[var(--p-line)] px-3 py-2 text-xs font-semibold text-[var(--p-brand)] hover:border-[var(--p-brand)] disabled:opacity-50">
+                            {selectedInCategory === categoryProducts.length ? "Quitar todos" : "Seleccionar todos"}
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {categoryProducts.map((product) => (
+                            <label key={product.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--p-line)] px-3 py-3 text-sm hover:bg-black/[0.025]">
+                              <input type="checkbox" checked={form.productIds.includes(product.id)} onChange={(e) => toggleProduct(product.id, e.target.checked)} className="h-4 w-4 shrink-0 accent-[var(--p-brand)]" />
+                              <span className="min-w-0 flex-1">{product.name}</span>
+                              <span className="text-xs text-[var(--p-muted)]">{form.productIds.includes(product.id) ? "Incluido" : "No incluido"}</span>
+                            </label>
+                          ))}
+                          {categoryProducts.length === 0 && <p className="text-sm text-[var(--p-muted)]">Esta categoría no tiene productos activos.</p>}
+                        </div>
+                      </>
+                    ) : <p className="text-sm text-[var(--p-muted)]">No hay categorías con productos activos.</p>}
+                  </div>
+                </div>
+                <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--p-line)] p-4 sm:px-5">
+                  <span className="text-xs text-[var(--p-muted)]">{form.productIds.length} productos seleccionados en total</span>
+                  <button type="button" onClick={() => setCategoryPickerOpen(false)} className={primaryBtn}>Listo</button>
+                </footer>
+              </section>
+            </div>
+          )}
         </div>
       )}
       <div>
