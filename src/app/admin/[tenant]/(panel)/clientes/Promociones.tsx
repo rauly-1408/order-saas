@@ -189,7 +189,6 @@ export default function Promociones({ data, api, onSaved }: { data: Overview; ap
 
 function PromotionFields({ form, products, categories, onChange }: { form: Form; products: Overview["products"]; categories: Overview["categories"]; onChange: (f: Form) => void }) {
   const toggleDay = (d: number) => onChange({ ...form, weekdays: form.weekdays.includes(d) ? form.weekdays.filter((x) => x !== d) : [...form.weekdays, d] });
-  const pill = (on: boolean) => `p-press rounded-full px-3 py-1 text-sm font-medium ${on ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"}`;
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <div>
@@ -198,12 +197,21 @@ function PromotionFields({ form, products, categories, onChange }: { form: Form;
       </div>
       <div>
         <label className={label}>Qué se lleva el cliente</label>
-        <div className="flex flex-wrap gap-1 rounded-2xl bg-black/[0.05] p-1 sm:w-fit sm:rounded-full">
-          {KINDS.map((k) => (
-            <button key={k.key} type="button" onClick={() => onChange({ ...form, kind: k.key, value: k.key === "SECOND_UNIT_PERCENT" && form.kind !== "SECOND_UNIT_PERCENT" ? "50" : form.value })} className={pill(form.kind === k.key)}>
-              {k.label}
-            </button>
-          ))}
+        <div role="group" aria-label="Tipo de beneficio" className="grid grid-cols-2 gap-2 sm:max-w-2xl">
+          {KINDS.map((k) => {
+            const selected = form.kind === k.key;
+            return (
+              <button
+                key={k.key}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onChange({ ...form, kind: k.key, value: k.key === "SECOND_UNIT_PERCENT" && form.kind !== "SECOND_UNIT_PERCENT" ? "50" : form.value })}
+                className={`p-press flex min-h-12 w-full items-center justify-center rounded-xl border px-3 py-2 text-center text-sm font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-brand)] focus-visible:ring-offset-2 ${selected ? "border-[var(--p-brand)] bg-[var(--p-brand)] text-white shadow-sm" : "border-[var(--p-line)] bg-[var(--p-surface)] text-[var(--p-muted)] hover:border-[var(--p-brand)] hover:text-[var(--p-brand)]"}`}
+              >
+                {k.label}
+              </button>
+            );
+          })}
         </div>
       </div>
       {form.kind !== "FREE_DELIVERY" && (
