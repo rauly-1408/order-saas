@@ -244,16 +244,22 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
       const response = await fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" });
       const menu = await response.json();
       if (!response.ok || !Array.isArray(menu.categories)) throw new Error(menu.error ?? "No se pudo cargar la carta delivery");
-      const localPrices = Object.fromEntries(categories.flatMap((category) => category.products.map((product) => [product.id, product.basePriceCents] as [string, number])));
+      if (menu.deliveryPriceListAssigned !== true) throw new Error("El restaurante todavía no tiene una carta asignada a «Web propia · A domicilio». Selecciona una en el panel de administración.");
+      const baseMenuResponse = await fetch(`/api/menu/${tenant}`, { cache: "no-store" });
+      const baseMenu = await baseMenuResponse.json();
+      if (!baseMenuResponse.ok || !Array.isArray(baseMenu.categories)) throw new Error("No se pudo recuperar la carta base");
+      const localPrices = Object.fromEntries(baseMenu.categories.flatMap((category: { products: { id: string; basePriceCents: number }[] }) => category.products.map((product) => [product.id, product.basePriceCents] as [string, number])));
       const deliveryPrices = Object.fromEntries(menu.categories.flatMap((category: { products: { id: string; basePriceCents: number }[] }) => category.products.map((product) => [product.id, product.basePriceCents] as [string, number])));
       const hidden = Object.keys(localPrices).filter((id) => !Object.prototype.hasOwnProperty.call(deliveryPrices, id));
       reprice(deliveryPrices, localPrices, hidden);
       setCategories(menu.categories);
+      setDeliveryLoadError("");
       try { sessionStorage.setItem("pedir-channel", "DELIVERY"); sessionStorage.setItem("pedir-price-channel", "DELIVERY"); } catch {}
       setChooser(false);
       if (menu.categories[0]?.slug) scrollToCategory(menu.categories[0].slug);
     } catch (error) {
       console.error("[menu] no se pudo cargar la carta delivery", error);
+      setDeliveryLoadError(error instanceof Error ? error.message : "No se pudo cargar la carta a domicilio. Inténtalo de nuevo.");
       setChooser(false);
     }
   }
@@ -264,7 +270,22 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
       let cancelled = false;
       fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" })
         .then((r) => r.ok ? r.json() : null)
-        .then((menu) => { if (!cancelled && Array.isArray(menu?.categories)) setCategories(menu.categories); })
+        .then(async (menu) => {
+          if (cancelled || !Array.isArray(menu?.categories)) return;
+          if (menu.deliveryPriceListAssigned !== true) {
+            setDeliveryLoadError("No hay una carta asignada a «Web propia · A domicilio». Configúrala en el panel de administración.");
+            return;
+          }
+          const baseResponse = await fetch(`/api/menu/${tenant}`, { cache: "no-store" });
+          const baseMenu = await baseResponse.json();
+          if (cancelled || !baseResponse.ok || !Array.isArray(baseMenu.categories)) return;
+          const basePrices = Object.fromEntries(baseMenu.categories.flatMap((category: { products: { id: string; basePriceCents: number }[] }) => category.products.map((product) => [product.id, product.basePriceCents] as [string, number])));
+          const deliveryPrices = Object.fromEntries(menu.categories.flatMap((category: { products: { id: string; basePriceCents: number }[] }) => category.products.map((product) => [product.id, product.basePriceCents] as [string, number])));
+          const hidden = Object.keys(basePrices).filter((id) => !Object.prototype.hasOwnProperty.call(deliveryPrices, id));
+          reprice(deliveryPrices, basePrices, hidden);
+          setCategories(menu.categories);
+          setDeliveryLoadError("");
+        })
         .catch(() => {});
       return () => { cancelled = true; };
     } catch {}
@@ -308,7 +329,6 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
           ownName={settings?.deliveryEnabled ? tenantName : null}
           onOwn={() => {
             try { sessionStorage.setItem("pedir-channel", "DELIVERY"); } catch {}
-            setChooser(false);
             void selectOwnDelivery();
           }}
           onClose={() => setChooser(false)}
@@ -369,7 +389,7 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
               </span>
             )}
             {(settings?.deliveryEnabled || deliveryPartners.length > 0) ? (
-              <button type="button" onClick={() => setChooser(true)} aria-haspopup="dialog" className="p-press hidden rounded-full px-4 py-2 text-[13px] font-bold sm:inline-block" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
+              <button type="button" onClick={() => void selectOwnDelivery()} className="p-press hidden rounded-full px-4 py-2 text-[13px] font-bold sm:inline-block" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
                 🛵 {T.delivery}
               </button>
             ) : null}
@@ -429,7 +449,7 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
               </button>
             )}
             {(settings?.deliveryEnabled || deliveryPartners.length > 0) && (
-              <button type="button" onClick={() => setChooser(true)} aria-haspopup="dialog" className="p-press rounded-full border-2 bg-transparent px-6 py-3 text-[15px] font-bold" style={{ borderColor: "currentColor", color: "inherit" }}>
+              <button type="button" onClick={() => void selectOwnDelivery()} className="p-press rounded-full border-2 bg-transparent px-6 py-3 text-[15px] font-bold" style={{ borderColor: "currentColor", color: "inherit" }}>
                 🛵 {T.delivery}
               </button>
             )}

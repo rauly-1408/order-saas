@@ -125,6 +125,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
         const response = await fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" });
         const menu = await response.json();
         if (!response.ok || !Array.isArray(menu.categories)) throw new Error(menu.error ?? "No se pudo cargar la carta delivery");
+        if (menu.deliveryPriceListAssigned !== true) throw new Error("El restaurante todavía no tiene una carta asignada a «Web propia · A domicilio». Selecciona una en el panel de administración.");
         const prices: Record<string, number> = {};
         const nextInfo: typeof productInfo = {};
         for (const category of menu.categories as { id: string; products: { id: string; basePriceCents: number }[] }[]) {
@@ -172,7 +173,8 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
     }
     setChannel(next);
   }
-  const pickDelivery = () => (deliveryPartners.length > 0 ? setChooser(true) : void changeChannel("DELIVERY"));
+  // «A domicilio» es un canal de la tienda propia: cambia la carta y los precios aquí mismo.
+  const pickDelivery = () => void changeChannel("DELIVERY");
   // Recupera el canal y el modo de precios elegidos en la carta.
   useEffect(() => {
     try {
