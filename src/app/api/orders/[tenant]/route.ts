@@ -25,6 +25,7 @@ import { couponDiscount, couponProblem, normalizeCode } from "@/app/lib/retentio
 import { MAX_QTY_PER_LINE, priceOrderItems, type OrderLineInput } from "@/app/lib/orderPricing";
 import { CouponError, createOrderWithNumber } from "@/app/lib/createOrder";
 import { bestDiscount, collaboratorByCode, collaboratorDiscountCents, commissionCents } from "@/app/lib/collaborators";
+import { readPrices } from "@/app/lib/priceLists";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -149,8 +150,15 @@ export async function POST(req: NextRequest) {
     const payment = { method: paymentMethod, provider: online ? (await paymentAccount(tenant.id)).provider : null };
 
 
+    // La carta asignada a «Web propia · A domicilio» solo afecta pedidos DELIVERY.
+    const deliveryList = channel === "DELIVERY"
+      ? await prisma.priceList.findFirst({ where: { tenantId: tenant.id, channels: { has: "web" } }, select: { prices: true, hidden: true } })
+      : null;
     // Precio de cada línea (base + opciones + menús) con datos de la base de datos.
-    const priced = await priceOrderItems(tenant.id, items, { online: true });
+    const priced = await priceOrderItems(tenant.id, items, {
+      online: true,
+      ...(deliveryList ? { priceOverrides: readPrices(deliveryList.prices), hiddenProductIds: deliveryList.hidden } : {}),
+    });
     if ("error" in priced) return NextResponse.json({ error: priced.error }, { status: 400 });
     const { linesCreate, cartLines, consumption, subtotalCents } = priced;
 
