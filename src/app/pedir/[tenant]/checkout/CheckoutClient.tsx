@@ -124,7 +124,10 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
         const response = await fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" });
         const menu = await response.json();
         if (!response.ok || !Array.isArray(menu.categories)) throw new Error(menu.error ?? "No se pudo cargar la carta delivery");
-        const prices = Object.fromEntries(menu.categories.flatMap((category: { products: { id: string; basePriceCents: number }[] }) => category.products.map((product) => [product.id, product.basePriceCents])) as [string, number][]);
+        const prices: Record<string, number> = {};
+        for (const category of menu.categories as { products: { id: string; basePriceCents: number }[] }[]) {
+          for (const product of category.products) prices[product.id] = product.basePriceCents;
+        }
         const hidden = Object.keys(productInfo).filter((id) => !Object.prototype.hasOwnProperty.call(prices, id));
         const removed = reprice(prices, Object.fromEntries(Object.entries(productInfo).map(([id, p]) => [id, p.basePriceCents])), hidden);
         setDeliveryBasePrices(prices);
@@ -138,11 +141,26 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
       return;
     }
     if (next === "TAKEAWAY" && priceMode === "DELIVERY") {
-      const removed = reprice(Object.fromEntries(Object.entries(productInfo).map(([id, p]) => [id, p.basePriceCents])), deliveryBasePrices);
-      setPriceMode("TAKEAWAY");
-      try { sessionStorage.removeItem("pedir-price-channel"); } catch {}
-      setChannel("TAKEAWAY");
-      if (removed) setError("Se quitaron productos que no están disponibles para recogida.");
+      try {
+        let currentDeliveryPrices = deliveryBasePrices;
+        if (Object.keys(currentDeliveryPrices).length === 0) {
+          const response = await fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" });
+          const menu = await response.json();
+          if (!response.ok || !Array.isArray(menu.categories)) throw new Error(menu.error ?? "No se pudo recuperar la carta delivery");
+          currentDeliveryPrices = {};
+          for (const category of menu.categories as { products: { id: string; basePriceCents: number }[] }[]) {
+            for (const product of category.products) currentDeliveryPrices[product.id] = product.basePriceCents;
+          }
+          setDeliveryBasePrices(currentDeliveryPrices);
+        }
+        const localPrices = Object.fromEntries(Object.entries(productInfo).map(([id, p]) => [id, p.basePriceCents]));
+        reprice(localPrices, currentDeliveryPrices);
+        setPriceMode("TAKEAWAY");
+        try { sessionStorage.removeItem("pedir-price-channel"); } catch {}
+        setChannel("TAKEAWAY");
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "No se pudo recuperar la carta del local");
+      }
       return;
     }
     setChannel(next);
