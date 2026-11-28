@@ -19,7 +19,7 @@ import { allergenName, enabledLangs, tr, type Lang } from "@/app/lib/i18n";
 // (en Vercel esa auto-llamada fallaba en producción).
 // storeId: el local elegido por el cliente (sucursales); si no vale, el primero abierto al público.
 // online: carta de la tienda (precio web si lo hay); sin él, la de Caja y Mesas (precio del local).
-export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: string | null, opts: { online?: boolean } = {}) {
+export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: string | null, opts: { online?: boolean; delivery?: boolean } = {}) {
   const tenant = await prisma.tenant.findUnique({
     where: { slug: tenantSlug },
     select: { id: true, slug: true, name: true, branding: true, settings: true, addons: true },
@@ -47,6 +47,14 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
   // Promociones en vigor y tarjeta de fidelidad (motor de retención).
   const perks = publicPerks(await loadPerks(tenant.id, tenant.settings, tenant.addons), lang);
 
+  // Carta asignada a la web propia: solo se aplica al canal DELIVERY.
+  const deliveryList = opts.delivery
+    ? await prisma.priceList.findFirst({ where: { tenantId: tenant.id, channels: { has: "web" } } })
+    : null;
+  const deliveryPrices = (deliveryList?.prices ?? {}) as Record<string, unknown>;
+  const deliveryDescriptions = (deliveryList?.descriptions ?? {}) as Record<string, unknown>;
+  const deliveryImages = (deliveryList?.images ?? {}) as Record<string, unknown>;
+
   // Categorías, productos y opciones: en caché por restaurante (ver menuCache.ts).
   const categories = await cachedMenuCategories(tenant.id);
   // «Lo más pedido» de cada categoría (ventas de los últimos 30 días).
@@ -59,11 +67,12 @@ export async function loadMenu(tenantSlug: string, lang: Lang = "es", storeId?: 
     ...cat,
     name: tr(catTr, lang, "name", cat.name),
     description: tr(catTr, lang, "description", cat.description),
-    products: cat.products.map(({ modifierGroups, recipeLines, translations: pTr, comboSlots, allergens: declared, onlinePriceCents, ...product }) => ({
+    products: cat.products.filter((p) => !deliveryList?.hidden.includes(p.id)).map(({ modifierGroups, recipeLines, translations: pTr, comboSlots, allergens: declared, onlinePriceCents, ...product }) => ({
       ...product,
-      basePriceCents: opts.online && onlinePriceCents != null ? onlinePriceCents : product.basePriceCents,
+      basePriceCents: opts.delivery && Number.isInteger(deliveryPrices[product.id]) ? deliveryPrices[product.id] as number : opts.online && onlinePriceCents != null ? onlinePriceCents : product.basePriceCents,
+      imageUrl: opts.delivery && typeof deliveryImages[product.id] === "string" ? deliveryImages[product.id] as string : product.imageUrl,
       name: tr(pTr, lang, "name", product.name),
-      description: tr(pTr, lang, "description", product.description ?? ""),
+      description: opts.delivery && typeof deliveryDescriptions[product.id] === "string" ? deliveryDescriptions[product.id] as string : tr(pTr, lang, "description", product.description ?? ""),
       // Los del escandallo más los declarados en Carta; las claves (en español) son para los iconos.
       allergens: productAllergens(recipeLines, declared).map((a) => allergenName(a, lang)),
       allergenKeys: productAllergens(recipeLines, declared),
