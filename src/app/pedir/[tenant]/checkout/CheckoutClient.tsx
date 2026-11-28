@@ -78,10 +78,13 @@ function submitPaymentForm(action: string, fields: Record<string, string>) {
 export default function CheckoutClient({ tenant, theme, settings, store, couponsEnabled = false, perks, productInfo = {}, deliveryPartners = [], lang = "es", payment = { card: false, bizum: false, inStore: true, test: false }, storeId = null, storeName = null, tenantName = null, checkout = DEFAULT_CHECKOUT, giftCardsEnabled = false }: CheckoutClientProps) {
   const T = ui(lang);
   const router = useRouter();
-  const { items, subtotalCents, clear, inc, dec } = useCart();
+  const { items, subtotalCents, clear, inc, dec, reprice } = useCart();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [channel, setChannel] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
+  const [priceMode, setPriceMode] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
+  const [deliveryBasePrices, setDeliveryBasePrices] = useState<Record<string, number>>({});
+  const [activeProductInfo, setActiveProductInfo] = useState(productInfo);
   const [address, setAddress] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [notes, setNotes] = useState("");
@@ -115,11 +118,85 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   // «A domicilio» con plataformas: abre «¿Con quién quieres tu pedido?» (como Burger King).
   const [chooser, setChooser] = useState(false);
   const takeawayOn = channel === "TAKEAWAY";
-  const pickDelivery = () => (deliveryPartners.length > 0 ? setChooser(true) : setChannel("DELIVERY"));
-  // Si en la carta ya eligió «Con <restaurante>», empezar en «A domicilio».
+  async function changeChannel(next: "TAKEAWAY" | "DELIVERY") {
+    if (next === channel) return;
+    if (next === "DELIVERY" && priceMode !== "DELIVERY") {
+      try {
+        const response = await fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" });
+        const menu = await response.json();
+        if (!response.ok || !Array.isArray(menu.categories)) throw new Error(menu.error ?? "No se pudo cargar la carta delivery");
+        const prices: Record<string, number> = {};
+        const nextInfo: typeof productInfo = {};
+        for (const category of menu.categories as { id: string; products: { id: string; basePriceCents: number }[] }[]) {
+          for (const product of category.products) {
+            prices[product.id] = product.basePriceCents;
+            nextInfo[product.id] = { categoryId: category.id, basePriceCents: product.basePriceCents };
+          }
+        }
+        setActiveProductInfo(nextInfo);
+        const hidden = Object.keys(productInfo).filter((id) => !Object.prototype.hasOwnProperty.call(prices, id));
+        const removed = reprice(prices, Object.fromEntries(Object.entries(productInfo).map(([id, p]) => [id, p.basePriceCents])), hidden);
+        setDeliveryBasePrices(prices);
+        setPriceMode("DELIVERY");
+        try { sessionStorage.setItem("pedir-price-channel", "DELIVERY"); } catch {}
+        setChannel("DELIVERY");
+        if (removed) setError("Algunos productos no están disponibles en la carta a domicilio y se quitaron del pedido.");
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "No se pudo cargar la carta delivery");
+      }
+      return;
+    }
+    if (next === "TAKEAWAY" && priceMode === "DELIVERY") {
+      try {
+        let currentDeliveryPrices = deliveryBasePrices;
+        if (Object.keys(currentDeliveryPrices).length === 0) {
+          const response = await fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" });
+          const menu = await response.json();
+          if (!response.ok || !Array.isArray(menu.categories)) throw new Error(menu.error ?? "No se pudo recuperar la carta delivery");
+          currentDeliveryPrices = {};
+          for (const category of menu.categories as { products: { id: string; basePriceCents: number }[] }[]) {
+            for (const product of category.products) currentDeliveryPrices[product.id] = product.basePriceCents;
+          }
+          setDeliveryBasePrices(currentDeliveryPrices);
+        }
+        const localPrices = Object.fromEntries(Object.entries(productInfo).map(([id, p]) => [id, p.basePriceCents]));
+        reprice(localPrices, currentDeliveryPrices);
+        setActiveProductInfo(productInfo);
+        setPriceMode("TAKEAWAY");
+        try { sessionStorage.removeItem("pedir-price-channel"); } catch {}
+        setChannel("TAKEAWAY");
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "No se pudo recuperar la carta del local");
+      }
+      return;
+    }
+    setChannel(next);
+  }
+  const pickDelivery = () => (deliveryPartners.length > 0 ? setChooser(true) : void changeChannel("DELIVERY"));
+  // Recupera el canal y el modo de precios elegidos en la carta.
   useEffect(() => {
     try {
-      if (sessionStorage.getItem("pedir-channel") === "DELIVERY" && settings?.deliveryEnabled) setChannel("DELIVERY");
+      const savedDelivery = sessionStorage.getItem("pedir-price-channel") === "DELIVERY" || (sessionStorage.getItem("pedir-channel") === "DELIVERY" && settings?.deliveryEnabled);
+      if (savedDelivery) {
+        setPriceMode("DELIVERY");
+        setChannel("DELIVERY");
+        fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" })
+          .then((r) => r.ok ? r.json() : null)
+          .then((menu) => {
+            if (!Array.isArray(menu?.categories)) return;
+            const prices: Record<string, number> = {};
+            const nextInfo: typeof productInfo = {};
+            for (const category of menu.categories as { id: string; products: { id: string; basePriceCents: number }[] }[]) {
+              for (const product of category.products) {
+                prices[product.id] = product.basePriceCents;
+                nextInfo[product.id] = { categoryId: category.id, basePriceCents: product.basePriceCents };
+              }
+            }
+            setDeliveryBasePrices(prices);
+            setActiveProductInfo(nextInfo);
+          })
+          .catch(() => {});
+      }
       sessionStorage.removeItem("pedir-channel");
     } catch {}
   }, [settings?.deliveryEnabled]);
@@ -177,7 +254,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
     perks?.loyalty && perksFor?.loyalty?.rewardAvailable
       ? rewardDiscount(
           perks.loyalty,
-          items.map((i) => ({ key: i.id, productId: i.productId, categoryId: productInfo[i.productId]?.categoryId ?? null, unitBaseCents: productInfo[i.productId]?.basePriceCents ?? 0, quantity: i.quantity }))
+          items.map((i) => ({ key: i.id, productId: i.productId, categoryId: activeProductInfo[i.productId]?.categoryId ?? null, unitBaseCents: activeProductInfo[i.productId]?.basePriceCents ?? 0, quantity: i.quantity }))
         )
       : null;
   const loyaltyDiscount = reward?.discountCents ?? 0;
@@ -476,7 +553,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 {takeawayEnabled && (
                   <button
                     type="button"
-                    onClick={() => setChannel("TAKEAWAY")}
+                    onClick={() => void changeChannel("TAKEAWAY")}
                     style={{ flex: 1, padding: "12px", borderRadius: "12px", border: `2px solid ${takeawayOn ? cssVars["--brand-accent"] : cssVars["--border"]}`, backgroundColor: takeawayOn ? `${cssVars["--brand-accent"]}15` : "transparent", color: takeawayOn ? cssVars["--brand-accent"] : cssVars["--text-secondary"], fontWeight: takeawayOn ? 700 : 400, fontSize: "14px", cursor: "pointer" }}
                   >
                     {T.pickup}
@@ -506,7 +583,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
                 <DeliveryChooser
                   partners={deliveryPartners}
                   ownName={deliveryEnabled ? tenantName || T.delivery : null}
-                  onOwn={() => { setChannel("DELIVERY"); setChooser(false); }}
+                  onOwn={() => { setChooser(false); void changeChannel("DELIVERY"); }}
                   onClose={() => setChooser(false)}
                   lang={lang}
                 />

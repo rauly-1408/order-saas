@@ -23,6 +23,7 @@ type CartState = {
   dec: (id: string) => void; // ✅ ahora por línea
   remove: (id: string) => void;
   clear: () => void;
+  reprice: (nextPrices: Record<string, number>, currentPrices: Record<string, number>, hiddenProductIds?: string[]) => number;
   subtotalCents: () => number;
 };
 
@@ -87,6 +88,21 @@ export const useCart = create<CartState>()(
         })),
 
       clear: () => set({ items: [] }),
+
+      // Cambia solo el precio base; conserva los suplementos de opciones y combos.
+      // Devuelve cuántas líneas se quitaron porque no se ofrecen en el nuevo canal.
+      reprice: (nextPrices, currentPrices, hiddenProductIds = []) => {
+        const hidden = new Set(hiddenProductIds);
+        const current = get().items;
+        const removed = current.filter((item) => hidden.has(item.productId)).length;
+        set({ items: current.filter((item) => !hidden.has(item.productId)).map((item) => {
+          const before = currentPrices[item.productId];
+          const after = nextPrices[item.productId];
+          if (!Number.isInteger(before) || !Number.isInteger(after)) return item;
+          return { ...item, unitPriceCents: Math.max(0, item.unitPriceCents + after - before) };
+        }) });
+        return removed;
+      },
 
       subtotalCents: () =>
         get().items.reduce((acc, i) => acc + i.unitPriceCents * i.quantity, 0),

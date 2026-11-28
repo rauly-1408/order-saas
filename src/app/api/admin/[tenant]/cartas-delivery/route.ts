@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   ]);
   return NextResponse.json({
     platforms: PARTNERS.map((p) => ({ key: p.key, label: p.label, added: !!links[p.key] })),
-    lists: lists.map((l) => ({ id: l.id, name: l.name, channels: l.channels, prices: readPrices(l.prices), descriptions: readDescriptions(l.descriptions), images: readImages(l.images), hidden: l.hidden, updatedAt: l.updatedAt })),
+    lists: lists.map((l) => ({ id: l.id, name: l.name, channels: l.channels.filter((c) => c !== "web"), webDelivery: l.channels.includes("web"), prices: readPrices(l.prices), descriptions: readDescriptions(l.descriptions), images: readImages(l.images), hidden: l.hidden, updatedAt: l.updatedAt })),
     categories: categories.filter((c) => c.products.length),
   });
 }

@@ -38,6 +38,7 @@ Carta → **Cartas delivery**. Las plataformas suelen llevar otros precios que e
   - un interruptor para quitar los platos que no se venden en esas plataformas.
   - Todo se guarda solo, al salir del campo.
 - **Asignar plataformas:** solo aparecen las **añadidas**, es decir, las que tienen su enlace en Configuración → Envío y entrega. Cada plataforma usa **una sola carta**: al asignarla a otra, se quita de la anterior. En la lista se ve qué carta usa cada plataforma y avisa si alguna está «sin carta».
+- **Web propia · A domicilio:** asignación independiente de Glovo, Uber Eats y Just Eat. Solo una carta puede estar asignada a la web propia; al elegir «A domicilio» desde la web del restaurante se muestran sus precios, descripciones, fotos y platos disponibles. «Recogida» mantiene la carta habitual del local. La asignación comparte el campo `PriceList.channels` con la clave interna `web`, sin interferir con las plataformas externas.
 - **Aún no se envía a las plataformas.** Cuando conectemos los pedidos de las plataformas (HubRise, ver docs/INTEGRACIONES.md), esta carta es la que se enviará a cada una y con la que se valorarán sus pedidos. Hasta entonces sirve de lista de precios de referencia.
 - **Técnica:**
   - modelo `PriceList` con `name`, `channels`, `prices { productId: céntimos }` y `hidden`; migración `*_cartas_delivery`;

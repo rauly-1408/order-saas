@@ -28,12 +28,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ te
       await prisma.priceList.update({ where: { id }, data: { name } });
       return NextResponse.json({ ok: true });
     }
+    if ("webDelivery" in b) {
+      if (typeof b.webDelivery !== "boolean") return NextResponse.json({ error: "Asignación web no válida" }, { status: 400 });
+      await prisma.$transaction(async (tx) => {
+        if (b.webDelivery === true) {
+          const others = await tx.priceList.findMany({ where: { tenantId: a.tenant.id, id: { not: id }, channels: { has: "web" } }, select: { id: true, channels: true } });
+          for (const other of others) await tx.priceList.update({ where: { id: other.id }, data: { channels: other.channels.filter((c) => c !== "web") } });
+        }
+        const channels = b.webDelivery === true ? [...new Set([...list.channels, "web"])] : list.channels.filter((c) => c !== "web");
+        await tx.priceList.update({ where: { id }, data: { channels } });
+      });
+      return NextResponse.json({ ok: true });
+    }
     if ("channels" in b) {
       if (!Array.isArray(b.channels) || !b.channels.every(isPartner)) return NextResponse.json({ error: "Plataforma no válida" }, { status: 400 });
-      const channels = [...new Set(b.channels)];
+      const platformChannels = [...new Set(b.channels)];
+      const channels = [...platformChannels, ...(list.channels.includes("web") ? ["web"] : [])];
       await prisma.$transaction(async (tx) => {
-        const others = await tx.priceList.findMany({ where: { tenantId: a.tenant.id, id: { not: id }, channels: { hasSome: channels } }, select: { id: true, channels: true } });
-        for (const o of others) await tx.priceList.update({ where: { id: o.id }, data: { channels: o.channels.filter((c) => !channels.includes(c as never)) } });
+        const others = await tx.priceList.findMany({ where: { tenantId: a.tenant.id, id: { not: id }, channels: { hasSome: platformChannels } }, select: { id: true, channels: true } });
+        for (const o of others) await tx.priceList.update({ where: { id: o.id }, data: { channels: o.channels.filter((c) => !platformChannels.includes(c as never)) } });
         await tx.priceList.update({ where: { id }, data: { channels } });
       });
       return NextResponse.json({ ok: true });

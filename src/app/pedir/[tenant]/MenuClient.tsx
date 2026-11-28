@@ -76,9 +76,10 @@ type MenuClientProps = {
 const euros = (cents: number) =>
   (cents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
-export default function MenuClient({ tenant, tenantName, categories, theme, settings, store, perks, online, deliveryPartners = [], business, hours, lang = "es", languages = ["es"], stores = [], storeId = null, reservations = false }: MenuClientProps) {
+export default function MenuClient({ tenant, tenantName, categories: initialCategories, theme, settings, store, perks, online, deliveryPartners = [], business, hours, lang = "es", languages = ["es"], stores = [], storeId = null, reservations = false }: MenuClientProps) {
   const T = ui(lang);
   const router = useRouter();
+  const [categories, setCategories] = useState(initialCategories);
   // Cambiar de idioma: se guarda la elección y se vuelve a pedir la página.
   function setLang(next: Lang) {
     rememberLang(next);
@@ -89,7 +90,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
     rememberStore(id);
     router.refresh();
   }
-  const { items, addItem, inc, dec, remove } = useCart();
+  const { items, addItem, inc, dec, remove, reprice } = useCart();
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   // Producto cuyo selector de opciones (pan, guarnición, extras) está abierto.
   const [optionsFor, setOptionsFor] = useState<MenuProduct | null>(null);
@@ -237,6 +238,36 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
   const visiblePromos = (perks?.promotions ?? []).filter((p) => settings?.deliveryEnabled || (p.channel !== "DELIVERY" && p.kind !== "FREE_DELIVERY"));
   const canSchedule = !!store?.slots && (store.slots.TAKEAWAY.length > 0 || store.slots.DELIVERY.length > 0);
   const firstSlug = categories[0]?.slug;
+  async function selectOwnDelivery() {
+    try {
+      const response = await fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" });
+      const menu = await response.json();
+      if (!response.ok || !Array.isArray(menu.categories)) throw new Error(menu.error ?? "No se pudo cargar la carta delivery");
+      const localPrices = Object.fromEntries(categories.flatMap((category) => category.products.map((product) => [product.id, product.basePriceCents] as [string, number])));
+      const deliveryPrices = Object.fromEntries(menu.categories.flatMap((category: { products: { id: string; basePriceCents: number }[] }) => category.products.map((product) => [product.id, product.basePriceCents] as [string, number])));
+      const hidden = Object.keys(localPrices).filter((id) => !Object.prototype.hasOwnProperty.call(deliveryPrices, id));
+      reprice(deliveryPrices, localPrices, hidden);
+      setCategories(menu.categories);
+      try { sessionStorage.setItem("pedir-channel", "DELIVERY"); sessionStorage.setItem("pedir-price-channel", "DELIVERY"); } catch {}
+      setChooser(false);
+      if (menu.categories[0]?.slug) scrollToCategory(menu.categories[0].slug);
+    } catch (error) {
+      console.error("[menu] no se pudo cargar la carta delivery", error);
+      setChooser(false);
+    }
+  }
+  // Si vuelve a la carta antes de pasar por checkout, conserva el canal elegido.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("pedir-price-channel") !== "DELIVERY") return;
+      let cancelled = false;
+      fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" })
+        .then((r) => r.ok ? r.json() : null)
+        .then((menu) => { if (!cancelled && Array.isArray(menu?.categories)) setCategories(menu.categories); })
+        .catch(() => {});
+      return () => { cancelled = true; };
+    } catch {}
+  }, [tenant]);
   // «A domicilio» abre «¿Con quién quieres tu pedido?» (como Burger King).
   const [chooser, setChooser] = useState(false);
 
@@ -270,7 +301,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
           onOwn={() => {
             try { sessionStorage.setItem("pedir-channel", "DELIVERY"); } catch {}
             setChooser(false);
-            if (firstSlug) scrollToCategory(firstSlug);
+            void selectOwnDelivery();
           }}
           onClose={() => setChooser(false)}
           lang={lang}
@@ -329,7 +360,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                 {store.status.open ? T.open : T.closed}
               </span>
             )}
-            {deliveryPartners.length > 0 && !settings?.deliveryEnabled ? (
+            {(settings?.deliveryEnabled || deliveryPartners.length > 0) ? (
               <button type="button" onClick={() => setChooser(true)} aria-haspopup="dialog" className="p-press hidden rounded-full px-4 py-2 text-[13px] font-bold sm:inline-block" style={{ backgroundColor: cssVars["--brand-secondary"], color: "var(--on-secondary)" }}>
                 🛵 {T.delivery}
               </button>
@@ -389,7 +420,7 @@ export default function MenuClient({ tenant, tenantName, categories, theme, sett
                 {T.seeMenu}
               </button>
             )}
-            {deliveryPartners.length > 0 && (
+            {(settings?.deliveryEnabled || deliveryPartners.length > 0) && (
               <button type="button" onClick={() => setChooser(true)} aria-haspopup="dialog" className="p-press rounded-full border-2 bg-transparent px-6 py-3 text-[15px] font-bold" style={{ borderColor: "currentColor", color: "inherit" }}>
                 🛵 {T.delivery}
               </button>

@@ -67,7 +67,7 @@ export function invalidLine(item: unknown): boolean {
 }
 
 // opts.online: pedido de la tienda online → se cobra el «Precio en la web» si el producto lo tiene.
-export async function priceOrderItems(tenantId: string, items: OrderLineInput[], opts: { allowDiscount?: boolean; online?: boolean } = {}): Promise<PricedItems | { error: string }> {
+export async function priceOrderItems(tenantId: string, items: OrderLineInput[], opts: { allowDiscount?: boolean; online?: boolean; priceOverrides?: Record<string, number>; hiddenProductIds?: string[] } = {}): Promise<PricedItems | { error: string }> {
   const productIds = [...new Set(items.map((i) => i.productId))];
   const groupsSelect = {
     orderBy: { sortOrder: "asc" as const },
@@ -104,7 +104,11 @@ export async function priceOrderItems(tenantId: string, items: OrderLineInput[],
       modifierGroups: groupsSelect,
     },
   });
-  const products = found.map(({ onlinePriceCents, ...p }) => ({ ...p, basePriceCents: opts.online && onlinePriceCents != null ? onlinePriceCents : p.basePriceCents }));
+  const hidden = new Set(opts.hiddenProductIds ?? []);
+  const products = found.filter((p) => !hidden.has(p.id)).map(({ onlinePriceCents, ...p }) => ({
+    ...p,
+    basePriceCents: opts.priceOverrides?.[p.id] ?? (opts.online && onlinePriceCents != null ? onlinePriceCents : p.basePriceCents),
+  }));
 
   // Productos elegidos dentro de los combos (tienen que estar disponibles).
   const choiceIds = [...new Set(items.flatMap((i) => (i.comboChoices ?? []).map((c) => c.productId)))];

@@ -12,7 +12,7 @@ import DeliveryItemFields, { parseEurosOrNull, type DeliveryItem } from "./Deliv
 // se asigna a las plataformas que quieras (cada plataforma usa una sola carta).
 // Se guarda solo. Ver docs/REPARTO-PLATAFORMAS.md
 type Platform = { key: "glovo" | "ubereats" | "justeat"; label: string; added: boolean };
-type List = { id: string; name: string; channels: string[]; prices: Record<string, number>; descriptions: Record<string, string>; images: Record<string, string>; hidden: string[] };
+type List = { id: string; name: string; channels: string[]; webDelivery: boolean; prices: Record<string, number>; descriptions: Record<string, string>; images: Record<string, string>; hidden: string[] };
 type Product = { id: string; name: string; description: string | null; imageUrl: string | null; basePriceCents: number; isActive: boolean };
 type Category = { id: string; name: string; products: Product[] };
 type Data = { platforms: Platform[]; lists: List[]; categories: Category[] };
@@ -90,7 +90,7 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
   }
 
   async function remove(l: List) {
-    if (!(await ask(`¿Borrar la carta «${l.name}»?${l.channels.length ? " Sus plataformas se quedan sin carta de delivery." : ""}`))) return;
+    if (!(await ask(`¿Borrar la carta «${l.name}»?${l.channels.length || l.webDelivery ? " Sus asignaciones se quedan sin carta de delivery." : ""}`))) return;
     const r = await fetch(`${api}/${l.id}`, { method: "DELETE" });
     if (!r.ok) return setError("No se pudo borrar la carta");
     setEditing(null);
@@ -127,7 +127,13 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
             }}
             className="mt-1 w-full rounded-xl bg-black/[0.04] px-3 py-2.5 text-lg font-semibold outline-none focus:ring-2 focus:ring-[var(--p-brand)]"
           />
-          <p className="mt-4 text-sm font-semibold">¿En qué plataformas se usa?</p>
+          <div className="mt-5 rounded-2xl border border-[var(--p-line)] p-3 sm:p-4">
+            <p className="text-sm font-semibold">¿Se usa en la web propia?</p>
+            <p className="mt-1 text-xs text-[var(--p-muted)]">Esta asignación es independiente de Glovo, Uber Eats y Just Eat. Al elegir «A domicilio» en tu web, el cliente verá esta carta.</p>
+            <button type="button" aria-pressed={list.webDelivery} onClick={() => { const webDelivery = !list.webDelivery; patchList(list.id, (l) => ({ ...l, webDelivery })); save(list.id, { webDelivery }, webDelivery ? "Asignada a Web propia · A domicilio" : "Quitada de Web propia · A domicilio"); }} className={`p-press mt-3 min-h-11 rounded-full border-2 px-4 text-sm font-semibold ${list.webDelivery ? "border-[var(--p-brand)] bg-[var(--p-brand-soft)] text-[var(--p-brand-strong)]" : "border-[var(--p-line)]"}`}>{list.webDelivery ? "✓ Web propia · A domicilio" : "＋ Asignar a Web propia · A domicilio"}</button>
+            {data.lists.some((l) => l.id !== list.id && l.webDelivery) && !list.webDelivery && <p className="mt-2 text-xs text-[var(--p-muted)]">Ahora mismo otra carta está asignada a la web propia. Al activar esta, la asignación anterior se moverá aquí.</p>}
+          </div>
+          <p className="mt-4 text-sm font-semibold">¿En qué plataformas externas se usa?</p>
           {added.length === 0 ? (
             <p className="mt-1 text-sm text-[var(--p-muted)]">
               Todavía no has añadido ninguna plataforma. Pega su enlace en{" "}
@@ -235,13 +241,18 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
   // ── Lista de cartas ──
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--p-muted)]">Las plataformas de reparto suelen llevar otros precios. Crea las cartas que quieras, pon el precio de cada plato a mano y elige en qué plataformas se usa cada una.</p>
+      <p className="text-sm text-[var(--p-muted)]">Crea cartas con precios propios y asigna cada una a la web de tu restaurante o a plataformas externas. «Web propia · A domicilio» controla los precios que ve el cliente al pedir en tu web.</p>
       {error && <p className="rounded-2xl bg-[var(--p-accent-soft)] px-4 py-3 text-sm text-[var(--p-accent)]" role="alert">{error}</p>}
       {added.length === 0 && (
         <p className="rounded-2xl bg-[var(--p-brand-soft)] px-4 py-3 text-sm text-[var(--p-brand-strong)]">
           Aún no has añadido plataformas. Pega el enlace de Glovo, Uber Eats o Just Eat en{" "}
           <Link href={`/admin/${tenant}/configuracion/entrega`} className="font-semibold underline">Configuración → Envío y entrega</Link> para poder asignarles una carta.
         </p>
+      )}
+      {data.lists.some((l) => l.webDelivery) ? (
+        <p className="rounded-full bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800"><b>Web propia · A domicilio:</b> {data.lists.find((l) => l.webDelivery)?.name}</p>
+      ) : (
+        <p className="rounded-full bg-amber-50 px-3 py-1.5 text-sm text-amber-900"><b>Web propia · A domicilio:</b> sin carta</p>
       )}
       {added.length > 0 && (
         <ul className="flex flex-wrap gap-2 text-sm">
@@ -274,7 +285,7 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
                       {changed} {changed === 1 ? "precio distinto" : "precios distintos"} del local{l.hidden.length ? ` · ${l.hidden.length} ${l.hidden.length === 1 ? "plato quitado" : "platos quitados"}` : ""}
                     </p>
                     <p className="mt-2 flex flex-wrap gap-1.5">
-                      {l.channels.length ? l.channels.map((c) => <span key={c} className="rounded-full bg-[var(--p-brand-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--p-brand-strong)]">{label(c)}</span>) : <span className="rounded-full bg-black/[0.05] px-2.5 py-1 text-xs text-[var(--p-muted)]">Sin plataforma</span>}
+                      {l.webDelivery && <span className="rounded-full bg-[var(--p-brand-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--p-brand-strong)]">Web propia · A domicilio</span>}{l.channels.map((c) => <span key={c} className="rounded-full bg-[var(--p-brand-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--p-brand-strong)]">{label(c)}</span>)}{!l.webDelivery && l.channels.length === 0 && <span className="rounded-full bg-black/[0.05] px-2.5 py-1 text-xs text-[var(--p-muted)]">Sin asignar</span>}
                     </p>
                   </button>
                   <div className="mt-3 flex flex-wrap gap-2">
