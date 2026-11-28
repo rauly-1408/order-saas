@@ -18,7 +18,7 @@ export default function CartaTabs({ tenant }: { tenant: string }) {
     <div className="text-[var(--p-ink)]">
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Carta</h1>
       <p className="mt-1 text-sm text-[var(--p-muted)]">Tus productos, sus opciones y los menús a precio cerrado</p>
-      <nav className="mt-6 mb-6 flex w-fit max-w-full flex-wrap gap-1 rounded-[22px] bg-black/[0.05] p-1">
+      <nav aria-label="Secciones de carta" className="mt-6 mb-6 grid w-full grid-cols-2 gap-2 sm:flex sm:w-fit sm:flex-wrap">
         {(
           [
             ["productos", "Productos"],
@@ -29,8 +29,10 @@ export default function CartaTabs({ tenant }: { tenant: string }) {
         ).map(([k, l]) => (
           <button
             key={k}
+            type="button"
+            aria-pressed={tab === k}
             onClick={() => setTab(k)}
-            className={`p-press shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-300 ${tab === k ? "bg-[var(--p-surface)] text-[var(--p-ink)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)] hover:text-[var(--p-ink)]"}`}
+            className={`p-press flex min-h-12 w-full items-center justify-center rounded-full px-3 py-2 text-center text-sm font-semibold leading-tight transition-colors duration-200 sm:w-auto sm:px-5 ${tab === k ? "bg-[var(--p-brand)] text-white shadow-sm" : "border border-[var(--p-line)] bg-[var(--p-surface)] text-[var(--p-ink)] hover:bg-black/[0.04]"}`}
           >
             {l}
           </button>
