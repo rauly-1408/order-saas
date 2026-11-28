@@ -84,6 +84,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   const [channel, setChannel] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
   const [priceMode, setPriceMode] = useState<"TAKEAWAY" | "DELIVERY">("TAKEAWAY");
   const [deliveryBasePrices, setDeliveryBasePrices] = useState<Record<string, number>>({});
+  const [activeProductInfo, setActiveProductInfo] = useState(productInfo);
   const [address, setAddress] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [notes, setNotes] = useState("");
@@ -125,9 +126,14 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
         const menu = await response.json();
         if (!response.ok || !Array.isArray(menu.categories)) throw new Error(menu.error ?? "No se pudo cargar la carta delivery");
         const prices: Record<string, number> = {};
-        for (const category of menu.categories as { products: { id: string; basePriceCents: number }[] }[]) {
-          for (const product of category.products) prices[product.id] = product.basePriceCents;
+        const nextInfo: typeof productInfo = {};
+        for (const category of menu.categories as { id: string; products: { id: string; basePriceCents: number }[] }[]) {
+          for (const product of category.products) {
+            prices[product.id] = product.basePriceCents;
+            nextInfo[product.id] = { categoryId: category.id, basePriceCents: product.basePriceCents };
+          }
         }
+        setActiveProductInfo(nextInfo);
         const hidden = Object.keys(productInfo).filter((id) => !Object.prototype.hasOwnProperty.call(prices, id));
         const removed = reprice(prices, Object.fromEntries(Object.entries(productInfo).map(([id, p]) => [id, p.basePriceCents])), hidden);
         setDeliveryBasePrices(prices);
@@ -155,6 +161,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
         }
         const localPrices = Object.fromEntries(Object.entries(productInfo).map(([id, p]) => [id, p.basePriceCents]));
         reprice(localPrices, currentDeliveryPrices);
+        setActiveProductInfo(productInfo);
         setPriceMode("TAKEAWAY");
         try { sessionStorage.removeItem("pedir-price-channel"); } catch {}
         setChannel("TAKEAWAY");
@@ -169,11 +176,26 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
   // Recupera el canal y el modo de precios elegidos en la carta.
   useEffect(() => {
     try {
-      if (sessionStorage.getItem("pedir-price-channel") === "DELIVERY") {
+      const savedDelivery = sessionStorage.getItem("pedir-price-channel") === "DELIVERY" || (sessionStorage.getItem("pedir-channel") === "DELIVERY" && settings?.deliveryEnabled);
+      if (savedDelivery) {
         setPriceMode("DELIVERY");
         setChannel("DELIVERY");
-      } else if (sessionStorage.getItem("pedir-channel") === "DELIVERY" && settings?.deliveryEnabled) {
-        setChannel("DELIVERY");
+        fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" })
+          .then((r) => r.ok ? r.json() : null)
+          .then((menu) => {
+            if (!Array.isArray(menu?.categories)) return;
+            const prices: Record<string, number> = {};
+            const nextInfo: typeof productInfo = {};
+            for (const category of menu.categories as { id: string; products: { id: string; basePriceCents: number }[] }[]) {
+              for (const product of category.products) {
+                prices[product.id] = product.basePriceCents;
+                nextInfo[product.id] = { categoryId: category.id, basePriceCents: product.basePriceCents };
+              }
+            }
+            setDeliveryBasePrices(prices);
+            setActiveProductInfo(nextInfo);
+          })
+          .catch(() => {});
       }
       sessionStorage.removeItem("pedir-channel");
     } catch {}
@@ -232,7 +254,7 @@ export default function CheckoutClient({ tenant, theme, settings, store, coupons
     perks?.loyalty && perksFor?.loyalty?.rewardAvailable
       ? rewardDiscount(
           perks.loyalty,
-          items.map((i) => ({ key: i.id, productId: i.productId, categoryId: productInfo[i.productId]?.categoryId ?? null, unitBaseCents: productInfo[i.productId]?.basePriceCents ?? 0, quantity: i.quantity }))
+          items.map((i) => ({ key: i.id, productId: i.productId, categoryId: activeProductInfo[i.productId]?.categoryId ?? null, unitBaseCents: activeProductInfo[i.productId]?.basePriceCents ?? 0, quantity: i.quantity }))
         )
       : null;
   const loyaltyDiscount = reward?.discountCents ?? 0;
