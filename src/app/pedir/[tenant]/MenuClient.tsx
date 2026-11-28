@@ -90,7 +90,7 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
     rememberStore(id);
     router.refresh();
   }
-  const { items, addItem, inc, dec, remove } = useCart();
+  const { items, addItem, inc, dec, remove, reprice } = useCart();
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   // Producto cuyo selector de opciones (pan, guarnición, extras) está abierto.
   const [optionsFor, setOptionsFor] = useState<MenuProduct | null>(null);
@@ -243,6 +243,10 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
       const response = await fetch(`/api/menu/${tenant}?channel=DELIVERY`, { cache: "no-store" });
       const menu = await response.json();
       if (!response.ok || !Array.isArray(menu.categories)) throw new Error(menu.error ?? "No se pudo cargar la carta delivery");
+      const localPrices = Object.fromEntries(categories.flatMap((category) => category.products.map((product) => [product.id, product.basePriceCents] as [string, number])));
+      const deliveryPrices = Object.fromEntries(menu.categories.flatMap((category: { products: { id: string; basePriceCents: number }[] }) => category.products.map((product) => [product.id, product.basePriceCents] as [string, number])));
+      const hidden = Object.keys(localPrices).filter((id) => !Object.prototype.hasOwnProperty.call(deliveryPrices, id));
+      reprice(deliveryPrices, localPrices, hidden);
       setCategories(menu.categories);
       try { sessionStorage.setItem("pedir-channel", "DELIVERY"); sessionStorage.setItem("pedir-price-channel", "DELIVERY"); } catch {}
       setChooser(false);
