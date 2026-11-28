@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
     promotions: promotions.map((p) => ({ ...p, ...(usesByPromo.get(p.id) ?? { uses: 0, discountCents: 0 }) })),
     loyalty: loyalty && { ...loyalty, rewardsGiven: loyaltyUses._count, rewardsCents: loyaltyUses._sum.loyaltyDiscountCents ?? 0 },
     categories,
-    products: products.map((p) => ({ id: p.id, name: p.name, active: p.isActive, categoryName: p.category.name })),
+    products: products.map((p) => ({ id: p.id, name: p.name, active: p.isActive, categoryId: p.categoryId, categoryName: p.category.name })),
     campaigns: campaigns.map(({ sends, ...c }) => ({
       ...c,
       couponCode: c.coupon?.code ?? null,
