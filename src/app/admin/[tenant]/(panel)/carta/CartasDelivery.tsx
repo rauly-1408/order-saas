@@ -255,7 +255,7 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
         <p className="rounded-full bg-amber-50 px-3 py-1.5 text-sm text-amber-900"><b>Web propia · A domicilio:</b> sin carta</p>
       )}
       {added.length > 0 && (
-        <ul className="flex flex-wrap gap-2 text-sm>
+        <ul className="flex flex-wrap gap-2 text-sm">
           {added.map((p) => {
             const l = data.lists.find((x) => x.channels.includes(p.key));
             return (
