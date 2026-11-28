@@ -253,11 +253,13 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
       const hidden = Object.keys(localPrices).filter((id) => !Object.prototype.hasOwnProperty.call(deliveryPrices, id));
       reprice(deliveryPrices, localPrices, hidden);
       setCategories(menu.categories);
+      setDeliveryLoadError("");
       try { sessionStorage.setItem("pedir-channel", "DELIVERY"); sessionStorage.setItem("pedir-price-channel", "DELIVERY"); } catch {}
       setChooser(false);
       if (menu.categories[0]?.slug) scrollToCategory(menu.categories[0].slug);
     } catch (error) {
       console.error("[menu] no se pudo cargar la carta delivery", error);
+      setDeliveryLoadError(error instanceof Error ? error.message : "No se pudo cargar la carta a domicilio. Inténtalo de nuevo.");
       setChooser(false);
     }
   }
