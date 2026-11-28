@@ -191,7 +191,8 @@ function PromotionFields({ form, products, categories, onChange }: { form: Form;
   const toggleDay = (d: number) => onChange({ ...form, weekdays: form.weekdays.includes(d) ? form.weekdays.filter((x) => x !== d) : [...form.weekdays, d] });
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
-  const selectedCategory = categories.find((category) => category.id === activeCategoryId) ?? categories[0] ?? null;
+  const availableCategories = categories.filter((category) => products.some((product) => product.categoryId === category.id && product.active));
+  const selectedCategory = availableCategories.find((category) => category.id === activeCategoryId) ?? availableCategories[0] ?? null;
   const categoryProducts = selectedCategory ? products.filter((product) => product.categoryId === selectedCategory.id && product.active) : [];
   const selectedInCategory = categoryProducts.filter((product) => form.productIds.includes(product.id)).length;
   const toggleCategory = (categoryId: string, checked: boolean) => {
@@ -242,7 +243,7 @@ function PromotionFields({ form, products, categories, onChange }: { form: Form;
               <p className="text-sm font-semibold">Selección por categoría</p>
               <p className="text-xs text-[var(--p-muted)]">Abrí una categoría para ver y marcar sus productos.</p>
             </div>
-            <button type="button" onClick={() => { setActiveCategoryId(categories[0]?.id ?? null); setCategoryPickerOpen(true); }} disabled={categories.length === 0} className="p-press rounded-xl border border-[var(--p-line)] bg-[var(--p-surface)] px-4 py-2 text-sm font-semibold text-[var(--p-brand)] hover:border-[var(--p-brand)] disabled:opacity-50">
+            <button type="button" onClick={() => { setActiveCategoryId(availableCategories[0]?.id ?? null); setCategoryPickerOpen(true); }} disabled={availableCategories.length === 0} className="p-press rounded-xl border border-[var(--p-line)] bg-[var(--p-surface)] px-4 py-2 text-sm font-semibold text-[var(--p-brand)] hover:border-[var(--p-brand)] disabled:opacity-50">
               Ver categorías y productos
             </button>
           </div>
@@ -272,7 +273,7 @@ function PromotionFields({ form, products, categories, onChange }: { form: Form;
                 </header>
                 <div className="grid min-h-0 flex-1 sm:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.5fr)]">
                   <nav aria-label="Categorías" className="max-h-40 space-y-1 overflow-y-auto border-b border-[var(--p-line)] p-3 sm:max-h-none sm:border-b-0 sm:border-r">
-                    {categories.map((category) => {
+                    {availableCategories.map((category) => {
                       const items = products.filter((product) => product.categoryId === category.id && product.active);
                       if (items.length === 0) return null;
                       const count = items.filter((product) => form.productIds.includes(product.id)).length;
