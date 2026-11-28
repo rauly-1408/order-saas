@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     prisma.promotion.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } }),
     prisma.loyaltyProgram.findUnique({ where: { tenantId } }),
     prisma.category.findMany({ where: { tenantId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
-    prisma.product.findMany({ where: { tenantId, isCombo: false }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, isActive: true, category: { select: { name: true } } } }),
+    prisma.product.findMany({ where: { tenantId, isCombo: false }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, isActive: true, categoryId: true, category: { select: { name: true } } } }),
     prisma.order.groupBy({ by: ["promotionId"], where: { tenantId, promotionId: { not: null }, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } }, _count: true, _sum: { promotionDiscountCents: true } }),
     prisma.order.aggregate({ where: { tenantId, loyaltyReward: true, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } }, _count: true, _sum: { loyaltyDiscountCents: true } }),
   ]);

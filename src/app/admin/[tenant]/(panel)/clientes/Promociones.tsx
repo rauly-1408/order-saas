@@ -136,7 +136,7 @@ export default function Promociones({ data, api, onSaved }: { data: Overview; ap
       {form && (
         <div className={`${card} p-4 sm:p-6`}>
           <h3 className="mb-4 text-[17px] font-semibold">{form.id ? "Editar promoción" : "Nueva promoción"}</h3>
-          <PromotionFields form={form} products={data.products} onChange={setForm} />
+          <PromotionFields form={form} products={data.products} categories={data.categories} onChange={setForm} />
           {error && <p className="mt-3 text-sm text-[var(--p-accent)]">{error}</p>}
           <div className="mt-5 flex flex-wrap gap-2">
             <button onClick={save} disabled={saving} className={primaryBtn}>
@@ -187,7 +187,7 @@ export default function Promociones({ data, api, onSaved }: { data: Overview; ap
   );
 }
 
-function PromotionFields({ form, products, onChange }: { form: Form; products: Overview["products"]; onChange: (f: Form) => void }) {
+function PromotionFields({ form, products, categories, onChange }: { form: Form; products: Overview["products"]; categories: Overview["categories"]; onChange: (f: Form) => void }) {
   const toggleDay = (d: number) => onChange({ ...form, weekdays: form.weekdays.includes(d) ? form.weekdays.filter((x) => x !== d) : [...form.weekdays, d] });
   const pill = (on: boolean) => `p-press rounded-full px-3 py-1 text-sm font-medium ${on ? "bg-[var(--p-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-[var(--p-muted)]"}`;
   return (
@@ -216,6 +216,31 @@ function PromotionFields({ form, products, onChange }: { form: Form; products: O
         <div className="sm:col-span-2 rounded-xl border border-[var(--p-line)] p-3">
           <label className={label}>Productos incluidos</label>
           <p className="mb-2 text-xs text-[var(--p-muted)]">Se descuenta el porcentaje indicado en la segunda unidad y en cada pareja adicional (4.ª, 6.ª…).</p>
+          {categories.length > 0 && (
+            <div className="mb-3 rounded-lg bg-black/[0.03] p-3">
+              <p className="mb-2 text-xs font-semibold text-[var(--p-muted)]">Seleccionar por categoría</p>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => {
+                  const categoryProducts = products.filter((product) => product.categoryId === category.id && product.active);
+                  if (categoryProducts.length === 0) return null;
+                  const selectedCount = categoryProducts.filter((product) => form.productIds.includes(product.id)).length;
+                  const checked = selectedCount === categoryProducts.length;
+                  return (
+                    <label key={category.id} className="flex cursor-pointer items-center gap-2 rounded-full border border-[var(--p-line)] bg-[var(--p-surface)] px-3 py-1.5 text-sm">
+                      <input type="checkbox" checked={checked} onChange={(e) => {
+                        const ids = categoryProducts.map((product) => product.id);
+                        const nextIds = e.target.checked ? [...new Set([...form.productIds, ...ids])] : form.productIds.filter((id) => !ids.includes(id));
+                        onChange({ ...form, productIds: nextIds });
+                      }} className="h-4 w-4 accent-[var(--p-brand)]" />
+                      <span>{category.name}</span>
+                      <span className="text-xs text-[var(--p-muted)]">{selectedCount}/{categoryProducts.length}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <p className="mb-2 text-xs font-semibold text-[var(--p-muted)]">O elegí productos individuales</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {products.map((product) => (
               <label key={product.id} className={`flex items-center gap-2 text-sm ${product.active ? "" : "opacity-50"}`}>
