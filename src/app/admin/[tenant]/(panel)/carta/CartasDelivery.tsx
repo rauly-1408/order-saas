@@ -97,6 +97,24 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
     await load();
   }
 
+  async function saveWebDelivery(id: string, webDelivery: boolean) {
+    setBusy(true);
+    setError("");
+    setStatus("Guardando cambios…");
+    try {
+      const r = await fetch(`${api}/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ webDelivery }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error ?? "No se pudo guardar la asignación");
+      await load();
+      setStatus(webDelivery ? "✓ Carta asignada a Web propia · A domicilio" : "✓ Asignación quitada de Web propia · A domicilio");
+    } catch (e) {
+      setStatus("");
+      setError(e instanceof Error ? e.message : "No se pudo guardar la asignación");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!data) return <p className="py-10 text-center text-sm text-[var(--p-muted)]">{error || "Cargando…"}</p>;
   const label = (k: string) => data.platforms.find((p) => p.key === k)?.label ?? k;
   const added = data.platforms.filter((p) => p.added);
@@ -127,12 +145,12 @@ export default function CartasDelivery({ tenant }: { tenant: string }) {
             }}
             className="mt-1 w-full rounded-xl bg-black/[0.04] px-3 py-2.5 text-lg font-semibold outline-none focus:ring-2 focus:ring-[var(--p-brand)]"
           />
-          <div className="mt-5 rounded-2xl border border-[var(--p-line)] p-3 sm:p-4">
-            <p className="text-sm font-semibold">¿Se usa en la web propia?</p>
-            <p className="mt-1 text-xs text-[var(--p-muted)]">Esta asignación es independiente de Glovo, Uber Eats y Just Eat. Al elegir «A domicilio» en tu web, el cliente verá esta carta.</p>
-            <button type="button" aria-pressed={list.webDelivery} onClick={() => { const webDelivery = !list.webDelivery; patchList(list.id, (l) => ({ ...l, webDelivery })); save(list.id, { webDelivery }, webDelivery ? "Asignada a Web propia · A domicilio" : "Quitada de Web propia · A domicilio"); }} className={`p-press mt-3 min-h-11 rounded-full border-2 px-4 text-sm font-semibold ${list.webDelivery ? "border-[var(--p-brand)] bg-[var(--p-brand-soft)] text-[var(--p-brand-strong)]" : "border-[var(--p-line)]"}`}>{list.webDelivery ? "✓ Web propia · A domicilio" : "＋ Asignar a Web propia · A domicilio"}</button>
-            {data.lists.some((l) => l.id !== list.id && l.webDelivery) && !list.webDelivery && <p className="mt-2 text-xs text-[var(--p-muted)]">Ahora mismo otra carta está asignada a la web propia. Al activar esta, la asignación anterior se moverá aquí.</p>}
-          </div>
+          <WebDeliveryAssignment
+            assigned={list.webDelivery}
+            anotherAssigned={data.lists.some((l) => l.id !== list.id && l.webDelivery)}
+            busy={busy}
+            onSave={(value) => saveWebDelivery(list.id, value)}
+          />
           <p className="mt-4 text-sm font-semibold">¿En qué plataformas externas se usa?</p>
           {added.length === 0 ? (
             <p className="mt-1 text-sm text-[var(--p-muted)]">
@@ -355,5 +373,39 @@ function ItemSheet({ tenant, list, product, onClose, onSaved }: { tenant: string
       </div>
     </div>,
     portal
+  );
+}
+
+
+function WebDeliveryAssignment({ assigned, anotherAssigned, busy, onSave }: { assigned: boolean; anotherAssigned: boolean; busy: boolean; onSave: (value: boolean) => Promise<void> }) {
+  const [draft, setDraft] = useState(assigned);
+  useEffect(() => setDraft(assigned), [assigned]);
+  const changed = draft !== assigned;
+  return (
+    <div className="mt-5 rounded-2xl border border-[var(--p-line)] p-3 sm:p-4">
+      <p className="text-sm font-semibold">¿Se usa en la web propia?</p>
+      <p className="mt-1 text-xs text-[var(--p-muted)]">Esta asignación es independiente de Glovo, Uber Eats y Just Eat. Al elegir «A domicilio» en tu web, el cliente verá esta carta.</p>
+      <button
+        type="button"
+        aria-pressed={draft}
+        disabled={busy}
+        onClick={() => setDraft((value) => !value)}
+        className={`p-press mt-3 min-h-11 rounded-full border-2 px-4 text-sm font-semibold disabled:opacity-60 ${draft ? "border-[var(--p-brand)] bg-[var(--p-brand-soft)] text-[var(--p-brand-strong)]" : "border-[var(--p-line)]"}`}
+      >
+        {draft ? "✓ Web propia · A domicilio" : "＋ Asignar a Web propia · A domicilio"}
+      </button>
+      {anotherAssigned && !assigned && draft && <p className="mt-2 text-xs text-[var(--p-muted)]">Al guardar, la asignación anterior se moverá a esta carta.</p>}
+      {changed ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button type="button" disabled={busy} onClick={() => void onSave(draft)} className={BTN.primary}>
+            {busy ? "Guardando…" : "Guardar cambios"}
+          </button>
+          <button type="button" disabled={busy} onClick={() => setDraft(assigned)} className={BTN.secondary}>Cancelar</button>
+          <span className="text-xs text-[var(--p-muted)]">Tenés cambios sin guardar.</span>
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-[var(--p-muted)]">{assigned ? "Esta carta está asignada y los cambios están guardados." : "Esta carta no está asignada a la web propia."}</p>
+      )}
+    </div>
   );
 }
