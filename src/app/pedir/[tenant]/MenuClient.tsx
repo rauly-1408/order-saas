@@ -80,6 +80,7 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
   const T = ui(lang);
   const router = useRouter();
   const [categories, setCategories] = useState(initialCategories);
+  const [deliveryLoadError, setDeliveryLoadError] = useState("");
   // Cambiar de idioma: se guarda la elección y se vuelve a pedir la página.
   function setLang(next: Lang) {
     rememberLang(next);
@@ -294,6 +295,13 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
 
   return (
     <div ref={rootRef} className="min-h-screen" style={{ backgroundColor: cssVars["--bg-base"], color: cssVars["--text-primary"], fontFamily: cssVars["--font-body"], ...(cssVars as any) }}>
+      {deliveryLoadError && (
+        <div role="alert" className="mx-auto max-w-3xl px-4 pt-4">
+          <div className="rounded-xl border border-amber-400/50 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            {deliveryLoadError}
+          </div>
+        </div>
+      )}
       {chooser && (
         <DeliveryChooser
           partners={deliveryPartners}
