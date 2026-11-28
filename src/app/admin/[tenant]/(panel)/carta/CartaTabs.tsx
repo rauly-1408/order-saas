@@ -7,6 +7,7 @@ import Opciones from "./Opciones";
 import CartasDelivery from "./CartasDelivery";
 import Link from "next/link";
 import { useTabFromUrl } from "../useTabFromUrl";
+import { BTN } from "../buttons";
 
 const TAB_KEYS = ["productos", "opciones", "combos", "delivery"] as const;
 
@@ -18,7 +19,10 @@ export default function CartaTabs({ tenant }: { tenant: string }) {
     <div className="text-[var(--p-ink)]">
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Carta</h1>
       <p className="mt-1 text-sm text-[var(--p-muted)]">Tus productos, sus opciones y los menús a precio cerrado</p>
-      <nav aria-label="Secciones de carta" className="mt-6 mb-6 grid w-full grid-cols-2 gap-2 sm:flex sm:w-fit sm:flex-wrap">
+      <nav
+        aria-label="Secciones de carta"
+        className="mt-6 mb-6 grid w-full grid-cols-2 gap-2 sm:flex sm:w-fit sm:flex-wrap"
+      >
         {(
           [
             ["productos", "Productos"],
@@ -32,7 +36,7 @@ export default function CartaTabs({ tenant }: { tenant: string }) {
             type="button"
             aria-pressed={tab === k}
             onClick={() => setTab(k)}
-            className={`p-press flex min-h-12 w-full items-center justify-center rounded-full px-3 py-2 text-center text-sm font-semibold leading-tight transition-colors duration-200 sm:w-auto sm:px-5 ${tab === k ? "bg-[var(--p-brand)] text-white shadow-sm" : "border border-[var(--p-line)] bg-[var(--p-surface)] text-[var(--p-ink)] hover:bg-black/[0.04]"}`}
+            className={`${tab === k ? BTN.primary : BTN.secondary} min-h-12 w-full px-3 text-center text-[13px] leading-snug transition-colors duration-200 hover:brightness-[0.98] sm:w-auto sm:px-5 sm:text-sm`}
           >
             {l}
           </button>
