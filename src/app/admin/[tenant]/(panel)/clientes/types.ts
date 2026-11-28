@@ -82,7 +82,7 @@ export type Overview = {
   promotions: PromotionRow[];
   loyalty: LoyaltyRow | null;
   categories: { id: string; name: string }[];
-  products: { id: string; name: string; active: boolean; categoryName: string }[];
+  products: { id: string; name: string; active: boolean; categoryId: string; categoryName: string }[];
   campaigns: CampaignRow[];
 };
 
