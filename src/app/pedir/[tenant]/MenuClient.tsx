@@ -449,7 +449,7 @@ export default function MenuClient({ tenant, tenantName, categories: initialCate
               </button>
             )}
             {(settings?.deliveryEnabled || deliveryPartners.length > 0) && (
-              <button type="button" onClick={() => setChooser(true)} aria-haspopup="dialog" className="p-press rounded-full border-2 bg-transparent px-6 py-3 text-[15px] font-bold" style={{ borderColor: "currentColor", color: "inherit" }}>
+              <button type="button" onClick={() => void selectOwnDelivery()} className="p-press rounded-full border-2 bg-transparent px-6 py-3 text-[15px] font-bold" style={{ borderColor: "currentColor", color: "inherit" }}>
                 🛵 {T.delivery}
               </button>
             )}
